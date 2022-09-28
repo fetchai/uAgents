@@ -42,9 +42,7 @@ jobs:
         run: poetry install --no-interaction --no-root
 
       - run: poetry install --no-interaction
-      - run: poetry run isort -c .
-      - run: poetry run black --check .
-      - run: poetry run pylint $(git ls-files '*.py')
+      - run: poetry run pytest
 
   linting:
     name: Lint & Formatting
