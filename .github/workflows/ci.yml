@@ -51,6 +51,8 @@ jobs:
 
     - run: poetry install --no-interaction
 
+    - run: isort -c .
+
 #    - name: Install dependencies
 #      run: |
 #        python3 -m pip install --upgrade pip
