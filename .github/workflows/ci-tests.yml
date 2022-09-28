@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - chore/initial-ci
 
   pull_request:
     branches:
