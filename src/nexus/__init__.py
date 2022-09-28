@@ -1,7 +1,7 @@
+import asyncio
 import functools
 import time
-import asyncio
-from typing import Any, Dict, List, Optional, Tuple, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel
 
