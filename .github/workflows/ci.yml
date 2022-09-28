@@ -51,8 +51,8 @@ jobs:
 
     - run: poetry install --no-interaction
 
-    - run: isort -c .
-    - run: black --check .
+    - run: poetry run isort -c .
+    - run: poetry run black --check .
 
 #    - name: Install dependencies
 #      run: |
