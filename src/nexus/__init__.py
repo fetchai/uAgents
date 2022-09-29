@@ -49,8 +49,8 @@ MessageCallback = Callable[[Context, str, Any], Awaitable[None]]
 
 async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
     while True:
-        await asyncio.sleep(period)
         await func(ctx)
+        await asyncio.sleep(period)
 
 
 def _build_model_digest(model):
