@@ -1,9 +1,7 @@
-from pydantic import BaseModel
-
-from nexus import Agent, Bureau, Context
+from nexus import Agent, Bureau, Context, Model
 
 
-class Message(BaseModel):
+class Message(Model):
     message: str
 
 

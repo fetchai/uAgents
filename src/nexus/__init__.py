@@ -19,6 +19,10 @@ class Envelope(BaseModel):
 dispatcher = Dispatcher()
 
 
+class Model(BaseModel):
+    pass
+
+
 class Context:
     def __init__(self, address: str, name: Optional[str]):
         self._name = name
