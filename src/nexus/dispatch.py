@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Set, Dict
+from typing import Dict, Set
 
 
 class Sink(ABC):
@@ -23,5 +23,5 @@ class Dispatcher:
         self._sinks[address] = destinations
 
     async def dispatch(self, sender: str, destination: str, message):
-        for destination in self._sinks.get(destination, set()):
-            await destination.handle_message(sender, message)
+        for handler in self._sinks.get(destination, set()):
+            await handler.handle_message(sender, message)

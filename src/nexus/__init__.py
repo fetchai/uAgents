@@ -6,7 +6,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 from pydantic import BaseModel
 
 from nexus.crypto import Identity
-from nexus.dispatch import Sink, Dispatcher
+from nexus.dispatch import Dispatcher, Sink
 
 
 class Envelope(BaseModel):
@@ -32,8 +32,7 @@ class Context:
     def name(self) -> str:
         if self._name is not None:
             return self._name
-        else:
-            return self._address[:10]
+        return self._address[:10]
 
     @property
     def address(self) -> str:
@@ -54,7 +53,11 @@ async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
 
 
 def _build_model_digest(model):
-    return hashlib.sha256(model.schema_json(indent=None, sort_keys=True).encode('utf8')).digest().hex()
+    return (
+        hashlib.sha256(model.schema_json(indent=None, sort_keys=True).encode("utf8"))
+        .digest()
+        .hex()
+    )
 
 
 class Agent(Sink):
@@ -65,8 +68,8 @@ class Agent(Sink):
         self._loop = asyncio.get_event_loop()
         self._identity = Identity()
         self._ctx = Context(self._identity.address, self._name)
-        self._models = dict()
-        self._message_handlers = dict()
+        self._models = {}
+        self._message_handlers = {}
         self._dispatcher = dispatcher
         self._message_queue = asyncio.Queue()
 
@@ -82,8 +85,7 @@ class Agent(Sink):
     def name(self) -> str:
         if self._name is not None:
             return self._name
-        else:
-            return self.address[:10]
+        return self.address[:10]
 
     @property
     def address(self) -> str:
