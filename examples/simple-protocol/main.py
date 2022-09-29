@@ -17,12 +17,12 @@ async def send_message(ctx: Context):
 
 
 @alice.on_message(model=Message)
-async def recv_message_a(ctx: Context, sender: str, msg: Message):
+async def alice_rx_message(ctx: Context, sender: str, msg: Message):
     print(f'[{ctx.name:5}] From: {sender} {msg.message}')
 
 
 @bob.on_message(model=Message)
-async def recv_message(ctx: Context, sender: str, msg: Message):
+async def bob_rx_message(ctx: Context, sender: str, msg: Message):
     print(f'[{ctx.name:5}] From: {sender} {msg.message}')
 
     # send the response
