@@ -60,7 +60,7 @@ class Context:
     def address(self) -> str:
         return self._address
 
-    async def send(self, destination: str, message: BaseModel):
+    async def send(self, destination: str, message: Model):
         await dispatcher.dispatch(self.address, destination, message)
 
 
