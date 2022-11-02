@@ -23,8 +23,30 @@ class Model(BaseModel):
     pass
 
 
+class KeyValueStore:
+    def __init__(self):
+        self._data = {}
+
+    def get(self, key: str) -> Optional[Any]:
+        return self._data.get(key)
+
+    def has(self, key: str) -> bool:
+        return key in self._data
+
+    def set(self, key: str, value: Any):
+        self._data[key] = value
+
+    def remove(self, key: str):
+        if key in self._data:
+            del self._data[key]
+
+    def clear(self):
+        self._data.clear()
+
+
 class Context:
-    def __init__(self, address: str, name: Optional[str]):
+    def __init__(self, address: str, name: Optional[str], storage: KeyValueStore):
+        self.storage = storage
         self._name = name
         self._address = str(address)
 
@@ -67,7 +89,8 @@ class Agent(Sink):
         self._background_tasks = set()
         self._loop = asyncio.get_event_loop()
         self._identity = Identity()
-        self._ctx = Context(self._identity.address, self._name)
+        self._storage = KeyValueStore()
+        self._ctx = Context(self._identity.address, self._name, self._storage)
         self._models = {}
         self._message_handlers = {}
         self._dispatcher = dispatcher
