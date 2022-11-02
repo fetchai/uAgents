@@ -82,6 +82,54 @@ def _build_model_digest(model):
     )
 
 
+class Protocol:
+    def __init__(self):
+        self._intervals = []
+        self._message_handlers = {}
+        self._models = {}
+
+    @property
+    def intervals(self):
+        return self._intervals
+
+    @property
+    def models(self):
+        return self._models
+
+    @property
+    def message_handlers(self):
+        return self._message_handlers
+
+    def on_interval(self, period: float):
+        def decorator_on_interval(func: IntervalCallback):
+            @functools.wraps(func)
+            def handler(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            # store the interval handler for later
+            self._intervals.append((func, period))
+
+            return handler
+
+        return decorator_on_interval
+
+    def on_message(self, model):
+        def decorator_on_message(func: MessageCallback):
+            @functools.wraps(func)
+            def handler(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            schema_digest = _build_model_digest(model)
+
+            # update the model database
+            self._models[schema_digest] = model
+            self._message_handlers[schema_digest] = func
+
+            return handler
+
+        return decorator_on_message
+
+
 class Agent(Sink):
     def __init__(self, name: Optional[str] = None):
         self._name = name
@@ -147,6 +195,26 @@ class Agent(Sink):
             return handler
 
         return decorator_on_message
+
+    def include(self, protocol: Protocol):
+        for func, period in protocol.intervals:
+            task = self._loop.create_task(_run_interval(func, self._ctx, period))
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
+
+        for schema_digest in protocol.models:
+            if schema_digest in self._models:
+                raise RuntimeError("Unable to register duplicate model")
+            if schema_digest in self._message_handlers:
+                raise RuntimeError("Unable to register duplicate message handler")
+            if schema_digest not in protocol.message_handlers:
+                raise RuntimeError("Unable to lookup up message handler in protocol")
+
+            # include the message handlers from the protocol
+            self._models[schema_digest] = protocol.models[schema_digest]
+            self._message_handlers[schema_digest] = protocol.message_handlers[
+                schema_digest
+            ]
 
     async def handle_message(self, sender, message):
         schema_digest = _build_model_digest(message)
