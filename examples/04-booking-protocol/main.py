@@ -42,7 +42,6 @@ async def interval(ctx: Context):
 async def handle_query_response(ctx: Context, _sender: str, msg: QueryTableResponse):
     if msg.status == TableStatus.FREE:
         print("Table is free, attempting to book it now")
-        ctx.storage.set("status", "reserving")
         await ctx.send(restuarant.address, BookTableRequest(table_number=42))
     else:
         print("Table is not free - nothing more to do")
@@ -69,7 +68,7 @@ async def handle_query_request(ctx: Context, sender: str, msg: QueryTableRequest
 
 
 @restuarant.on_message(model=BookTableRequest)
-async def bob_rx_message(ctx: Context, sender: str, msg: BookTableRequest):
+async def handle_book_request(ctx: Context, sender: str, msg: BookTableRequest):
     if ctx.storage.has(str(msg.table_number)):
         success = False
     else:
