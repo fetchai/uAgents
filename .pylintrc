@@ -4,5 +4,6 @@ disable=missing-module-docstring,
         missing-function-docstring,
         no-name-in-module,
         too-few-public-methods,
-        too-many-instance-attributes
+        too-many-instance-attributes,
+        duplicate-code
 
