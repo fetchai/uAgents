@@ -49,7 +49,7 @@ async def handle_query_response(ctx: Context, _sender: str, msg: QueryTableRespo
 
 
 @user.on_message(BookTableResponse)
-async def handle_book_response(ctx: Context, _sender: str, msg: BookTableResponse):
+async def handle_book_response(_ctx: Context, _sender: str, msg: BookTableResponse):
     if msg.success:
         print("Table reservation was successful")
     else:
