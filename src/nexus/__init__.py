@@ -1,19 +1,58 @@
 import asyncio
+import base64
 import functools
 import hashlib
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
+import json
+import uuid
+from pprint import pprint
+from typing import Any, Awaitable, Callable, List, Optional, Tuple
 
-from pydantic import BaseModel
+import aiohttp
+import pydantic
+import uvicorn
+from pydantic import BaseModel, UUID4
 
 from nexus.crypto import Identity
 from nexus.dispatch import Dispatcher, Sink
+from nexus.resolver import Resolver, AlmanacResolver
 
 
 class Envelope(BaseModel):
     version: int
-    headers: Dict[str, str]
-    payload: bytes
-    signature: Optional[str]
+    sender: str
+    target: str
+    session: UUID4
+    protocol: str
+    payload: Optional[str] = None
+    signature: Optional[str] = None
+
+    def encode_payload(self, value: Any):
+        self.payload = base64.b64encode(json.dumps(value).encode()).decode()
+
+    def decode_payload(self) -> Optional[Any]:
+        if self.payload is None:
+            return None
+
+        return json.loads(base64.b64decode(self.payload).decode())
+
+    def sign(self, identity: Identity):
+        self.signature = identity.sign_digest(self._digest())
+
+    def verify(self) -> bool:
+        if self.signature is None:
+            return False
+
+        return Identity.verify_digest(self.sender, self._digest(), self.signature)
+
+    def _digest(self) -> bytes:
+        h = hashlib.sha256()
+        h.update(self.sender.encode())
+        h.update(self.target.encode())
+        h.update(str(self.session).encode())
+        h.update(self.protocol.encode())
+        if self.payload is not None:
+            h.update(self.payload.encode())
+        return h.digest()
 
 
 dispatcher = Dispatcher()
@@ -45,10 +84,13 @@ class KeyValueStore:
 
 
 class Context:
-    def __init__(self, address: str, name: Optional[str], storage: KeyValueStore):
+    def __init__(self, address: str, name: Optional[str], storage: KeyValueStore, resolve: Resolver,
+                 identity: Identity):
         self.storage = storage
         self._name = name
         self._address = str(address)
+        self._resolver = resolve
+        self._identity = identity
 
     @property
     def name(self) -> str:
@@ -61,7 +103,43 @@ class Context:
         return self._address
 
     async def send(self, destination: str, message: Model):
-        await dispatcher.dispatch(self.address, destination, message)
+        # convert the message into object form
+        json_message = message.json()
+        schema_digest = _build_model_digest(message)
+
+        # handle local dispatch of messages
+        if dispatcher.contains(destination):
+            await dispatcher.dispatch(self.address, destination, schema_digest, json_message)
+            return
+
+        # resolve the endpoint
+        endpoint = await self._resolver.resolve(destination)
+        if endpoint is None:
+            return
+
+        # handle external dispatch of messages
+        env = Envelope(
+            version=1,
+            sender=self.address,
+            target=destination,
+            session=uuid.uuid4(),
+            protocol=_build_model_digest(message),
+        )
+        env.encode_payload(json_message)
+        env.sign(self._identity)
+
+        # print(env.json())
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(endpoint,
+                                    headers={'content-type': 'application/json'},
+                                    data=env.json()) as resp:
+                pass
+                # print(resp.status)
+                # print(await resp.text())
+
+        # attempt to resolve the address to send the message to
+        # raise RuntimeError(f'Unable to resolve destination endpoint for address {destination}')
 
 
 IntervalCallback = Callable[[Context], Awaitable[None]]
@@ -74,7 +152,7 @@ async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
         await asyncio.sleep(period)
 
 
-def _build_model_digest(model):
+def _build_model_digest(model) -> str:
     return (
         hashlib.sha256(model.schema_json(indent=None, sort_keys=True).encode("utf8"))
         .digest()
@@ -130,15 +208,30 @@ class Protocol:
         return decorator_on_message
 
 
+async def _read_asgi_body(receive):
+    body = b''
+    more_body = True
+
+    while more_body:
+        message = await receive()
+        body += message.get('body', b'')
+        more_body = message.get('more_body', False)
+
+    return body
+
+
 class Agent(Sink):
-    def __init__(self, name: Optional[str] = None):
+    def __init__(self, name: Optional[str] = None, port: Optional[int] = None, seed: Optional[str] = None,
+                 resolve: Optional[Resolver] = None):
         self._name = name
         self._intervals: List[Tuple[float, Any]] = []
+        self._port = port if port is not None else 8000
         self._background_tasks = set()
+        self._resolver = resolve if resolve is not None else AlmanacResolver()
         self._loop = asyncio.get_event_loop()
-        self._identity = Identity()
+        self._identity = Identity.generate() if seed is None else Identity.from_seed(seed)
         self._storage = KeyValueStore()
-        self._ctx = Context(self._identity.address, self._name, self._storage)
+        self._ctx = Context(self._identity.address, self._name, self._storage, self._resolver, self._identity)
         self._models = {}
         self._message_handlers = {}
         self._dispatcher = dispatcher
@@ -216,22 +309,135 @@ class Agent(Sink):
                 schema_digest
             ]
 
-    async def handle_message(self, sender, message):
-        schema_digest = _build_model_digest(message)
+    async def handle_message(self, sender, schema_digest: str, message: Any):
+        # schema_digest = _build_model_digest(message)
         await self._message_queue.put((schema_digest, sender, message))
 
-    def run(self):
-        self._loop.run_forever()
+    async def run_inner(self):
+        config = uvicorn.Config(self, host='0.0.0.0', port=self._port, log_level="info")
+        server = uvicorn.Server(config)
+        await server.serve()
+
+    def run(self, port: Optional[int] = None):
+        self._loop.run_until_complete(self.run_inner())
+
+    # ASGI interface
+    async def __call__(self, scope, receive, send):
+        assert scope['type'] == 'http'
+
+        if scope["path"] != "/submit":
+            await send({
+                'type': 'http.response.start',
+                'status': 404,
+                'headers': [
+                    [b'content-type', b'application/json'],
+                ]
+            })
+            await send({
+                'type': 'http.response.body',
+                'body': b'{"error": "not found"}'
+            })
+
+        headers = {k: v for k, v in scope.get('headers', {})}
+        if headers[b'content-type'] != b'application/json':
+            await send({
+                'type': 'http.response.start',
+                'status': 400,
+                'headers': [
+                    [b'content-type', b'application/json'],
+                ]
+            })
+            await send({
+                'type': 'http.response.body',
+                'body': b'{"error": "invalid format"}'
+            })
+
+        # read the entire payload
+        raw_contents = await _read_asgi_body(receive)
+        contents = json.loads(raw_contents.decode())
+
+        try:
+            env = Envelope.parse_obj(contents)
+        except pydantic.ValidationError:
+            await send({
+                'type': 'http.response.start',
+                'status': 400,
+                'headers': [
+                    [b'content-type', b'application/json'],
+                ]
+            })
+            await send({
+                'type': 'http.response.body',
+                'body': b'{"error": "invalid format"}'
+            })
+            return
+
+        if not env.verify():
+            await send({
+                'type': 'http.response.start',
+                'status': 400,
+                'headers': [
+                    [b'content-type', b'application/json'],
+                ]
+            })
+            await send({
+                'type': 'http.response.body',
+                'body': b'{"error": "unable to verify payload"}'
+            })
+            return
+
+        # print('-- Contents ---------------------------------------------')
+        # pprint(env)
+        # print('-- Payload ----------------------------------------------')
+        # pprint(env.decode_payload())
+        # print('---------------------------------------------------------')
+
+        if not dispatcher.contains(env.target):
+            await send({
+                'type': 'http.response.start',
+                'status': 400,
+                'headers': [
+                    [b'content-type', b'application/json'],
+                ]
+            })
+            await send({
+                'type': 'http.response.body',
+                'body': b'{"error": "unable to route envelope"}'
+            })
+            return
+
+        await dispatcher.dispatch(env.sender, env.target, env.protocol, env.decode_payload())
+
+        body = f'Received {scope["method"]} request to {scope["path"]}'
+        await send({
+            'type': 'http.response.start',
+            'status': 200,
+            'headers': [
+                [b'content-type', b'application/json'],
+            ]
+        })
+        await send({
+            'type': 'http.response.body',
+            'body': b'{}',
+        })
 
     async def _process_message_queue(self):
         while True:
             # get an element from the queue
             schema_digest, sender, message = await self._message_queue.get()
 
+            # lookup the model definition
+            ModelKlass = self._models.get(schema_digest)
+            if ModelKlass is None:
+                continue
+
+            # parse the received message
+            recovered = ModelKlass.parse_raw(message)
+
             # attempt to find the handler
             handler: MessageCallback = self._message_handlers.get(schema_digest)
             if handler is not None:
-                await handler(self._ctx, sender, message)
+                await handler(self._ctx, sender, recovered)
 
 
 class Bureau:
