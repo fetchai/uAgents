@@ -117,7 +117,7 @@ class Agent(Sink):
         self._background_tasks = set()
         self._loop = asyncio.get_event_loop()
         self._identity = Identity()
-        self._storage = KeyValueStore(name)
+        self._storage = KeyValueStore(self.address[0:16])
         self._ctx = Context(self._identity.address, self._name, self._storage)
         self._models = {}
         self._message_handlers = {}
