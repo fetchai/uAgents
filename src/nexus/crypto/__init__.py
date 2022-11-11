@@ -28,14 +28,14 @@ class Identity:
     def from_seed(seed: str) -> "Identity":
         hasher = hashlib.sha256()
         hasher.update(seed.encode())
-        pk = hasher.digest()
-        sk = ecdsa.SigningKey.from_string(pk, curve=ecdsa.SECP256k1)
-        return Identity(sk)
+        key = hasher.digest()
+        signing_key = ecdsa.SigningKey.from_string(key, curve=ecdsa.SECP256k1)
+        return Identity(signing_key)
 
     @staticmethod
     def generate() -> "Identity":
-        sk = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
-        return Identity(sk)
+        signing_key = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
+        return Identity(signing_key)
 
     @property
     def address(self) -> str:
@@ -57,10 +57,10 @@ class Identity:
             raise ValueError("Unable to decode signature")
 
         # build the verifying key
-        vk = ecdsa.VerifyingKey.from_string(pk_data, curve=ecdsa.SECP256k1)
+        verifying_key = ecdsa.VerifyingKey.from_string(pk_data, curve=ecdsa.SECP256k1)
 
         try:
-            result = vk.verify_digest(sig_data, digest)
+            result = verifying_key.verify_digest(sig_data, digest)
         except ecdsa.keys.BadSignatureError:
             return False
 
