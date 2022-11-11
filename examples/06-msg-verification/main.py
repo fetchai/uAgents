@@ -52,7 +52,7 @@ async def bob_rx_message(ctx: Context, sender: str, msg: Message):
         sender, msg.digest, msg.signature
     ), "couldn't verify alice's message"
     print("Alice's message verified!")
-    
+
     print(f"[{ctx.name:5}] From: {sender} {msg.message}")
 
     msg = "hello there alice"

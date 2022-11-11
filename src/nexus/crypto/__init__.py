@@ -25,7 +25,7 @@ class Identity:
         self._address = _encode_bech32("agent", pub_key_bytes)
 
     @staticmethod
-    def from_seed(seed: str) -> 'Identity':
+    def from_seed(seed: str) -> "Identity":
         hasher = hashlib.sha256()
         hasher.update(seed.encode())
         pk = hasher.digest()
@@ -33,7 +33,7 @@ class Identity:
         return Identity(sk)
 
     @staticmethod
-    def generate() -> 'Identity':
+    def generate() -> "Identity":
         sk = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
         return Identity(sk)
 
@@ -46,15 +46,15 @@ class Identity:
 
     @staticmethod
     def verify_digest(address: str, digest: bytes, signature: str) -> bool:
-        
+
         pk_prefix, pk_data = _decode_bech32(address)
         sig_prefix, sig_data = _decode_bech32(signature)
 
-        if pk_prefix != 'agent':
-            raise ValueError('Unable to decode agent address')
+        if pk_prefix != "agent":
+            raise ValueError("Unable to decode agent address")
 
-        if sig_prefix != 'sig':
-            raise ValueError('Unable to decode signature')
+        if sig_prefix != "sig":
+            raise ValueError("Unable to decode signature")
 
         # build the verifying key
         vk = ecdsa.VerifyingKey.from_string(pk_data, curve=ecdsa.SECP256k1)
