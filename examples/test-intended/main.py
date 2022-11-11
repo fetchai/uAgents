@@ -1,5 +1,6 @@
 import hashlib
 from nexus import Agent, Bureau, Context, Model
+from nexus.crypto import Identity
 
 class Message(Model):
     message: str
@@ -39,13 +40,13 @@ async def send_message(ctx: Context):
 
 @alice.on_message(model=Message)
 async def alice_rx_message(ctx: Context, sender: str, msg: Message):
-    assert alice._identity.verify_digest(sender, msg.digest, msg.signature), "couldn't verify bob's message"
+    assert Identity.verify_digest(sender, msg.digest, msg.signature), "couldn't verify bob's message"
     print(f"[{ctx.name:5}] From: {sender} {msg.message}")
 
 
 @bob.on_message(model=Message)
 async def bob_rx_message(ctx: Context, sender: str, msg: Message):
-    assert bob._identity.verify_digest(sender, msg.digest, msg.signature), "couldn't verify alice's message"
+    assert Identity.verify_digest(sender, msg.digest, msg.signature), "couldn't verify alice's message"
     print(f"[{ctx.name:5}] From: {sender} {msg.message}")
 
     msg = "hello there alice"
