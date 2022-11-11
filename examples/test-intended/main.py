@@ -32,7 +32,7 @@ async def send_message(ctx: Context):
     await ctx.send(
         bob.address,
         Message(
-            message=msg, digest=digest, signature=alice._identity.sign_digest(digest)
+            message=msg, digest=digest, signature=alice.sign_digest(digest)
         ),
     )
 
@@ -55,7 +55,7 @@ async def bob_rx_message(ctx: Context, sender: str, msg: Message):
     await ctx.send(
         alice.address,
         Message(
-            message=msg, digest=digest, signature=bob._identity.sign_digest(digest)
+            message=msg, digest=digest, signature=bob.sign_digest(digest)
         ),
     )
 

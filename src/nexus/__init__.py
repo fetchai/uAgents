@@ -162,6 +162,9 @@ class Agent(Sink):
     def address(self) -> str:
         return self._identity.address
 
+    def sign_digest(self, digest: bytes) -> str:
+        return self._identity.sign_digest(digest)
+
     def update_loop(self, loop):
         self._loop = loop
 
