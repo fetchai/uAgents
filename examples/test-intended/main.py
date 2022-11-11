@@ -1,6 +1,5 @@
-from nexus import Agent, Bureau, Context, Model
 import hashlib
-
+from nexus import Agent, Bureau, Context, Model
 
 class Message(Model):
     message: str
