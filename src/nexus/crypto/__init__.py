@@ -25,18 +25,17 @@ class Identity:
         self._address = _encode_bech32("agent", pub_key_bytes)
 
     @staticmethod
-    def from_seed(seed: str) -> 'Identity':
-        h = hashlib.sha256()
-        h.update(seed.encode())
-        pk = h.digest()
-
-        sk = ecdsa.SigningKey.from_string(pk, curve=ecdsa.SECP256k1)
-        return Identity(sk)
+    def from_seed(seed: str) -> "Identity":
+        hasher = hashlib.sha256()
+        hasher.update(seed.encode())
+        key = hasher.digest()
+        signing_key = ecdsa.SigningKey.from_string(key, curve=ecdsa.SECP256k1)
+        return Identity(signing_key)
 
     @staticmethod
-    def generate() -> 'Identity':
-        sk = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
-        return Identity(sk)
+    def generate() -> "Identity":
+        signing_key = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
+        return Identity(signing_key)
 
     @property
     def address(self) -> str:
@@ -46,22 +45,22 @@ class Identity:
         return _encode_bech32("sig", self._sk.sign_digest(digest))
 
     @staticmethod
-    def verify_digest(pk: str, digest: bytes, sig: str) -> bool:
-        pk_prefix, pk_data = _decode_bech32(pk)
+    def verify_digest(address: str, digest: bytes, signature: str) -> bool:
 
-        if pk_prefix != 'agent':
-            raise ValueError('Unable to decode agent address')
+        pk_prefix, pk_data = _decode_bech32(address)
+        sig_prefix, sig_data = _decode_bech32(signature)
 
-        sig_prefix, sig_data = _decode_bech32(sig)
+        if pk_prefix != "agent":
+            raise ValueError("Unable to decode agent address")
 
-        if sig_prefix != 'sig':
-            raise ValueError('Unable to decode signature')
+        if sig_prefix != "sig":
+            raise ValueError("Unable to decode signature")
 
         # build the verifying key
-        vk = ecdsa.VerifyingKey.from_string(pk_data, curve=ecdsa.SECP256k1)
+        verifying_key = ecdsa.VerifyingKey.from_string(pk_data, curve=ecdsa.SECP256k1)
 
         try:
-            result = vk.verify_digest(sig_data, digest)
+            result = verifying_key.verify_digest(sig_data, digest)
         except ecdsa.keys.BadSignatureError:
             return False
 

@@ -14,6 +14,7 @@ from pydantic import BaseModel, UUID4
 
 from nexus.crypto import Identity
 from nexus.dispatch import Dispatcher, Sink
+from nexus.storage import KeyValueStore
 from nexus.resolver import Resolver, AlmanacResolver
 
 
@@ -60,27 +61,6 @@ dispatcher = Dispatcher()
 
 class Model(BaseModel):
     pass
-
-
-class KeyValueStore:
-    def __init__(self):
-        self._data = {}
-
-    def get(self, key: str) -> Optional[Any]:
-        return self._data.get(key)
-
-    def has(self, key: str) -> bool:
-        return key in self._data
-
-    def set(self, key: str, value: Any):
-        self._data[key] = value
-
-    def remove(self, key: str):
-        if key in self._data:
-            del self._data[key]
-
-    def clear(self):
-        self._data.clear()
 
 
 class Context:
@@ -229,8 +209,10 @@ class Agent(Sink):
         self._background_tasks = set()
         self._resolver = resolve if resolve is not None else AlmanacResolver()
         self._loop = asyncio.get_event_loop()
-        self._identity = Identity.generate() if seed is None else Identity.from_seed(seed)
-        self._storage = KeyValueStore()
+        self._identity = Identity()
+            Identity.generate() if seed is None else Identity.from_seed(seed)
+        )
+        self._storage = KeyValueStore(self.address[0:16])
         self._ctx = Context(self._identity.address, self._name, self._storage, self._resolver, self._identity)
         self._models = {}
         self._message_handlers = {}
@@ -254,6 +236,9 @@ class Agent(Sink):
     @property
     def address(self) -> str:
         return self._identity.address
+
+    def sign_digest(self, digest: bytes) -> str:
+        return self._identity.sign_digest(digest)
 
     def update_loop(self, loop):
         self._loop = loop
