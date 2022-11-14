@@ -30,3 +30,6 @@ class Dispatcher:
     ):
         for handler in self._sinks.get(destination, set()):
             await handler.handle_message(sender, schema_digest, message)
+
+
+dispatcher = Dispatcher()
