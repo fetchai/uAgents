@@ -1,6 +1,7 @@
 import asyncio
 import functools
 import json
+import logging
 from typing import Optional, List, Tuple, Any
 
 import pydantic
@@ -14,8 +15,6 @@ from nexus.models import Model
 from nexus.protocol import Protocol
 from nexus.resolver import Resolver, AlmanacResolver
 from nexus.storage import KeyValueStore
-
-import logging
 
 
 async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
@@ -69,7 +68,7 @@ class ASGIServer:
                 {"type": "http.response.body", "body": b'{"error": "not found"}'}
             )
 
-        headers = {k: v for k, v in scope.get("headers", {})}
+        headers = dict(scope.get("headers", {}))
         if headers[b"content-type"] != b"application/json":
             await send(
                 {
@@ -145,7 +144,6 @@ class ASGIServer:
             env.sender, env.target, env.protocol, env.decode_payload()
         )
 
-        body = f'Received {scope["method"]} request to {scope["path"]}'
         await send(
             {
                 "type": "http.response.start",
@@ -283,12 +281,12 @@ class Agent(Sink):
             schema_digest, sender, message = await self._message_queue.get()
 
             # lookup the model definition
-            ModelKlass = self._models.get(schema_digest)
-            if ModelKlass is None:
+            model_class = self._models.get(schema_digest)
+            if model_class is None:
                 continue
 
             # parse the received message
-            recovered = ModelKlass.parse_raw(message)
+            recovered = model_class.parse_raw(message)
 
             # attempt to find the handler
             handler: MessageCallback = self._message_handlers.get(schema_digest)

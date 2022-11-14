@@ -36,11 +36,11 @@ class Envelope(BaseModel):
         return Identity.verify_digest(self.sender, self._digest(), self.signature)
 
     def _digest(self) -> bytes:
-        h = hashlib.sha256()
-        h.update(self.sender.encode())
-        h.update(self.target.encode())
-        h.update(str(self.session).encode())
-        h.update(self.protocol.encode())
+        hasher = hashlib.sha256()
+        hasher.update(self.sender.encode())
+        hasher.update(self.target.encode())
+        hasher.update(str(self.session).encode())
+        hasher.update(self.protocol.encode())
         if self.payload is not None:
-            h.update(self.payload.encode())
-        return h.digest()
+            hasher.update(self.payload.encode())
+        return hasher.digest()

@@ -72,7 +72,7 @@ class Context:
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 endpoint, headers={"content-type": "application/json"}, data=env.json()
-            ) as resp:
+            ) as _resp:
                 pass
                 # print(resp.status)
                 # print(await resp.text())
