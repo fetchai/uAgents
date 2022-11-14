@@ -12,7 +12,7 @@ def encode(message: str) -> bytes:
 
 
 class TestVerify(unittest.TestCase):
-    def test_verify_messaget(self):
+    def test_verify_message(self):
         alice = Agent(name="alice", seed="alice recovery password")
 
         alice_msg = "hello there bob"

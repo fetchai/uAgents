@@ -119,7 +119,6 @@ class Agent(Sink):
         self._identity = (
             Identity.generate() if seed is None else Identity.from_seed(seed)
         )
-        self._identity = Identity()
         self._storage = KeyValueStore(self.address[0:16])
         self._ctx = Context(self._identity.address, self._name, self._storage)
         self._models = {}
