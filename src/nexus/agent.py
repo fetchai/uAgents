@@ -15,10 +15,18 @@ from nexus.protocol import Protocol
 from nexus.resolver import Resolver, AlmanacResolver
 from nexus.storage import KeyValueStore
 
+import logging
+
 
 async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
     while True:
-        await func(ctx)
+        try:
+            await func(ctx)
+        except OSError:
+            logging.exception("OS Error in interval handler")
+        except RuntimeError:
+            logging.exception("Runtime Error in interval handler")
+
         await asyncio.sleep(period)
 
 
