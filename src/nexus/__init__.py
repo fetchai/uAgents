@@ -111,12 +111,14 @@ class Protocol:
 
 
 class Agent(Sink):
-    def __init__(self, name: Optional[str] = None):
+    def __init__(self, name: Optional[str] = None, seed: Optional[str] = None):
         self._name = name
         self._intervals: List[Tuple[float, Any]] = []
         self._background_tasks = set()
         self._loop = asyncio.get_event_loop()
-        self._identity = Identity()
+        self._identity = (
+            Identity.generate() if seed is None else Identity.from_seed(seed)
+        )
         self._storage = KeyValueStore(self.address[0:16])
         self._ctx = Context(self._identity.address, self._name, self._storage)
         self._models = {}
@@ -141,6 +143,9 @@ class Agent(Sink):
     @property
     def address(self) -> str:
         return self._identity.address
+
+    def sign_digest(self, digest: bytes) -> str:
+        return self._identity.sign_digest(digest)
 
     def update_loop(self, loop):
         self._loop = loop
