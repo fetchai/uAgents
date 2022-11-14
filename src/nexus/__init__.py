@@ -4,7 +4,6 @@ import functools
 import hashlib
 import json
 import uuid
-from pprint import pprint
 from typing import Any, Awaitable, Callable, List, Optional, Tuple
 
 import aiohttp
@@ -14,8 +13,8 @@ from pydantic import BaseModel, UUID4
 
 from nexus.crypto import Identity
 from nexus.dispatch import Dispatcher, Sink
-from nexus.storage import KeyValueStore
 from nexus.resolver import Resolver, AlmanacResolver
+from nexus.storage import KeyValueStore
 
 
 class Envelope(BaseModel):
@@ -64,8 +63,14 @@ class Model(BaseModel):
 
 
 class Context:
-    def __init__(self, address: str, name: Optional[str], storage: KeyValueStore, resolve: Resolver,
-                 identity: Identity):
+    def __init__(
+        self,
+        address: str,
+        name: Optional[str],
+        storage: KeyValueStore,
+        resolve: Resolver,
+        identity: Identity,
+    ):
         self.storage = storage
         self._name = name
         self._address = str(address)
@@ -89,7 +94,9 @@ class Context:
 
         # handle local dispatch of messages
         if dispatcher.contains(destination):
-            await dispatcher.dispatch(self.address, destination, schema_digest, json_message)
+            await dispatcher.dispatch(
+                self.address, destination, schema_digest, json_message
+            )
             return
 
         # resolve the endpoint
@@ -111,9 +118,9 @@ class Context:
         # print(env.json())
 
         async with aiohttp.ClientSession() as session:
-            async with session.post(endpoint,
-                                    headers={'content-type': 'application/json'},
-                                    data=env.json()) as resp:
+            async with session.post(
+                endpoint, headers={"content-type": "application/json"}, data=env.json()
+            ) as resp:
                 pass
                 # print(resp.status)
                 # print(await resp.text())
@@ -189,31 +196,42 @@ class Protocol:
 
 
 async def _read_asgi_body(receive):
-    body = b''
+    body = b""
     more_body = True
 
     while more_body:
         message = await receive()
-        body += message.get('body', b'')
-        more_body = message.get('more_body', False)
+        body += message.get("body", b"")
+        more_body = message.get("more_body", False)
 
     return body
 
 
 class Agent(Sink):
-    def __init__(self, name: Optional[str] = None, port: Optional[int] = None, seed: Optional[str] = None,
-                 resolve: Optional[Resolver] = None):
+    def __init__(
+        self,
+        name: Optional[str] = None,
+        port: Optional[int] = None,
+        seed: Optional[str] = None,
+        resolve: Optional[Resolver] = None,
+    ):
         self._name = name
         self._intervals: List[Tuple[float, Any]] = []
         self._port = port if port is not None else 8000
         self._background_tasks = set()
         self._resolver = resolve if resolve is not None else AlmanacResolver()
         self._loop = asyncio.get_event_loop()
-        self._identity = Identity()
+        self._identity = (
             Identity.generate() if seed is None else Identity.from_seed(seed)
         )
         self._storage = KeyValueStore(self.address[0:16])
-        self._ctx = Context(self._identity.address, self._name, self._storage, self._resolver, self._identity)
+        self._ctx = Context(
+            self._identity.address,
+            self._name,
+            self._storage,
+            self._resolver,
+            self._identity,
+        )
         self._models = {}
         self._message_handlers = {}
         self._dispatcher = dispatcher
@@ -299,7 +317,7 @@ class Agent(Sink):
         await self._message_queue.put((schema_digest, sender, message))
 
     async def run_inner(self):
-        config = uvicorn.Config(self, host='0.0.0.0', port=self._port, log_level="info")
+        config = uvicorn.Config(self, host="0.0.0.0", port=self._port, log_level="info")
         server = uvicorn.Server(config)
         await server.serve()
 
@@ -308,34 +326,36 @@ class Agent(Sink):
 
     # ASGI interface
     async def __call__(self, scope, receive, send):
-        assert scope['type'] == 'http'
+        assert scope["type"] == "http"
 
         if scope["path"] != "/submit":
-            await send({
-                'type': 'http.response.start',
-                'status': 404,
-                'headers': [
-                    [b'content-type', b'application/json'],
-                ]
-            })
-            await send({
-                'type': 'http.response.body',
-                'body': b'{"error": "not found"}'
-            })
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 404,
+                    "headers": [
+                        [b"content-type", b"application/json"],
+                    ],
+                }
+            )
+            await send(
+                {"type": "http.response.body", "body": b'{"error": "not found"}'}
+            )
 
-        headers = {k: v for k, v in scope.get('headers', {})}
-        if headers[b'content-type'] != b'application/json':
-            await send({
-                'type': 'http.response.start',
-                'status': 400,
-                'headers': [
-                    [b'content-type', b'application/json'],
-                ]
-            })
-            await send({
-                'type': 'http.response.body',
-                'body': b'{"error": "invalid format"}'
-            })
+        headers = {k: v for k, v in scope.get("headers", {})}
+        if headers[b"content-type"] != b"application/json":
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 400,
+                    "headers": [
+                        [b"content-type", b"application/json"],
+                    ],
+                }
+            )
+            await send(
+                {"type": "http.response.body", "body": b'{"error": "invalid format"}'}
+            )
 
         # read the entire payload
         raw_contents = await _read_asgi_body(receive)
@@ -344,31 +364,36 @@ class Agent(Sink):
         try:
             env = Envelope.parse_obj(contents)
         except pydantic.ValidationError:
-            await send({
-                'type': 'http.response.start',
-                'status': 400,
-                'headers': [
-                    [b'content-type', b'application/json'],
-                ]
-            })
-            await send({
-                'type': 'http.response.body',
-                'body': b'{"error": "invalid format"}'
-            })
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 400,
+                    "headers": [
+                        [b"content-type", b"application/json"],
+                    ],
+                }
+            )
+            await send(
+                {"type": "http.response.body", "body": b'{"error": "invalid format"}'}
+            )
             return
 
         if not env.verify():
-            await send({
-                'type': 'http.response.start',
-                'status': 400,
-                'headers': [
-                    [b'content-type', b'application/json'],
-                ]
-            })
-            await send({
-                'type': 'http.response.body',
-                'body': b'{"error": "unable to verify payload"}'
-            })
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 400,
+                    "headers": [
+                        [b"content-type", b"application/json"],
+                    ],
+                }
+            )
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": b'{"error": "unable to verify payload"}',
+                }
+            )
             return
 
         # print('-- Contents ---------------------------------------------')
@@ -378,33 +403,43 @@ class Agent(Sink):
         # print('---------------------------------------------------------')
 
         if not dispatcher.contains(env.target):
-            await send({
-                'type': 'http.response.start',
-                'status': 400,
-                'headers': [
-                    [b'content-type', b'application/json'],
-                ]
-            })
-            await send({
-                'type': 'http.response.body',
-                'body': b'{"error": "unable to route envelope"}'
-            })
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 400,
+                    "headers": [
+                        [b"content-type", b"application/json"],
+                    ],
+                }
+            )
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": b'{"error": "unable to route envelope"}',
+                }
+            )
             return
 
-        await dispatcher.dispatch(env.sender, env.target, env.protocol, env.decode_payload())
+        await dispatcher.dispatch(
+            env.sender, env.target, env.protocol, env.decode_payload()
+        )
 
         body = f'Received {scope["method"]} request to {scope["path"]}'
-        await send({
-            'type': 'http.response.start',
-            'status': 200,
-            'headers': [
-                [b'content-type', b'application/json'],
-            ]
-        })
-        await send({
-            'type': 'http.response.body',
-            'body': b'{}',
-        })
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [
+                    [b"content-type", b"application/json"],
+                ],
+            }
+        )
+        await send(
+            {
+                "type": "http.response.body",
+                "body": b"{}",
+            }
+        )
 
     async def _process_message_queue(self):
         while True:

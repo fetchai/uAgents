@@ -11,7 +11,7 @@ class Resolver(ABC):
 class AlmanacResolver(Resolver):
     async def resolve(self, address: str) -> str:
         # this would be the place where a call to the agent almanac sits
-        raise RuntimeError('Not implemented')
+        raise RuntimeError("Not implemented")
 
 
 class RulesBasedResolver(Resolver):

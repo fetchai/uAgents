@@ -6,13 +6,20 @@ class Message(Model):
     message: str
 
 
-AGENT1_ADDRESS = 'agent1qwpdqyxwdxmx9ar8gmp02x7n85pjucams0q0m2l45zlmykrzvnpnj5l06gf'
-AGENT2_ADDRESS = 'agent1q2sec3utj4a8xl8le8x2dy90f33fnlunaatxamjpepz0zk99qqttj97526g'
+AGENT1_ADDRESS = "agent1qwpdqyxwdxmx9ar8gmp02x7n85pjucams0q0m2l45zlmykrzvnpnj5l06gf"
+AGENT2_ADDRESS = "agent1q2sec3utj4a8xl8le8x2dy90f33fnlunaatxamjpepz0zk99qqttj97526g"
 
-agent = Agent(name="bob", port=8001, seed='agent2 secret phrase', resolve=RulesBasedResolver({
-    AGENT1_ADDRESS: 'http://127.0.0.1:8000/submit',
-    AGENT2_ADDRESS: 'http://127.0.0.1:8001/submit',
-}))
+agent = Agent(
+    name="bob",
+    port=8001,
+    seed="agent2 secret phrase",
+    resolve=RulesBasedResolver(
+        {
+            AGENT1_ADDRESS: "http://127.0.0.1:8000/submit",
+            AGENT2_ADDRESS: "http://127.0.0.1:8001/submit",
+        }
+    ),
+)
 
 
 @agent.on_message(model=Message)

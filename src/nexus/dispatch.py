@@ -25,6 +25,8 @@ class Dispatcher:
     def contains(self, address: str) -> bool:
         return address in self._sinks
 
-    async def dispatch(self, sender: str, destination: str, schema_digest: str, message: Any):
+    async def dispatch(
+        self, sender: str, destination: str, schema_digest: str, message: Any
+    ):
         for handler in self._sinks.get(destination, set()):
             await handler.handle_message(sender, schema_digest, message)
