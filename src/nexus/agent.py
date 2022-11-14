@@ -34,124 +34,16 @@ async def _read_asgi_body(receive):
     return body
 
 
-class Agent(Sink):
-    def __init__(
-        self,
-        name: Optional[str] = None,
-        port: Optional[int] = None,
-        seed: Optional[str] = None,
-        resolve: Optional[Resolver] = None,
-    ):
-        self._name = name
-        self._intervals: List[Tuple[float, Any]] = []
-        self._port = port if port is not None else 8000
-        self._background_tasks = set()
-        self._resolver = resolve if resolve is not None else AlmanacResolver()
-        self._loop = asyncio.get_event_loop_policy().get_event_loop()
-        self._identity = (
-            Identity.generate() if seed is None else Identity.from_seed(seed)
-        )
-        self._storage = KeyValueStore(self.address[0:16])
-        self._ctx = Context(
-            self._identity.address,
-            self._name,
-            self._storage,
-            self._resolver,
-            self._identity,
-        )
-        self._models = {}
-        self._message_handlers = {}
-        self._dispatcher = dispatcher
-        self._message_queue = asyncio.Queue()
-
-        # register with the dispatcher
-        self._dispatcher.register(self.address, self)
-
-        # start the background message queue processor
-        task = self._loop.create_task(self._process_message_queue())
-        self._background_tasks.add(task)
-        task.add_done_callback(self._background_tasks.discard)
-
-    @property
-    def name(self) -> str:
-        if self._name is not None:
-            return self._name
-        return self.address[:10]
-
-    @property
-    def address(self) -> str:
-        return self._identity.address
-
-    def sign_digest(self, digest: bytes) -> str:
-        return self._identity.sign_digest(digest)
-
-    def update_loop(self, loop):
+class ASGIServer:
+    def __init__(self, port: int, loop: asyncio.AbstractEventLoop):
+        self._port = int(port)
         self._loop = loop
 
-    def on_interval(self, period: float):
-        def decorator_on_interval(func: IntervalCallback):
-            @functools.wraps(func)
-            def handler(*args, **kwargs):
-                return func(*args, **kwargs)
-
-            # register the interval with the agent
-            task = self._loop.create_task(_run_interval(func, self._ctx, period))
-            self._background_tasks.add(task)
-            task.add_done_callback(self._background_tasks.discard)
-
-            return handler
-
-        return decorator_on_interval
-
-    def on_message(self, model):
-        def decorator_on_message(func: MessageCallback):
-            @functools.wraps(func)
-            def handler(*args, **kwargs):
-                return func(*args, **kwargs)
-
-            schema_digest = Model.build_schema_digest(model)
-
-            # update the model database
-            self._models[schema_digest] = model
-            self._message_handlers[schema_digest] = func
-
-            return handler
-
-        return decorator_on_message
-
-    def include(self, protocol: Protocol):
-        for func, period in protocol.intervals:
-            task = self._loop.create_task(_run_interval(func, self._ctx, period))
-            self._background_tasks.add(task)
-            task.add_done_callback(self._background_tasks.discard)
-
-        for schema_digest in protocol.models:
-            if schema_digest in self._models:
-                raise RuntimeError("Unable to register duplicate model")
-            if schema_digest in self._message_handlers:
-                raise RuntimeError("Unable to register duplicate message handler")
-            if schema_digest not in protocol.message_handlers:
-                raise RuntimeError("Unable to lookup up message handler in protocol")
-
-            # include the message handlers from the protocol
-            self._models[schema_digest] = protocol.models[schema_digest]
-            self._message_handlers[schema_digest] = protocol.message_handlers[
-                schema_digest
-            ]
-
-    async def handle_message(self, sender, schema_digest: str, message: Any):
-        # schema_digest = _build_model_digest(message)
-        await self._message_queue.put((schema_digest, sender, message))
-
-    async def run_inner(self):
+    async def serve(self):
         config = uvicorn.Config(self, host="0.0.0.0", port=self._port, log_level="info")
         server = uvicorn.Server(config)
         await server.serve()
 
-    def run(self, port: Optional[int] = None):
-        self._loop.run_until_complete(self.run_inner())
-
-    # ASGI interface
     async def __call__(self, scope, receive, send):
         assert scope["type"] == "http"
 
@@ -262,6 +154,121 @@ class Agent(Sink):
             }
         )
 
+
+class Agent(Sink):
+    def __init__(
+        self,
+        name: Optional[str] = None,
+        port: Optional[int] = None,
+        seed: Optional[str] = None,
+        resolve: Optional[Resolver] = None,
+    ):
+        self._name = name
+        self._intervals: List[Tuple[float, Any]] = []
+        self._port = port if port is not None else 8000
+        self._background_tasks = set()
+        self._resolver = resolve if resolve is not None else AlmanacResolver()
+        self._loop = asyncio.get_event_loop_policy().get_event_loop()
+        self._identity = (
+            Identity.generate() if seed is None else Identity.from_seed(seed)
+        )
+        self._storage = KeyValueStore(self.address[0:16])
+        self._ctx = Context(
+            self._identity.address,
+            self._name,
+            self._storage,
+            self._resolver,
+            self._identity,
+        )
+        self._models = {}
+        self._message_handlers = {}
+        self._dispatcher = dispatcher
+        self._message_queue = asyncio.Queue()
+
+        # register with the dispatcher
+        self._dispatcher.register(self.address, self)
+
+        # start the background message queue processor
+        task = self._loop.create_task(self._process_message_queue())
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+
+        self._server = ASGIServer(self._port, self._loop)
+
+    @property
+    def name(self) -> str:
+        if self._name is not None:
+            return self._name
+        return self.address[:10]
+
+    @property
+    def address(self) -> str:
+        return self._identity.address
+
+    def sign_digest(self, digest: bytes) -> str:
+        return self._identity.sign_digest(digest)
+
+    def update_loop(self, loop):
+        self._loop = loop
+
+    def on_interval(self, period: float):
+        def decorator_on_interval(func: IntervalCallback):
+            @functools.wraps(func)
+            def handler(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            # register the interval with the agent
+            task = self._loop.create_task(_run_interval(func, self._ctx, period))
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
+
+            return handler
+
+        return decorator_on_interval
+
+    def on_message(self, model):
+        def decorator_on_message(func: MessageCallback):
+            @functools.wraps(func)
+            def handler(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            schema_digest = Model.build_schema_digest(model)
+
+            # update the model database
+            self._models[schema_digest] = model
+            self._message_handlers[schema_digest] = func
+
+            return handler
+
+        return decorator_on_message
+
+    def include(self, protocol: Protocol):
+        for func, period in protocol.intervals:
+            task = self._loop.create_task(_run_interval(func, self._ctx, period))
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
+
+        for schema_digest in protocol.models:
+            if schema_digest in self._models:
+                raise RuntimeError("Unable to register duplicate model")
+            if schema_digest in self._message_handlers:
+                raise RuntimeError("Unable to register duplicate message handler")
+            if schema_digest not in protocol.message_handlers:
+                raise RuntimeError("Unable to lookup up message handler in protocol")
+
+            # include the message handlers from the protocol
+            self._models[schema_digest] = protocol.models[schema_digest]
+            self._message_handlers[schema_digest] = protocol.message_handlers[
+                schema_digest
+            ]
+
+    async def handle_message(self, sender, schema_digest: str, message: Any):
+        # schema_digest = _build_model_digest(message)
+        await self._message_queue.put((schema_digest, sender, message))
+
+    def run(self):
+        self._loop.run_until_complete(self._server.serve())
+
     async def _process_message_queue(self):
         while True:
             # get an element from the queue
@@ -282,13 +289,15 @@ class Agent(Sink):
 
 
 class Bureau:
-    def __init__(self):
-        self._loop = asyncio.get_event_loop()
+    def __init__(self, port: Optional[int] = None):
+        self._loop = asyncio.get_event_loop_policy().get_event_loop()
         self._agents = []
+        self._port = port or 8000
+        self._server = ASGIServer(self._port, self._loop)
 
     def add(self, agent: Agent):
         agent.update_loop(self._loop)
         self._agents.append(agent)
 
     def run(self):
-        self._loop.run_forever()
+        self._loop.run_until_complete(self._server.serve())
