@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from nexus.crypto import Identity
 from nexus.dispatch import Dispatcher, Sink
+from nexus.storage import KeyValueStore
 
 
 class Envelope(BaseModel):
@@ -21,27 +22,6 @@ dispatcher = Dispatcher()
 
 class Model(BaseModel):
     pass
-
-
-class KeyValueStore:
-    def __init__(self):
-        self._data = {}
-
-    def get(self, key: str) -> Optional[Any]:
-        return self._data.get(key)
-
-    def has(self, key: str) -> bool:
-        return key in self._data
-
-    def set(self, key: str, value: Any):
-        self._data[key] = value
-
-    def remove(self, key: str):
-        if key in self._data:
-            del self._data[key]
-
-    def clear(self):
-        self._data.clear()
 
 
 class Context:
@@ -139,7 +119,8 @@ class Agent(Sink):
         self._identity = (
             Identity.generate() if seed is None else Identity.from_seed(seed)
         )
-        self._storage = KeyValueStore()
+        self._identity = Identity()
+        self._storage = KeyValueStore(self.address[0:16])
         self._ctx = Context(self._identity.address, self._name, self._storage)
         self._models = {}
         self._message_handlers = {}
