@@ -15,7 +15,6 @@ from nexus.dispatch import Dispatcher, Sink
 from nexus.storage import KeyValueStore
 
 
-
 class Envelope(BaseModel):
     version: int
     headers: Dict[str, str]
@@ -115,8 +114,11 @@ class Protocol:
 
         return decorator_on_message
 
+
 def get_reg_contract() -> LedgerContract:
-    contract_agent_almanac = "fetch1wtvkethl5pfphw6zsp42vhhx6hzhukd7wsl970v2azrhwqg753us29qfak"
+    contract_agent_almanac = (
+        "fetch1wtvkethl5pfphw6zsp42vhhx6hzhukd7wsl970v2azrhwqg753us29qfak"
+    )
     ledger = LedgerClient(NetworkConfig.fetchai_stable_testnet())
     contract = LedgerContract(None, ledger, contract_agent_almanac)
     return contract
@@ -167,7 +169,6 @@ class Agent(Sink):
     def registered(self) -> bool:
         return self._registered
 
-
     def sign_digest(self, digest: bytes) -> str:
         return self._identity.sign_digest(digest)
 
@@ -182,7 +183,11 @@ class Agent(Sink):
 
         contract = get_reg_contract()
 
-        msg = {"register":{"record":{"Service":{"protocols": protocols, "endpoints": endpoints}}}}
+        msg = {
+            "register": {
+                "record": {"Service": {"protocols": protocols, "endpoints": endpoints}}
+            }
+        }
 
         transaction = contract.execute(msg, self._wallet)
         transaction.wait_to_complete()
@@ -201,14 +206,15 @@ class Agent(Sink):
 
     def query_registration(self, address: str) -> dict:
         if not self._registered:
-            print(f"Agent {self._name} needs to be registered in order to query registrations")
+            print(
+                f"Agent {self._name} needs to be registered in order to query registrations"
+            )
             return {}
 
         contract = get_reg_contract()
         query_msg = {"query_records": {"address": address}}
         res = contract.query(query_msg)
         return res
-
 
     def on_interval(self, period: float):
         def decorator_on_interval(func: IntervalCallback):
