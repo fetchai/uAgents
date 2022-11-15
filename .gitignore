@@ -1,3 +1,5 @@
 .idea/
 *.py[cgo]
 __pycache__
+*.json
+
