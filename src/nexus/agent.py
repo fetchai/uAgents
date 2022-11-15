@@ -36,7 +36,8 @@ def network_config(network) -> LedgerClient:
     return None
 
 
-CONTRACT_ALMANAC = "fetch1wtvkethl5pfphw6zsp42vhhx6hzhukd7wsl970v2azrhwqg753us29qfak"
+CONTRACT_ALMANAC = "fetch1gfq09zhz5kzeue3k9whl8t6fv9ke8vkq6x4s8p6pj946t50dmc7qvw5npv"
+REGISTRATION_FEE = "500000000000000000atestfet"
 
 
 class Agent(Sink):
@@ -59,7 +60,7 @@ class Agent(Sink):
         )
         self._wallet = LocalWallet(PrivateKey(self._identity._sk.to_string()))
         self._ledger = network_config(network)
-        self._reg_contract = self.registration_contract(CONTRACT_ALMANAC)
+        self._reg_contract = LedgerContract(None, self.ledger, CONTRACT_ALMANAC)
         self._storage = KeyValueStore(self.address[0:16])
         self._ctx = Context(
             self._identity.address,
@@ -107,25 +108,26 @@ class Agent(Sink):
     def update_loop(self, loop):
         self._loop = loop
 
-    def registration_contract(self, contract_address: str) -> LedgerContract:
-        contract = LedgerContract(None, self.ledger, contract_address)
-        return contract
-
-    def register(self, protocols: List[str], endpoints: List[str]):
+    def register(self):
 
         if self.registration_status():
-            print(f"Agent {self._name} already registered")
+            print(f"Agent {self._name} registration is up to date")
             return
-
-        contract = self._reg_contract
 
         msg = {
             "register": {
-                "record": {"Service": {"protocols": protocols, "endpoints": endpoints}}
+                "record": {
+                    "Service": {
+                        "protocols": list(self._models.keys()),
+                        "endpoints": [{"url": self.address, "weight": 1}],
+                    }
+                }
             }
         }
 
-        contract.execute(msg, self._wallet).wait_to_complete()
+        self._reg_contract.execute(
+            msg, self._wallet, funds=REGISTRATION_FEE
+        ).wait_to_complete()
         print(f"Registration complete for Agent {self._name}")
 
     def registration_status(self) -> bool:

@@ -21,9 +21,8 @@ if bob_balance == 0:
     # Add tokens to bob's wallet
     faucet_api.get_wealth(bob.wallet.address())
 
-
-bob.register(protocols=["foo"], endpoints=["bar"])
-alice.register(protocols=["foo"], endpoints=["bar"])
+bob.register()
+alice.register()
 
 # query all records for a given address
 print(bob.query_records(alice.wallet.address()))
