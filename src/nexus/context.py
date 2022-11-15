@@ -54,7 +54,9 @@ class Context:
         # resolve the endpoint
         endpoint = await self._resolver.resolve(destination)
         if endpoint is None:
-            return
+            raise RuntimeError(
+                f"Unable to resolve destination endpoint for address {destination}"
+            )
 
         # handle external dispatch of messages
         env = Envelope(
@@ -67,15 +69,12 @@ class Context:
         env.encode_payload(json_message)
         env.sign(self._identity)
 
-        # print(env.json())
-
+        success = False
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 endpoint, headers={"content-type": "application/json"}, data=env.json()
-            ) as _resp:
-                pass
-                # print(resp.status)
-                # print(await resp.text())
+            ) as resp:
+                success = resp.status == 200
 
-        # attempt to resolve the address to send the message to
-        # raise RuntimeError(f'Unable to resolve destination endpoint for address {destination}')
+        if not success:
+            raise RuntimeError(f"Unable to send envelope to {destination} @ {endpoint}")
