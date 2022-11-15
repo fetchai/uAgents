@@ -5,9 +5,15 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel
 
+from cosmpy.aerial.client import LedgerClient, NetworkConfig
+from cosmpy.aerial.contract import LedgerContract
+from cosmpy.crypto.keypairs import PrivateKey
+from cosmpy.aerial.wallet import LocalWallet
+
 from nexus.crypto import Identity
 from nexus.dispatch import Dispatcher, Sink
 from nexus.storage import KeyValueStore
+
 
 
 class Envelope(BaseModel):
@@ -109,6 +115,12 @@ class Protocol:
 
         return decorator_on_message
 
+def get_reg_contract() -> LedgerContract:
+    contract_agent_almanac = "fetch1wtvkethl5pfphw6zsp42vhhx6hzhukd7wsl970v2azrhwqg753us29qfak"
+    ledger = LedgerClient(NetworkConfig.fetchai_stable_testnet())
+    contract = LedgerContract(None, ledger, contract_agent_almanac)
+    return contract
+
 
 class Agent(Sink):
     def __init__(self, name: Optional[str] = None, seed: Optional[str] = None):
@@ -119,6 +131,9 @@ class Agent(Sink):
         self._identity = (
             Identity.generate() if seed is None else Identity.from_seed(seed)
         )
+        self._wallet = LocalWallet(PrivateKey(self._identity._sk.to_string()))
+        self._registered = self.registration_status()
+
         self._storage = KeyValueStore(self.address[0:16])
         self._ctx = Context(self._identity.address, self._name, self._storage)
         self._models = {}
@@ -144,11 +159,56 @@ class Agent(Sink):
     def address(self) -> str:
         return self._identity.address
 
+    @property
+    def wallet(self) -> LocalWallet:
+        return self._wallet
+
+    @property
+    def registered(self) -> bool:
+        return self._registered
+
+
     def sign_digest(self, digest: bytes) -> str:
         return self._identity.sign_digest(digest)
 
     def update_loop(self, loop):
         self._loop = loop
+
+    def register(self, protocols: List[str], endpoints: List[str]):
+
+        if self._registered:
+            print(f"Agent {self._name} already registered")
+            return
+
+        contract = get_reg_contract()
+
+        msg = {"register":{"record":{"Service":{"protocols": protocols, "endpoints": endpoints}}}}
+
+        transaction = contract.execute(msg, self._wallet)
+        transaction.wait_to_complete()
+        self._registered = True
+
+        print(f"Registration complete for Agent {self._name}")
+
+    def registration_status(self) -> bool:
+        contract = get_reg_contract()
+        query_msg = {"query_records": {"address": self._wallet.address()}}
+
+        if contract.query(query_msg)["record"] != []:
+            return True
+
+        return False
+
+    def query_registration(self, address: str) -> dict:
+        if not self._registered:
+            print(f"Agent {self._name} needs to be registered in order to query registrations")
+            return {}
+
+        contract = get_reg_contract()
+        query_msg = {"query_records": {"address": address}}
+        res = contract.query(query_msg)
+        return res
+
 
     def on_interval(self, period: float):
         def decorator_on_interval(func: IntervalCallback):
