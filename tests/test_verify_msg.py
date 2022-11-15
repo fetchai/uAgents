@@ -1,7 +1,7 @@
 import hashlib
 import unittest
 
-from nexus import Agent
+from nexus.agent import Agent
 from nexus.crypto import Identity
 
 
