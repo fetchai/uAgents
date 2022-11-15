@@ -115,17 +115,24 @@ class Protocol:
         return decorator_on_message
 
 
-def get_reg_contract() -> LedgerContract:
-    contract_agent_almanac = (
-        "fetch1wtvkethl5pfphw6zsp42vhhx6hzhukd7wsl970v2azrhwqg753us29qfak"
-    )
-    ledger = LedgerClient(NetworkConfig.fetchai_stable_testnet())
-    contract = LedgerContract(None, ledger, contract_agent_almanac)
-    return contract
+def network_config(network) -> LedgerClient:
+    if network == "fetchai-testnet":
+        return LedgerClient(NetworkConfig.fetchai_stable_testnet())
+    return None
+
+
+CONTRACT_ALMANAC = (
+    "fetch1wtvkethl5pfphw6zsp42vhhx6hzhukd7wsl970v2azrhwqg753us29qfak"
+)
 
 
 class Agent(Sink):
-    def __init__(self, name: Optional[str] = None, seed: Optional[str] = None):
+    def __init__(
+        self,
+        name: Optional[str] = None,
+        seed: Optional[str] = None,
+        network: Optional[str] = None,
+    ):
         self._name = name
         self._intervals: List[Tuple[float, Any]] = []
         self._background_tasks = set()
@@ -134,7 +141,8 @@ class Agent(Sink):
             Identity.generate() if seed is None else Identity.from_seed(seed)
         )
         self._wallet = LocalWallet(PrivateKey(self._identity._sk.to_string()))
-        self._registered = self.registration_status()
+        self._ledger = network_config(network)
+        self._reg_contract = self.registration_contract(CONTRACT_ALMANAC)
 
         self._storage = KeyValueStore(self.address[0:16])
         self._ctx = Context(self._identity.address, self._name, self._storage)
@@ -166,8 +174,8 @@ class Agent(Sink):
         return self._wallet
 
     @property
-    def registered(self) -> bool:
-        return self._registered
+    def ledger(self) -> LedgerClient:
+        return self._ledger
 
     def sign_digest(self, digest: bytes) -> str:
         return self._identity.sign_digest(digest)
@@ -175,13 +183,17 @@ class Agent(Sink):
     def update_loop(self, loop):
         self._loop = loop
 
+    def registration_contract(self, contract_address: str) -> LedgerContract:
+        contract = LedgerContract(None, self.ledger, contract_address)
+        return contract
+
     def register(self, protocols: List[str], endpoints: List[str]):
 
-        if self._registered:
+        if self.registration_status():
             print(f"Agent {self._name} already registered")
             return
 
-        contract = get_reg_contract()
+        contract = self._reg_contract
 
         msg = {
             "register": {
@@ -189,14 +201,11 @@ class Agent(Sink):
             }
         }
 
-        transaction = contract.execute(msg, self._wallet)
-        transaction.wait_to_complete()
-        self._registered = True
-
+        contract.execute(msg, self._wallet).wait_to_complete()
         print(f"Registration complete for Agent {self._name}")
 
     def registration_status(self) -> bool:
-        contract = get_reg_contract()
+        contract = self._reg_contract
         query_msg = {"query_records": {"address": self._wallet.address()}}
 
         if contract.query(query_msg)["record"] != []:
@@ -204,17 +213,17 @@ class Agent(Sink):
 
         return False
 
-    def query_registration(self, address: str) -> dict:
-        if not self._registered:
-            print(
-                f"Agent {self._name} needs to be registered in order to query registrations"
-            )
-            return {}
-
-        contract = get_reg_contract()
+    def query_records(self, address: str) -> dict:
+        contract = self._reg_contract
         query_msg = {"query_records": {"address": address}}
-        res = contract.query(query_msg)
-        return res
+        result = contract.query(query_msg)
+        return result
+
+    def query_record(self, address: str, service: str) -> dict:
+        contract = self._reg_contract
+        query_msg = {"query_record": {"address": address, "record_type": service}}
+        result = contract.query(query_msg)
+        return result
 
     def on_interval(self, period: float):
         def decorator_on_interval(func: IntervalCallback):
