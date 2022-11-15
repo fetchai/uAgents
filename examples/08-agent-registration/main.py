@@ -1,10 +1,10 @@
 from cosmpy.aerial.client import NetworkConfig
 from cosmpy.aerial.faucet import FaucetApi
-from nexus import Agent
+from nexus.agent import Agent
 
 
 alice = Agent(name="alice", seed="alice recovery password", network="fetchai-testnet")
-bob = Agent(name="bob", seed="bob recovery password", network="fetchai-testnet")
+bob = Agent(name="bob", seed="bob recovry password", network="fetchai-testnet")
 
 # Network configuration
 ledger = alice.ledger

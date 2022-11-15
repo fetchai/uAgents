@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Set
+from typing import Dict, Set, Any
 
 
 class Sink(ABC):
     @abstractmethod
-    async def handle_message(self, sender, message):
+    async def handle_message(self, sender: str, schema_digest: str, message: Any):
         pass
 
 
@@ -22,6 +22,14 @@ class Dispatcher:
         destinations.discard(sink)
         self._sinks[address] = destinations
 
-    async def dispatch(self, sender: str, destination: str, message):
+    def contains(self, address: str) -> bool:
+        return address in self._sinks
+
+    async def dispatch(
+        self, sender: str, destination: str, schema_digest: str, message: Any
+    ):
         for handler in self._sinks.get(destination, set()):
-            await handler.handle_message(sender, message)
+            await handler.handle_message(sender, schema_digest, message)
+
+
+dispatcher = Dispatcher()

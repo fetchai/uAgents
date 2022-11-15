@@ -1,11 +1,13 @@
 import hashlib
-from nexus import Agent, Bureau, Context, Model
+from nexus.agent import Agent, Bureau
+from nexus.context import Context
+from nexus.models import Model
 from nexus.crypto import Identity
 
 
 class Message(Model):
     message: str
-    digest: bytes
+    digest: str
     signature: str
 
 
@@ -32,14 +34,14 @@ async def send_message(ctx: Context):
     digest = encode(msg)
     await ctx.send(
         bob.address,
-        Message(message=msg, digest=digest, signature=alice.sign_digest(digest)),
+        Message(message=msg, digest=digest.hex(), signature=alice.sign_digest(digest)),
     )
 
 
 @alice.on_message(model=Message)
 async def alice_rx_message(ctx: Context, sender: str, msg: Message):
     assert Identity.verify_digest(
-        sender, msg.digest, msg.signature
+        sender, bytes.fromhex(msg.digest), msg.signature
     ), "couldn't verify bob's message"
 
     print("Bob's message verified!")
@@ -49,7 +51,7 @@ async def alice_rx_message(ctx: Context, sender: str, msg: Message):
 @bob.on_message(model=Message)
 async def bob_rx_message(ctx: Context, sender: str, msg: Message):
     assert Identity.verify_digest(
-        sender, msg.digest, msg.signature
+        sender, bytes.fromhex(msg.digest), msg.signature
     ), "couldn't verify alice's message"
     print("Alice's message verified!")
 
@@ -61,7 +63,7 @@ async def bob_rx_message(ctx: Context, sender: str, msg: Message):
     # send the response
     await ctx.send(
         alice.address,
-        Message(message=msg, digest=digest, signature=bob.sign_digest(digest)),
+        Message(message=msg, digest=digest.hex(), signature=bob.sign_digest(digest)),
     )
 
 
