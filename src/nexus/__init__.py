@@ -121,9 +121,7 @@ def network_config(network) -> LedgerClient:
     return None
 
 
-CONTRACT_ALMANAC = (
-    "fetch1wtvkethl5pfphw6zsp42vhhx6hzhukd7wsl970v2azrhwqg753us29qfak"
-)
+CONTRACT_ALMANAC = "fetch1wtvkethl5pfphw6zsp42vhhx6hzhukd7wsl970v2azrhwqg753us29qfak"
 
 
 class Agent(Sink):
