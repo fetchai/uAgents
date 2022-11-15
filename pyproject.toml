@@ -10,6 +10,9 @@ pydantic = "^1.10.2"
 msgpack = "^1.0.4"
 bech32 = "^1.2.0"
 ecdsa = "^0.18.0"
+apispec = "^6.0.2"
+fastapi = "^0.87.0"
+marshmallow = "^3.19.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.8.0"

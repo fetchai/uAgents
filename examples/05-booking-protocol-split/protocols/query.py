@@ -19,7 +19,7 @@ class QueryTableResponse(Model):
 query_proto = Protocol()
 
 
-@query_proto.on_message(model=QueryTableRequest)
+@query_proto.on_message(model=QueryTableRequest, replies=[QueryTableResponse])
 async def handle_query_request(ctx: Context, sender: str, msg: QueryTableRequest):
     if ctx.storage.has(str(msg.table_number)):
         status = TableStatus.RESERVED

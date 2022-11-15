@@ -3,11 +3,15 @@ import functools
 import hashlib
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 
+from apispec import APISpec
 from pydantic import BaseModel
 
 from nexus.crypto import Identity
 from nexus.dispatch import Dispatcher, Sink
 from nexus.storage import KeyValueStore
+
+
+OPENAPI_VERSION = "3.0.2"
 
 
 class Envelope(BaseModel):
@@ -63,10 +67,18 @@ def _build_model_digest(model):
 
 
 class Protocol:
-    def __init__(self):
+    def __init__(self, name: Optional[str]=None, version: Optional[str]=None):
         self._intervals = []
         self._message_handlers = {}
         self._models = {}
+        self._name = name or "my_protocol"
+        self._version = version or "0.0.1"
+
+        self.spec = APISpec(
+            title=self._name,
+            version=self._version,
+            openapi_version=OPENAPI_VERSION,
+        )
 
     @property
     def intervals(self):
@@ -93,25 +105,41 @@ class Protocol:
 
         return decorator_on_interval
 
-    def on_message(self, model):
+    def on_message(self, model: Model, replies: List[Model]=[Any]):
         def decorator_on_message(func: MessageCallback):
             @functools.wraps(func)
             def handler(*args, **kwargs):
                 return func(*args, **kwargs)
 
-            schema_digest = _build_model_digest(model)
-
-            # update the model database
-            self._models[schema_digest] = model
-            self._message_handlers[schema_digest] = func
+            self._add_message_handler(model, func, replies)
 
             return handler
 
         return decorator_on_message
 
+    def _add_message_handler(self, model, func, replies):
+        schema_digest = _build_model_digest(model)
+
+        # update the model database
+        self._models[schema_digest] = model
+        self._message_handlers[schema_digest] = func
+
+        self.spec.path(
+            path=model.__name__,
+            operations=dict(post=dict(
+                    replies=[reply.__name__ for reply in replies]
+                )
+            )
+        )
+
 
 class Agent(Sink):
-    def __init__(self, name: Optional[str] = None, seed: Optional[str] = None):
+    def __init__(
+        self,
+        name: Optional[str] = None,
+        seed: Optional[str] = None,
+        version: Optional[str] = None,
+    ):
         self._name = name
         self._intervals: List[Tuple[float, Any]] = []
         self._background_tasks = set()
@@ -125,6 +153,13 @@ class Agent(Sink):
         self._message_handlers = {}
         self._dispatcher = dispatcher
         self._message_queue = asyncio.Queue()
+        self._version = version or "0.0.1"
+
+        self.spec = APISpec(
+            title=name,
+            version=self._version,
+            openapi_version=OPENAPI_VERSION,
+        )
 
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
@@ -165,21 +200,32 @@ class Agent(Sink):
 
         return decorator_on_interval
 
-    def on_message(self, model):
+    def on_message(self, model: Model, replies: List[Model]=[Any]):
         def decorator_on_message(func: MessageCallback):
             @functools.wraps(func)
             def handler(*args, **kwargs):
                 return func(*args, **kwargs)
 
-            schema_digest = _build_model_digest(model)
-
-            # update the model database
-            self._models[schema_digest] = model
-            self._message_handlers[schema_digest] = func
+            self._add_message_handler(model, func, replies)
 
             return handler
 
         return decorator_on_message
+
+    def _add_message_handler(self, model, func, replies):
+        schema_digest = _build_model_digest(model)
+
+        # update the model database
+        self._models[schema_digest] = model
+        self._message_handlers[schema_digest] = func
+
+        self.spec.path(
+            path=model.__name__,
+            operations=dict(post=dict(
+                    replies=[reply.__name__ for reply in replies]
+                )
+            )
+        )
 
     def include(self, protocol: Protocol):
         for func, period in protocol.intervals:

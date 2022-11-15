@@ -55,7 +55,7 @@ async def handle_book_response(_ctx: Context, _sender: str, msg: BookTableRespon
         print("Table reservation was UNSUCCESSFUL")
 
 
-@restuarant.on_message(model=QueryTableRequest)
+@restuarant.on_message(model=QueryTableRequest, replies=[QueryTableResponse])
 async def handle_query_request(ctx: Context, sender: str, msg: QueryTableRequest):
     if ctx.storage.has(str(msg.table_number)):
         status = TableStatus.RESERVED
@@ -67,7 +67,7 @@ async def handle_query_request(ctx: Context, sender: str, msg: QueryTableRequest
     await ctx.send(sender, QueryTableResponse(status=status))
 
 
-@restuarant.on_message(model=BookTableRequest)
+@restuarant.on_message(model=BookTableRequest, replies=[BookTableResponse])
 async def handle_book_request(ctx: Context, sender: str, msg: BookTableRequest):
     if ctx.storage.has(str(msg.table_number)):
         success = False
