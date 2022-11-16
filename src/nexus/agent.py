@@ -39,7 +39,6 @@ class Agent(Sink):
         seed: Optional[str] = None,
         endpoint: Optional[str] = None,
         resolve: Optional[Resolver] = None,
-        network: Optional[str] = None,
     ):
         self._name = name
         self._intervals: List[Tuple[float, Any]] = []
