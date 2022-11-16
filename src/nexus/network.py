@@ -6,6 +6,7 @@ from cosmpy.aerial.client import LedgerClient, NetworkConfig
 
 CONTRACT_ALMANAC = "fetch1gfq09zhz5kzeue3k9whl8t6fv9ke8vkq6x4s8p6pj946t50dmc7qvw5npv"
 
+
 class Network:
     @staticmethod
     def get_ledger(network: str) -> LedgerClient:

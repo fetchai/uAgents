@@ -115,9 +115,7 @@ class Agent(Sink):
             }
         }
 
-        contract.execute(
-            msg, self._wallet, funds=REGISTRATION_FEE
-        ).wait_to_complete()
+        contract.execute(msg, self._wallet, funds=REGISTRATION_FEE).wait_to_complete()
         print(f"Registration complete for Agent {self._name}")
 
     def registration_status(self) -> bool:
