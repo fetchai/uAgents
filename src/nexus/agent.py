@@ -108,6 +108,11 @@ class Agent(Sink):
             print(f"Agent {self._name} registration is up to date")
             return
 
+        agent_balance = self._ledger.query_bank_balance(self._wallet)
+
+        if agent_balance < 5e17:
+            raise Exception(f"Insufficient funds to register {self._name}")
+
         msg = {
             "register": {
                 "record": {
