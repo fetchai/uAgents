@@ -1,6 +1,7 @@
 from cosmpy.aerial.client import NetworkConfig
 from cosmpy.aerial.faucet import FaucetApi
 
+from nexus.network import Network
 from nexus import Agent, Context, Model
 from nexus.resolver import AlmanacResolver
 
@@ -13,12 +14,11 @@ agent = Agent(
     name="bob",
     port=8001,
     seed="agent2 secret phrase",
-    network="fetchai-testnet",
     endpoint="http://127.0.0.1:8001/submit",
     resolve=AlmanacResolver(),
 )
 
-ledger = agent.ledger
+ledger = Network.get_ledger("fetchai-testnet")
 faucet_api = FaucetApi(NetworkConfig.latest_stable_testnet())
 
 agent_balance = ledger.query_bank_balance(agent.wallet.address())

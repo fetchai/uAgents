@@ -3,14 +3,12 @@ import functools
 import logging
 from typing import Optional, List, Tuple, Any
 
-from cosmpy.aerial.client import LedgerClient, NetworkConfig
-from cosmpy.aerial.contract import LedgerContract
-from cosmpy.crypto.keypairs import PrivateKey
 from cosmpy.aerial.wallet import LocalWallet
 
 from nexus.asgi import ASGIServer
 from nexus.context import Context, IntervalCallback, MessageCallback
 from nexus.crypto import Identity
+from nexus.network import Network
 from nexus.dispatch import Sink, dispatcher
 from nexus.models import Model
 from nexus.protocol import Protocol
@@ -30,13 +28,6 @@ async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
         await asyncio.sleep(period)
 
 
-def network_config(network) -> LedgerClient:
-    if network == "fetchai-testnet":
-        return LedgerClient(NetworkConfig.fetchai_stable_testnet())
-    return None
-
-
-CONTRACT_ALMANAC = "fetch1gfq09zhz5kzeue3k9whl8t6fv9ke8vkq6x4s8p6pj946t50dmc7qvw5npv"
 REGISTRATION_FEE = "500000000000000000atestfet"
 
 
@@ -60,13 +51,7 @@ class Agent(Sink):
             Identity.generate() if seed is None else Identity.from_seed(seed)
         )
         self._endpoint = endpoint if endpoint is not None else "123"
-        self._wallet = LocalWallet(PrivateKey(Identity.get_key(self.address)))
-        self._ledger = (
-            network_config(network)
-            if network is not None
-            else network_config("fetchai-testnet")
-        )
-        self._reg_contract = LedgerContract(None, self.ledger, CONTRACT_ALMANAC)
+        self._wallet = Network.get_wallet(Identity.get_key(self.address))
         self._storage = KeyValueStore(self.address[0:16])
         self._ctx = Context(
             self._identity.address,
@@ -104,10 +89,6 @@ class Agent(Sink):
     def wallet(self) -> LocalWallet:
         return self._wallet
 
-    @property
-    def ledger(self) -> LedgerClient:
-        return self._ledger
-
     def sign_digest(self, digest: bytes) -> str:
         return self._identity.sign_digest(digest)
 
@@ -120,6 +101,9 @@ class Agent(Sink):
             print(f"Agent {self._name} registration is up to date")
             return
 
+        ledger = Network.get_ledger("fetchai-testnet")
+        contract = Network.get_reg_contract(ledger)
+
         msg = {
             "register": {
                 "record": {
@@ -131,13 +115,16 @@ class Agent(Sink):
             }
         }
 
-        self._reg_contract.execute(
+        contract.execute(
             msg, self._wallet, funds=REGISTRATION_FEE
         ).wait_to_complete()
         print(f"Registration complete for Agent {self._name}")
 
     def registration_status(self) -> bool:
-        contract = self._reg_contract
+
+        ledger = Network.get_ledger("fetchai-testnet")
+        contract = Network.get_reg_contract(ledger)
+
         query_msg = {"query_records": {"address": self._wallet.address()}}
 
         if contract.query(query_msg)["record"] != []:
