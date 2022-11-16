@@ -78,6 +78,8 @@ async def handle_book_request(ctx: Context, sender: str, msg: BookTableRequest):
     # send the response
     await ctx.send(sender, BookTableResponse(success=success))
 
+print(user.spec.to_dict())
+print(restuarant.spec.to_dict())
 
 # since we have multiple agents in this example we add them to a bureau
 # (just an "office" for agents)
