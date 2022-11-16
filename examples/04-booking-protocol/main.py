@@ -2,6 +2,7 @@ from enum import Enum
 
 from nexus import Agent, Bureau, Context, Model
 
+
 class TableStatus(str, Enum):
     RESERVED = "reserved"
     FREE = "free"
