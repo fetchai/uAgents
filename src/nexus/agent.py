@@ -8,12 +8,12 @@ from cosmpy.aerial.wallet import LocalWallet
 from nexus.asgi import ASGIServer
 from nexus.context import Context, IntervalCallback, MessageCallback
 from nexus.crypto import Identity
-from nexus.network import Network
 from nexus.dispatch import Sink, dispatcher
 from nexus.models import Model
 from nexus.protocol import Protocol
 from nexus.resolver import Resolver, AlmanacResolver
 from nexus.storage import KeyValueStore
+from nexus.network import get_ledger, get_reg_contract, get_wallet
 
 
 async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
@@ -50,7 +50,7 @@ class Agent(Sink):
             Identity.generate() if seed is None else Identity.from_seed(seed)
         )
         self._endpoint = endpoint if endpoint is not None else "123"
-        self._wallet = Network.get_wallet(Identity.get_key(self.address))
+        self._wallet = get_wallet(Identity.get_key(self.address))
         self._storage = KeyValueStore(self.address[0:16])
         self._ctx = Context(
             self._identity.address,
@@ -100,8 +100,8 @@ class Agent(Sink):
             print(f"Agent {self._name} registration is up to date")
             return
 
-        ledger = Network.get_ledger("fetchai-testnet")
-        contract = Network.get_reg_contract(ledger)
+        ledger = get_ledger("fetchai-testnet")
+        contract = get_reg_contract(ledger)
 
         msg = {
             "register": {
@@ -119,8 +119,8 @@ class Agent(Sink):
 
     def registration_status(self) -> bool:
 
-        ledger = Network.get_ledger("fetchai-testnet")
-        contract = Network.get_reg_contract(ledger)
+        ledger = get_ledger("fetchai-testnet")
+        contract = get_reg_contract(ledger)
 
         query_msg = {"query_records": {"address": self._wallet.address()}}
 

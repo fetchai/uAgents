@@ -1,9 +1,9 @@
 from cosmpy.aerial.client import NetworkConfig
 from cosmpy.aerial.faucet import FaucetApi
 
-from nexus.network import Network
 from nexus import Agent, Context, Model
 from nexus.resolver import AlmanacResolver
+from nexus.network import get_ledger
 
 
 class Message(Model):
@@ -18,7 +18,7 @@ agent = Agent(
     resolve=AlmanacResolver(),
 )
 
-ledger = Network.get_ledger("fetchai-testnet")
+ledger = get_ledger("fetchai-testnet")
 faucet_api = FaucetApi(NetworkConfig.latest_stable_testnet())
 
 agent_balance = ledger.query_bank_balance(agent.wallet.address())

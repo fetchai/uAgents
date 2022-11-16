@@ -2,12 +2,12 @@ from abc import ABC, abstractmethod
 from typing import Dict, Optional
 
 from nexus.crypto import Identity
-from nexus.network import Network
+from nexus.network import get_ledger, get_reg_contract, get_wallet
 
 
 def _query_record(wallet_address: str, service: str) -> dict:
-    ledger = Network.get_ledger("fetchai-testnet")
-    contract = Network.get_reg_contract(ledger)
+    ledger = get_ledger("fetchai-testnet")
+    contract = get_reg_contract(ledger)
     query_msg = {"query_record": {"address": wallet_address, "record_type": service}}
     result = contract.query(query_msg)
     return result
@@ -21,7 +21,7 @@ class Resolver(ABC):
 
 class AlmanacResolver(Resolver):
     async def resolve(self, address: str) -> str:
-        wallet = Network.get_wallet(Identity.get_key(address))
+        wallet = get_wallet(Identity.get_key(address))
         result = _query_record(wallet.address(), "Service")
         endpoint = result["record"]["record"]["Service"]["endpoints"][0]["url"]
         return endpoint
