@@ -41,6 +41,11 @@ class Identity:
     def address(self) -> str:
         return self._address
 
+    @staticmethod
+    def get_key(address: str) -> str:
+        _, pk_data = _decode_bech32(address)
+        return pk_data[:-1]
+
     def sign_digest(self, digest: bytes) -> str:
         return _encode_bech32("sig", self._sk.sign_digest(digest))
 

@@ -46,6 +46,7 @@ class Agent(Sink):
         name: Optional[str] = None,
         port: Optional[int] = None,
         seed: Optional[str] = None,
+        endpoint: Optional[str] = None,
         resolve: Optional[Resolver] = None,
         network: Optional[str] = None,
     ):
@@ -58,8 +59,13 @@ class Agent(Sink):
         self._identity = (
             Identity.generate() if seed is None else Identity.from_seed(seed)
         )
-        self._wallet = LocalWallet(PrivateKey(self._identity._sk.to_string()))
-        self._ledger = network_config(network)
+        self._endpoint = endpoint if endpoint is not None else "123"
+        self._wallet = LocalWallet(PrivateKey(Identity.get_key(self.address)))
+        self._ledger = (
+            network_config(network)
+            if network is not None
+            else network_config("fetchai-testnet")
+        )
         self._reg_contract = LedgerContract(None, self.ledger, CONTRACT_ALMANAC)
         self._storage = KeyValueStore(self.address[0:16])
         self._ctx = Context(
@@ -119,7 +125,7 @@ class Agent(Sink):
                 "record": {
                     "Service": {
                         "protocols": list(self._models.keys()),
-                        "endpoints": [{"url": self.address, "weight": 1}],
+                        "endpoints": [{"url": self._endpoint, "weight": 1}],
                     }
                 }
             }
@@ -138,18 +144,6 @@ class Agent(Sink):
             return True
 
         return False
-
-    def query_records(self, address: str) -> dict:
-        contract = self._reg_contract
-        query_msg = {"query_records": {"address": address}}
-        result = contract.query(query_msg)
-        return result
-
-    def query_record(self, address: str, service: str) -> dict:
-        contract = self._reg_contract
-        query_msg = {"query_record": {"address": address, "record_type": service}}
-        result = contract.query(query_msg)
-        return result
 
     def on_interval(self, period: float):
         def decorator_on_interval(func: IntervalCallback):

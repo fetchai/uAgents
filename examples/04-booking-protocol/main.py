@@ -1,6 +1,8 @@
 from enum import Enum
 
-from nexus import Agent, Bureau, Context, Model
+from nexus.agent import Agent, Bureau
+from nexus.context import Context
+from nexus.models import Model
 
 
 class TableStatus(str, Enum):

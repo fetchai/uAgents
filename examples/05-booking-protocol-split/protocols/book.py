@@ -1,4 +1,6 @@
-from nexus import Context, Model, Protocol
+from nexus.context import Context
+from nexus.models import Model
+from nexus.protocol import Protocol
 
 
 class BookTableRequest(Model):

@@ -6,7 +6,8 @@ from protocols.query import (
     query_proto,
 )
 
-from nexus import Agent, Bureau, Context
+from nexus.agent import Agent, Bureau
+from nexus.context import Context
 
 # build the restuarant agent from stock protocols
 restuarant = Agent(name="restuarant")
