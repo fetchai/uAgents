@@ -19,10 +19,7 @@ from nexus.network import get_ledger, get_reg_contract, get_wallet
 async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
     while True:
         try:
-            if ctx is None:
-                await func()
-            else:
-                await func(ctx)
+            await func(ctx) if ctx else await func()
         except OSError:
             logging.exception("OS Error in interval handler")
         except RuntimeError:
