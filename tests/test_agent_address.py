@@ -1,6 +1,6 @@
 import unittest
 
-from nexus.agent import Agent
+from nexus import Agent
 
 
 class TestAgentAdress(unittest.TestCase):

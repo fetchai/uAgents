@@ -1,7 +1,5 @@
 import hashlib
-from nexus.agent import Agent, Bureau
-from nexus.context import Context
-from nexus.models import Model
+from nexus import Agent, Bureau, Context, Model
 from nexus.crypto import Identity
 
 

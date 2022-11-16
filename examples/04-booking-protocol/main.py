@@ -1,9 +1,6 @@
 from enum import Enum
 
-from nexus.agent import Agent, Bureau
-from nexus.context import Context
-from nexus.models import Model
-
+from nexus import Agent, Bureau, Context, Model
 
 class TableStatus(str, Enum):
     RESERVED = "reserved"

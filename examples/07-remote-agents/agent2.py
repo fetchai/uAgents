@@ -1,6 +1,4 @@
-from nexus.agent import Agent
-from nexus.context import Context
-from nexus.models import Model
+from nexus import Agent, Context, Model
 from nexus.resolver import RulesBasedResolver
 
 

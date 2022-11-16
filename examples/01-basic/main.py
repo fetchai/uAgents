@@ -1,5 +1,4 @@
-from nexus.agent import Agent
-from nexus.context import Context
+from nexus import Agent, Context
 
 agent = Agent()
 

@@ -1,9 +1,7 @@
 from cosmpy.aerial.client import NetworkConfig
 from cosmpy.aerial.faucet import FaucetApi
 
-from nexus.agent import Agent
-from nexus.context import Context
-from nexus.models import Model
+from nexus import Agent, Context, Model
 from nexus.resolver import AlmanacResolver
 
 
