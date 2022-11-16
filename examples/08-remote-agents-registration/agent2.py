@@ -27,8 +27,6 @@ if agent_balance < 500000000000000000:
     # Add tokens to agent's wallet
     faucet_api.get_wealth(agent.wallet.address())
 
-agent.register()
-
 
 @agent.on_message(model=Message)
 async def bob_rx_message(ctx: Context, sender: str, msg: Message):

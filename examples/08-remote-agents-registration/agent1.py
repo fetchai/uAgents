@@ -30,9 +30,6 @@ if agent_balance < 500000000000000000:
     faucet_api.get_wealth(agent.wallet.address())
 
 
-agent.register()
-
-
 @agent.on_interval(period=2.0)
 async def send_message(ctx: Context):
     await ctx.send(RECIPIENT_ADDRESS, Message(message="hello there bob"))

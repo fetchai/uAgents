@@ -21,7 +21,10 @@ from nexus.storage import KeyValueStore
 async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
     while True:
         try:
-            await func(ctx)
+            if ctx is None:
+                await func()
+            else:
+                await func(ctx)
         except OSError:
             logging.exception("OS Error in interval handler")
         except RuntimeError:
@@ -38,6 +41,7 @@ def network_config(network) -> LedgerClient:
 
 CONTRACT_ALMANAC = "fetch1gfq09zhz5kzeue3k9whl8t6fv9ke8vkq6x4s8p6pj946t50dmc7qvw5npv"
 REGISTRATION_FEE = "500000000000000000atestfet"
+REG_UPDATE_INTERVAL_SECONDS = 60
 
 
 class Agent(Sink):
@@ -83,6 +87,11 @@ class Agent(Sink):
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
 
+        # start the contract registration update loop
+        self._loop.create_task(
+            _run_interval(self.register, None, REG_UPDATE_INTERVAL_SECONDS)
+        )
+
         # start the background message queue processor
         task = self._loop.create_task(self._process_message_queue())
         self._background_tasks.add(task)
@@ -114,7 +123,7 @@ class Agent(Sink):
     def update_loop(self, loop):
         self._loop = loop
 
-    def register(self):
+    async def register(self):
 
         if self.registration_status():
             print(f"Agent {self._name} registration is up to date")
@@ -131,7 +140,7 @@ class Agent(Sink):
             }
         }
 
-        self._reg_contract.execute(
+        await self._reg_contract.execute(
             msg, self._wallet, funds=REGISTRATION_FEE
         ).wait_to_complete()
         print(f"Registration complete for Agent {self._name}")
