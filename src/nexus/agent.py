@@ -178,13 +178,19 @@ class Agent(Sink):
             # parse the received message
             recovered = model_class.parse_raw(message)
 
-            # put message in the inbox for reply validation
+            # temporarily put message in the inbox for reply validation
             self._inbox[sender] = {"msg": message, "digest": schema_digest}
 
             # attempt to find the handler
-            handler: MessageCallback = self._message_handlers.get(schema_digest)
-            if handler is not None:
-                await handler(self._ctx, sender, recovered)
+            try:
+                handler: MessageCallback = self._message_handlers.get(schema_digest)
+                if handler is not None:
+                    await handler(self._ctx, sender, recovered)
+            except Exception as ex:
+                raise ex
+            finally:
+                if sender in self._inbox:
+                    del self._inbox[sender]
 
 
 class Bureau:
