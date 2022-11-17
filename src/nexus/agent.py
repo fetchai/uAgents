@@ -1,16 +1,18 @@
 import asyncio
 import functools
 import logging
-from typing import Optional, List, Tuple, Any
+from typing import Optional, List, Set, Tuple, Any, Union
+
+from apispec import APISpec
 
 from cosmpy.aerial.wallet import LocalWallet
 
 from nexus.asgi import ASGIServer
-from nexus.context import Context, IntervalCallback, MessageCallback
+from nexus.context import Context, IntervalCallback, MessageCallback, MsgDigest
 from nexus.crypto import Identity
 from nexus.dispatch import Sink, dispatcher
 from nexus.models import Model
-from nexus.protocol import Protocol
+from nexus.protocol import Protocol, OPENAPI_VERSION
 from nexus.resolver import Resolver, AlmanacResolver
 from nexus.storage import KeyValueStore
 from nexus.network import get_ledger, get_reg_contract, get_wallet
@@ -40,6 +42,7 @@ class Agent(Sink):
         seed: Optional[str] = None,
         endpoint: Optional[str] = None,
         resolve: Optional[Resolver] = None,
+        version: Optional[str] = None,
     ):
         self._name = name
         self._intervals: List[Tuple[float, Any]] = []
@@ -55,6 +58,10 @@ class Agent(Sink):
         self._ledger = get_ledger("fetchai-testnet")
         self._reg_contract = get_reg_contract(self._ledger)
         self._storage = KeyValueStore(self.address[0:16])
+        self._models = {}
+        self._replies = {}
+        self._message_handlers = {}
+        self._inbox = {}
         self._ctx = Context(
             self._identity.address,
             self._name,
@@ -62,10 +69,15 @@ class Agent(Sink):
             self._resolver,
             self._identity,
         )
-        self._models = {}
-        self._message_handlers = {}
         self._dispatcher = dispatcher
         self._message_queue = asyncio.Queue()
+        self._version = version or "0.1.0"
+
+        self.spec = APISpec(
+            title=name,
+            version=self._version,
+            openapi_version=OPENAPI_VERSION,
+        )
 
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
@@ -156,21 +168,39 @@ class Agent(Sink):
 
         return decorator_on_interval
 
-    def on_message(self, model):
+    def on_message(
+        self, model: Model, replies: Optional[Union[Model, Set[Model]]] = None
+    ):
         def decorator_on_message(func: MessageCallback):
             @functools.wraps(func)
             def handler(*args, **kwargs):
                 return func(*args, **kwargs)
 
-            schema_digest = Model.build_schema_digest(model)
-
-            # update the model database
-            self._models[schema_digest] = model
-            self._message_handlers[schema_digest] = func
+            self._add_message_handler(model, func, replies)
 
             return handler
 
         return decorator_on_message
+
+    def _add_message_handler(self, model, func, replies):
+        schema_digest = Model.build_schema_digest(model)
+
+        # update the model database
+        self._models[schema_digest] = model
+        self._message_handlers[schema_digest] = func
+        if replies is not None:
+            if not isinstance(replies, set):
+                replies = {replies}
+            self._replies[schema_digest] = {
+                Model.build_schema_digest(reply) for reply in replies
+            }
+
+            self.spec.path(
+                path=model.__name__,
+                operations=dict(
+                    post=dict(replies=[reply.__name__ for reply in replies])
+                ),
+            )
 
     def include(self, protocol: Protocol):
         for func, period in protocol.intervals:
@@ -188,6 +218,7 @@ class Agent(Sink):
 
             # include the message handlers from the protocol
             self._models[schema_digest] = protocol.models[schema_digest]
+            self._replies[schema_digest] = protocol.replies[schema_digest]
             self._message_handlers[schema_digest] = protocol.message_handlers[
                 schema_digest
             ]
@@ -212,10 +243,20 @@ class Agent(Sink):
             # parse the received message
             recovered = model_class.parse_raw(message)
 
+            context = Context(
+                self._identity.address,
+                self._name,
+                self._storage,
+                self._resolver,
+                self._identity,
+                self._replies,
+                MsgDigest(message=message, schema_digest=schema_digest),
+            )
+
             # attempt to find the handler
             handler: MessageCallback = self._message_handlers.get(schema_digest)
             if handler is not None:
-                await handler(self._ctx, sender, recovered)
+                await handler(context, sender, recovered)
 
 
 class Bureau:

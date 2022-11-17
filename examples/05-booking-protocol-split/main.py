@@ -26,7 +26,7 @@ async def interval(ctx: Context):
     ctx.storage.set("started", True)
 
 
-@user.on_message(QueryTableResponse)
+@user.on_message(QueryTableResponse, replies={BookTableRequest})
 async def handle_query_response(ctx: Context, sender: str, msg: QueryTableResponse):
     if msg.status == TableStatus.FREE:
         print("Table is free, attempting to book it now")
@@ -35,7 +35,7 @@ async def handle_query_response(ctx: Context, sender: str, msg: QueryTableRespon
         print("Table is not free - nothing more to do")
 
 
-@user.on_message(BookTableResponse)
+@user.on_message(BookTableResponse, replies=set())
 async def handle_book_response(_ctx: Context, _sender: str, msg: BookTableResponse):
     if msg.success:
         print("Table reservation was successful")
@@ -48,6 +48,7 @@ async def handle_book_response(_ctx: Context, _sender: str, msg: BookTableRespon
 bureau = Bureau()
 bureau.add(user)
 bureau.add(restuarant)
+
 
 if __name__ == "__main__":
     bureau.run()
