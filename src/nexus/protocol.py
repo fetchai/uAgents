@@ -1,5 +1,5 @@
 import functools
-from typing import Set, Optional
+from typing import Set, Optional, Union
 
 from apispec import APISpec
 
@@ -16,8 +16,8 @@ class Protocol:
         self._message_handlers = {}
         self._models = {}
         self._replies = {}
-        self._name = name or "my_protocol"
-        self._version = version or "0.0.1"
+        self._name = name or ""
+        self._version = version or "0.1.0"
 
         self.spec = APISpec(
             title=self._name,
@@ -54,7 +54,9 @@ class Protocol:
 
         return decorator_on_interval
 
-    def on_message(self, model: Model, replies: Set[Model]):
+    def on_message(
+        self, model: Model, replies: Optional[Union[Model, Set[Model]]] = None
+    ):
         def decorator_on_message(func: MessageCallback):
             @functools.wraps(func)
             def handler(*args, **kwargs):
@@ -71,12 +73,17 @@ class Protocol:
 
         # update the model database
         self._models[schema_digest] = model
-        self._replies[schema_digest] = {
-            Model.build_schema_digest(reply) for reply in replies
-        }
         self._message_handlers[schema_digest] = func
+        if replies is not None:
+            if not isinstance(replies, set):
+                replies = {replies}
+            self._replies[schema_digest] = {
+                Model.build_schema_digest(reply) for reply in replies
+            }
 
-        self.spec.path(
-            path=model.__name__,
-            operations=dict(post=dict(replies=[reply.__name__ for reply in replies])),
-        )
+            self.spec.path(
+                path=model.__name__,
+                operations=dict(
+                    post=dict(replies=[reply.__name__ for reply in replies])
+                ),
+            )

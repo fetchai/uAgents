@@ -38,7 +38,7 @@ async def interval(ctx: Context):
     ctx.storage.set("started", True)
 
 
-@user.on_message(QueryTableResponse, replies={BookTableRequest})
+@user.on_message(QueryTableResponse, replies=BookTableRequest)
 async def handle_query_response(ctx: Context, _sender: str, msg: QueryTableResponse):
     if msg.status == TableStatus.FREE:
         print("Table is free, attempting to book it now")
@@ -47,7 +47,7 @@ async def handle_query_response(ctx: Context, _sender: str, msg: QueryTableRespo
         print("Table is not free - nothing more to do")
 
 
-@user.on_message(BookTableResponse, replies={})
+@user.on_message(BookTableResponse, replies=set())
 async def handle_book_response(_ctx: Context, _sender: str, msg: BookTableResponse):
     if msg.success:
         print("Table reservation was successful")
@@ -55,7 +55,7 @@ async def handle_book_response(_ctx: Context, _sender: str, msg: BookTableRespon
         print("Table reservation was UNSUCCESSFUL")
 
 
-@restuarant.on_message(model=QueryTableRequest, replies={QueryTableResponse})
+@restuarant.on_message(model=QueryTableRequest, replies=QueryTableResponse)
 async def handle_query_request(ctx: Context, sender: str, msg: QueryTableRequest):
     if ctx.storage.has(str(msg.table_number)):
         status = TableStatus.RESERVED
@@ -67,7 +67,7 @@ async def handle_query_request(ctx: Context, sender: str, msg: QueryTableRequest
     await ctx.send(sender, QueryTableResponse(status=status))
 
 
-@restuarant.on_message(model=BookTableRequest, replies={BookTableResponse})
+@restuarant.on_message(model=BookTableRequest, replies=BookTableResponse)
 async def handle_book_request(ctx: Context, sender: str, msg: BookTableRequest):
     if ctx.storage.has(str(msg.table_number)):
         success = False

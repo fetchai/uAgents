@@ -35,7 +35,7 @@ async def handle_query_response(ctx: Context, sender: str, msg: QueryTableRespon
         print("Table is not free - nothing more to do")
 
 
-@user.on_message(BookTableResponse, replies={})
+@user.on_message(BookTableResponse, replies=set())
 async def handle_book_response(_ctx: Context, _sender: str, msg: BookTableResponse):
     if msg.success:
         print("Table reservation was successful")

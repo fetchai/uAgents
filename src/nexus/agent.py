@@ -1,12 +1,12 @@
 import asyncio
 import functools
 import logging
-from typing import Optional, List, Set, Tuple, Any
+from typing import Optional, List, Set, Tuple, Any, Union
 
 from apispec import APISpec
 
 from nexus.asgi import ASGIServer
-from nexus.context import Context, IntervalCallback, MessageCallback
+from nexus.context import Context, IntervalCallback, MessageCallback, MsgDigest
 from nexus.crypto import Identity
 from nexus.dispatch import Sink, dispatcher
 from nexus.models import Model
@@ -56,12 +56,10 @@ class Agent(Sink):
             self._storage,
             self._resolver,
             self._identity,
-            self._inbox,
-            self._replies,
         )
         self._dispatcher = dispatcher
         self._message_queue = asyncio.Queue()
-        self._version = version or "0.0.1"
+        self._version = version or "0.1.0"
 
         self.spec = APISpec(
             title=name,
@@ -110,7 +108,9 @@ class Agent(Sink):
 
         return decorator_on_interval
 
-    def on_message(self, model: Model, replies: Set[Model]):
+    def on_message(
+        self, model: Model, replies: Optional[Union[Model, Set[Model]]] = None
+    ):
         def decorator_on_message(func: MessageCallback):
             @functools.wraps(func)
             def handler(*args, **kwargs):
@@ -127,15 +127,20 @@ class Agent(Sink):
 
         # update the model database
         self._models[schema_digest] = model
-        self._replies[schema_digest] = [
-            Model.build_schema_digest(reply) for reply in replies
-        ]
         self._message_handlers[schema_digest] = func
+        if replies is not None:
+            if not isinstance(replies, set):
+                replies = {replies}
+            self._replies[schema_digest] = {
+                Model.build_schema_digest(reply) for reply in replies
+            }
 
-        self.spec.path(
-            path=model.__name__,
-            operations=dict(post=dict(replies=[reply.__name__ for reply in replies])),
-        )
+            self.spec.path(
+                path=model.__name__,
+                operations=dict(
+                    post=dict(replies=[reply.__name__ for reply in replies])
+                ),
+            )
 
     def include(self, protocol: Protocol):
         for func, period in protocol.intervals:
@@ -178,18 +183,20 @@ class Agent(Sink):
             # parse the received message
             recovered = model_class.parse_raw(message)
 
-            # temporarily put message in the inbox for reply validation
-            self._inbox[sender] = {"msg": message, "digest": schema_digest}
+            context = Context(
+                self._identity.address,
+                self._name,
+                self._storage,
+                self._resolver,
+                self._identity,
+                self._replies,
+                MsgDigest(message=message, schema_digest=schema_digest),
+            )
 
             # attempt to find the handler
-            try:
-                handler: MessageCallback = self._message_handlers.get(schema_digest)
-                if handler is not None:
-                    await handler(self._ctx, sender, recovered)
-            except Exception as ex:
-                raise ex
-            finally:
-                del self._inbox[sender]
+            handler: MessageCallback = self._message_handlers.get(schema_digest)
+            if handler is not None:
+                await handler(context, sender, recovered)
 
 
 class Bureau:
