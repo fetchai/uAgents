@@ -56,7 +56,6 @@ class Context:
                 raise RuntimeError(
                     f"Outgoing message {message} is not a valid reply to {received['msg']}"
                 )
-            del self._inbox[destination]
 
         # handle local dispatch of messages
         if dispatcher.contains(destination):

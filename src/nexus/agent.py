@@ -189,8 +189,7 @@ class Agent(Sink):
             except Exception as ex:
                 raise ex
             finally:
-                if sender in self._inbox:
-                    del self._inbox[sender]
+                del self._inbox[sender]
 
 
 class Bureau:
