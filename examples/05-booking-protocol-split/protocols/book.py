@@ -12,7 +12,7 @@ class BookTableResponse(Model):
 book_proto = Protocol()
 
 
-@book_proto.on_message(model=BookTableRequest, replies=[BookTableResponse])
+@book_proto.on_message(model=BookTableRequest, replies={BookTableResponse})
 async def handle_book_request(ctx: Context, sender: str, msg: BookTableRequest):
     if ctx.storage.has(str(msg.table_number)):
         success = False

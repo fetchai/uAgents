@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional, Callable, Any, Awaitable
+from typing import Dict, Set, Optional, Callable, Any, Awaitable
 
 import aiohttp
 
@@ -22,12 +22,16 @@ class Context:
         storage: KeyValueStore,
         resolve: Resolver,
         identity: Identity,
+        inbox: Dict[str, str],
+        replies: Dict[str, Set[str]],
     ):
         self.storage = storage
         self._name = name
         self._address = str(address)
         self._resolver = resolve
         self._identity = identity
+        self._inbox = inbox
+        self._replies = replies
 
     @property
     def name(self) -> str:
@@ -43,6 +47,16 @@ class Context:
         # convert the message into object form
         json_message = message.json()
         schema_digest = Model.build_schema_digest(message)
+
+        # check if this message is a reply
+        if destination in self._inbox:
+            received = self._inbox[destination]
+            # ensure the reply is valid
+            if schema_digest not in self._replies[received["digest"]]:
+                raise RuntimeError(
+                    f"Outgoing message {message} is not a valid reply to {received['msg']}"
+                )
+            del self._inbox[destination]
 
         # handle local dispatch of messages
         if dispatcher.contains(destination):

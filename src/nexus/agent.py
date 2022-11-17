@@ -1,7 +1,7 @@
 import asyncio
 import functools
 import logging
-from typing import Optional, List, Tuple, Any
+from typing import Optional, List, Set, Tuple, Any
 
 from apispec import APISpec
 
@@ -46,15 +46,19 @@ class Agent(Sink):
             Identity.generate() if seed is None else Identity.from_seed(seed)
         )
         self._storage = KeyValueStore(self.address[0:16])
+        self._models = {}
+        self._replies = {}
+        self._message_handlers = {}
+        self._inbox = {}
         self._ctx = Context(
             self._identity.address,
             self._name,
             self._storage,
             self._resolver,
             self._identity,
+            self._inbox,
+            self._replies,
         )
-        self._models = {}
-        self._message_handlers = {}
         self._dispatcher = dispatcher
         self._message_queue = asyncio.Queue()
         self._version = version or "0.0.1"
@@ -106,7 +110,7 @@ class Agent(Sink):
 
         return decorator_on_interval
 
-    def on_message(self, model: Model, replies: List[Model]=[Any]):
+    def on_message(self, model: Model, replies: Set[Model]):
         def decorator_on_message(func: MessageCallback):
             @functools.wraps(func)
             def handler(*args, **kwargs):
@@ -123,14 +127,14 @@ class Agent(Sink):
 
         # update the model database
         self._models[schema_digest] = model
+        self._replies[schema_digest] = [
+            Model.build_schema_digest(reply) for reply in replies
+        ]
         self._message_handlers[schema_digest] = func
 
         self.spec.path(
             path=model.__name__,
-            operations=dict(post=dict(
-                    replies=[reply.__name__ for reply in replies]
-                )
-            )
+            operations=dict(post=dict(replies=[reply.__name__ for reply in replies])),
         )
 
     def include(self, protocol: Protocol):
@@ -149,6 +153,7 @@ class Agent(Sink):
 
             # include the message handlers from the protocol
             self._models[schema_digest] = protocol.models[schema_digest]
+            self._replies[schema_digest] = protocol.replies[schema_digest]
             self._message_handlers[schema_digest] = protocol.message_handlers[
                 schema_digest
             ]
@@ -172,6 +177,9 @@ class Agent(Sink):
 
             # parse the received message
             recovered = model_class.parse_raw(message)
+
+            # put message in the inbox for reply validation
+            self._inbox[sender] = {"msg": message, "digest": schema_digest}
 
             # attempt to find the handler
             handler: MessageCallback = self._message_handlers.get(schema_digest)
