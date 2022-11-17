@@ -14,6 +14,8 @@ from nexus.protocol import Protocol
 from nexus.resolver import Resolver, AlmanacResolver
 from nexus.storage import KeyValueStore
 from nexus.network import get_ledger, get_reg_contract, get_wallet
+from nexus.config import REG_UPDATE_INTERVAL_SECONDS
+from nexus.config import REGISTRATION_FEE
 
 
 async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
@@ -26,10 +28,6 @@ async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
             logging.exception("Runtime Error in interval handler")
 
         await asyncio.sleep(period)
-
-
-REGISTRATION_FEE = "500000000000000000atestfet"
-REG_UPDATE_INTERVAL_SECONDS = 60
 
 
 class Agent(Sink):
