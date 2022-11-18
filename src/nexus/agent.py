@@ -23,7 +23,7 @@ from nexus.config import REGISTRATION_FEE
 async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
     while True:
         try:
-            await func(ctx) if ctx else await func()
+            await func(ctx)
         except OSError:
             logging.exception("OS Error in interval handler")
         except RuntimeError:
@@ -66,6 +66,8 @@ class Agent(Sink):
             self._storage,
             self._resolver,
             self._identity,
+            self._wallet,
+            self._ledger,
         )
         self._dispatcher = dispatcher
         self._message_queue = asyncio.Queue()
@@ -107,7 +109,7 @@ class Agent(Sink):
     def update_loop(self, loop):
         self._loop = loop
 
-    async def register(self):
+    async def register(self, ctx: Context):
 
         if self.registration_status():
             print(f"Agent {self._name} registration is up to date")
@@ -221,12 +223,12 @@ class Agent(Sink):
         await self._message_queue.put((schema_digest, sender, message))
 
     def run(self):
-        self._loop.run_until_complete(self._server.serve())
-
         # start the contract registration update loop
         self._loop.create_task(
             _run_interval(self.register, None, REG_UPDATE_INTERVAL_SECONDS)
         )
+
+        self._loop.run_until_complete(self._server.serve())
 
     async def _process_message_queue(self):
         while True:
@@ -247,6 +249,8 @@ class Agent(Sink):
                 self._storage,
                 self._resolver,
                 self._identity,
+                self._wallet,
+                self._ledger,
                 self._replies,
                 MsgDigest(message=message, schema_digest=schema_digest),
             )

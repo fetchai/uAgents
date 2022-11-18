@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from typing import Dict, Set, Optional, Callable, Any, Awaitable
 
 import aiohttp
+from cosmpy.aerial.client import LedgerClient
+from cosmpy.aerial.wallet import LocalWallet
 
 from nexus.crypto import Identity
 from nexus.dispatch import dispatcher
@@ -29,6 +31,8 @@ class Context:
         storage: KeyValueStore,
         resolve: Resolver,
         identity: Identity,
+        wallet: LocalWallet,
+        ledger: LedgerClient,
         replies: Optional[Dict[str, Set[str]]] = None,
         message_received: Optional[MsgDigest] = None,
     ):
@@ -37,6 +41,8 @@ class Context:
         self._address = str(address)
         self._resolver = resolve
         self._identity = identity
+        self._wallet = wallet
+        self._ledger = ledger
         self._replies = replies
         self._message_received = message_received
 
