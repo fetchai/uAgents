@@ -7,7 +7,7 @@ from protocols.query import (
 from nexus import Agent, Context
 from nexus.setup import fund_agent_if_low
 
-USER_ADDRESS = "agent1qwe352gculwjd9v9s49ucfy429y0trugte0m5rsla3wnu4kufhm4g2a0npu"
+
 RESTAURANT_ADDRESS = "agent1qwkes2mh336psu33f526r4tv9c2wrfl075xme73qs7uv5lyxmsf8ymt0ce5"
 
 user = Agent(

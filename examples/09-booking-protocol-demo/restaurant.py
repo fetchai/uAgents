@@ -7,9 +7,6 @@ from nexus.setup import fund_agent_if_low
 from protocols.book import TableStatus
 
 
-USER_ADDRESS = "agent1qwe352gculwjd9v9s49ucfy429y0trugte0m5rsla3wnu4kufhm4g2a0npu"
-
-
 restaurant = Agent(
     name="restaurant",
     port=8001,
