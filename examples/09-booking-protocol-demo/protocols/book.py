@@ -1,5 +1,3 @@
-from typing import Dict
-
 from nexus import Context, Model, Protocol
 
 from .query import TableStatus
