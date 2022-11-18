@@ -1,9 +1,5 @@
-from cosmpy.aerial.client import NetworkConfig
-from cosmpy.aerial.faucet import FaucetApi
-
+from nexus.setup import fund_agent_if_low
 from nexus import Agent, Context, Model
-from nexus.resolver import AlmanacResolver
-from nexus.network import get_ledger
 
 
 class Message(Model):
@@ -15,17 +11,9 @@ agent = Agent(
     port=8001,
     seed="agent2 secret phrase",
     endpoint="http://127.0.0.1:8001/submit",
-    resolve=AlmanacResolver(),
 )
 
-ledger = get_ledger("fetchai-testnet")
-faucet_api = FaucetApi(NetworkConfig.latest_stable_testnet())
-
-agent_balance = ledger.query_bank_balance(agent.wallet.address())
-
-if agent_balance < 500000000000000000:
-    # Add tokens to agent's wallet
-    faucet_api.get_wealth(agent.wallet.address())
+fund_agent_if_low(agent.wallet.address())
 
 
 @agent.on_message(model=Message)
