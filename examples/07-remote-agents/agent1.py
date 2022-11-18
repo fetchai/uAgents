@@ -27,7 +27,7 @@ async def send_message(ctx: Context):
     await ctx.send(AGENT2_ADDRESS, Message(message="hello there bob"))
 
 
-@agent.on_message(model=Message)
+@agent.on_message(model=Message, replies=set())
 async def on_message(ctx: Context, sender: str, msg: Message):
     print(f"[{ctx.name:5}] From: {sender} {msg.message}")
 
