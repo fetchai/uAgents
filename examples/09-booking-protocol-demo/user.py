@@ -1,17 +1,11 @@
-from cosmpy.aerial.client import NetworkConfig
-from cosmpy.aerial.faucet import FaucetApi
-
-from protocols.book import BookTableRequest, BookTableResponse, book_proto
+from protocols.book import BookTableRequest, BookTableResponse
 from protocols.query import (
     QueryTableRequest,
     QueryTableResponse,
-    TableStatus,
-    query_proto,
 )
 
-from nexus.network import get_ledger
-from nexus import Agent, Bureau, Context
-from nexus.resolver import AlmanacResolver, RulesBasedResolver
+from nexus import Agent, Context
+from nexus.setup import fund_agent_if_low
 
 USER_ADDRESS = "agent1qwe352gculwjd9v9s49ucfy429y0trugte0m5rsla3wnu4kufhm4g2a0npu"
 RESTAURANT_ADDRESS = "agent1qwkes2mh336psu33f526r4tv9c2wrfl075xme73qs7uv5lyxmsf8ymt0ce5"
@@ -21,26 +15,15 @@ user = Agent(
     port=8000,
     seed="agent1 secret phrasexx",
     endpoint="http://127.0.0.1:8000/submit",
-    resolve=AlmanacResolver(),
 )
 
-ledger = get_ledger("fetchai-testnet")
-faucet_api = FaucetApi(NetworkConfig.latest_stable_testnet())
-
-agent_balance = ledger.query_bank_balance(user.wallet.address())
-print(agent_balance)
-
-if agent_balance < 500000000000000000:
-    # Add tokens to agent's wallet
-    faucet_api.get_wealth(user.wallet.address())
-
+fund_agent_if_low(user.wallet.address())
 
 table_query = QueryTableRequest(
     guests=3,
     time_start=19,
     duration=2,
 )
-
 
 @user.on_interval(period=3.0)
 async def interval(ctx: Context):

@@ -1,17 +1,8 @@
-from cosmpy.aerial.client import NetworkConfig
-from cosmpy.aerial.faucet import FaucetApi
+from protocols.book import book_proto
+from protocols.query import query_proto, TableStatus
 
-from protocols.book import BookTableRequest, BookTableResponse, book_proto
-from protocols.query import (
-    QueryTableRequest,
-    QueryTableResponse,
-    TableStatus,
-    query_proto,
-)
-
-from nexus.network import get_ledger
-from nexus import Agent, Bureau, Context
-from nexus.resolver import AlmanacResolver, RulesBasedResolver
+from nexus import Agent
+from nexus.setup import fund_agent_if_low
 
 from protocols.book import TableStatus
 
@@ -24,8 +15,9 @@ restaurant = Agent(
     port=8001,
     seed="agent2 secret phrasexx",
     endpoint="http://127.0.0.1:8001/submit",
-    resolve=AlmanacResolver(),
 )
+
+fund_agent_if_low(restaurant.wallet.address())
 
 # build the restaurant agent from stock protocols
 restaurant.include(query_proto)
@@ -39,15 +31,6 @@ TABLES = {
 
 for (number, status) in TABLES.items():
     restaurant._storage.set(number, status.dict())
-
-ledger = get_ledger("fetchai-testnet")
-faucet_api = FaucetApi(NetworkConfig.latest_stable_testnet())
-restaurant_balance = ledger.query_bank_balance(restaurant.wallet.address())
-
-
-if restaurant_balance < 500000000000000000:
-    # Add tokens to agent's wallet
-    faucet_api.get_wealth(restaurant.wallet.address())
 
 
 if __name__ == "__main__":
