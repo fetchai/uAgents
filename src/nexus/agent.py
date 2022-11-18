@@ -80,11 +80,6 @@ class Agent(Sink):
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
 
-        # start the contract registration update loop
-        self._loop.create_task(
-            _run_interval(self.register, None, REG_UPDATE_INTERVAL_SECONDS)
-        )
-
         # start the background message queue processor
         task = self._loop.create_task(self._process_message_queue())
         self._background_tasks.add(task)
@@ -134,9 +129,9 @@ class Agent(Sink):
             }
         }
 
-        await self._reg_contract.execute(
+        await self._loop.run_in_executor(self._reg_contract.execute(
             msg, self._wallet, funds=REGISTRATION_FEE
-        ).wait_to_complete()
+        ).wait_to_complete())
         print(f"Registration complete for Agent {self._name}")
 
     def registration_status(self) -> bool:
@@ -227,6 +222,11 @@ class Agent(Sink):
 
     def run(self):
         self._loop.run_until_complete(self._server.serve())
+
+        # start the contract registration update loop
+        self._loop.create_task(
+            _run_interval(self.register, None, REG_UPDATE_INTERVAL_SECONDS)
+        )
 
     async def _process_message_queue(self):
         while True:
