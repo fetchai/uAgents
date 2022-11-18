@@ -225,7 +225,7 @@ class Agent(Sink):
     def run(self):
         # start the contract registration update loop
         self._loop.create_task(
-            _run_interval(self.register, None, REG_UPDATE_INTERVAL_SECONDS)
+            _run_interval(self.register, self._ctx, REG_UPDATE_INTERVAL_SECONDS)
         )
 
         self._loop.run_until_complete(self._server.serve())
