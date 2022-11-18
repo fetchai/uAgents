@@ -1,0 +1,79 @@
+from cosmpy.aerial.client import NetworkConfig
+from cosmpy.aerial.faucet import FaucetApi
+
+from protocols.book import BookTableRequest, BookTableResponse, book_proto
+from protocols.query import (
+    QueryTableRequest,
+    QueryTableResponse,
+    TableStatus,
+    query_proto,
+)
+
+from nexus.network import get_ledger
+from nexus import Agent, Bureau, Context
+from nexus.resolver import AlmanacResolver, RulesBasedResolver
+
+USER_ADDRESS = "agent1qwe352gculwjd9v9s49ucfy429y0trugte0m5rsla3wnu4kufhm4g2a0npu"
+RESTAURANT_ADDRESS = "agent1qwkes2mh336psu33f526r4tv9c2wrfl075xme73qs7uv5lyxmsf8ymt0ce5"
+
+user = Agent(
+    name="user",
+    port=8000,
+    seed="agent1 secret phrasexx",
+    endpoint="http://127.0.0.1:8000/submit",
+    resolve=AlmanacResolver(),
+)
+
+ledger = get_ledger("fetchai-testnet")
+faucet_api = FaucetApi(NetworkConfig.latest_stable_testnet())
+
+agent_balance = ledger.query_bank_balance(user.wallet.address())
+print(agent_balance)
+
+if agent_balance < 500000000000000000:
+    # Add tokens to agent's wallet
+    faucet_api.get_wealth(user.wallet.address())
+
+
+table_query = QueryTableRequest(
+    guests=3,
+    time_start=19,
+    duration=2,
+)
+
+
+@user.on_interval(period=3.0)
+async def interval(ctx: Context):
+    started = ctx.storage.get("started")
+
+    if not started:
+        await ctx.send(RESTAURANT_ADDRESS, table_query)
+
+    ctx.storage.set("started", True)
+
+
+@user.on_message(QueryTableResponse, replies={BookTableRequest})
+async def handle_query_response(ctx: Context, sender: str, msg: QueryTableResponse):
+    if len(msg.tables) > 0:
+        print("There is a free table, attempting to book one now")
+        table_number = msg.tables[0]
+        request = BookTableRequest(
+            table_number=table_number,
+            time_start=table_query.time_start,
+            duration=table_query.duration
+        )
+        await ctx.send(sender, request)
+    else:
+        print("No free tables - nothing more to do")
+
+
+@user.on_message(BookTableResponse, replies=set())
+async def handle_book_response(_ctx: Context, _sender: str, msg: BookTableResponse):
+    if msg.success:
+        print("Table reservation was successful")
+    else:
+        print("Table reservation was UNSUCCESSFUL")
+
+
+if __name__ == "__main__":
+    user.run()
