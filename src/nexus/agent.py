@@ -17,13 +17,13 @@ from nexus.resolver import Resolver, AlmanacResolver
 from nexus.storage import KeyValueStore
 from nexus.network import get_ledger, get_reg_contract, get_wallet
 from nexus.config import REG_UPDATE_INTERVAL_SECONDS
-from nexus.config import REGISTRATION_FEE
+from nexus.config import REGISTRATION_FEE, REGISTRATION_DENOM
 
 
 async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
     while True:
         try:
-            await func(ctx) if ctx else await func()
+            await func(ctx)
         except OSError:
             logging.exception("OS Error in interval handler")
         except RuntimeError:
@@ -66,6 +66,8 @@ class Agent(Sink):
             self._storage,
             self._resolver,
             self._identity,
+            self._wallet,
+            self._ledger,
         )
         self._dispatcher = dispatcher
         self._message_queue = asyncio.Queue()
@@ -107,15 +109,15 @@ class Agent(Sink):
     def update_loop(self, loop):
         self._loop = loop
 
-    async def register(self):
+    async def register(self, ctx: Context):
 
         if self.registration_status():
-            print(f"Agent {self._name} registration is up to date")
+            logging.info(f"Agent {self._name} registration is up to date")
             return
 
-        agent_balance = self._ledger.query_bank_balance(self._wallet)
+        agent_balance = ctx.ledger.query_bank_balance(ctx.wallet)
 
-        if agent_balance < 5e17:
+        if agent_balance < REGISTRATION_FEE:
             raise Exception(f"Insufficient funds to register {self._name}")
 
         msg = {
@@ -129,10 +131,18 @@ class Agent(Sink):
             }
         }
 
-        await self._loop.run_in_executor(self._reg_contract.execute(
-            msg, self._wallet, funds=REGISTRATION_FEE
-        ).wait_to_complete())
-        print(f"Registration complete for Agent {self._name}")
+        logging.info(f"Registering Agent {self._name}...")
+        transaction = await self._loop.run_in_executor(
+            None,
+            functools.partial(
+                self._reg_contract.execute,
+                msg,
+                ctx.wallet,
+                funds=f"{REGISTRATION_FEE}{REGISTRATION_DENOM}",
+            ),
+        )
+        await self._loop.run_in_executor(None, transaction.wait_to_complete)
+        logging.info(f"Registering Agent {self._name}...complete")
 
     def registration_status(self) -> bool:
 
@@ -221,6 +231,11 @@ class Agent(Sink):
         await self._message_queue.put((schema_digest, sender, message))
 
     def run(self):
+        # start the contract registration update loop
+        self._loop.create_task(
+            _run_interval(self.register, self._ctx, REG_UPDATE_INTERVAL_SECONDS)
+        )
+
         self._loop.run_until_complete(self._server.serve())
 
         # start the contract registration update loop
@@ -247,6 +262,8 @@ class Agent(Sink):
                 self._storage,
                 self._resolver,
                 self._identity,
+                self._wallet,
+                self._ledger,
                 self._replies,
                 MsgDigest(message=message, schema_digest=schema_digest),
             )

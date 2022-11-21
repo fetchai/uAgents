@@ -6,5 +6,6 @@ disable=missing-module-docstring,
         too-few-public-methods,
         too-many-instance-attributes,
         duplicate-code,
-        too-many-arguments
+        too-many-arguments,
+        logging-fstring-interpolation
 
