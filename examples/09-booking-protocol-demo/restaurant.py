@@ -10,7 +10,7 @@ from protocols.book import TableStatus
 restaurant = Agent(
     name="restaurant",
     port=8001,
-    seed="agent2 secret phrasexx",
+    seed="restaurant secret phrase",
     endpoint="http://127.0.0.1:8001/submit",
 )
 
