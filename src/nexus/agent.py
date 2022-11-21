@@ -238,11 +238,6 @@ class Agent(Sink):
 
         self._loop.run_until_complete(self._server.serve())
 
-        # start the contract registration update loop
-        self._loop.create_task(
-            _run_interval(self.register, None, REG_UPDATE_INTERVAL_SECONDS)
-        )
-
     async def _process_message_queue(self):
         while True:
             # get an element from the queue
