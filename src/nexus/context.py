@@ -1,3 +1,4 @@
+import logging
 import uuid
 from dataclasses import dataclass
 from typing import Dict, Set, Optional, Callable, Any, Awaitable
@@ -37,12 +38,12 @@ class Context:
         message_received: Optional[MsgDigest] = None,
     ):
         self.storage = storage
+        self.wallet = wallet
+        self.ledger = ledger
         self._name = name
         self._address = str(address)
         self._resolver = resolve
         self._identity = identity
-        self._wallet = wallet
-        self._ledger = ledger
         self._replies = replies
         self._message_received = message_received
 
@@ -67,9 +68,10 @@ class Context:
             if received.schema_digest in self._replies:
                 # ensure the reply is valid
                 if schema_digest not in self._replies[received.schema_digest]:
-                    raise RuntimeError(
+                    logging.exception(
                         f"Outgoing message {message} is not a valid reply to {received.message}"
                     )
+                    return
 
         # handle local dispatch of messages
         if dispatcher.contains(destination):
@@ -81,9 +83,10 @@ class Context:
         # resolve the endpoint
         endpoint = await self._resolver.resolve(destination)
         if endpoint is None:
-            raise RuntimeError(
+            logging.exception(
                 f"Unable to resolve destination endpoint for address {destination}"
             )
+            return
 
         # handle external dispatch of messages
         env = Envelope(
@@ -104,4 +107,4 @@ class Context:
                 success = resp.status == 200
 
         if not success:
-            raise RuntimeError(f"Unable to send envelope to {destination} @ {endpoint}")
+            logging.exception(f"Unable to send envelope to {destination} @ {endpoint}")

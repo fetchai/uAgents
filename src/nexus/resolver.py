@@ -23,8 +23,14 @@ class AlmanacResolver(Resolver):
     async def resolve(self, address: str) -> str:
         wallet = get_wallet(Identity.get_key(address))
         result = _query_record(wallet.address(), "Service")
-        endpoint = result["record"]["record"]["Service"]["endpoints"][0]["url"]
-        return endpoint
+        if result is not None:
+            record = result.get("record") or {}
+            endpoints = record.get("record", {}).get("Service", {}).get("endpoints", [])
+
+            # For now just use the first endpoint
+            if len(endpoints) > 0:
+                return endpoints[0].get("url")
+        return None
 
 
 class RulesBasedResolver(Resolver):
