@@ -5,14 +5,23 @@ from typing import Optional, List, Set, Tuple, Any, Union
 
 from apispec import APISpec
 
+from cosmpy.aerial.wallet import LocalWallet, PrivateKey
+
 from nexus.asgi import ASGIServer
 from nexus.context import Context, IntervalCallback, MessageCallback, MsgDigest
-from nexus.crypto import Identity
+from nexus.crypto import Identity, derive_key_from_seed
 from nexus.dispatch import Sink, dispatcher
 from nexus.models import Model
 from nexus.protocol import Protocol, OPENAPI_VERSION
 from nexus.resolver import Resolver, AlmanacResolver
 from nexus.storage import KeyValueStore
+from nexus.network import get_ledger, get_reg_contract
+from nexus.config import (
+    REG_UPDATE_INTERVAL_SECONDS,
+    REGISTRATION_FEE,
+    REGISTRATION_DENOM,
+    LEDGER_PREFIX,
+)
 
 
 async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
@@ -33,6 +42,7 @@ class Agent(Sink):
         name: Optional[str] = None,
         port: Optional[int] = None,
         seed: Optional[str] = None,
+        endpoint: Optional[str] = None,
         resolve: Optional[Resolver] = None,
         version: Optional[str] = None,
     ):
@@ -42,9 +52,18 @@ class Agent(Sink):
         self._background_tasks = set()
         self._resolver = resolve if resolve is not None else AlmanacResolver()
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
-        self._identity = (
-            Identity.generate() if seed is None else Identity.from_seed(seed)
-        )
+        if seed is None:
+            self._identity = Identity.generate()
+            self._wallet = LocalWallet.generate()
+        else:
+            self._identity = Identity.from_seed(seed, 0)
+            self._wallet = LocalWallet(
+                PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
+                prefix=LEDGER_PREFIX,
+            )
+        self._endpoint = endpoint if endpoint is not None else ""
+        self._ledger = get_ledger()
+        self._reg_contract = get_reg_contract()
         self._storage = KeyValueStore(self.address[0:16])
         self._models = {}
         self._replies = {}
@@ -56,6 +75,8 @@ class Agent(Sink):
             self._storage,
             self._resolver,
             self._identity,
+            self._wallet,
+            self._ledger,
         )
         self._dispatcher = dispatcher
         self._message_queue = asyncio.Queue()
@@ -87,11 +108,59 @@ class Agent(Sink):
     def address(self) -> str:
         return self._identity.address
 
+    @property
+    def wallet(self) -> LocalWallet:
+        return self._wallet
+
     def sign_digest(self, digest: bytes) -> str:
         return self._identity.sign_digest(digest)
 
     def update_loop(self, loop):
         self._loop = loop
+
+    async def register(self, ctx: Context):
+
+        if self.registration_status():
+            logging.info(f"Agent {self._name} registration is up to date")
+            return
+
+        agent_balance = ctx.ledger.query_bank_balance(ctx.wallet)
+
+        if agent_balance < REGISTRATION_FEE:
+            raise Exception(f"Insufficient funds to register {self._name}")
+
+        msg = {
+            "register": {
+                "record": {
+                    "Service": {
+                        "protocols": list(self._models.keys()),
+                        "endpoints": [{"url": self._endpoint, "weight": 1}],
+                    }
+                }
+            }
+        }
+
+        logging.info(f"Registering Agent {self._name}...")
+        transaction = await self._loop.run_in_executor(
+            None,
+            functools.partial(
+                self._reg_contract.execute,
+                msg,
+                ctx.wallet,
+                funds=f"{REGISTRATION_FEE}{REGISTRATION_DENOM}",
+            ),
+        )
+        await self._loop.run_in_executor(None, transaction.wait_to_complete)
+        logging.info(f"Registering Agent {self._name}...complete")
+
+    def registration_status(self) -> bool:
+
+        query_msg = {"query_records": {"address": self.address}}
+
+        if self._reg_contract.query(query_msg)["record"] != []:
+            return True
+
+        return False
 
     def on_interval(self, period: float):
         def decorator_on_interval(func: IntervalCallback):
@@ -168,6 +237,11 @@ class Agent(Sink):
         await self._message_queue.put((schema_digest, sender, message))
 
     def run(self):
+        # start the contract registration update loop
+        self._loop.create_task(
+            _run_interval(self.register, self._ctx, REG_UPDATE_INTERVAL_SECONDS)
+        )
+
         self._loop.run_until_complete(self._server.serve())
 
     async def _process_message_queue(self):
@@ -189,6 +263,8 @@ class Agent(Sink):
                 self._storage,
                 self._resolver,
                 self._identity,
+                self._wallet,
+                self._ledger,
                 self._replies,
                 MsgDigest(message=message, schema_digest=schema_digest),
             )
