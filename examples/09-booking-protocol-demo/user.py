@@ -42,7 +42,7 @@ async def handle_query_response(ctx: Context, sender: str, msg: QueryTableRespon
         request = BookTableRequest(
             table_number=table_number,
             time_start=table_query.time_start,
-            duration=table_query.duration
+            duration=table_query.duration,
         )
         await ctx.send(sender, request)
     else:
@@ -58,6 +58,7 @@ async def handle_book_response(ctx: Context, _sender: str, msg: BookTableRespons
         print("Table reservation was UNSUCCESSFUL")
 
     ctx.storage.set("completed", True)
+
 
 if __name__ == "__main__":
     user.run()

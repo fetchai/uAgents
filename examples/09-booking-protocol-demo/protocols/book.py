@@ -15,14 +15,23 @@ class BookTableResponse(Model):
 
 book_proto = Protocol()
 
+
 @book_proto.on_message(model=BookTableRequest, replies={BookTableResponse})
 async def handle_book_request(ctx: Context, sender: str, msg: BookTableRequest):
-    
-    tables = {int(num): TableStatus(**status) for (num, status) in ctx.storage._data.items()}
+
+    tables = {
+        int(num): TableStatus(**status)
+        for (
+            num,
+            status,
+        ) in ctx.storage._data.items()  # pylint: disable=protected-access
+    }
     table = tables[msg.table_number]
-    
-    if (table.time_start <= msg.time_start and
-        table.time_end >= msg.time_start + msg.duration):
+
+    if (
+        table.time_start <= msg.time_start
+        and table.time_end >= msg.time_start + msg.duration
+    ):
         success = True
         table.time_start = msg.time_start + msg.duration
         ctx.storage.set(msg.table_number, table.dict())

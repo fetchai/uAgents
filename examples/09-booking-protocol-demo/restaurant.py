@@ -4,8 +4,6 @@ from protocols.query import query_proto, TableStatus
 from nexus import Agent
 from nexus.setup import fund_agent_if_low
 
-from protocols.book import TableStatus
-
 
 restaurant = Agent(
     name="restaurant",
@@ -27,8 +25,7 @@ TABLES = {
 }
 
 for (number, status) in TABLES.items():
-    restaurant._storage.set(number, status.dict())
-
+    restaurant._storage.set(number, status.dict())  # pylint: disable=protected-access
 
 if __name__ == "__main__":
     restaurant.run()
