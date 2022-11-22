@@ -16,6 +16,26 @@ def _encode_bech32(prefix: str, value: bytes) -> str:
     return bech32.bech32_encode(prefix, value_base5)
 
 
+def _key_derivation_hash(prefix: str, index: int) -> bytes:
+    hasher = hashlib.sha256()
+    hasher.update(prefix.encode())
+    hasher.update(str(index).encode())
+    return hasher.digest()
+
+
+def _seed_hash(seed: str) -> bytes:
+    hasher = hashlib.sha256()
+    hasher.update(seed.encode())
+    return hasher.digest()
+
+
+def derive_key_from_seed(seed, prefix, index) -> bytes:
+    hasher = hashlib.sha256()
+    hasher.update(_key_derivation_hash(prefix, index))
+    hasher.update(_seed_hash(seed))
+    return hasher.digest()
+
+
 class Identity:
     def __init__(self, signing_key: ecdsa.SigningKey):
         self._sk = signing_key
@@ -25,10 +45,8 @@ class Identity:
         self._address = _encode_bech32("agent", pub_key_bytes)
 
     @staticmethod
-    def from_seed(seed: str) -> "Identity":
-        hasher = hashlib.sha256()
-        hasher.update(seed.encode())
-        key = hasher.digest()
+    def from_seed(seed: str, index: int) -> "Identity":
+        key = derive_key_from_seed(seed, "agent", index)
         signing_key = ecdsa.SigningKey.from_string(key, curve=ecdsa.SECP256k1)
         return Identity(signing_key)
 
@@ -40,11 +58,6 @@ class Identity:
     @property
     def address(self) -> str:
         return self._address
-
-    @staticmethod
-    def get_key(address: str) -> str:
-        _, pk_data = _decode_bech32(address)
-        return pk_data[:-1]
 
     def sign_digest(self, digest: bytes) -> str:
         return _encode_bech32("sig", self._sk.sign_digest(digest))

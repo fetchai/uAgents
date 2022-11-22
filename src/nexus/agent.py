@@ -5,19 +5,23 @@ from typing import Optional, List, Set, Tuple, Any, Union
 
 from apispec import APISpec
 
-from cosmpy.aerial.wallet import LocalWallet
+from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 
 from nexus.asgi import ASGIServer
 from nexus.context import Context, IntervalCallback, MessageCallback, MsgDigest
-from nexus.crypto import Identity
+from nexus.crypto import Identity, derive_key_from_seed
 from nexus.dispatch import Sink, dispatcher
 from nexus.models import Model
 from nexus.protocol import Protocol, OPENAPI_VERSION
 from nexus.resolver import Resolver, AlmanacResolver
 from nexus.storage import KeyValueStore
-from nexus.network import get_ledger, get_reg_contract, get_wallet
-from nexus.config import REG_UPDATE_INTERVAL_SECONDS
-from nexus.config import REGISTRATION_FEE, REGISTRATION_DENOM
+from nexus.network import get_ledger, get_reg_contract
+from nexus.config import (
+    REG_UPDATE_INTERVAL_SECONDS,
+    REGISTRATION_FEE,
+    REGISTRATION_DENOM,
+    LEDGER_PREFIX,
+)
 
 
 async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
@@ -48,13 +52,18 @@ class Agent(Sink):
         self._background_tasks = set()
         self._resolver = resolve if resolve is not None else AlmanacResolver()
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
-        self._identity = (
-            Identity.generate() if seed is None else Identity.from_seed(seed)
-        )
-        self._endpoint = endpoint if endpoint is not None else "123"
-        self._wallet = get_wallet(Identity.get_key(self.address))
-        self._ledger = get_ledger("fetchai-testnet")
-        self._reg_contract = get_reg_contract(self._ledger)
+        if seed is None:
+            self._identity = Identity.generate()
+            self._wallet = LocalWallet.generate()
+        else:
+            self._identity = Identity.from_seed(seed, 0)
+            self._wallet = LocalWallet(
+                PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
+                prefix=LEDGER_PREFIX,
+            )
+        self._endpoint = endpoint if endpoint is not None else ""
+        self._ledger = get_ledger()
+        self._reg_contract = get_reg_contract()
         self._storage = KeyValueStore(self.address[0:16])
         self._models = {}
         self._replies = {}
@@ -146,12 +155,9 @@ class Agent(Sink):
 
     def registration_status(self) -> bool:
 
-        ledger = get_ledger("fetchai-testnet")
-        contract = get_reg_contract(ledger)
+        query_msg = {"query_records": {"address": self.address}}
 
-        query_msg = {"query_records": {"address": self._wallet.address()}}
-
-        if contract.query(query_msg)["record"] != []:
+        if self._reg_contract.query(query_msg)["record"] != []:
             return True
 
         return False

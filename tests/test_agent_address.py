@@ -1,6 +1,7 @@
 import unittest
 
 from nexus import Agent
+from nexus.crypto import Identity
 
 
 class TestAgentAdress(unittest.TestCase):
@@ -8,12 +9,8 @@ class TestAgentAdress(unittest.TestCase):
         alice = Agent(name="alice", seed="alice recovery password")
         bob = Agent(name="bob", seed="bob recovery password")
 
-        alice_target_address = (
-            "agent1qg985el6kquqw3zdnq7tvpsz2n0srxa8e8eyp0nwpagp6yyg2ayus294dux"
-        )
-        bob_target_address = (
-            "agent1qgqdlpds2w7rs032jgylcka8m5d663nvt6p5dmmffpmanljldchssyjhn9r"
-        )
+        alice_target_address = Identity.from_seed("alice recovery password", 0).address
+        bob_target_address = Identity.from_seed("bob recovery password", 0).address
 
         self.assertEqual(
             alice.address == alice_target_address,

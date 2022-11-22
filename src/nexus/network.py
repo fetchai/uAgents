@@ -1,27 +1,28 @@
-from cosmpy.crypto.keypairs import PrivateKey
-from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.aerial.contract import LedgerContract
 from cosmpy.aerial.client import LedgerClient, NetworkConfig
+from cosmpy.aerial.faucet import FaucetApi
+
+from nexus.config import AgentNetwork, CONTRACT_ALMANAC, AGENT_NETWORK
 
 
-CONTRACT_ALMANAC = "fetch1gfq09zhz5kzeue3k9whl8t6fv9ke8vkq6x4s8p6pj946t50dmc7qvw5npv"
+if AGENT_NETWORK == AgentNetwork.FETCHAI_TESTNET:
+    _ledger = LedgerClient(NetworkConfig.fetchai_stable_testnet())
+    _faucet_api = FaucetApi(NetworkConfig.fetchai_stable_testnet())
+elif AGENT_NETWORK == AgentNetwork.FETCHAI_MAINNET:
+    _ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
+else:
+    raise NotImplementedError
+
+_contract = LedgerContract(None, _ledger, CONTRACT_ALMANAC)
 
 
-def get_ledger(network: str) -> LedgerClient:
-    if network == "fetchai-testnet":
-        ledger = LedgerClient(NetworkConfig.fetchai_stable_testnet())
-    elif network == "fetchai-mainnet":
-        ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
-    else:
-        raise Exception(f"Network {network} not recognized")
-    return ledger
+def get_ledger() -> LedgerClient:
+    return _ledger
 
 
-def get_reg_contract(ledger: LedgerClient) -> LedgerContract:
-    contract = LedgerContract(None, ledger, CONTRACT_ALMANAC)
-    return contract
+def get_faucet() -> FaucetApi:
+    return _faucet_api
 
 
-def get_wallet(key: str) -> LocalWallet:
-    wallet = LocalWallet(PrivateKey(key))
-    return wallet
+def get_reg_contract() -> LedgerContract:
+    return _contract
