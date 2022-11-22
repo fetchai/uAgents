@@ -52,14 +52,16 @@ class Agent(Sink):
         self._background_tasks = set()
         self._resolver = resolve if resolve is not None else AlmanacResolver()
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
-        self._identity = (
-            Identity.generate() if seed is None else Identity.from_seed(seed, 0)
-        )
-        self._endpoint = endpoint if endpoint is not None else "123"
-        self._wallet = LocalWallet(
-            PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
-            prefix=LEDGER_PREFIX,
-        )
+        if seed is None:
+            self._identity = Identity.generate()
+            self._wallet = LocalWallet.generate()
+        else:
+            self._identity = Identity.from_seed(seed, 0)
+            self._wallet = LocalWallet(
+                PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
+                prefix=LEDGER_PREFIX,
+            )
+        self._endpoint = endpoint if endpoint is not None else ""
         self._ledger = get_ledger()
         self._reg_contract = get_reg_contract()
         self._storage = KeyValueStore(self.address[0:16])

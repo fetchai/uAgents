@@ -7,7 +7,7 @@ from nexus.config import AgentNetwork, CONTRACT_ALMANAC, AGENT_NETWORK
 
 if AGENT_NETWORK == AgentNetwork.FETCHAI_TESTNET:
     _ledger = LedgerClient(NetworkConfig.fetchai_stable_testnet())
-    _faucet_api = FaucetApi(NetworkConfig.latest_stable_testnet())
+    _faucet_api = FaucetApi(NetworkConfig.fetchai_stable_testnet())
 elif AGENT_NETWORK == AgentNetwork.FETCHAI_MAINNET:
     _ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
 else:
