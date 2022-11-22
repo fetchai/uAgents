@@ -19,7 +19,8 @@ def _encode_bech32(prefix: str, value: bytes) -> str:
 def _key_derivation_hash(prefix: str, index: int) -> bytes:
     hasher = hashlib.sha256()
     hasher.update(prefix.encode())
-    hasher.update(str(index).encode())
+    assert 0 <= index < 256
+    hasher.update(bytes([index]))
     return hasher.digest()
 
 
