@@ -115,6 +115,11 @@ class Agent(Sink):
     def sign_digest(self, digest: bytes) -> str:
         return self._identity.sign_digest(digest)
 
+    def sign_registration(self) -> str:
+        return self._identity.sign_registration(
+            self._reg_contract.address, self.get_registration_sequence()
+        )
+
     def update_loop(self, loop):
         self._loop = loop
 
@@ -129,14 +134,19 @@ class Agent(Sink):
         if agent_balance < REGISTRATION_FEE:
             raise Exception(f"Insufficient funds to register {self._name}")
 
+        signature = self.sign_registration()
+
         msg = {
             "register": {
                 "record": {
-                    "Service": {
+                    "service": {
                         "protocols": list(self._models.keys()),
                         "endpoints": [{"url": self._endpoint, "weight": 1}],
                     }
-                }
+                },
+                "signature": signature,
+                "sequence": self.get_registration_sequence(),
+                "agent_address": self.address,
             }
         }
 
@@ -155,12 +165,18 @@ class Agent(Sink):
 
     def registration_status(self) -> bool:
 
-        query_msg = {"query_records": {"address": self.address}}
+        query_msg = {"query_records": {"agent_address": self.address}}
 
         if self._reg_contract.query(query_msg)["record"] != []:
             return True
 
         return False
+
+    def get_registration_sequence(self) -> int:
+        query_msg = {"query_sequence": {"agent_address": self.address}}
+        sequence = query_msg.get("sequence", 0)
+
+        return sequence
 
     def on_interval(self, period: float):
         def decorator_on_interval(func: IntervalCallback):

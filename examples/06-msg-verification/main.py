@@ -18,13 +18,6 @@ def encode(message: str) -> bytes:
 alice = Agent(name="alice", seed="alice recovery password")
 bob = Agent(name="bob", seed="bob recovery password")
 
-assert (
-    alice.address == "agent1qg985el6kquqw3zdnq7tvpsz2n0srxa8e8eyp0nwpagp6yyg2ayus294dux"
-)
-assert (
-    bob.address == "agent1qgqdlpds2w7rs032jgylcka8m5d663nvt6p5dmmffpmanljldchssyjhn9r"
-)
-
 
 @alice.on_interval(period=3.0)
 async def send_message(ctx: Context):

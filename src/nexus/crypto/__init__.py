@@ -1,5 +1,6 @@
 import hashlib
-from typing import Tuple
+import struct
+from typing import Tuple, Union
 
 import bech32
 import ecdsa
@@ -37,6 +38,22 @@ def derive_key_from_seed(seed, prefix, index) -> bytes:
     return hasher.digest()
 
 
+def encode_length_prefixed(value: Union[str, int, bytes]) -> bytes:
+    if isinstance(value, str):
+        encoded = value.encode()
+    elif isinstance(value, int):
+        encoded = struct.pack(">Q", value)
+    elif isinstance(value, bytes):
+        encoded = value
+    else:
+        assert False
+
+    length = len(encoded)
+    prefix = struct.pack(">Q", length)
+
+    return prefix + encoded
+
+
 class Identity:
     def __init__(self, signing_key: ecdsa.SigningKey):
         self._sk = signing_key
@@ -62,6 +79,13 @@ class Identity:
 
     def sign_digest(self, digest: bytes) -> str:
         return _encode_bech32("sig", self._sk.sign_digest(digest))
+
+    def sign_registration(self, contract_address: str, sequence: int) -> str:
+        hasher = hashlib.sha256()
+        hasher.update(encode_length_prefixed(contract_address))
+        hasher.update(encode_length_prefixed(self.address))
+        hasher.update(encode_length_prefixed(sequence))
+        return self.sign_digest(hasher.digest())
 
     @staticmethod
     def verify_digest(address: str, digest: bytes, signature: str) -> bool:
