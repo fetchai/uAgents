@@ -62,13 +62,15 @@ class Protocol:
             def handler(*args, **kwargs):
                 return func(*args, **kwargs)
 
-            self._add_message_handler(model, func, replies)
+            self.add_message_handler(model, func, replies)
 
             return handler
 
         return decorator_on_message
 
-    def _add_message_handler(self, model, func, replies):
+    def add_message_handler(
+        self, model: Model, func: MessageCallback, replies: Union[Model, Set[Model]]
+    ):
         schema_digest = Model.build_schema_digest(model)
 
         # update the model database
@@ -78,7 +80,7 @@ class Protocol:
             if not isinstance(replies, set):
                 replies = {replies}
             self._replies[schema_digest] = {
-                Model.build_schema_digest(reply) for reply in replies
+                Model.build_schema_digest(reply): reply for reply in replies
             }
 
             self.spec.path(

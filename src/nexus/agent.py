@@ -3,8 +3,6 @@ import functools
 import logging
 from typing import Optional, List, Set, Tuple, Any, Union
 
-from apispec import APISpec
-
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 
 from nexus.asgi import ASGIServer
@@ -12,7 +10,7 @@ from nexus.context import Context, IntervalCallback, MessageCallback, MsgDigest
 from nexus.crypto import Identity, derive_key_from_seed
 from nexus.dispatch import Sink, dispatcher
 from nexus.models import Model
-from nexus.protocol import Protocol, OPENAPI_VERSION
+from nexus.protocol import Protocol
 from nexus.resolver import Resolver, AlmanacResolver
 from nexus.storage import KeyValueStore
 from nexus.network import get_ledger, get_reg_contract
@@ -61,7 +59,7 @@ class Agent(Sink):
                 PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
                 prefix=LEDGER_PREFIX,
             )
-        self._endpoint = endpoint if endpoint is not None else ""
+        self._endpoint = endpoint if endpoint is not None else "123"
         self._ledger = get_ledger()
         self._reg_contract = get_reg_contract()
         self._storage = KeyValueStore(self.address[0:16])
@@ -82,14 +80,13 @@ class Agent(Sink):
         self._message_queue = asyncio.Queue()
         self._version = version or "0.1.0"
 
-        self.spec = APISpec(
-            title=name,
-            version=self._version,
-            openapi_version=OPENAPI_VERSION,
-        )
+        # initialize the internal agent protocol
+        self._protocol = Protocol(name=self._name, version=self._version)
 
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
+
+        self._create_interval_tasks()
 
         # start the background message queue processor
         task = self._loop.create_task(self._process_message_queue())
@@ -127,7 +124,8 @@ class Agent(Sink):
         agent_balance = ctx.ledger.query_bank_balance(ctx.wallet)
 
         if agent_balance < REGISTRATION_FEE:
-            raise Exception(f"Insufficient funds to register {self._name}")
+            logging.exception(f"Insufficient funds to register {self._name}")
+            return
 
         msg = {
             "register": {
@@ -180,60 +178,34 @@ class Agent(Sink):
     def on_message(
         self, model: Model, replies: Optional[Union[Model, Set[Model]]] = None
     ):
-        def decorator_on_message(func: MessageCallback):
-            @functools.wraps(func)
-            def handler(*args, **kwargs):
-                return func(*args, **kwargs)
-
-            self._add_message_handler(model, func, replies)
-
-            return handler
-
-        return decorator_on_message
-
-    def _add_message_handler(self, model, func, replies):
-        schema_digest = Model.build_schema_digest(model)
-
-        # update the model database
-        self._models[schema_digest] = model
-        self._message_handlers[schema_digest] = func
-        if replies is not None:
-            if not isinstance(replies, set):
-                replies = {replies}
-            self._replies[schema_digest] = {
-                Model.build_schema_digest(reply) for reply in replies
-            }
-
-            self.spec.path(
-                path=model.__name__,
-                operations=dict(
-                    post=dict(replies=[reply.__name__ for reply in replies])
-                ),
-            )
+        return self._protocol.on_message(model, replies)
 
     def include(self, protocol: Protocol):
         for func, period in protocol.intervals:
-            task = self._loop.create_task(_run_interval(func, self._ctx, period))
-            self._background_tasks.add(task)
-            task.add_done_callback(self._background_tasks.discard)
+            self._protocol.intervals.append((func, period))
 
         for schema_digest in protocol.models:
-            if schema_digest in self._models:
+            if schema_digest in self._protocol.models:
                 raise RuntimeError("Unable to register duplicate model")
-            if schema_digest in self._message_handlers:
+            if schema_digest in self._protocol.message_handlers:
                 raise RuntimeError("Unable to register duplicate message handler")
             if schema_digest not in protocol.message_handlers:
                 raise RuntimeError("Unable to lookup up message handler in protocol")
 
             # include the message handlers from the protocol
-            self._models[schema_digest] = protocol.models[schema_digest]
-            self._replies[schema_digest] = protocol.replies[schema_digest]
-            self._message_handlers[schema_digest] = protocol.message_handlers[
-                schema_digest
-            ]
+            self._protocol.add_message_handler(
+                protocol.models[schema_digest],
+                protocol.message_handlers[schema_digest],
+                set(protocol.replies[schema_digest].values()),
+            )
+
+    def _create_interval_tasks(self):
+        for func, period in self._protocol.intervals:
+            task = self._loop.create_task(_run_interval(func, self._ctx, period))
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
 
     async def handle_message(self, sender, schema_digest: str, message: Any):
-        # schema_digest = _build_model_digest(message)
         await self._message_queue.put((schema_digest, sender, message))
 
     def run(self):
@@ -250,7 +222,7 @@ class Agent(Sink):
             schema_digest, sender, message = await self._message_queue.get()
 
             # lookup the model definition
-            model_class = self._models.get(schema_digest)
+            model_class = self._protocol.models.get(schema_digest)
             if model_class is None:
                 continue
 
@@ -265,12 +237,14 @@ class Agent(Sink):
                 self._identity,
                 self._wallet,
                 self._ledger,
-                self._replies,
+                self._protocol.replies,
                 MsgDigest(message=message, schema_digest=schema_digest),
             )
 
             # attempt to find the handler
-            handler: MessageCallback = self._message_handlers.get(schema_digest)
+            handler: MessageCallback = self._protocol.message_handlers.get(
+                schema_digest
+            )
             if handler is not None:
                 await handler(context, sender, recovered)
 
