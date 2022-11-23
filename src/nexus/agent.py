@@ -115,6 +115,11 @@ class Agent(Sink):
     def sign_digest(self, digest: bytes) -> str:
         return self._identity.sign_digest(digest)
 
+    def sign_registration(self) -> str:
+        return self._identity.sign_registration(
+            self._reg_contract, self.get_registration_sequence()
+        )
+
     def update_loop(self, loop):
         self._loop = loop
 
@@ -161,6 +166,11 @@ class Agent(Sink):
             return True
 
         return False
+
+    def get_registration_sequence(self) -> int:
+
+        # TODO: Query the registration contract for the sequence
+        return 0
 
     def on_interval(self, period: float):
         def decorator_on_interval(func: IntervalCallback):

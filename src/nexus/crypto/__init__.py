@@ -1,4 +1,5 @@
 import hashlib
+import struct
 from typing import Tuple
 
 import bech32
@@ -62,6 +63,13 @@ class Identity:
 
     def sign_digest(self, digest: bytes) -> str:
         return _encode_bech32("sig", self._sk.sign_digest(digest))
+
+    def sign_registration(self, contract_address: str, sequence: int) -> str:
+        hasher = hashlib.sha256()
+        hasher.update(contract_address.encode())
+        hasher.update(self.address.encode())
+        hasher.update(struct.pack(">Q", sequence))
+        return self.sign_digest(hasher.digest())
 
     @staticmethod
     def verify_digest(address: str, digest: bytes, signature: str) -> bool:
