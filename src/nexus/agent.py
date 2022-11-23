@@ -83,6 +83,11 @@ class Agent(Sink):
         # initialize the internal agent protocol
         self._protocol = Protocol(name=self._name, version=self._version)
 
+        # keep track of supported protocols
+        self.protocols = {
+            f"{self._protocol.name}:{self._protocol.version}": self._protocol.schema_digest
+        }
+
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
 
@@ -131,7 +136,7 @@ class Agent(Sink):
             "register": {
                 "record": {
                     "Service": {
-                        "protocols": list(self._models.keys()),
+                        "protocols": list(self.protocols.values()),
                         "endpoints": [{"url": self._endpoint, "weight": 1}],
                     }
                 }

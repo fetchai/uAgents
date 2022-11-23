@@ -1,4 +1,5 @@
 import functools
+import hashlib
 from typing import Set, Optional, Union
 
 from apispec import APISpec
@@ -18,6 +19,7 @@ class Protocol:
         self._replies = {}
         self._name = name or ""
         self._version = version or "0.1.0"
+        self._schema_digest = ""
 
         self.spec = APISpec(
             title=self._name,
@@ -40,6 +42,18 @@ class Protocol:
     @property
     def message_handlers(self):
         return self._message_handlers
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def version(self):
+        return self._version
+
+    @property
+    def schema_digest(self):
+        return self._schema_digest
 
     def on_interval(self, period: float):
         def decorator_on_interval(func: IntervalCallback):
@@ -89,3 +103,11 @@ class Protocol:
                     post=dict(replies=[reply.__name__ for reply in replies])
                 ),
             )
+        self._update_schema_digest()
+
+    def _update_schema_digest(self):
+        sorted_schema_digests = sorted(list(self._models.keys()))
+        hasher = hashlib.sha256()
+        for digest in sorted_schema_digests:
+            hasher.update(bytes.fromhex(digest))
+        self._schema_digest = hasher.digest().hex()
