@@ -19,6 +19,7 @@ class Protocol:
         self._replies = {}
         self._name = name or ""
         self._version = version or "0.1.0"
+        self._id = f"{self._name}:{self._version}"
         self._schema_digest = ""
 
         self.spec = APISpec(
@@ -50,6 +51,10 @@ class Protocol:
     @property
     def version(self):
         return self._version
+
+    @property
+    def id(self):  # pylint: disable=C0103
+        return self._id
 
     @property
     def schema_digest(self):

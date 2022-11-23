@@ -84,9 +84,7 @@ class Agent(Sink):
         self._protocol = Protocol(name=self._name, version=self._version)
 
         # keep track of supported protocols
-        self.protocols = {
-            f"{self._protocol.name}:{self._protocol.version}": self._protocol.schema_digest
-        }
+        self.protocols = {self._protocol.id: self._protocol.schema_digest}
 
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
@@ -203,6 +201,7 @@ class Agent(Sink):
                 protocol.message_handlers[schema_digest],
                 set(protocol.replies[schema_digest].values()),
             )
+            self.protocols[protocol.id] = protocol.schema_digest
 
     def _create_interval_tasks(self):
         for func, period in self._protocol.intervals:
