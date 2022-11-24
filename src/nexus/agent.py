@@ -84,7 +84,7 @@ class Agent(Sink):
         self._protocol = Protocol(name=self._name, version=self._version)
 
         # keep track of supported protocols
-        self.protocols = {self._protocol.canonical_name: self._protocol.digest}
+        self.protocols = {}
 
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
