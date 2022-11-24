@@ -101,7 +101,7 @@ class Identity:
         signing_key = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
         return Identity(signing_key)
 
-    @staticmethod  # hasla mas bonita nmms!!!!!
+    @staticmethod
     def get_wallet_key(name: str) -> str:
         saved_key = query_wallet_key(name)
         if saved_key:
