@@ -84,7 +84,7 @@ class Identity:
         hasher = hashlib.sha256()
         hasher.update(encode_length_prefixed(contract_address))
         hasher.update(encode_length_prefixed(self.address))
-        hasher.update(encode_length_prefixed(sequence))
+        hasher.update(encode_length_prefixed(str(sequence)))
         return self.sign_digest(hasher.digest())
 
     @staticmethod
