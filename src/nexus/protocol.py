@@ -58,7 +58,7 @@ class Protocol:
 
     @property
     def digest(self):
-        # assert self._digest != "", "Protocol digest empty"
+        assert self._digest != "", "Protocol digest empty"
         return self._digest
 
     def on_interval(self, period: float):
