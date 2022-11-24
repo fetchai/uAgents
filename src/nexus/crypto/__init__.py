@@ -1,6 +1,9 @@
 import hashlib
 import struct
 from typing import Tuple, Union
+import json
+import os
+from cosmpy.aerial.wallet import PrivateKey
 
 import bech32
 import ecdsa
@@ -38,6 +41,31 @@ def derive_key_from_seed(seed, prefix, index) -> bytes:
     return hasher.digest()
 
 
+file_path = os.path.dirname(os.path.realpath(__file__))
+keys_path = os.path.join(file_path, "keys.json")
+
+
+def load_wallet_keys() -> dict:
+    if os.path.exists(keys_path):
+        with open(keys_path, encoding="utf-8") as load_file:
+            return json.load(load_file)
+    return {}
+
+
+def save_wallet_key(name: str, key: str):
+    keys = load_wallet_keys()
+    keys[name] = key
+    with open(keys_path, "w", encoding="utf-8") as write_file:
+        json.dump(keys, write_file, indent=4)
+
+
+def query_wallet_key(name: str):
+    keys = load_wallet_keys()
+    if name in keys.keys():
+        return keys[name]
+    return ""
+
+
 def encode_length_prefixed(value: Union[str, int, bytes]) -> bytes:
     if isinstance(value, str):
         encoded = value.encode()
@@ -72,6 +100,15 @@ class Identity:
     def generate() -> "Identity":
         signing_key = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
         return Identity(signing_key)
+
+    @staticmethod  # hasla mas bonita nmms!!!!!
+    def get_wallet_key(name: str) -> str:
+        saved_key = query_wallet_key(name)
+        if saved_key:
+            return saved_key
+        key = PrivateKey().private_key
+        save_wallet_key(name, key)
+        return key
 
     @property
     def address(self) -> str:

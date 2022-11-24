@@ -54,7 +54,10 @@ class Agent(Sink):
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
         if seed is None:
             self._identity = Identity.generate()
-            self._wallet = LocalWallet.generate()
+            if name is None:
+                self._wallet = LocalWallet.generate()
+            else:
+                self._wallet = LocalWallet(PrivateKey(Identity.get_wallet_key(name)))
         else:
             self._identity = Identity.from_seed(seed, 0)
             self._wallet = LocalWallet(
@@ -126,13 +129,19 @@ class Agent(Sink):
     async def register(self, ctx: Context):
 
         if self.registration_status():
-            logging.info(f"Agent {self._name} registration is up to date")
+            logging.info(
+                f"Agent {self._name} registration is up to date\
+                    \nWallet address: {self.wallet.address()}"
+            )
             return
 
         agent_balance = ctx.ledger.query_bank_balance(ctx.wallet)
 
         if agent_balance < REGISTRATION_FEE:
-            raise Exception(f"Insufficient funds to register {self._name}")
+            raise Exception(
+                f"Insufficient funds to register {self._name}\
+                    \nFund using wallet address: {self.wallet.address()}"
+            )
 
         signature = self.sign_registration()
 
@@ -161,7 +170,9 @@ class Agent(Sink):
             ),
         )
         await self._loop.run_in_executor(None, transaction.wait_to_complete)
-        logging.info(f"Registering Agent {self._name}...complete")
+        logging.info(
+            f"Registering Agent {self._name}...complete\nWallet address: {self.wallet.address()}"
+        )
 
     def registration_status(self) -> bool:
 
