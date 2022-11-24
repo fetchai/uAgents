@@ -25,16 +25,16 @@ request = ServiceRequest(
     address=17,
     time_start=12,
     duration=4,
-    services=[Service.Window, Service.Laundry],
+    services=[Service.WINDOW, Service.LAUNDRY],
     max_price=60,
 )
 
-markdown = 0.8
+MARKDOWN = 0.8
 
 
 @user.on_interval(period=3.0)
 async def interval(ctx: Context):
-    ctx.storage.set("markdown", markdown)
+    ctx.storage.set("markdown", MARKDOWN)
     completed = ctx.storage.get("completed")
 
     if not completed:

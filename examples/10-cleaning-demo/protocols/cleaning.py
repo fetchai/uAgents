@@ -9,11 +9,11 @@ PROTOCOL_VERSION = "0.1.0"
 
 
 class Service(str, Enum):
-    Floor = "floor"
-    Window = "window"
-    Laundry = "laundry"
-    Iron = "iron"
-    Bathroom = "bathroom"
+    FLOOR = "floor"
+    WINDOW = "window"
+    LAUNDRY = "laundry"
+    IRON = "iron"
+    BATHROOM = "bathroom"
 
 
 class Availability(Model):
@@ -86,15 +86,12 @@ async def handle_book_request(ctx: Context, sender: str, msg: ServiceBooking):
 
     availability = Availability(**ctx.storage.get("availability"))
 
-    if (
+    success = (
         set(msg.services) <= set(availability.services)
         and availability.time_start <= msg.time_start
         and availability.time_end >= msg.time_start + msg.duration
         and msg.price <= availability.min_hourly_price * msg.duration
-    ):
-        success = True
-    else:
-        success = False
+    )
 
     # send the response
     await ctx.send(sender, BookingResponse(success=success))

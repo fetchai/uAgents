@@ -23,15 +23,15 @@ availability = Availability(
     max_distance=10,
     time_start=10,
     time_end=18,
-    services=[Service.Floor, Service.Window, Service.Laundry],
+    services=[Service.FLOOR, Service.WINDOW, Service.LAUNDRY],
     min_hourly_price=12,
 )
-markup = 1.1
+MARKUP = 1.1
 
-cleaner._storage.set(
+cleaner._storage.set(  # pylint: disable=protected-access
     "availability", availability.dict()
-)  # pylint: disable=protected-access
-cleaner._storage.set("markup", markup)
+)
+cleaner._storage.set("markup", MARKUP)  # pylint: disable=protected-access
 
 if __name__ == "__main__":
     cleaner.run()
