@@ -6,7 +6,7 @@ class Message(Model):
     message: str
 
 
-RECIPIENT_ADDRESS = "agent1q2sec3utj4a8xl8le8x2dy90f33fnlunaatxamjpepz0zk99qqttj97526g"
+RECIPIENT_ADDRESS = "agent1qv73me5ql7kl30t0grehalj0aau0l4hpthp4m5q9v4qk2hz8h63vzpgyadp"
 
 agent = Agent(
     name="alice",

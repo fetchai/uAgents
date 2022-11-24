@@ -8,7 +8,7 @@ from nexus import Agent, Context
 from nexus.setup import fund_agent_if_low
 
 
-RESTAURANT_ADDRESS = "agent1qg3y7htj4vu60wscmmtyxtmcyptgkwyt23ynzv6qj8t303md8rr4ju52hzp"
+RESTAURANT_ADDRESS = "agent1qw50wcs4nd723ya9j8mwxglnhs2kzzhh0et0yl34vr75hualsyqvqdzl990"
 
 user = Agent(
     name="user",

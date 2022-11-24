@@ -6,7 +6,9 @@ from nexus.network import get_reg_contract
 
 def _query_record(agent_address: str, service: str) -> dict:
     contract = get_reg_contract()
-    query_msg = {"query_record": {"address": agent_address, "record_type": service}}
+    query_msg = {
+        "query_record": {"agent_address": agent_address, "record_type": service}
+    }
     result = contract.query(query_msg)
     return result
 
@@ -19,10 +21,10 @@ class Resolver(ABC):
 
 class AlmanacResolver(Resolver):
     async def resolve(self, address: str) -> str:
-        result = _query_record(address, "Service")
+        result = _query_record(address, "service")
         if result is not None:
             record = result.get("record") or {}
-            endpoints = record.get("record", {}).get("Service", {}).get("endpoints", [])
+            endpoints = record.get("record", {}).get("service", {}).get("endpoints", [])
 
             # For now just use the first endpoint
             if len(endpoints) > 0:
