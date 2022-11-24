@@ -19,8 +19,8 @@ class Protocol:
         self._replies = {}
         self._name = name or ""
         self._version = version or "0.1.0"
-        self._id = f"{self._name}:{self._version}"
-        self._schema_digest = ""
+        self._canonical_name = f"{self._name}:{self._version}"
+        self._digest = ""
 
         self.spec = APISpec(
             title=self._name,
@@ -53,12 +53,13 @@ class Protocol:
         return self._version
 
     @property
-    def id(self):  # pylint: disable=C0103
-        return self._id
+    def canonical_name(self):
+        return self._canonical_name
 
     @property
-    def schema_digest(self):
-        return self._schema_digest
+    def digest(self):
+        assert self._digest != "", "Protocol digest empty"
+        return self._digest
 
     def on_interval(self, period: float):
         def decorator_on_interval(func: IntervalCallback):
@@ -115,4 +116,4 @@ class Protocol:
         hasher = hashlib.sha256()
         for digest in sorted_schema_digests:
             hasher.update(bytes.fromhex(digest))
-        self._schema_digest = hasher.digest().hex()
+        self._digest = hasher.digest().hex()
