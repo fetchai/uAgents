@@ -91,15 +91,15 @@ class Protocol:
     def add_message_handler(
         self, model: Model, func: MessageCallback, replies: Union[Model, Set[Model]]
     ):
-        schema_digest = Model.build_schema_digest(model)
+        model_digest = Model.build_schema_digest(model)
 
         # update the model database
-        self._models[schema_digest] = model
-        self._message_handlers[schema_digest] = func
+        self._models[model_digest] = model
+        self._message_handlers[model_digest] = func
         if replies is not None:
             if not isinstance(replies, set):
                 replies = {replies}
-            self._replies[schema_digest] = {
+            self._replies[model_digest] = {
                 Model.build_schema_digest(reply): reply for reply in replies
             }
 
