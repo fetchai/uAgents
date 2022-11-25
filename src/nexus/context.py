@@ -71,7 +71,8 @@ class Context:
                 # ensure the reply is valid
                 if schema_digest not in self._replies[received.schema_digest]:
                     logging.exception(
-                        f"Outgoing message {message} is not a valid reply to {received.message}"
+                        f"Outgoing message {type(message)} "
+                        f"is not a valid reply to {received.message}"
                     )
                     return
 
@@ -79,7 +80,7 @@ class Context:
         if self._message_received is None and self._interval_messages is not None:
             if schema_digest not in self._interval_messages:
                 logging.exception(
-                    f"Outgoing message {message} is not a valid interval message"
+                    f"Outgoing message {type(message)} is not a valid interval message"
                 )
                 return
 
