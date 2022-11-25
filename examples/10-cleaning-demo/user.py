@@ -32,12 +32,13 @@ request = ServiceRequest(
 MARKDOWN = 0.8
 
 
-@user.on_interval(period=3.0)
+@user.on_interval(period=3.0, messages=ServiceRequest)
 async def interval(ctx: Context):
     ctx.storage.set("markdown", MARKDOWN)
     completed = ctx.storage.get("completed")
 
     if not completed:
+        print(f"Requesting cleaning service: {request}")
         await ctx.send(CLEANER_ADDRESS, request)
 
 

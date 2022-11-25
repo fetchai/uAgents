@@ -72,11 +72,11 @@ async def handle_query_request(ctx: Context, sender: str, msg: ServiceRequest):
     ):
         accept = True
         price = markup * availability.min_hourly_price * msg.duration
+        print(f"I am available! Proposing price: {price}.")
     else:
         accept = False
         price = 0
-
-    print(f"Query: {msg}. Availability: {availability}.")
+        print("I am not available. Declining request.")
 
     await ctx.send(sender, ServiceResponse(accept=accept, price=price))
 
@@ -92,6 +92,11 @@ async def handle_book_request(ctx: Context, sender: str, msg: ServiceBooking):
         and availability.time_end >= msg.time_start + msg.duration
         and msg.price <= availability.min_hourly_price * msg.duration
     )
+
+    if success:
+        availability.time_start = msg.time_start + msg.duration
+        ctx.storage.set("availability", availability.dict())
+        print(f"Accepted task and updated availability.")
 
     # send the response
     await ctx.send(sender, BookingResponse(success=success))
