@@ -76,6 +76,8 @@ class Agent(Sink):
             self._identity,
             self._wallet,
             self._ledger,
+            replies=self._replies,
+            interval_messages=self._interval_messages,
         )
         self._dispatcher = dispatcher
         self._message_queue = asyncio.Queue()
