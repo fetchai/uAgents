@@ -14,7 +14,7 @@ from nexus.dispatch import Sink, dispatcher
 from nexus.models import Model
 from nexus.protocol import Protocol, OPENAPI_VERSION
 from nexus.resolver import Resolver, AlmanacResolver
-from nexus.storage import KeyValueStore
+from nexus.storage import KeyValueStore, get_wallet_key
 from nexus.network import get_ledger, get_reg_contract
 from nexus.config import (
     REG_UPDATE_INTERVAL_SECONDS,
@@ -53,11 +53,12 @@ class Agent(Sink):
         self._resolver = resolve if resolve is not None else AlmanacResolver()
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
         if seed is None:
-            self._identity = Identity.generate()
             if name is None:
                 self._wallet = LocalWallet.generate()
+                self._identity = Identity.generate()
             else:
-                self._wallet = LocalWallet(PrivateKey(Identity.get_wallet_key(name)))
+                self._wallet = LocalWallet(get_wallet_key(name))
+                self._identity = Identity.get_identity(name)
         else:
             self._identity = Identity.from_seed(seed, 0)
             self._wallet = LocalWallet(
