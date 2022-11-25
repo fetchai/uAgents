@@ -26,7 +26,7 @@ table_query = QueryTableRequest(
 )
 
 
-@user.on_interval(period=3.0)
+@user.on_interval(period=3.0, messages=QueryTableRequest)
 async def interval(ctx: Context):
     completed = ctx.storage.get("completed")
 
