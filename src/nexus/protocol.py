@@ -14,6 +14,7 @@ OPENAPI_VERSION = "3.0.2"
 class Protocol:
     def __init__(self, name: Optional[str] = None, version: Optional[str] = None):
         self._intervals = []
+        self._interval_messages = {}
         self._message_handlers = {}
         self._models = {}
         self._replies = {}
@@ -61,18 +62,38 @@ class Protocol:
         assert self._digest != "", "Protocol digest empty"
         return self._digest
 
-    def on_interval(self, period: float):
+    def on_interval(
+        self, period: float, messages: Optional[Union[Model, Set[Model]]] = None
+    ):
         def decorator_on_interval(func: IntervalCallback):
             @functools.wraps(func)
             def handler(*args, **kwargs):
                 return func(*args, **kwargs)
 
-            # store the interval handler for later
-            self._intervals.append((func, period))
+            self.add_interval_handler(period, func, messages)
 
             return handler
 
         return decorator_on_interval
+
+    def add_interval_handler(
+        self,
+        period: float,
+        func: IntervalCallback,
+        messages: Optional[Union[Model, Set[Model]]],
+    ):
+
+        # store the interval handler for later
+        self._intervals.append((func, period))
+        if messages is not None:
+            if not isinstance(messages, set):
+                messages = {messages}
+            for message in messages:
+                message_digest = Model.build_schema_digest(message)
+                self._interval_messages[message_digest] = message
+
+                self.spec.path(path=message.__name__, operations=message.dict())
+        self._update_schema_digest()
 
     def on_message(
         self, model: Model, replies: Optional[Union[Model, Set[Model]]] = None
@@ -89,7 +110,10 @@ class Protocol:
         return decorator_on_message
 
     def add_message_handler(
-        self, model: Model, func: MessageCallback, replies: Union[Model, Set[Model]]
+        self,
+        model: Model,
+        func: MessageCallback,
+        replies: Optional[Union[Model, Set[Model]]],
     ):
         model_digest = Model.build_schema_digest(model)
 
@@ -112,7 +136,8 @@ class Protocol:
         self._update_schema_digest()
 
     def _update_schema_digest(self):
-        sorted_schema_digests = sorted(list(self._models.keys()))
+        all_models = self._models | self._interval_messages
+        sorted_schema_digests = sorted(list(all_models.keys()))
         hasher = hashlib.sha256()
         for digest in sorted_schema_digests:
             hasher.update(bytes.fromhex(digest))

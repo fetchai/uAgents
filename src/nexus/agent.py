@@ -210,7 +210,7 @@ class Agent(Sink):
     async def handle_message(self, sender, schema_digest: str, message: Any):
         await self._message_queue.put((schema_digest, sender, message))
 
-    def run(self):
+    def setup(self):
         # register the internal agent protocol
         self.include(self._protocol)
 
@@ -219,6 +219,8 @@ class Agent(Sink):
             _run_interval(self.register, self._ctx, REG_UPDATE_INTERVAL_SECONDS)
         )
 
+    def run(self):
+        self.setup()
         self._loop.run_until_complete(self._server.serve())
 
     async def _process_message_queue(self):
@@ -264,4 +266,6 @@ class Bureau:
         self._agents.append(agent)
 
     def run(self):
+        for agent in self._agents:
+            agent.setup()
         self._loop.run_until_complete(self._server.serve())
