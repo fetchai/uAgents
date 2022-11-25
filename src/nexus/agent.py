@@ -177,8 +177,10 @@ class Agent(Sink):
 
         return sequence
 
-    def on_interval(self, period: float):
-        return self._protocol.on_interval(period)
+    def on_interval(
+        self, period: float, messages: Optional[Union[Model, Set[Model]]] = None
+    ):
+        return self._protocol.on_interval(period, messages)
 
     def on_message(
         self, model: Model, replies: Optional[Union[Model, Set[Model]]] = None

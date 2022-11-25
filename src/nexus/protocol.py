@@ -92,7 +92,7 @@ class Protocol:
                 message_digest = Model.build_schema_digest(message)
                 self._interval_messages[message_digest] = message
 
-                self.spec.path(path=message.__name__, operations=message.dict())
+                self.spec.path(path=message.__name__, operations={})
         self._update_schema_digest()
 
     def on_message(
