@@ -136,8 +136,10 @@ class Protocol:
         self._update_schema_digest()
 
     def _update_schema_digest(self):
-        all_models = self._models | self._interval_messages
-        sorted_schema_digests = sorted(list(all_models.keys()))
+        all_model_digests = set(self._models.keys()) | set(
+            self._interval_messages.keys()
+        )
+        sorted_schema_digests = sorted(list(all_model_digests))
         hasher = hashlib.sha256()
         for digest in sorted_schema_digests:
             hasher.update(bytes.fromhex(digest))
