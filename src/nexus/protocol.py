@@ -70,13 +70,13 @@ class Protocol:
             def handler(*args, **kwargs):
                 return func(*args, **kwargs)
 
-            self.add_interval_handler(period, func, messages)
+            self._add_interval_handler(period, func, messages)
 
             return handler
 
         return decorator_on_interval
 
-    def add_interval_handler(
+    def _add_interval_handler(
         self,
         period: float,
         func: IntervalCallback,
@@ -103,13 +103,13 @@ class Protocol:
             def handler(*args, **kwargs):
                 return func(*args, **kwargs)
 
-            self.add_message_handler(model, func, replies)
+            self._add_message_handler(model, func, replies)
 
             return handler
 
         return decorator_on_message
 
-    def add_message_handler(
+    def _add_message_handler(
         self,
         model: Model,
         func: MessageCallback,
