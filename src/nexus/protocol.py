@@ -42,6 +42,10 @@ class Protocol:
         return self._replies
 
     @property
+    def interval_messages(self):
+        return self._interval_messages
+
+    @property
     def message_handlers(self):
         return self._message_handlers
 
@@ -59,7 +63,6 @@ class Protocol:
 
     @property
     def digest(self):
-        assert self._digest != "", "Protocol digest empty"
         return self._digest
 
     def on_interval(
@@ -93,7 +96,7 @@ class Protocol:
                 self._interval_messages[message_digest] = message
 
                 self.spec.path(path=message.__name__, operations={})
-        self._update_schema_digest()
+        self._update_digest()
 
     def on_message(
         self, model: Model, replies: Optional[Union[Model, Set[Model]]] = None
@@ -133,9 +136,9 @@ class Protocol:
                     post=dict(replies=[reply.__name__ for reply in replies])
                 ),
             )
-        self._update_schema_digest()
+        self._update_digest()
 
-    def _update_schema_digest(self):
+    def _update_digest(self):
         all_model_digests = set(self._models.keys()) | set(
             self._interval_messages.keys()
         )

@@ -65,6 +65,7 @@ class Agent(Sink):
         self._storage = KeyValueStore(self.address[0:16])
         self._models = {}
         self._replies = {}
+        self._interval_messages = {}
         self._message_handlers = {}
         self._inbox = {}
         self._ctx = Context(
@@ -193,6 +194,11 @@ class Agent(Sink):
             self._background_tasks.add(task)
             task.add_done_callback(self._background_tasks.discard)
 
+        for schema_digest in protocol.interval_messages:
+            self._interval_messages[schema_digest] = protocol.interval_messages[
+                schema_digest
+            ]
+
         for schema_digest in protocol.models:
             if schema_digest in self._models:
                 raise RuntimeError("Unable to register duplicate model")
@@ -206,7 +212,10 @@ class Agent(Sink):
             self._message_handlers[schema_digest] = protocol.message_handlers[
                 schema_digest
             ]
-            self._replies[schema_digest] = protocol.replies[schema_digest]
+            if schema_digest in protocol.replies:
+                self._replies[schema_digest] = protocol.replies[schema_digest]
+
+        if protocol.digest is not None:
             self.protocols[protocol.canonical_name] = protocol.digest
 
     async def handle_message(self, sender, schema_digest: str, message: Any):
@@ -246,8 +255,11 @@ class Agent(Sink):
                 self._identity,
                 self._wallet,
                 self._ledger,
-                self._replies,
-                MsgDigest(message=message, schema_digest=schema_digest),
+                replies=self._replies,
+                interval_messages=self._interval_messages,
+                message_received=MsgDigest(
+                    message=message, schema_digest=schema_digest
+                ),
             )
 
             # attempt to find the handler
