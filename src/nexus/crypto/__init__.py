@@ -4,7 +4,6 @@ from typing import Tuple, Union
 import bech32
 import ecdsa
 
-from nexus.storage import save_key, query_key
 
 
 def _decode_bech32(value: str) -> Tuple[str, bytes]:
@@ -72,17 +71,6 @@ class Identity:
     @staticmethod
     def generate() -> "Identity":
         signing_key = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
-        return Identity(signing_key)
-
-    @staticmethod
-    def get_identity(name: str) -> "Identity":
-        saved_key = query_key(name, "instance_key")
-        if saved_key:
-            _, sk_data = _decode_bech32(saved_key)
-            signing_key = ecdsa.SigningKey.from_string(sk_data, curve=ecdsa.SECP256k1)
-            return Identity(signing_key)
-        signing_key = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
-        save_key(name, signing_key.to_string())
         return Identity(signing_key)
 
     @property

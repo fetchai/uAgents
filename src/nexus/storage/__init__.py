@@ -1,8 +1,11 @@
 import json
 import os
 from typing import Any, Optional
+from typing import Tuple
+import ecdsa
 from cosmpy.aerial.wallet import PrivateKey
-import bech32
+from nexus.crypto import Identity
+
 
 
 class KeyValueStore:
@@ -44,50 +47,34 @@ class KeyValueStore:
             json.dump(self._data, file, ensure_ascii=False, indent=4)
 
 
-def load_keys() -> dict:
-    sk_path = os.path.join(os.getcwd(), "private_keys.json")
-    if os.path.exists(sk_path):
-        with open(sk_path, encoding="utf-8") as load_file:
+def load_all_keys() -> dict:
+    private_keys_path = os.path.join(os.getcwd(), "private_keys.json")
+    if os.path.exists(private_keys_path):
+        with open(private_keys_path, encoding="utf-8") as load_file:
             return json.load(load_file)
     return {}
 
 
-def save_key(name: str, key: str):
-    keys = load_keys()
+def save_private_keys(name: str, identity_key: str, wallet_key: str):
+    private_keys = load_all_keys()
+    private_keys[name] = {"identity_key": identity_key, "wallet_key": wallet_key}
 
-    if name not in keys.keys():
-        keys[name] = {"instance_key": "", "wallet_key": ""}
-
-    if isinstance(key, bytes):
-        instance_key = _encode_bech32("agent", key)
-        keys.get(name)["instance_key"] = instance_key
-
-    elif isinstance(key, str):
-        keys.get(name)["wallet_key"] = key
-    else:
-        assert False
-
-    sk_path = os.path.join(os.getcwd(), "private_keys.json")
-    with open(sk_path, "w", encoding="utf-8") as write_file:
-        json.dump(keys, write_file, indent=4)
+    private_keys_path = os.path.join(os.getcwd(), "private_keys.json")
+    with open(private_keys_path, "w", encoding="utf-8") as write_file:
+        json.dump(private_keys, write_file, indent=4)
 
 
-def query_key(name: str, key_type: str) -> str:
-    keys = load_keys()
+def load_private_keys(name: str) -> Tuple[bytes, PrivateKey]:
+    keys = load_all_keys()
+
     if name in keys.keys():
-        return keys.get(name)[key_type]
-    return ""
+        private_keys = keys.get(name)
+        bytes_key = bytes.fromhex(private_keys["identity_key"])
+        identity_key = ecdsa.SigningKey.from_string(bytes_key, curve=ecdsa.SECP256k1)
+        return identity_key, PrivateKey(private_keys["wallet_key"])
+    # pylint: disable=protected-access
+    identity_key = Identity.generate()._sk
+    wallet_key = PrivateKey()
 
-
-def get_wallet_key(name: str) -> PrivateKey:
-    saved_key = query_key(name, "wallet_key")
-    if saved_key:
-        return PrivateKey(saved_key)
-    key = PrivateKey()
-    save_key(name, key.private_key)
-    return key
-
-
-def _encode_bech32(prefix: str, value: bytes) -> str:
-    value_base5 = bech32.convertbits(value, 8, 5)
-    return bech32.bech32_encode(prefix, value_base5)
+    save_private_keys(name, identity_key.to_string().hex(), PrivateKey().private_key)
+    return identity_key, wallet_key
