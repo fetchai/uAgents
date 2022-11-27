@@ -5,7 +5,6 @@ import bech32
 import ecdsa
 
 
-
 def _decode_bech32(value: str) -> Tuple[str, bytes]:
     prefix, data_base5 = bech32.bech32_decode(value)
     data = bytes(bech32.convertbits(data_base5, 5, 8, False))

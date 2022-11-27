@@ -7,7 +7,6 @@ from cosmpy.aerial.wallet import PrivateKey
 from nexus.crypto import Identity
 
 
-
 class KeyValueStore:
     def __init__(self, name: str, cwd: str = None):
         self._data = {}
