@@ -1,0 +1,77 @@
+/*overriding the header*/
+.md-header-nav__button.md-logo img {
+	width: auto!important;
+}
+
+.md-nav__button .md-logo{
+	width: auto!important;
+}
+
+@media screen and (max-width: 76.1875em){
+	.md-nav--primary .md-nav__title[for=__drawer] {
+			background-color:#202943!important;
+
+	}
+
+	.md-nav--primary .md-nav__title[for=__drawer] img{
+		width: 180px;
+	    height: auto;
+	}
+}
+
+.md-header{
+	background-color:#202943!important;
+	padding: 10px;
+	height: auto;
+}
+
+
+/*home page styling*/
+.parent {
+display: grid;
+grid-template-columns: repeat(3, 1fr);
+grid-template-rows: auto auto auto auto;
+grid-column-gap: 6px;
+grid-row-gap: 6px;
+color: white;
+}
+
+.grid_item {
+	padding: 15px;
+	border-radius: 5px;
+}
+
+.div1 {
+	grid-area: 1 / 1 / 3 / 4;
+	background-color: #121A30;
+	padding-top: 160px;
+	text-align: right;
+	padding-right: 30px;
+}
+/* .div2 { grid-area: 3 / 1 / 4 / 4; background-color: #80D2C6} */
+/* .div3 { grid-area: 4 / 1 / 5 / 2; background-color: #F0F0F0; height: 260px;} */
+.div4 { grid-area: 3 / 1 / 3 / 2; background-color: #F0F0F0; height: 260px; color: #222;}
+.div5 { grid-area: 3 / 2 / 3 / 3; background-color: #F0F0F0; height: 260px; color: #222;}
+.div6 { grid-area: 4 / 1 / 6 / 4; margin: 1px solid black; color: #222;}
+.div7 { grid-area: 6 / 1 / 7 / 4;  margin: 1px solid black; color: #222;}
+.div8 { grid-area: 7 / 1 / 8 / 4;  margin: 1px solid black; color: #222;}
+.div9 { grid-area: 8 / 1 / 9 / 4;  margin: 1px solid black; color: #222;}
+
+.black-link{
+	color: black!important;
+}
+
+/*overriding the announcement style*/
+.md-banner {
+  color: white;
+  background-color: #3B82F6;
+  text-align: center;
+}
+
+.md-banner .announcement-link {
+  color: white;
+}
+
+.md-banner .announcement-link:hover {
+  color: hsla(0, 100%, 100%, 0.7);
+}
