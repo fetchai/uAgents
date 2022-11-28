@@ -187,7 +187,7 @@ class Agent(Sink):
 
     def get_registration_sequence(self) -> int:
         query_msg = {"query_sequence": {"agent_address": self.address}}
-        sequence = query_msg.get("sequence", 0)
+        sequence = self._reg_contract.query(query_msg)["sequence"]
 
         return sequence
 
