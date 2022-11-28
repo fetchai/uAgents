@@ -2,7 +2,6 @@ import json
 import os
 from typing import Any, Optional
 from typing import Tuple
-import ecdsa
 from cosmpy.aerial.wallet import PrivateKey
 from nexus.crypto import Identity
 
@@ -63,17 +62,14 @@ def save_private_keys(name: str, identity_key: str, wallet_key: str):
         json.dump(private_keys, write_file, indent=4)
 
 
-def load_private_keys(name: str) -> Tuple[bytes, PrivateKey]:
+def get_or_create_private_keys(name: str) -> Tuple[str, str]:
     keys = load_all_keys()
-
     if name in keys.keys():
         private_keys = keys.get(name)
-        bytes_key = bytes.fromhex(private_keys["identity_key"])
-        identity_key = ecdsa.SigningKey.from_string(bytes_key, curve=ecdsa.SECP256k1)
-        return identity_key, PrivateKey(private_keys["wallet_key"])
-    # pylint: disable=protected-access
-    identity_key = Identity.generate()._sk
-    wallet_key = PrivateKey()
+        return private_keys["identity_key"], private_keys["wallet_key"]
 
-    save_private_keys(name, identity_key.to_string().hex(), PrivateKey().private_key)
+    identity_key = Identity.generate().to_string
+    wallet_key = PrivateKey().private_key
+
+    save_private_keys(name, identity_key, PrivateKey().private_key)
     return identity_key, wallet_key

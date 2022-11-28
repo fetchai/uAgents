@@ -14,7 +14,7 @@ from nexus.dispatch import Sink, dispatcher
 from nexus.models import Model
 from nexus.protocol import Protocol, OPENAPI_VERSION
 from nexus.resolver import Resolver, AlmanacResolver
-from nexus.storage import KeyValueStore, load_private_keys
+from nexus.storage import KeyValueStore, get_or_create_private_keys
 from nexus.network import get_ledger, get_reg_contract
 from nexus.config import (
     REG_UPDATE_INTERVAL_SECONDS,
@@ -57,9 +57,9 @@ class Agent(Sink):
                 self._wallet = LocalWallet.generate()
                 self._identity = Identity.generate()
             else:
-                identity_key, wallet_key = load_private_keys(name)
-                self._wallet = LocalWallet(wallet_key)
-                self._identity = Identity(identity_key)
+                identity_key, wallet_key = get_or_create_private_keys(name)
+                self._wallet = LocalWallet(PrivateKey(wallet_key))
+                self._identity = Identity.from_string(identity_key)
         else:
             self._identity = Identity.from_seed(seed, 0)
             self._wallet = LocalWallet(
