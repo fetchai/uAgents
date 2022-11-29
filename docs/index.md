@@ -1,6 +1,5 @@
 
-Micro Agents (uAgents) emerge as an additional way to lower the learning curve for users to get into the [AEA Framework](https://docs.fetch.ai/aea/)
-
+uAgents is a fast and lightweight framework that makes it easy to build agents for a variety of decentralized use cases
 # Getting Started
 
 ## Install from source
