@@ -6,8 +6,8 @@ class Message(Model):
     message: str
 
 
-AGENT1_ADDRESS = "agent1qwpdqyxwdxmx9ar8gmp02x7n85pjucams0q0m2l45zlmykrzvnpnj5l06gf"
-AGENT2_ADDRESS = "agent1q2sec3utj4a8xl8le8x2dy90f33fnlunaatxamjpepz0zk99qqttj97526g"
+AGENT1_ADDRESS = "agent1qv2l7qzcd2g2rcv2p93tqflrcaq5dk7c2xc7fcnfq3s37zgkhxjmq5mfyvz"
+AGENT2_ADDRESS = "agent1qv73me5ql7kl30t0grehalj0aau0l4hpthp4m5q9v4qk2hz8h63vzpgyadp"
 
 agent = Agent(
     name="alice",
