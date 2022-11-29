@@ -73,7 +73,7 @@ class Identity:
         return Identity(signing_key)
 
     @staticmethod
-    def from_string(private_key_hex: str):
+    def from_string(private_key_hex: str) -> "Identity":
         bytes_key = bytes.fromhex(private_key_hex)
         signing_key = ecdsa.SigningKey.from_string(bytes_key, curve=ecdsa.SECP256k1)
 
