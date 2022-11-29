@@ -68,7 +68,7 @@ def get_or_create_private_keys(name: str) -> Tuple[str, str]:
         private_keys = keys.get(name)
         return private_keys["identity_key"], private_keys["wallet_key"]
 
-    identity_key = Identity.generate().to_string
+    identity_key = Identity.generate().private_key
     wallet_key = PrivateKey().private_key
 
     save_private_keys(name, identity_key, PrivateKey().private_key)
