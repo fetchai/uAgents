@@ -65,7 +65,7 @@ class Context:
         schema_digest = Model.build_schema_digest(message)
 
         # check if this message is a reply
-        if self._message_received is not None and self._replies is not None:
+        if self._message_received is not None and self._replies:
             received = self._message_received
             if received.schema_digest in self._replies:
                 # ensure the reply is valid
@@ -77,7 +77,7 @@ class Context:
                     return
 
         # check if this message is a valid interval message
-        if self._message_received is None and self._interval_messages is not None:
+        if self._message_received is None and self._interval_messages:
             if schema_digest not in self._interval_messages:
                 logging.exception(
                     f"Outgoing message {type(message)} is not a valid interval message"
