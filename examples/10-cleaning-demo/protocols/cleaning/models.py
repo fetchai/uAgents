@@ -1,6 +1,9 @@
 from enum import Enum
 from typing import List
 
+from tortoise import fields, models
+from tortoise.contrib.postgres.fields import ArrayField
+
 from nexus import Context, Model, Protocol
 
 
@@ -16,13 +19,13 @@ class Service(str, Enum):
     BATHROOM = "bathroom"
 
 
-class Availability(Model):
-    address: int
-    max_distance: int
-    time_start: int
-    time_end: int
-    services: List[Service]
-    min_hourly_price: float
+class Availability(models.Model):
+    address = fields.IntField(default=0)
+    max_distance = fields.IntField(default=10)
+    time_start: fields.DatetimeField()
+    time_end: fields.DatetimeField(default=24)
+    services: ArrayField(element_type=str)
+    min_hourly_price: fields.FloatField(default=0.0)
 
 
 class ServiceRequest(Model):
