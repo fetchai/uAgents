@@ -80,7 +80,7 @@ class Identity:
         return Identity(signing_key)
 
     @property
-    def to_string(self) -> str:
+    def private_key(self) -> str:
         return self._sk.to_string().hex()
 
     @property
