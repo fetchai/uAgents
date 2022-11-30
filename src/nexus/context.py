@@ -35,6 +35,7 @@ class Context:
         wallet: LocalWallet,
         ledger: LedgerClient,
         replies: Optional[Dict[str, Set[str]]] = None,
+        interval_messages: Optional[Dict[str, Set[str]]] = None,
         message_received: Optional[MsgDigest] = None,
     ):
         self.storage = storage
@@ -45,6 +46,7 @@ class Context:
         self._resolver = resolve
         self._identity = identity
         self._replies = replies
+        self._interval_messages = interval_messages
         self._message_received = message_received
 
     @property
@@ -63,15 +65,24 @@ class Context:
         schema_digest = Model.build_schema_digest(message)
 
         # check if this message is a reply
-        if self._message_received is not None and self._replies is not None:
+        if self._message_received is not None and self._replies:
             received = self._message_received
             if received.schema_digest in self._replies:
                 # ensure the reply is valid
                 if schema_digest not in self._replies[received.schema_digest]:
                     logging.exception(
-                        f"Outgoing message {message} is not a valid reply to {received.message}"
+                        f"Outgoing message {type(message)} "
+                        f"is not a valid reply to {received.message}"
                     )
                     return
+
+        # check if this message is a valid interval message
+        if self._message_received is None and self._interval_messages:
+            if schema_digest not in self._interval_messages:
+                logging.exception(
+                    f"Outgoing message {type(message)} is not a valid interval message"
+                )
+                return
 
         # handle local dispatch of messages
         if dispatcher.contains(destination):

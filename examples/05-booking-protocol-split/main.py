@@ -16,7 +16,7 @@ restuarant.include(book_proto)
 user = Agent(name="user")
 
 
-@user.on_interval(period=3.0)
+@user.on_interval(period=3.0, messages=QueryTableRequest)
 async def interval(ctx: Context):
     started = ctx.storage.get("started")
 

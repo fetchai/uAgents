@@ -28,7 +28,7 @@ user = Agent(name="user")
 restuarant = Agent(name="restuarant")
 
 
-@user.on_interval(period=3.0)
+@user.on_interval(period=3.0, messages=QueryTableRequest)
 async def interval(ctx: Context):
     started = ctx.storage.get("started")
 
