@@ -1,7 +1,6 @@
 import hashlib
 import struct
 from typing import Tuple, Union
-
 import bech32
 import ecdsa
 
@@ -72,6 +71,17 @@ class Identity:
     def generate() -> "Identity":
         signing_key = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
         return Identity(signing_key)
+
+    @staticmethod
+    def from_string(private_key_hex: str) -> "Identity":
+        bytes_key = bytes.fromhex(private_key_hex)
+        signing_key = ecdsa.SigningKey.from_string(bytes_key, curve=ecdsa.SECP256k1)
+
+        return Identity(signing_key)
+
+    @property
+    def private_key(self) -> str:
+        return self._sk.to_string().hex()
 
     @property
     def address(self) -> str:
