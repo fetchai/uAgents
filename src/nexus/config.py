@@ -11,7 +11,7 @@ class AgentNetwork(Enum):
 
 AGENT_PREFIX = "agent"
 LEDGER_PREFIX = "fetch"
-CONTRACT_ALMANAC = "fetch1fvdmhy3y4hae35qsxgxjfy3nafvqe8grzclpeauvv2n3pt9l0uqqg375h8"
+CONTRACT_ALMANAC = "fetch1tjagw8g8nn4cwuw00cf0m5tl4l6wfw9c0ue507fhx9e3yrsck8zs0l3q4w"
 REGISTRATION_FEE = 500000000000000000
 REGISTRATION_DENOM = "atestfet"
 REG_UPDATE_INTERVAL_SECONDS = 60
