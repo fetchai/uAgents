@@ -12,7 +12,7 @@ from nexus.dispatch import Sink, dispatcher
 from nexus.models import Model
 from nexus.protocol import Protocol
 from nexus.resolver import Resolver, AlmanacResolver
-from nexus.storage import KeyValueStore
+from nexus.storage import KeyValueStore, get_or_create_private_keys
 from nexus.network import get_ledger, get_reg_contract
 from nexus.config import (
     REG_UPDATE_INTERVAL_SECONDS,
@@ -51,8 +51,13 @@ class Agent(Sink):
         self._resolver = resolve if resolve is not None else AlmanacResolver()
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
         if seed is None:
-            self._identity = Identity.generate()
-            self._wallet = LocalWallet.generate()
+            if name is None:
+                self._wallet = LocalWallet.generate()
+                self._identity = Identity.generate()
+            else:
+                identity_key, wallet_key = get_or_create_private_keys(name)
+                self._wallet = LocalWallet(PrivateKey(wallet_key))
+                self._identity = Identity.from_string(identity_key)
         else:
             self._identity = Identity.from_seed(seed, 0)
             self._wallet = LocalWallet(
@@ -127,14 +132,24 @@ class Agent(Sink):
     async def register(self, ctx: Context):
 
         if self.registration_status():
-            logging.info(f"Agent {self._name} registration is up to date")
+            logging.info(
+                f"Agent {self._name} registration is up to date\
+                    \nWallet address: {self.wallet.address()}"
+            )
             return
 
         agent_balance = ctx.ledger.query_bank_balance(ctx.wallet)
 
         if agent_balance < REGISTRATION_FEE:
+<<<<<<< HEAD
             logging.exception(f"Insufficient funds to register {self._name}")
             return
+=======
+            logging.exception(
+                f"Insufficient funds to register {self._name}\
+                    \nFund using wallet address: {self.wallet.address()}"
+            )
+>>>>>>> 8040377795c2145cce80bb98c863733038f1df7c
 
         signature = self.sign_registration()
 
@@ -163,7 +178,9 @@ class Agent(Sink):
             ),
         )
         await self._loop.run_in_executor(None, transaction.wait_to_complete)
-        logging.info(f"Registering Agent {self._name}...complete")
+        logging.info(
+            f"Registering Agent {self._name}...complete\nWallet address: {self.wallet.address()}"
+        )
 
     def registration_status(self) -> bool:
 
@@ -176,7 +193,7 @@ class Agent(Sink):
 
     def get_registration_sequence(self) -> int:
         query_msg = {"query_sequence": {"agent_address": self.address}}
-        sequence = query_msg.get("sequence", 0)
+        sequence = self._reg_contract.query(query_msg)["sequence"]
 
         return sequence
 
