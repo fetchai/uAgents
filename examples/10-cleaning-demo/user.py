@@ -1,11 +1,10 @@
 from protocols.cleaning import (
     ServiceBooking,
     BookingResponse,
-    Service,
     ServiceRequest,
     ServiceResponse,
 )
-
+from protocols.cleaning.models import ServiceType
 from nexus import Agent, Context
 from nexus.setup import fund_agent_if_low
 
@@ -25,7 +24,7 @@ request = ServiceRequest(
     address=17,
     time_start=12,
     duration=4,
-    services=[Service.WINDOW, Service.LAUNDRY],
+    services=[ServiceType.WINDOW, ServiceType.LAUNDRY],
     max_price=60,
 )
 

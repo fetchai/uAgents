@@ -141,15 +141,10 @@ class Agent(Sink):
         agent_balance = ctx.ledger.query_bank_balance(ctx.wallet)
 
         if agent_balance < REGISTRATION_FEE:
-<<<<<<< HEAD
-            logging.exception(f"Insufficient funds to register {self._name}")
-            return
-=======
             logging.exception(
                 f"Insufficient funds to register {self._name}\
                     \nFund using wallet address: {self.wallet.address()}"
             )
->>>>>>> 8040377795c2145cce80bb98c863733038f1df7c
 
         signature = self.sign_registration()
 
