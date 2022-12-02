@@ -1,0 +1,87 @@
+site_name: uAgents
+site_url: https://docs.fetch.ai/uagents
+site_description: Everything you need to know about uAgents.
+repo_url: https://github.com/fetchai/uAgents
+edit_uri: ""
+site_author: developer@fetch.ai
+
+nav:
+  - Getting started: 'index.md'
+  - Interact with uAgents:
+    - interactions: 'interaction.md'
+
+theme:
+  name: material
+  language: en
+  palette: # Set light/dark theme button next to the search bar
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  logo: assets/images/logo.png  # Set Fetch Logo top left
+  favicon: assets/images/favicon.ico  # Set Fetch favicon
+  features:
+    - navigation.instant # Fast page loading
+    - navigation.tracking # URL automatically updated with the currently active anchor
+#    - navigation.sections # Top level sections will be visible and grouped in sidebar
+    - navigation.top # Back-to-top button
+    - search.suggest # Completion for the searched word (can be accepted with ->).
+    - search.highlight # Highlight all occurrences after following a search result link
+    - search.share # Show share button for copying deep link to the current search query and result
+#  custom_dir: docs/overrides # Uncomment to enable announcements bar at the top
+
+extra_css:
+    - css/my-styles.css
+
+copyright: Copyright &copy; 2018 - 2022 Fetch.ai # Copyright notice in footer
+
+strict: true
+
+markdown_extensions:
+  - admonition # Required by admonitions
+  - pymdownx.superfences # Required by admonitions, annotations, tabs. Enables arbitrary nesting of code and content blocks
+  - pymdownx.highlight: # Required by code blocks
+      anchor_linenums: true
+  - pymdownx.inlinehilite # Required by code blocks
+  - pymdownx.snippets # Required by code blocks
+  - pymdownx.superfences # Required by admonitions, code blocks
+  - pymdownx.details # Required by admonitions, code blocks
+  - attr_list # Required by annotations
+  - md_in_html # Required by annotations
+  - pymdownx.tabbed: # Required by tabs
+      alternate_style: true
+  - tables # # Required by tables
+
+plugins:
+  - search # Enables search
+
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/brands/twitter
+      link: https://bit.ly/3oDuI3f
+      name: fetch.ai on twitter
+    - icon: fontawesome/brands/telegram
+      link: https://t.me/fetch_ai
+      name: fetch.ai on telegram
+    - icon: fontawesome/brands/discord
+      link: https://bit.ly/3ra5uMI
+      name: fetch.ai on discord
+    - icon: fontawesome/brands/github
+      link: https://bit.ly/3AFCWxl
+      name: fetch.ai on githubs
+    - icon: fontawesome/brands/reddit
+      link: https://bit.ly/30zS1Tg
+      name: fetch.ai on reddit
+    - icon: fontawesome/brands/youtube
+      link: https://bit.ly/3DxFazs
+      name: fetch.ai on youtube
+    - icon: fontawesome/brands/linkedin
+      link: https://bit.ly/3kNO70p
+      name: fetch.ai on linkedin
