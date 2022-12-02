@@ -16,9 +16,9 @@ cleaner = Agent(
 
 fund_agent_if_low(cleaner.wallet.address())
 
-print(cleaner.address)
+print("Agent address:", cleaner.address)
 
-# build the restaurant agent from stock protocols
+# build the cleaning service agent from the cleaning protocol
 cleaner.include(cleaning_proto)
 
 
