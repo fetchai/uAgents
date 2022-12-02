@@ -3,7 +3,7 @@ from tortoise import Tortoise, run_async
 from protocols.cleaning import cleaning_proto
 from protocols.cleaning.models import Availability, Provider, Service, ServiceType
 
-from nexus import Agent
+from nexus import Agent, EventType
 from nexus.setup import fund_agent_if_low
 
 
@@ -21,8 +21,8 @@ print("Agent address:", cleaner.address)
 # build the cleaning service agent from the cleaning protocol
 cleaner.include(cleaning_proto)
 
-
-async def init_db():
+@cleaner.on_event(EventType.STARTUP)
+async def startup():
     await Tortoise.init(db_url="sqlite://db.sqlite3", modules={"models": ["__main__"]})
     await Tortoise.generate_schemas()
 
@@ -44,6 +44,9 @@ async def init_db():
         min_hourly_price=5,
     )
 
+@cleaner.on_event(EventType.SHUTDOWN)
+async def shutdown():
+    await Tortoise.close_connections()
 
 if __name__ == "__main__":
     run_async(init_db())

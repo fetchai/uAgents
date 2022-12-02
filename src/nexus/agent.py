@@ -1,12 +1,12 @@
 import asyncio
 import functools
 import logging
-from typing import Optional, List, Set, Tuple, Any, Union
+from typing import Callable, Optional, List, Set, Tuple, Any, Union
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 
 from nexus.asgi import ASGIServer
-from nexus.context import Context, IntervalCallback, MessageCallback, MsgDigest
+from nexus.context import Context, EventCallback, IntervalCallback, MessageCallback, EventType, MsgDigest
 from nexus.crypto import Identity, derive_key_from_seed
 from nexus.dispatch import Sink, dispatcher
 from nexus.models import Model
@@ -86,6 +86,8 @@ class Agent(Sink):
         )
         self._dispatcher = dispatcher
         self._message_queue = asyncio.Queue()
+        self._on_startup = []
+        self._on_shutdown = []
         self._version = version or "0.1.0"
 
         # initialize the internal agent protocol
@@ -202,6 +204,26 @@ class Agent(Sink):
     ):
         return self._protocol.on_message(model, replies)
 
+    def on_event(self, event_type: EventType) -> EventCallback:
+        def decorator_on_event(func: EventCallback) -> EventCallback:
+            @functools.wraps(func)
+            def handler(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            self._add_event_handler(event_type, func)
+
+            return handler
+
+        return decorator_on_event
+
+    def _add_event_handler(
+        self, event_type: str, func: EventCallback,
+    ) -> None: 
+        if event_type == EventType.STARTUP:
+            self._on_startup.append(func)
+        elif event_type ==EventType.SHUTDOWN:
+            self._on_shutdown.append(func)
+
     def include(self, protocol: Protocol):
         for func, period in protocol.intervals:
             task = self._loop.create_task(_run_interval(func, self._ctx, period))
@@ -235,6 +257,14 @@ class Agent(Sink):
     async def handle_message(self, sender, schema_digest: str, message: Any):
         await self._message_queue.put((schema_digest, sender, message))
 
+    async def startup(self):
+        for handler in self.on_startup:
+            await handler()
+
+    async def shutdown(self):
+        for handler in self.on_shutdown:
+            await handler()
+
     def setup(self):
         # register the internal agent protocol
         self.include(self._protocol)
@@ -246,7 +276,11 @@ class Agent(Sink):
 
     def run(self):
         self.setup()
-        self._loop.run_until_complete(self._server.serve())
+        self._loop.run_until_complete(self.startup())
+        try:
+            self._loop.run_until_complete(self._server.serve())
+        finally:
+            self._loop.run_until_complete(self.shutdown())
 
     async def _process_message_queue(self):
         while True:

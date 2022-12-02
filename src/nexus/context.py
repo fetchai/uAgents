@@ -1,6 +1,7 @@
 import logging
 import uuid
 from dataclasses import dataclass
+from enum import Enum
 from typing import Dict, Set, Optional, Callable, Any, Awaitable
 
 import aiohttp
@@ -16,6 +17,12 @@ from nexus.storage import KeyValueStore
 
 IntervalCallback = Callable[["Context"], Awaitable[None]]
 MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
+EventCallback = Callable[["Context"], Awaitable[None]]
+
+
+class EventType(Enum):
+    STARTUP = 0
+    SHUTDOWN = 1
 
 
 @dataclass
