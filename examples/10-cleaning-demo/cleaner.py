@@ -1,7 +1,7 @@
 from tortoise import Tortoise, run_async
 
-from protocols.cleaning import cleaning_proto, Service
-from protocols.cleaning.models import Availability, Provider, ServiceType
+from protocols.cleaning import cleaning_proto
+from protocols.cleaning.models import Availability, Provider, Service, ServiceType
 
 from nexus import Agent
 from nexus.setup import fund_agent_if_low
