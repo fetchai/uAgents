@@ -1,4 +1,4 @@
-from tortoise import Tortoise, run_async
+from tortoise import Tortoise
 
 from protocols.cleaning import cleaning_proto
 from protocols.cleaning.models import Availability, Provider, Service, ServiceType
@@ -20,6 +20,7 @@ print("Agent address:", cleaner.address)
 
 # build the cleaning service agent from the cleaning protocol
 cleaner.include(cleaning_proto)
+
 
 @cleaner.on_event(EventType.STARTUP)
 async def startup():
@@ -44,10 +45,11 @@ async def startup():
         min_hourly_price=5,
     )
 
+
 @cleaner.on_event(EventType.SHUTDOWN)
 async def shutdown():
     await Tortoise.close_connections()
 
+
 if __name__ == "__main__":
-    run_async(init_db())
     cleaner.run()

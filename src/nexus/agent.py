@@ -1,12 +1,19 @@
 import asyncio
 import functools
 import logging
-from typing import Callable, Optional, List, Set, Tuple, Any, Union
+from typing import Optional, List, Set, Tuple, Any, Union
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 
 from nexus.asgi import ASGIServer
-from nexus.context import Context, EventCallback, IntervalCallback, MessageCallback, EventType, MsgDigest
+from nexus.context import (
+    Context,
+    EventCallback,
+    IntervalCallback,
+    MessageCallback,
+    EventType,
+    MsgDigest,
+)
 from nexus.crypto import Identity, derive_key_from_seed
 from nexus.dispatch import Sink, dispatcher
 from nexus.models import Model
@@ -217,11 +224,13 @@ class Agent(Sink):
         return decorator_on_event
 
     def _add_event_handler(
-        self, event_type: str, func: EventCallback,
-    ) -> None: 
+        self,
+        event_type: str,
+        func: EventCallback,
+    ) -> None:
         if event_type == EventType.STARTUP:
             self._on_startup.append(func)
-        elif event_type ==EventType.SHUTDOWN:
+        elif event_type == EventType.SHUTDOWN:
             self._on_shutdown.append(func)
 
     def include(self, protocol: Protocol):
@@ -258,11 +267,11 @@ class Agent(Sink):
         await self._message_queue.put((schema_digest, sender, message))
 
     async def startup(self):
-        for handler in self.on_startup:
+        for handler in self._on_startup:
             await handler()
 
     async def shutdown(self):
-        for handler in self.on_shutdown:
+        for handler in self._on_shutdown:
             await handler()
 
     def setup(self):
