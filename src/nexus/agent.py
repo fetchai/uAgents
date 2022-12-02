@@ -3,8 +3,6 @@ import functools
 import logging
 from typing import Optional, List, Set, Tuple, Any, Union
 
-from apispec import APISpec
-
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 
 from nexus.asgi import ASGIServer
@@ -12,9 +10,9 @@ from nexus.context import Context, IntervalCallback, MessageCallback, MsgDigest
 from nexus.crypto import Identity, derive_key_from_seed
 from nexus.dispatch import Sink, dispatcher
 from nexus.models import Model
-from nexus.protocol import Protocol, OPENAPI_VERSION
+from nexus.protocol import Protocol
 from nexus.resolver import Resolver, AlmanacResolver
-from nexus.storage import KeyValueStore
+from nexus.storage import KeyValueStore, get_or_create_private_keys
 from nexus.network import get_ledger, get_reg_contract
 from nexus.config import (
     REG_UPDATE_INTERVAL_SECONDS,
@@ -53,20 +51,26 @@ class Agent(Sink):
         self._resolver = resolve if resolve is not None else AlmanacResolver()
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
         if seed is None:
-            self._identity = Identity.generate()
-            self._wallet = LocalWallet.generate()
+            if name is None:
+                self._wallet = LocalWallet.generate()
+                self._identity = Identity.generate()
+            else:
+                identity_key, wallet_key = get_or_create_private_keys(name)
+                self._wallet = LocalWallet(PrivateKey(wallet_key))
+                self._identity = Identity.from_string(identity_key)
         else:
             self._identity = Identity.from_seed(seed, 0)
             self._wallet = LocalWallet(
                 PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
                 prefix=LEDGER_PREFIX,
             )
-        self._endpoint = endpoint if endpoint is not None else ""
+        self._endpoint = endpoint if endpoint is not None else "123"
         self._ledger = get_ledger()
         self._reg_contract = get_reg_contract()
         self._storage = KeyValueStore(self.address[0:16])
         self._models = {}
         self._replies = {}
+        self._interval_messages = {}
         self._message_handlers = {}
         self._inbox = {}
         self._ctx = Context(
@@ -77,16 +81,18 @@ class Agent(Sink):
             self._identity,
             self._wallet,
             self._ledger,
+            replies=self._replies,
+            interval_messages=self._interval_messages,
         )
         self._dispatcher = dispatcher
         self._message_queue = asyncio.Queue()
         self._version = version or "0.1.0"
 
-        self.spec = APISpec(
-            title=name,
-            version=self._version,
-            openapi_version=OPENAPI_VERSION,
-        )
+        # initialize the internal agent protocol
+        self._protocol = Protocol(name=self._name, version=self._version)
+
+        # keep track of supported protocols
+        self.protocols = {}
 
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
@@ -126,13 +132,19 @@ class Agent(Sink):
     async def register(self, ctx: Context):
 
         if self.registration_status():
-            logging.info(f"Agent {self._name} registration is up to date")
+            logging.info(
+                f"Agent {self._name} registration is up to date\
+                    \nWallet address: {self.wallet.address()}"
+            )
             return
 
         agent_balance = ctx.ledger.query_bank_balance(ctx.wallet)
 
         if agent_balance < REGISTRATION_FEE:
-            raise Exception(f"Insufficient funds to register {self._name}")
+            logging.exception(
+                f"Insufficient funds to register {self._name}\
+                    \nFund using wallet address: {self.wallet.address()}"
+            )
 
         signature = self.sign_registration()
 
@@ -140,7 +152,7 @@ class Agent(Sink):
             "register": {
                 "record": {
                     "service": {
-                        "protocols": list(self._models.keys()),
+                        "protocols": list(self.protocols.values()),
                         "endpoints": [{"url": self._endpoint, "weight": 1}],
                     }
                 },
@@ -161,7 +173,9 @@ class Agent(Sink):
             ),
         )
         await self._loop.run_in_executor(None, transaction.wait_to_complete)
-        logging.info(f"Registering Agent {self._name}...complete")
+        logging.info(
+            f"Registering Agent {self._name}...complete\nWallet address: {self.wallet.address()}"
+        )
 
     def registration_status(self) -> bool:
 
@@ -174,64 +188,30 @@ class Agent(Sink):
 
     def get_registration_sequence(self) -> int:
         query_msg = {"query_sequence": {"agent_address": self.address}}
-        sequence = query_msg.get("sequence", 0)
+        sequence = self._reg_contract.query(query_msg)["sequence"]
 
         return sequence
 
-    def on_interval(self, period: float):
-        def decorator_on_interval(func: IntervalCallback):
-            @functools.wraps(func)
-            def handler(*args, **kwargs):
-                return func(*args, **kwargs)
-
-            # register the interval with the agent
-            task = self._loop.create_task(_run_interval(func, self._ctx, period))
-            self._background_tasks.add(task)
-            task.add_done_callback(self._background_tasks.discard)
-
-            return handler
-
-        return decorator_on_interval
+    def on_interval(
+        self, period: float, messages: Optional[Union[Model, Set[Model]]] = None
+    ):
+        return self._protocol.on_interval(period, messages)
 
     def on_message(
         self, model: Model, replies: Optional[Union[Model, Set[Model]]] = None
     ):
-        def decorator_on_message(func: MessageCallback):
-            @functools.wraps(func)
-            def handler(*args, **kwargs):
-                return func(*args, **kwargs)
-
-            self._add_message_handler(model, func, replies)
-
-            return handler
-
-        return decorator_on_message
-
-    def _add_message_handler(self, model, func, replies):
-        schema_digest = Model.build_schema_digest(model)
-
-        # update the model database
-        self._models[schema_digest] = model
-        self._message_handlers[schema_digest] = func
-        if replies is not None:
-            if not isinstance(replies, set):
-                replies = {replies}
-            self._replies[schema_digest] = {
-                Model.build_schema_digest(reply) for reply in replies
-            }
-
-            self.spec.path(
-                path=model.__name__,
-                operations=dict(
-                    post=dict(replies=[reply.__name__ for reply in replies])
-                ),
-            )
+        return self._protocol.on_message(model, replies)
 
     def include(self, protocol: Protocol):
         for func, period in protocol.intervals:
             task = self._loop.create_task(_run_interval(func, self._ctx, period))
             self._background_tasks.add(task)
             task.add_done_callback(self._background_tasks.discard)
+
+        for schema_digest in protocol.interval_messages:
+            self._interval_messages[schema_digest] = protocol.interval_messages[
+                schema_digest
+            ]
 
         for schema_digest in protocol.models:
             if schema_digest in self._models:
@@ -243,21 +223,29 @@ class Agent(Sink):
 
             # include the message handlers from the protocol
             self._models[schema_digest] = protocol.models[schema_digest]
-            self._replies[schema_digest] = protocol.replies[schema_digest]
             self._message_handlers[schema_digest] = protocol.message_handlers[
                 schema_digest
             ]
+            if schema_digest in protocol.replies:
+                self._replies[schema_digest] = protocol.replies[schema_digest]
+
+        if protocol.digest is not None:
+            self.protocols[protocol.canonical_name] = protocol.digest
 
     async def handle_message(self, sender, schema_digest: str, message: Any):
-        # schema_digest = _build_model_digest(message)
         await self._message_queue.put((schema_digest, sender, message))
 
-    def run(self):
+    def setup(self):
+        # register the internal agent protocol
+        self.include(self._protocol)
+
         # start the contract registration update loop
         self._loop.create_task(
             _run_interval(self.register, self._ctx, REG_UPDATE_INTERVAL_SECONDS)
         )
 
+    def run(self):
+        self.setup()
         self._loop.run_until_complete(self._server.serve())
 
     async def _process_message_queue(self):
@@ -281,8 +269,11 @@ class Agent(Sink):
                 self._identity,
                 self._wallet,
                 self._ledger,
-                self._replies,
-                MsgDigest(message=message, schema_digest=schema_digest),
+                replies=self._replies,
+                interval_messages=self._interval_messages,
+                message_received=MsgDigest(
+                    message=message, schema_digest=schema_digest
+                ),
             )
 
             # attempt to find the handler
@@ -303,4 +294,6 @@ class Bureau:
         self._agents.append(agent)
 
     def run(self):
+        for agent in self._agents:
+            agent.setup()
         self._loop.run_until_complete(self._server.serve())
