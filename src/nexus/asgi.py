@@ -31,6 +31,9 @@ class ASGIServer:
         await server.serve()
 
     async def __call__(self, scope, receive, send):
+        if scope["type"] == "lifespan":
+            return  # lifespan events not implemented
+
         assert scope["type"] == "http"
 
         if scope["path"] != "/submit":
