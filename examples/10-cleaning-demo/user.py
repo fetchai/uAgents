@@ -21,6 +21,7 @@ user = Agent(
 fund_agent_if_low(user.wallet.address())
 
 request = ServiceRequest(
+    user=user.name,
     address=17,
     time_start=12,
     duration=4,

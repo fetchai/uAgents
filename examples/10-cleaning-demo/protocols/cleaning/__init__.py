@@ -2,7 +2,7 @@ from typing import List
 
 from nexus import Context, Model, Protocol
 
-from .models import Provider, Availability
+from .models import Provider, Availability, User
 
 
 PROTOCOL_NAME = "cleaning"
@@ -10,6 +10,7 @@ PROTOCOL_VERSION = "0.1.0"
 
 
 class ServiceRequest(Model):
+    user: str
     address: int
     time_start: int
     duration: int
@@ -51,6 +52,9 @@ async def handle_query_request(ctx: Context, sender: str, msg: ServiceRequest):
     services = [int(service.type) for service in await provider.services]
     markup = provider.markup
 
+    user, _ = await User.get_or_create(name=msg.user, address=sender)
+    print(f"Received service request from user `{user.name}`")
+
     if (
         set(msg.services) <= set(services)
         and in_service_region(msg.address, availability, provider)
@@ -75,6 +79,9 @@ async def handle_book_request(ctx: Context, sender: str, msg: ServiceBooking):
     provider = await Provider.get(name=ctx.name)
     availability = await Availability.get(provider=provider)
     services = [int(service.type) for service in await provider.services]
+
+    user = await User.get(address=sender)
+    print(f"Received booking request from user `{user.name}`")
 
     success = (
         set(msg.services) <= set(services)

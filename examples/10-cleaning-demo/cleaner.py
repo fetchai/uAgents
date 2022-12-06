@@ -24,7 +24,9 @@ cleaner.include(cleaning_proto)
 
 @cleaner.on_event(EventType.STARTUP)
 async def startup():
-    await Tortoise.init(db_url="sqlite://db.sqlite3", modules={"models": ["__main__"]})
+    await Tortoise.init(
+        db_url="sqlite://db.sqlite3", modules={"models": ["protocols.cleaning.models"]}
+    )
     await Tortoise.generate_schemas()
 
     provider = await Provider.create(name=cleaner.name, address=12)
