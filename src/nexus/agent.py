@@ -154,6 +154,7 @@ class Agent(Sink):
                 f"Insufficient funds to register {self._name}\
                     \nFund using wallet address: {self.wallet.address()}"
             )
+            return
 
         signature = self.sign_registration()
 
