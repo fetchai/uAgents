@@ -37,6 +37,6 @@ class Availability(models.Model):
     id = fields.IntField(pk=True)
     provider = fields.OneToOneField("models.Provider", related_name="availability")
     max_distance = fields.IntField(default=10)
-    time_start = fields.IntField(default=0)
-    time_end = fields.IntField(default=24)
+    time_start = fields.DatetimeField()
+    time_end = fields.DatetimeField()
     min_hourly_price = fields.FloatField(default=0.0)

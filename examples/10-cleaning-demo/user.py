@@ -1,3 +1,6 @@
+from datetime import datetime, timedelta
+from pytz import utc
+
 from protocols.cleaning import (
     ServiceBooking,
     BookingResponse,
@@ -23,8 +26,8 @@ fund_agent_if_low(user.wallet.address())
 request = ServiceRequest(
     user=user.name,
     address=17,
-    time_start=12,
-    duration=4,
+    time_start=utc.localize(datetime.fromisoformat("2022-12-31 16:00:00")),
+    duration=timedelta(hours=4),
     services=[ServiceType.WINDOW, ServiceType.LAUNDRY],
     max_price=60,
 )

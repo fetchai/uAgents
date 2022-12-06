@@ -1,3 +1,6 @@
+from datetime import datetime
+from pytz import utc
+
 from tortoise import Tortoise
 
 from protocols.cleaning import cleaning_proto
@@ -41,8 +44,8 @@ async def startup():
 
     await Availability.create(
         provider=provider,
-        time_start=10,
-        time_end=22,
+        time_start=utc.localize(datetime.fromisoformat("2022-12-31 10:00:00")),
+        time_end=utc.localize(datetime.fromisoformat("2022-12-31 22:00:00")),
         max_distance=10,
         min_hourly_price=5,
     )
