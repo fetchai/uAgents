@@ -1,7 +1,7 @@
 import asyncio
 import functools
 import logging
-from typing import Optional, List, Set, Tuple, Any, Union
+from typing import Dict, Optional, List, Set, Tuple, Any, Union
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 
@@ -81,11 +81,13 @@ class Agent(Sink):
             self._identity,
             self._wallet,
             self._ledger,
+            self._queries,
             replies=self._replies,
             interval_messages=self._interval_messages,
         )
         self._dispatcher = dispatcher
         self._message_queue = asyncio.Queue()
+        self._queries: Dict[str, asyncio.Future] = {}
         self._version = version or "0.1.0"
 
         # initialize the internal agent protocol
@@ -102,7 +104,7 @@ class Agent(Sink):
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
 
-        self._server = ASGIServer(self._port, self._loop)
+        self._server = ASGIServer(self._port, self._loop, self._queries)
 
     @property
     def name(self) -> str:
@@ -128,6 +130,9 @@ class Agent(Sink):
 
     def update_loop(self, loop):
         self._loop = loop
+
+    def update_sinks(self, sinks):
+        self._queries = sinks
 
     async def register(self, ctx: Context):
 
@@ -270,6 +275,7 @@ class Agent(Sink):
                 self._identity,
                 self._wallet,
                 self._ledger,
+                self._queries,
                 replies=self._replies,
                 interval_messages=self._interval_messages,
                 message_received=MsgDigest(
@@ -288,10 +294,12 @@ class Bureau:
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
         self._agents = []
         self._port = port or 8000
+        self._sinks: Dict[str, asyncio.Future] = {}
         self._server = ASGIServer(self._port, self._loop)
 
     def add(self, agent: Agent):
         agent.update_loop(self._loop)
+        agent.update_sinks(self._sinks)
         self._agents.append(agent)
 
     def run(self):

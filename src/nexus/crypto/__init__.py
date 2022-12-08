@@ -1,5 +1,6 @@
 import hashlib
 import struct
+from secrets import token_bytes
 from typing import Tuple, Union
 import bech32
 import ecdsa
@@ -14,6 +15,10 @@ def _decode_bech32(value: str) -> Tuple[str, bytes]:
 def _encode_bech32(prefix: str, value: bytes) -> str:
     value_base5 = bech32.convertbits(value, 8, 5)
     return bech32.bech32_encode(prefix, value_base5)
+
+
+def generate_query_user() -> str:
+    return _encode_bech32("user", token_bytes(32))
 
 
 def _key_derivation_hash(prefix: str, index: int) -> bytes:

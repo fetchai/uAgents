@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 from dataclasses import dataclass
@@ -34,6 +35,7 @@ class Context:
         identity: Identity,
         wallet: LocalWallet,
         ledger: LedgerClient,
+        queries: Dict[str, asyncio.Future],
         replies: Optional[Dict[str, Set[str]]] = None,
         interval_messages: Optional[Dict[str, Set[str]]] = None,
         message_received: Optional[MsgDigest] = None,
@@ -45,6 +47,7 @@ class Context:
         self._address = str(address)
         self._resolver = resolve
         self._identity = identity
+        self._queries = queries
         self._replies = replies
         self._interval_messages = interval_messages
         self._message_received = message_received
@@ -89,6 +92,15 @@ class Context:
             await dispatcher.dispatch(
                 self.address, destination, schema_digest, json_message
             )
+            return
+
+        # handle queries waiting for a response
+        if destination[:4] == "user":
+            if destination not in self._queries:
+                logging.exception(f"Unable to resolve query to user {destination}")
+                return
+            self._queries[destination].set_result(message)
+            del self._queries[destination]
             return
 
         # resolve the endpoint
