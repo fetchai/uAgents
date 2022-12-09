@@ -19,10 +19,18 @@ class QueryTableResponse(Model):
     tables: List[int]
 
 
+class GetTotalQueries(Model):
+    get_total_queries: str = None
+
+
+class TotalQueries(Model):
+    total_queries: int
+
+
 query_proto = Protocol()
 
 
-@query_proto.on_message(model=QueryTableRequest, replies={QueryTableResponse})
+@query_proto.on_message(model=QueryTableRequest, replies=QueryTableResponse)
 async def handle_query_request(ctx: Context, sender: str, msg: QueryTableRequest):
     tables = {
         int(num): TableStatus(**status)
@@ -30,6 +38,7 @@ async def handle_query_request(ctx: Context, sender: str, msg: QueryTableRequest
             num,
             status,
         ) in ctx.storage._data.items()  # pylint: disable=protected-access
+        if isinstance(num, int)
     }
 
     available_tables = []
@@ -44,3 +53,12 @@ async def handle_query_request(ctx: Context, sender: str, msg: QueryTableRequest
     print(f"Query: {msg}. Available tables: {available_tables}.")
 
     await ctx.send(sender, QueryTableResponse(tables=available_tables))
+
+    total_queries = int(ctx.storage.get("total_queries")) or 0
+    ctx.storage.set("total_queries", total_queries + 1)
+
+
+@query_proto.on_query(model=GetTotalQueries, replies=TotalQueries)
+async def handle_get_total_queries(ctx: Context, sender: str, _msg: GetTotalQueries):
+    total_queries = int(ctx.storage.get("total_queries")) or 0
+    await ctx.send(sender, TotalQueries(total_queries=total_queries))
