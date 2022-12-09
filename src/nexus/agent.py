@@ -308,7 +308,7 @@ class Agent(Sink):
             if handler is None:
                 if not is_query_user(sender):
                     handler = self._message_handlers.get(schema_digest)
-                else:
+                elif schema_digest in self._message_handlers:
                     await _handle_error(
                         context,
                         sender,
