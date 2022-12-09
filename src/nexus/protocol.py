@@ -132,7 +132,7 @@ class Protocol:
         model: Model,
         func: MessageCallback,
         replies: Optional[Union[Model, Set[Model]]],
-        allow_unverified: Optional[bool] = True,
+        allow_unverified: Optional[bool] = False,
     ):
         model_digest = Model.build_schema_digest(model)
 
