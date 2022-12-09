@@ -5,6 +5,8 @@ from typing import Tuple, Union
 import bech32
 import ecdsa
 
+from nexus.config import USER_PREFIX
+
 
 def _decode_bech32(value: str) -> Tuple[str, bytes]:
     prefix, data_base5 = bech32.bech32_decode(value)
@@ -18,7 +20,11 @@ def _encode_bech32(prefix: str, value: bytes) -> str:
 
 
 def generate_query_user() -> str:
-    return _encode_bech32("user", token_bytes(32))
+    return _encode_bech32(USER_PREFIX, token_bytes(32))
+
+
+def is_query_user(address: str) -> bool:
+    return address[0 : len(USER_PREFIX)] == USER_PREFIX
 
 
 def _key_derivation_hash(prefix: str, index: int) -> bytes:

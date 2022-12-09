@@ -5,9 +5,10 @@ from typing import Dict
 import pydantic
 import uvicorn
 
-from nexus.crypto import generate_query_user
+from nexus.crypto import is_query_user
 from nexus.dispatch import dispatcher
 from nexus.envelope import Envelope
+from nexus.query import enclose_response
 
 
 async def _read_asgi_body(receive):
@@ -75,22 +76,12 @@ class ASGIServer:
             )
             return
 
-        is_query = b"uAgents-Query" in headers
-        if is_query:
-            # uagents_headers = headers.get(b"uAgents-Query")
-            
-            # Generate a temporary address
-            user_address = generate_query_user()
-
-            # Add a future that will be resolved once the query is answered
-            self._queries[user_address] = asyncio.Future()
-
         # read the entire payload
         raw_contents = await _read_asgi_body(receive)
         contents = json.loads(raw_contents.decode())
 
         try:
-            env = Envelope.parse_obj(contents)
+            env: Envelope = Envelope.parse_obj(contents)
         except pydantic.ValidationError:
             await send(
                 {
@@ -106,7 +97,12 @@ class ASGIServer:
             )
             return
 
-        if not env.verify():
+        is_query = is_query_user(env.sender) and b"uagents-query" in headers
+
+        if is_query:
+            # Add a future that will be resolved once the query is answered
+            self._queries[env.sender] = asyncio.Future()
+        elif not env.verify():
             await send(
                 {
                     "type": "http.response.start",
@@ -147,9 +143,12 @@ class ASGIServer:
         )
 
         # wait for any queries to be resolved
-        response = "{}"
         if is_query:
-            response = await self._queries[user_address]
+            response_msg = await self._queries[env.sender]
+            sender = env.target
+            response = enclose_response(response_msg, sender, env.session)
+        else:
+            response = "{}"
 
         await send(
             {

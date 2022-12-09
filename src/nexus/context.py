@@ -11,7 +11,7 @@ from cosmpy.aerial.wallet import LocalWallet
 from nexus.crypto import Identity
 from nexus.dispatch import dispatcher
 from nexus.envelope import Envelope
-from nexus.models import Model
+from nexus.models import Model, ErrorMessage
 from nexus.resolver import Resolver
 from nexus.storage import KeyValueStore
 
@@ -23,6 +23,9 @@ MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
 class MsgDigest:
     message: Any
     schema_digest: str
+
+
+ERROR_MESSAGE_DIGEST = Model.build_schema_digest(ErrorMessage)
 
 
 class Context:
@@ -68,7 +71,11 @@ class Context:
         schema_digest = Model.build_schema_digest(message)
 
         # check if this message is a reply
-        if self._message_received is not None and self._replies:
+        if (
+            self._message_received is not None
+            and self._replies
+            and schema_digest != ERROR_MESSAGE_DIGEST
+        ):
             received = self._message_received
             if received.schema_digest in self._replies:
                 # ensure the reply is valid

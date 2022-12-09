@@ -7,9 +7,9 @@ from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 
 from nexus.asgi import ASGIServer
 from nexus.context import Context, IntervalCallback, MessageCallback, MsgDigest
-from nexus.crypto import Identity, derive_key_from_seed
+from nexus.crypto import Identity, derive_key_from_seed, is_query_user
 from nexus.dispatch import Sink, dispatcher
-from nexus.models import Model
+from nexus.models import Model, ErrorMessage
 from nexus.protocol import Protocol
 from nexus.resolver import Resolver, AlmanacResolver
 from nexus.storage import KeyValueStore, get_or_create_private_keys
@@ -32,6 +32,10 @@ async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
             logging.exception("Runtime Error in interval handler")
 
         await asyncio.sleep(period)
+
+
+async def _handle_error(ctx: Context, destination: str, msg: ErrorMessage):
+    await ctx.send(destination, msg)
 
 
 class Agent(Sink):
@@ -72,7 +76,8 @@ class Agent(Sink):
         self._replies = {}
         self._interval_messages = {}
         self._message_handlers = {}
-        self._inbox = {}
+        self._query_handlers = {}
+        self._queries: Dict[str, asyncio.Future] = {}
         self._ctx = Context(
             self._identity.address,
             self._name,
@@ -87,7 +92,6 @@ class Agent(Sink):
         )
         self._dispatcher = dispatcher
         self._message_queue = asyncio.Queue()
-        self._queries: Dict[str, asyncio.Future] = {}
         self._version = version or "0.1.0"
 
         # initialize the internal agent protocol
@@ -131,7 +135,7 @@ class Agent(Sink):
     def update_loop(self, loop):
         self._loop = loop
 
-    def update_sinks(self, sinks):
+    def update_queries(self, sinks):
         self._queries = sinks
 
     async def register(self, ctx: Context):
@@ -203,10 +207,20 @@ class Agent(Sink):
     ):
         return self._protocol.on_interval(period, messages)
 
-    def on_message(
-        self, model: Model, replies: Optional[Union[Model, Set[Model]]] = None
+    def on_query(
+        self,
+        model: Model,
+        replies: Optional[Union[Model, Set[Model]]] = None,
     ):
-        return self._protocol.on_message(model, replies)
+        return self._protocol.on_query(model, replies)
+
+    def on_message(
+        self,
+        model: Model,
+        replies: Optional[Union[Model, Set[Model]]] = None,
+        allow_unverified: Optional[bool] = False,
+    ):
+        return self._protocol.on_message(model, replies, allow_unverified)
 
     def include(self, protocol: Protocol):
         for func, period in protocol.intervals:
@@ -224,14 +238,20 @@ class Agent(Sink):
                 raise RuntimeError("Unable to register duplicate model")
             if schema_digest in self._message_handlers:
                 raise RuntimeError("Unable to register duplicate message handler")
-            if schema_digest not in protocol.message_handlers:
+            if schema_digest in protocol.message_handlers:
+                self._message_handlers[schema_digest] = protocol.message_handlers[
+                    schema_digest
+                ]
+            elif schema_digest in protocol.query_handlers:
+                self._query_handlers[schema_digest] = protocol.query_handlers[
+                    schema_digest
+                ]
+            else:
                 raise RuntimeError("Unable to lookup up message handler in protocol")
 
             # include the message handlers from the protocol
             self._models[schema_digest] = protocol.models[schema_digest]
-            self._message_handlers[schema_digest] = protocol.message_handlers[
-                schema_digest
-            ]
+
             if schema_digest in protocol.replies:
                 self._replies[schema_digest] = protocol.replies[schema_digest]
 
@@ -284,7 +304,20 @@ class Agent(Sink):
             )
 
             # attempt to find the handler
-            handler: MessageCallback = self._message_handlers.get(schema_digest)
+            handler: MessageCallback = self._query_handlers.get(schema_digest)
+            if handler is None:
+                if not is_query_user(sender):
+                    handler = self._message_handlers.get(schema_digest)
+                else:
+                    await _handle_error(
+                        context,
+                        sender,
+                        ErrorMessage(
+                            error="Message must be sent from verified agent address"
+                        ),
+                    )
+                    continue
+
             if handler is not None:
                 await handler(context, sender, recovered)
 
@@ -294,12 +327,12 @@ class Bureau:
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
         self._agents = []
         self._port = port or 8000
-        self._sinks: Dict[str, asyncio.Future] = {}
-        self._server = ASGIServer(self._port, self._loop)
+        self._queries: Dict[str, asyncio.Future] = {}
+        self._server = ASGIServer(self._port, self._loop, self._queries)
 
     def add(self, agent: Agent):
         agent.update_loop(self._loop)
-        agent.update_sinks(self._sinks)
+        agent.update_queries(self._queries)
         self._agents.append(agent)
 
     def run(self):
