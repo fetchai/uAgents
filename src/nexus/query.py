@@ -4,9 +4,9 @@ from typing import Optional
 
 import aiohttp
 
-from nexus import Model
 from nexus.crypto import generate_query_user
 from nexus.envelope import Envelope
+from nexus.models import Model
 from nexus.resolver import Resolver, AlmanacResolver
 
 
