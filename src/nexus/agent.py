@@ -135,8 +135,8 @@ class Agent(Sink):
     def update_loop(self, loop):
         self._loop = loop
 
-    def update_queries(self, sinks):
-        self._queries = sinks
+    def update_queries(self, queries):
+        self._queries = queries
 
     async def register(self, ctx: Context):
 
