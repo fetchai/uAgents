@@ -11,7 +11,10 @@ from nexus.resolver import Resolver, AlmanacResolver
 
 
 async def query(
-    destination: str, message: Model, resolver: Optional[Resolver] = None
+    destination: str,
+    message: Model,
+    resolver: Optional[Resolver] = None,
+    timeout: Optional[float] = 15,
 ) -> Optional[Envelope]:
     if resolver is None:
         resolver = AlmanacResolver()
@@ -47,6 +50,7 @@ async def query(
                 "uagents-query": "",
             },
             data=env.json(),
+            timeout=timeout,
         ) as resp:
             success = resp.status == 200
 
