@@ -8,7 +8,7 @@ import aiohttp
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet
 
-from nexus.crypto import Identity, is_query_user
+from nexus.crypto import Identity, is_user_address
 from nexus.dispatch import dispatcher
 from nexus.envelope import Envelope
 from nexus.models import Model, ErrorMessage
@@ -102,7 +102,7 @@ class Context:
             return
 
         # handle queries waiting for a response
-        if is_query_user(destination):
+        if is_user_address(destination):
             if destination not in self._queries:
                 logging.exception(f"Unable to resolve query to user {destination}")
                 return

@@ -15,8 +15,8 @@ class Protocol:
     def __init__(self, name: Optional[str] = None, version: Optional[str] = None):
         self._intervals = []
         self._interval_messages = {}
-        self._message_handlers = {}
-        self._query_handlers = {}
+        self._signed_message_handlers = {}
+        self._unsigned_message_handlers = {}
         self._models = {}
         self._replies = {}
         self._name = name or ""
@@ -47,12 +47,12 @@ class Protocol:
         return self._interval_messages
 
     @property
-    def message_handlers(self):
-        return self._message_handlers
+    def signed_message_handlers(self):
+        return self._signed_message_handlers
 
     @property
-    def query_handlers(self):
-        return self._query_handlers
+    def unsigned_message_handlers(self):
+        return self._unsigned_message_handlers
 
     @property
     def name(self):
@@ -139,9 +139,9 @@ class Protocol:
         # update the model database
         self._models[model_digest] = model
         if allow_unverified:
-            self._query_handlers[model_digest] = func
+            self._unsigned_message_handlers[model_digest] = func
         else:
-            self._message_handlers[model_digest] = func
+            self._signed_message_handlers[model_digest] = func
         if replies is not None:
             if not isinstance(replies, set):
                 replies = {replies}

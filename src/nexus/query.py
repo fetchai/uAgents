@@ -4,7 +4,7 @@ from typing import Optional
 
 import aiohttp
 
-from nexus.crypto import generate_query_user
+from nexus.crypto import generate_user_address
 from nexus.envelope import Envelope
 from nexus.models import Model
 from nexus.resolver import Resolver, AlmanacResolver
@@ -34,7 +34,7 @@ async def query(
     # handle external dispatch of messages
     env = Envelope(
         version=1,
-        sender=generate_query_user(),
+        sender=generate_user_address(),
         target=destination,
         session=uuid.uuid4(),
         protocol=schema_digest,

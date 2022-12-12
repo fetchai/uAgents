@@ -5,7 +5,7 @@ from typing import Dict
 import pydantic
 import uvicorn
 
-from nexus.crypto import is_query_user
+from nexus.crypto import is_user_address
 from nexus.dispatch import dispatcher
 from nexus.envelope import Envelope
 from nexus.query import enclose_response
@@ -97,12 +97,14 @@ class ASGIServer:
             )
             return
 
-        is_query = is_query_user(env.sender) and b"uagents-query" in headers
+        expects_response = b"uagents-query" in headers
+        do_verify = not is_user_address(env.sender)
 
-        if is_query:
+        if expects_response:
             # Add a future that will be resolved once the query is answered
             self._queries[env.sender] = asyncio.Future()
-        elif not env.verify():
+
+        if do_verify and env.verify() is False:
             await send(
                 {
                     "type": "http.response.start",
@@ -143,7 +145,7 @@ class ASGIServer:
         )
 
         # wait for any queries to be resolved
-        if is_query:
+        if expects_response:
             response_msg = await self._queries[env.sender]
             sender = env.target
             response = enclose_response(response_msg, sender, env.session)

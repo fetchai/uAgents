@@ -7,7 +7,7 @@ from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 
 from nexus.asgi import ASGIServer
 from nexus.context import Context, IntervalCallback, MessageCallback, MsgDigest
-from nexus.crypto import Identity, derive_key_from_seed, is_query_user
+from nexus.crypto import Identity, derive_key_from_seed, is_user_address
 from nexus.dispatch import Sink, dispatcher
 from nexus.models import Model, ErrorMessage
 from nexus.protocol import Protocol
@@ -75,8 +75,8 @@ class Agent(Sink):
         self._models = {}
         self._replies = {}
         self._interval_messages = {}
-        self._message_handlers = {}
-        self._query_handlers = {}
+        self._signed_message_handlers = {}
+        self._unsigned_message_handlers = {}
         self._queries: Dict[str, asyncio.Future] = {}
         self._ctx = Context(
             self._identity.address,
@@ -236,20 +236,19 @@ class Agent(Sink):
         for schema_digest in protocol.models:
             if schema_digest in self._models:
                 raise RuntimeError("Unable to register duplicate model")
-            if schema_digest in self._message_handlers:
+            if schema_digest in self._signed_message_handlers:
                 raise RuntimeError("Unable to register duplicate message handler")
-            if schema_digest in protocol.message_handlers:
-                self._message_handlers[schema_digest] = protocol.message_handlers[
+            if schema_digest in protocol.signed_message_handlers:
+                self._signed_message_handlers[
                     schema_digest
-                ]
-            elif schema_digest in protocol.query_handlers:
-                self._query_handlers[schema_digest] = protocol.query_handlers[
+                ] = protocol.signed_message_handlers[schema_digest]
+            elif schema_digest in protocol.unsigned_message_handlers:
+                self._unsigned_message_handlers[
                     schema_digest
-                ]
+                ] = protocol.unsigned_message_handlers[schema_digest]
             else:
                 raise RuntimeError("Unable to lookup up message handler in protocol")
 
-            # include the message handlers from the protocol
             self._models[schema_digest] = protocol.models[schema_digest]
 
             if schema_digest in protocol.replies:
@@ -304,11 +303,13 @@ class Agent(Sink):
             )
 
             # attempt to find the handler
-            handler: MessageCallback = self._query_handlers.get(schema_digest)
+            handler: MessageCallback = self._unsigned_message_handlers.get(
+                schema_digest
+            )
             if handler is None:
-                if not is_query_user(sender):
-                    handler = self._message_handlers.get(schema_digest)
-                elif schema_digest in self._message_handlers:
+                if not is_user_address(sender):
+                    handler = self._signed_message_handlers.get(schema_digest)
+                elif schema_digest in self._signed_message_handlers:
                     await _handle_error(
                         context,
                         sender,

@@ -19,11 +19,11 @@ def _encode_bech32(prefix: str, value: bytes) -> str:
     return bech32.bech32_encode(prefix, value_base5)
 
 
-def generate_query_user() -> str:
+def generate_user_address() -> str:
     return _encode_bech32(USER_PREFIX, token_bytes(32))
 
 
-def is_query_user(address: str) -> bool:
+def is_user_address(address: str) -> bool:
     return address[0 : len(USER_PREFIX)] == USER_PREFIX
 
 
