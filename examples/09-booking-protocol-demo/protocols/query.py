@@ -54,11 +54,11 @@ async def handle_query_request(ctx: Context, sender: str, msg: QueryTableRequest
 
     await ctx.send(sender, QueryTableResponse(tables=available_tables))
 
-    total_queries = int(ctx.storage.get("total_queries")) or 0
+    total_queries = int(ctx.storage.get("total_queries") or 0)
     ctx.storage.set("total_queries", total_queries + 1)
 
 
 @query_proto.on_query(model=GetTotalQueries, replies=TotalQueries)
 async def handle_get_total_queries(ctx: Context, sender: str, _msg: GetTotalQueries):
-    total_queries = int(ctx.storage.get("total_queries")) or 0
+    total_queries = int(ctx.storage.get("total_queries") or 0)
     await ctx.send(sender, TotalQueries(total_queries=total_queries))
