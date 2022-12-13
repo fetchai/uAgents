@@ -1,8 +1,11 @@
 import hashlib
 import struct
+from secrets import token_bytes
 from typing import Tuple, Union
 import bech32
 import ecdsa
+
+from nexus.config import USER_PREFIX
 
 
 def _decode_bech32(value: str) -> Tuple[str, bytes]:
@@ -14,6 +17,14 @@ def _decode_bech32(value: str) -> Tuple[str, bytes]:
 def _encode_bech32(prefix: str, value: bytes) -> str:
     value_base5 = bech32.convertbits(value, 8, 5)
     return bech32.bech32_encode(prefix, value_base5)
+
+
+def generate_user_address() -> str:
+    return _encode_bech32(USER_PREFIX, token_bytes(32))
+
+
+def is_user_address(address: str) -> bool:
+    return address[0 : len(USER_PREFIX)] == USER_PREFIX
 
 
 def _key_derivation_hash(prefix: str, index: int) -> bytes:

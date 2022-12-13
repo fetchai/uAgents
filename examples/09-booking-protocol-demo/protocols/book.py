@@ -16,7 +16,7 @@ class BookTableResponse(Model):
 book_proto = Protocol()
 
 
-@book_proto.on_message(model=BookTableRequest, replies={BookTableResponse})
+@book_proto.on_message(model=BookTableRequest, replies=BookTableResponse)
 async def handle_book_request(ctx: Context, sender: str, msg: BookTableRequest):
 
     tables = {
@@ -25,6 +25,7 @@ async def handle_book_request(ctx: Context, sender: str, msg: BookTableRequest):
             num,
             status,
         ) in ctx.storage._data.items()  # pylint: disable=protected-access
+        if isinstance(num, int)
     }
     table = tables[msg.table_number]
 

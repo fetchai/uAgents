@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+import struct
 from typing import Optional, Any
 
 from pydantic import BaseModel, UUID4
@@ -15,6 +16,7 @@ class Envelope(BaseModel):
     session: UUID4
     protocol: str
     payload: Optional[str] = None
+    expires: Optional[int] = None
     signature: Optional[str] = None
 
     def encode_payload(self, value: Any):
@@ -43,4 +45,6 @@ class Envelope(BaseModel):
         hasher.update(self.protocol.encode())
         if self.payload is not None:
             hasher.update(self.payload.encode())
+        if self.expires is not None:
+            hasher.update(struct.pack(">Q", self.expires))
         return hasher.digest()
