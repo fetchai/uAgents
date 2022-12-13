@@ -1,7 +1,7 @@
 import asyncio
 import functools
 import logging
-from typing import Optional, List, Set, Tuple, Any, Union
+from typing import Dict, Optional, List, Set, Tuple, Any, Union
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 
@@ -11,12 +11,11 @@ from nexus.context import (
     EventCallback,
     IntervalCallback,
     MessageCallback,
-    EventType,
     MsgDigest,
 )
-from nexus.crypto import Identity, derive_key_from_seed
+from nexus.crypto import Identity, derive_key_from_seed, is_user_address
 from nexus.dispatch import Sink, dispatcher
-from nexus.models import Model
+from nexus.models import Model, ErrorMessage
 from nexus.protocol import Protocol
 from nexus.resolver import Resolver, AlmanacResolver
 from nexus.storage import KeyValueStore, get_or_create_private_keys
@@ -39,6 +38,10 @@ async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
             logging.exception("Runtime Error in interval handler")
 
         await asyncio.sleep(period)
+
+
+async def _handle_error(ctx: Context, destination: str, msg: ErrorMessage):
+    await ctx.send(destination, msg)
 
 
 class Agent(Sink):
@@ -78,8 +81,9 @@ class Agent(Sink):
         self._models = {}
         self._replies = {}
         self._interval_messages = {}
-        self._message_handlers = {}
-        self._inbox = {}
+        self._signed_message_handlers = {}
+        self._unsigned_message_handlers = {}
+        self._queries: Dict[str, asyncio.Future] = {}
         self._ctx = Context(
             self._identity.address,
             self._name,
@@ -88,6 +92,7 @@ class Agent(Sink):
             self._identity,
             self._wallet,
             self._ledger,
+            self._queries,
             replies=self._replies,
             interval_messages=self._interval_messages,
         )
@@ -111,7 +116,7 @@ class Agent(Sink):
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
 
-        self._server = ASGIServer(self._port, self._loop)
+        self._server = ASGIServer(self._port, self._loop, self._queries)
 
     @property
     def name(self) -> str:
@@ -137,6 +142,9 @@ class Agent(Sink):
 
     def update_loop(self, loop):
         self._loop = loop
+
+    def update_queries(self, queries):
+        self._queries = queries
 
     async def register(self, ctx: Context):
 
@@ -207,12 +215,22 @@ class Agent(Sink):
     ):
         return self._protocol.on_interval(period, messages)
 
-    def on_message(
-        self, model: Model, replies: Optional[Union[Model, Set[Model]]] = None
+    def on_query(
+        self,
+        model: Model,
+        replies: Optional[Union[Model, Set[Model]]] = None,
     ):
-        return self._protocol.on_message(model, replies)
+        return self._protocol.on_query(model, replies)
 
-    def on_event(self, event_type: EventType) -> EventCallback:
+    def on_message(
+        self,
+        model: Model,
+        replies: Optional[Union[Model, Set[Model]]] = None,
+        allow_unverified: Optional[bool] = False,
+    ):
+        return self._protocol.on_message(model, replies, allow_unverified)
+
+    def on_event(self, event_type: str) -> EventCallback:
         def decorator_on_event(func: EventCallback) -> EventCallback:
             @functools.wraps(func)
             def handler(*args, **kwargs):
@@ -229,9 +247,9 @@ class Agent(Sink):
         event_type: str,
         func: EventCallback,
     ) -> None:
-        if event_type == EventType.STARTUP:
+        if event_type == "startup":
             self._on_startup.append(func)
-        elif event_type == EventType.SHUTDOWN:
+        elif event_type == "shutdown":
             self._on_shutdown.append(func)
 
     def include(self, protocol: Protocol):
@@ -248,16 +266,21 @@ class Agent(Sink):
         for schema_digest in protocol.models:
             if schema_digest in self._models:
                 raise RuntimeError("Unable to register duplicate model")
-            if schema_digest in self._message_handlers:
+            if schema_digest in self._signed_message_handlers:
                 raise RuntimeError("Unable to register duplicate message handler")
-            if schema_digest not in protocol.message_handlers:
+            if schema_digest in protocol.signed_message_handlers:
+                self._signed_message_handlers[
+                    schema_digest
+                ] = protocol.signed_message_handlers[schema_digest]
+            elif schema_digest in protocol.unsigned_message_handlers:
+                self._unsigned_message_handlers[
+                    schema_digest
+                ] = protocol.unsigned_message_handlers[schema_digest]
+            else:
                 raise RuntimeError("Unable to lookup up message handler in protocol")
 
-            # include the message handlers from the protocol
             self._models[schema_digest] = protocol.models[schema_digest]
-            self._message_handlers[schema_digest] = protocol.message_handlers[
-                schema_digest
-            ]
+
             if schema_digest in protocol.replies:
                 self._replies[schema_digest] = protocol.replies[schema_digest]
 
@@ -313,6 +336,7 @@ class Agent(Sink):
                 self._identity,
                 self._wallet,
                 self._ledger,
+                self._queries,
                 replies=self._replies,
                 interval_messages=self._interval_messages,
                 message_received=MsgDigest(
@@ -321,7 +345,22 @@ class Agent(Sink):
             )
 
             # attempt to find the handler
-            handler: MessageCallback = self._message_handlers.get(schema_digest)
+            handler: MessageCallback = self._unsigned_message_handlers.get(
+                schema_digest
+            )
+            if handler is None:
+                if not is_user_address(sender):
+                    handler = self._signed_message_handlers.get(schema_digest)
+                elif schema_digest in self._signed_message_handlers:
+                    await _handle_error(
+                        context,
+                        sender,
+                        ErrorMessage(
+                            error="Message must be sent from verified agent address"
+                        ),
+                    )
+                    continue
+
             if handler is not None:
                 await handler(context, sender, recovered)
 
@@ -331,10 +370,12 @@ class Bureau:
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
         self._agents = []
         self._port = port or 8000
-        self._server = ASGIServer(self._port, self._loop)
+        self._queries: Dict[str, asyncio.Future] = {}
+        self._server = ASGIServer(self._port, self._loop, self._queries)
 
     def add(self, agent: Agent):
         agent.update_loop(self._loop)
+        agent.update_queries(self._queries)
         self._agents.append(agent)
 
     def run(self):

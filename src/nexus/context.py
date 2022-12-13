@@ -1,17 +1,19 @@
+import asyncio
 import logging
 import uuid
 from dataclasses import dataclass
-from enum import Enum
+from time import time
 from typing import Dict, Set, Optional, Callable, Any, Awaitable
 
 import aiohttp
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet
 
-from nexus.crypto import Identity
+from nexus.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
+from nexus.crypto import Identity, is_user_address
 from nexus.dispatch import dispatcher
 from nexus.envelope import Envelope
-from nexus.models import Model
+from nexus.models import Model, ErrorMessage
 from nexus.resolver import Resolver
 from nexus.storage import KeyValueStore
 
@@ -20,15 +22,13 @@ MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
 EventCallback = Callable[["Context"], Awaitable[None]]
 
 
-class EventType(Enum):
-    STARTUP = 0
-    SHUTDOWN = 1
-
-
 @dataclass
 class MsgDigest:
     message: Any
     schema_digest: str
+
+
+ERROR_MESSAGE_DIGEST = Model.build_schema_digest(ErrorMessage)
 
 
 class Context:
@@ -41,6 +41,7 @@ class Context:
         identity: Identity,
         wallet: LocalWallet,
         ledger: LedgerClient,
+        queries: Dict[str, asyncio.Future],
         replies: Optional[Dict[str, Set[str]]] = None,
         interval_messages: Optional[Dict[str, Set[str]]] = None,
         message_received: Optional[MsgDigest] = None,
@@ -52,6 +53,7 @@ class Context:
         self._address = str(address)
         self._resolver = resolve
         self._identity = identity
+        self._queries = queries
         self._replies = replies
         self._interval_messages = interval_messages
         self._message_received = message_received
@@ -66,13 +68,22 @@ class Context:
     def address(self) -> str:
         return self._address
 
-    async def send(self, destination: str, message: Model):
+    async def send(
+        self,
+        destination: str,
+        message: Model,
+        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+    ):
         # convert the message into object form
         json_message = message.json()
         schema_digest = Model.build_schema_digest(message)
 
         # check if this message is a reply
-        if self._message_received is not None and self._replies:
+        if (
+            self._message_received is not None
+            and self._replies
+            and schema_digest != ERROR_MESSAGE_DIGEST
+        ):
             received = self._message_received
             if received.schema_digest in self._replies:
                 # ensure the reply is valid
@@ -98,6 +109,15 @@ class Context:
             )
             return
 
+        # handle queries waiting for a response
+        if is_user_address(destination):
+            if destination not in self._queries:
+                logging.exception(f"Unable to resolve query to user {destination}")
+                return
+            self._queries[destination].set_result(message)
+            del self._queries[destination]
+            return
+
         # resolve the endpoint
         endpoint = await self._resolver.resolve(destination)
         if endpoint is None:
@@ -106,6 +126,9 @@ class Context:
             )
             return
 
+        # calculate when envelope expires
+        expires = int(time()) + timeout
+
         # handle external dispatch of messages
         env = Envelope(
             version=1,
@@ -113,6 +136,7 @@ class Context:
             target=destination,
             session=uuid.uuid4(),
             protocol=schema_digest,
+            expires=expires,
         )
         env.encode_payload(json_message)
         env.sign(self._identity)
