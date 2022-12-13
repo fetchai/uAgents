@@ -52,7 +52,7 @@ async def query(
             endpoint,
             headers={
                 "content-type": "application/json",
-                "uagents-query": "",
+                "x-uagents-connection": "sync",
             },
             data=env.json(),
             timeout=timeout,

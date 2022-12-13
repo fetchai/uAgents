@@ -99,7 +99,7 @@ class ASGIServer:
             )
             return
 
-        expects_response = b"uagents-query" in headers
+        expects_response = b"sync" == headers.get(b"x-uagents-connection")
         do_verify = not is_user_address(env.sender)
 
         if expects_response:
