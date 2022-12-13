@@ -20,7 +20,7 @@ class QueryTableResponse(Model):
 
 
 class GetTotalQueries(Model):
-    get_total_queries: str = None
+    pass
 
 
 class TotalQueries(Model):
