@@ -9,7 +9,7 @@ from nexus.asgi import ASGIServer
 from nexus.context import (
     Context,
     EventCallback,
-    IntervalCallback, 
+    IntervalCallback,
     MessageCallback,
     MsgDigest,
 )
@@ -229,7 +229,6 @@ class Agent(Sink):
         allow_unverified: Optional[bool] = False,
     ):
         return self._protocol.on_message(model, replies, allow_unverified)
-<<<<<<< HEAD
 
     def on_event(self, event_type: str) -> EventCallback:
         def decorator_on_event(func: EventCallback) -> EventCallback:
@@ -252,8 +251,6 @@ class Agent(Sink):
             self._on_startup.append(func)
         elif event_type == "shutdown":
             self._on_shutdown.append(func)
-=======
->>>>>>> origin/master
 
     def include(self, protocol: Protocol):
         for func, period in protocol.intervals:
