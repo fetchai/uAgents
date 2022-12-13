@@ -1,5 +1,6 @@
 import logging
 import uuid
+from time import time
 from typing import Optional
 
 import aiohttp
@@ -14,7 +15,7 @@ async def query(
     destination: str,
     message: Model,
     resolver: Optional[Resolver] = None,
-    timeout: Optional[float] = 15,
+    timeout: Optional[int] = 30,
 ) -> Optional[Envelope]:
     if resolver is None:
         resolver = AlmanacResolver()
@@ -31,6 +32,9 @@ async def query(
         )
         return
 
+    # calculate when envelope expires
+    expires = int(time()) + timeout
+
     # handle external dispatch of messages
     env = Envelope(
         version=1,
@@ -38,6 +42,7 @@ async def query(
         target=destination,
         session=uuid.uuid4(),
         protocol=schema_digest,
+        expires=expires,
     )
     env.encode_payload(json_message)
 

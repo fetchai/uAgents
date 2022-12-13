@@ -1,5 +1,6 @@
 import asyncio
 import json
+from datetime import datetime
 from typing import Dict
 
 import pydantic
@@ -8,6 +9,7 @@ import uvicorn
 from nexus.crypto import is_user_address
 from nexus.dispatch import dispatcher
 from nexus.envelope import Envelope
+from nexus.models import Model, ErrorMessage
 from nexus.query import enclose_response
 
 
@@ -146,7 +148,9 @@ class ASGIServer:
 
         # wait for any queries to be resolved
         if expects_response:
-            response_msg = await self._queries[env.sender]
+            response_msg: Model = await self._queries[env.sender]
+            if datetime.now() > datetime.fromtimestamp(env.expires):
+                response_msg = ErrorMessage("Query envelope expired")
             sender = env.target
             response = enclose_response(response_msg, sender, env.session)
         else:

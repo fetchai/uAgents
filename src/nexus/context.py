@@ -2,12 +2,14 @@ import asyncio
 import logging
 import uuid
 from dataclasses import dataclass
+from time import time
 from typing import Dict, Set, Optional, Callable, Any, Awaitable
 
 import aiohttp
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet
 
+from nexus.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
 from nexus.crypto import Identity, is_user_address
 from nexus.dispatch import dispatcher
 from nexus.envelope import Envelope
@@ -65,7 +67,12 @@ class Context:
     def address(self) -> str:
         return self._address
 
-    async def send(self, destination: str, message: Model):
+    async def send(
+        self,
+        destination: str,
+        message: Model,
+        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+    ):
         # convert the message into object form
         json_message = message.json()
         schema_digest = Model.build_schema_digest(message)
@@ -118,6 +125,9 @@ class Context:
             )
             return
 
+        # calculate when envelope expires
+        expires = int(time()) + timeout
+
         # handle external dispatch of messages
         env = Envelope(
             version=1,
@@ -125,6 +135,7 @@ class Context:
             target=destination,
             session=uuid.uuid4(),
             protocol=schema_digest,
+            expires=expires,
         )
         env.encode_payload(json_message)
         env.sign(self._identity)
