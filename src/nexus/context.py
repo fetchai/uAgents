@@ -10,7 +10,7 @@ from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet
 
 from nexus.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
-from nexus.crypto import Identity, is_user_address
+from nexus.crypto import Identity
 from nexus.dispatch import dispatcher
 from nexus.envelope import Envelope
 from nexus.models import Model, ErrorMessage
@@ -110,10 +110,7 @@ class Context:
             return
 
         # handle queries waiting for a response
-        if is_user_address(destination):
-            if destination not in self._queries:
-                logging.exception(f"Unable to resolve query to user {destination}")
-                return
+        if destination in self._queries:
             self._queries[destination].set_result(message)
             del self._queries[destination]
             return
