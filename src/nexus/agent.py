@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import json
 import logging
 from typing import Dict, Optional, List, Set, Tuple, Any, Union
 
@@ -321,12 +322,12 @@ class Agent(Sink):
             schema_digest, sender, message = await self._message_queue.get()
 
             # lookup the model definition
-            model_class = self._models.get(schema_digest)
+            model_class: Model = self._models.get(schema_digest)
             if model_class is None:
                 continue
 
             # parse the received message
-            recovered = model_class.parse_raw(message)
+            recovered = model_class.parse(message)
 
             context = Context(
                 self._identity.address,

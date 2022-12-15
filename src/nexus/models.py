@@ -1,4 +1,5 @@
 import hashlib
+from typing import Any, Dict
 
 from pydantic import BaseModel
 
@@ -13,6 +14,13 @@ class Model(BaseModel):
             .digest()
             .hex()
         )
+
+    @classmethod
+    def parse(cls, model: Any) -> Dict[str, Any]:
+        if isinstance(model, dict):
+            return cls.parse_obj(model)
+        else:
+            return cls.parse_raw(model)
 
 
 class ErrorMessage(Model):

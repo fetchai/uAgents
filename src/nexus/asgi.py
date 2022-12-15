@@ -63,7 +63,7 @@ class ASGIServer:
             return
 
         headers = dict(scope.get("headers", {}))
-        if headers[b"content-type"] != b"application/json":
+        if b"application/json" not in headers[b"content-type"]:
             await send(
                 {
                     "type": "http.response.start",
