@@ -19,6 +19,7 @@ from nexus.storage import KeyValueStore
 
 IntervalCallback = Callable[["Context"], Awaitable[None]]
 MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
+EventCallback = Callable[["Context"], Awaitable[None]]
 
 
 @dataclass
