@@ -34,18 +34,9 @@ class Envelope(BaseModel):
     def verify(self) -> bool:
 
         if self.signature is None:
-            #return False
-            print("SIGNATURE NOT FOUND!!")
+            return False
 
-        result = Identity.verify_digest(self.sender, self._digest(), self.signature)
-        if result:
-            print("APROVED Signature Verification")
-        else:
-            print("Failed Signature Verification")
-
-        # return Identity.verify_digest(self.sender, self._digest(), self.signature)
-
-        return result
+        return Identity.verify_digest(self.sender, self._digest(), self.signature)
 
     def _digest(self) -> bytes:
         hasher = hashlib.sha256()
