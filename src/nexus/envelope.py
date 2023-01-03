@@ -32,13 +32,20 @@ class Envelope(BaseModel):
         self.signature = identity.sign_digest(self._digest())
 
     def verify(self) -> bool:
-        # Temporary for demo
-        return True
 
-        # if self.signature is None:
-        #     return False
+        if self.signature is None:
+            return False
 
-        # return Identity.verify_digest(self.sender, self._digest(), self.signature)
+        verification = Identity.verify_digest(
+            self.sender, self._digest(), self.signature
+        )
+
+        if verification:
+            print(f"Verifired request from {self.sender}")
+        else:
+            print(f"Failed to verify request from {self.sender}")
+
+        return verification
 
     def _digest(self) -> bytes:
         hasher = hashlib.sha256()
