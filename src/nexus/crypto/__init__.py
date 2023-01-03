@@ -109,11 +109,9 @@ class Identity:
         return self.sign_digest(hasher.digest())
 
     @staticmethod
-    def verify_digest(address: str, digest: bytes, signature: list) -> bool:
+    def verify_digest(address: str, digest: bytes, signature: str) -> bool:
 
         pk_prefix, pk_data = _decode_bech32(address)
-
-        sig_data = bytes(signature)
 
         if pk_prefix != "agent":
             raise ValueError("Unable to decode agent address")
@@ -122,7 +120,7 @@ class Identity:
         verifying_key = ecdsa.VerifyingKey.from_string(pk_data, curve=ecdsa.SECP256k1)
 
         try:
-            result = verifying_key.verify_digest(sig_data, digest)
+            result = verifying_key.verify_digest(bytes.fromhex(signature), digest)
         except ecdsa.keys.BadSignatureError:
             return False
 

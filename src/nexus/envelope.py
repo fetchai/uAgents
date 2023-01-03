@@ -17,7 +17,7 @@ class Envelope(BaseModel):
     protocol: str
     payload: Optional[str] = None
     expires: Optional[int] = None
-    signature: Optional[list] = None
+    signature: Optional[str] = None
 
     def encode_payload(self, value: Any):
         self.payload = base64.b64encode(json.dumps(value).encode()).decode()
@@ -36,7 +36,9 @@ class Envelope(BaseModel):
         if self.signature is None:
             return False
 
-        verification = Identity.verify_digest(self.sender, self._digest(), self.signature)
+        verification = Identity.verify_digest(
+            self.sender, self._digest(), self.signature
+        )
 
         if verification:
             print(f"Verifired request from {self.sender}")
