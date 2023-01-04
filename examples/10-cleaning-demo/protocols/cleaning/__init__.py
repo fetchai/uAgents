@@ -41,6 +41,7 @@ class BookingResponse(Model):
 
 cleaning_proto = Protocol(name=PROTOCOL_NAME, version=PROTOCOL_VERSION)
 
+
 def in_service_region(
     location: str, availability: Availability, provider: Provider
 ) -> bool:
@@ -58,10 +59,11 @@ def in_service_region(
     in_range = service_distance <= availability.max_distance
 
     if not in_range:
-        print(f'Cleaner is to far away, max availability distance: {availability.max_distance} miles')
+        print(
+            f"Cleaner is to far away, max availability distance: {availability.max_distance} miles"
+        )
 
     return in_range
-
 
 
 @cleaning_proto.on_message(model=ServiceRequest, replies=ServiceResponse)
