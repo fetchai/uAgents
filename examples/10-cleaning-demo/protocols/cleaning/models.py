@@ -26,7 +26,7 @@ class Service(models.Model):
 class Provider(models.Model):
     id = fields.IntField(pk=True)
     name = fields.CharField(max_length=64)
-    address = fields.IntField(default=0)
+    address = fields.CharField(max_length=64)
     created_at = fields.DatetimeField(auto_now_add=True)
     availability = fields.ReverseRelation["Availability"]
     services = fields.ManyToManyField("models.Service")

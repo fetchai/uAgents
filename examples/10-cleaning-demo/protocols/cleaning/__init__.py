@@ -1,3 +1,6 @@
+from geopy.geocoders import Nominatim
+from geopy.distance import geodesic
+
 from datetime import datetime, timedelta
 from typing import List
 
@@ -12,7 +15,7 @@ PROTOCOL_VERSION = "0.1.0"
 
 class ServiceRequest(Model):
     user: str
-    address: int
+    location: str
     time_start: datetime
     duration: timedelta
     services: List[int]
@@ -25,7 +28,7 @@ class ServiceResponse(Model):
 
 
 class ServiceBooking(Model):
-    address: str
+    location: str
     time_start: datetime
     duration: timedelta
     services: List[int]
@@ -38,11 +41,27 @@ class BookingResponse(Model):
 
 cleaning_proto = Protocol(name=PROTOCOL_NAME, version=PROTOCOL_VERSION)
 
-
 def in_service_region(
-    address: int, availability: Availability, provider: Provider
+    location: str, availability: Availability, provider: Provider
 ) -> bool:
-    return abs(provider.address - address) <= availability.max_distance
+
+    geolocator = Nominatim(user_agent="micro_agents")
+
+    user_location = geolocator.geocode(location)
+    cleaner_location = geolocator.geocode(provider.address)
+
+    cleaner_coordinates = (cleaner_location.latitude, cleaner_location.longitude)
+    user_coordinates = (user_location.latitude, user_location.longitude)
+
+    service_distance = geodesic(user_coordinates, cleaner_coordinates).miles
+
+    in_range = service_distance <= availability.max_distance
+
+    if not in_range:
+        print(f'Cleaner is to far away, max availability distance: {availability.max_distance} miles')
+
+    return in_range
+
 
 
 @cleaning_proto.on_message(model=ServiceRequest, replies=ServiceResponse)
@@ -59,7 +78,7 @@ async def handle_query_request(ctx: Context, sender: str, msg: ServiceRequest):
 
     if (
         set(msg.services) <= set(services)
-        and in_service_region(msg.address, availability, provider)
+        and in_service_region(msg.location, availability, provider)
         and availability.time_start <= msg.time_start
         and availability.time_end >= msg.time_start + msg.duration
         and availability.min_hourly_price * msg_duration_hours < msg.max_price
