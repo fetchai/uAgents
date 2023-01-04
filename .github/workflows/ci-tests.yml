@@ -3,11 +3,11 @@ name: CI
 on:
   push:
     branches:
-      - master
+      - app-demo
 
   pull_request:
     branches:
-      - master
+      - app-demo
 
 jobs:
   tests:
