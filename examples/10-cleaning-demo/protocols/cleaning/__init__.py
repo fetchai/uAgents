@@ -1,11 +1,10 @@
-from geopy.geocoders import Nominatim
-from geopy.distance import geodesic
-
 from datetime import datetime, timedelta
 from typing import List
 
-from nexus import Context, Model, Protocol
+from geopy.geocoders import Nominatim
+from geopy.distance import geodesic
 
+from nexus import Context, Model, Protocol
 from .models import Provider, Availability, User
 
 
