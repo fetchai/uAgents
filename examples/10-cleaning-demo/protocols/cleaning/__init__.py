@@ -49,18 +49,23 @@ def in_service_region(
     geolocator = Nominatim(user_agent="micro_agents")
 
     user_location = geolocator.geocode(location)
-    cleaner_location = geolocator.geocode(provider.address)
+    cleaner_location = geolocator.geocode(provider.location)
+
+    if user_location is None:
+        raise RuntimeError(f'location {location} not found')
+
+    if cleaner_location is None:
+        raise RuntimeError(f'location {provider.location} not found')
 
     cleaner_coordinates = (cleaner_location.latitude, cleaner_location.longitude)
     user_coordinates = (user_location.latitude, user_location.longitude)
 
     service_distance = geodesic(user_coordinates, cleaner_coordinates).miles
-
     in_range = service_distance <= availability.max_distance
 
     if not in_range:
         print(
-            f"Cleaner is to far away, max availability distance: {availability.max_distance} miles"
+            f"Cleaner is too far away, max availability distance: {availability.max_distance} miles"
         )
 
     return in_range
