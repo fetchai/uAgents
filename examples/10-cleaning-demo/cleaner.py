@@ -32,7 +32,7 @@ async def startup():
     )
     await Tortoise.generate_schemas()
 
-    provider = await Provider.create(name=cleaner.name, location="bubulubueeeno4873728")
+    provider = await Provider.create(name=cleaner.name, location="12 Canal Reach")
 
     floor = await Service.create(type=ServiceType.FLOOR)
     window = await Service.create(type=ServiceType.WINDOW)
