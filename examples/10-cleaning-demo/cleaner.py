@@ -14,7 +14,7 @@ cleaner = Agent(
     name="cleaner",
     port=8001,
     seed="cleaner secret seed phrase",
-    endpoint="https://88a8-187-213-43-21.ngrok.io/submit",
+    endpoint="https://0992-187-213-43-21.ngrok.io/submit",
 )
 
 fund_agent_if_low(cleaner.wallet.address())
@@ -32,7 +32,7 @@ async def startup():
     )
     await Tortoise.generate_schemas()
 
-    provider = await Provider.create(name=cleaner.name, location="12 Canal Reach")
+    provider = await Provider.create(name=cleaner.name, location="London Kings Cross")
 
     floor = await Service.create(type=ServiceType.FLOOR)
     window = await Service.create(type=ServiceType.WINDOW)
