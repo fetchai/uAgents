@@ -18,7 +18,7 @@ class TestVerify(unittest.TestCase):
         alice_msg = "hello there bob"
         encoded_msg = encode(alice_msg)
 
-        signature = alice._identity._sk.sign_digest(encoded_msg).hex()
+        signature = alice.sign_digest(encoded_msg)
 
         # Message signature can be verified using alice address
         result = Identity.verify_digest(alice.address, encoded_msg, signature)
@@ -31,7 +31,7 @@ class TestVerify(unittest.TestCase):
         address = "agent1qf5gfqm48k9acegez3sg82ney2aa6l5fvpwh3n3z0ajh0nam3ssgwnn5me7"
 
         # Signature
-        signature = "3e8a94a928f65f5bfdc29d7389e92e2a76d0aef341b968440736d5e983bf5c75c3a877bb7b7c2401b50d40094b9b26fa22cb842fe0ff0d3c2fe787c079671652"
+        signature = "sig1qyvn5fjzrhjzqcmj2gfg4us6xj00gvscs4u9uqxy6wpvp9agxjf723eh5l6w878p67lycgd3fz77zr3h0q6mrheg48e35zsvv0rm2tsuvyn3l"
 
         # Message
         dart_digest = "a29af8b704077d394a9756dc04f0bb5f1424fc391b3de91144d683c5893ca234"
