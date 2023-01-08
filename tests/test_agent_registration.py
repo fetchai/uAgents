@@ -3,7 +3,7 @@ import hashlib
 
 from nexus import Agent
 from nexus.setup import fund_agent_if_low
-from nexus.network import get_ledger, get_reg_contract
+from nexus.network import get_reg_contract
 
 
 class TestVerify(unittest.TestCase):
@@ -24,7 +24,7 @@ class TestVerify(unittest.TestCase):
 
         almanac_contract = get_reg_contract()
 
-        # pylint: disable=no-member
+        # pylint: disable=W0212
         signature = agent._identity.sign_registration(
             almanac_contract.address, agent.get_registration_sequence()
         )

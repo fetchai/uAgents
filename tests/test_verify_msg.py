@@ -1,4 +1,3 @@
-import hashlib
 import unittest
 
 from nexus import Agent
@@ -31,6 +30,7 @@ class TestVerify(unittest.TestCase):
         address = "agent1qf5gfqm48k9acegez3sg82ney2aa6l5fvpwh3n3z0ajh0nam3ssgwnn5me7"
 
         # Signature
+        # pylint: disable=line-too-long
         signature = "sig1qyvn5fjzrhjzqcmj2gfg4us6xj00gvscs4u9uqxy6wpvp9agxjf723eh5l6w878p67lycgd3fz77zr3h0q6mrheg48e35zsvv0rm2tsuvyn3l"
 
         # Message
