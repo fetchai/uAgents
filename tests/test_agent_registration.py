@@ -1,5 +1,4 @@
 import unittest
-import hashlib
 
 from nexus import Agent
 from nexus.setup import fund_agent_if_low

@@ -1,4 +1,5 @@
 import unittest
+import hashlib
 
 from nexus import Agent
 from nexus.crypto import Identity
