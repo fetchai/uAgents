@@ -1,12 +1,12 @@
 import unittest
-import pytest
+import hashlib
 
 from nexus import Agent
 from nexus.setup import fund_agent_if_low
+from nexus.network import get_ledger, get_reg_contract
 
 
 class TestVerify(unittest.TestCase):
-    @pytest.mark.skip(reason="current problem with agent registration")
     def test_agent_registration(self):
 
         agent = Agent(
@@ -22,8 +22,11 @@ class TestVerify(unittest.TestCase):
 
         sequence = agent.get_registration_sequence()
 
+        almanac_contract = get_reg_contract()
+
+        # pylint: disable=no-member
         signature = agent._identity.sign_registration(
-            agent._reg_contract.address, agent.get_registration_sequence()
+            almanac_contract.address, agent.get_registration_sequence()
         )
 
         msg = {
@@ -31,7 +34,7 @@ class TestVerify(unittest.TestCase):
                 "record": {
                     "service": {
                         "protocols": [],
-                        "endpoints": [{"url": agent._endpoint, "weight": 1}],
+                        "endpoints": [{"url": "http://127.0.0.1:8000/submit", "weight": 1}],
                     }
                 },
                 "signature": signature,
@@ -40,11 +43,9 @@ class TestVerify(unittest.TestCase):
             }
         }
 
-        tx = agent._reg_contract.execute(msg, agent.wallet, funds=reg_fee)
-        tx.wait_to_complete()
+        almanac_contract.execute(msg, agent.wallet, funds=reg_fee).wait_to_complete()
 
         is_registered = agent.registration_status()
-
         self.assertEqual(is_registered, True, "Registration failed")
 
 
