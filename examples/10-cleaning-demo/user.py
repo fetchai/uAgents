@@ -34,9 +34,6 @@ request = ServiceRequest(
 
 MARKDOWN = 0.8
 
-print(Model.build_schema_digest(ServiceRequest))
-print(Model.build_schema_digest(ServiceBooking))
-
 
 @user.on_interval(period=3.0, messages=ServiceRequest)
 async def interval(ctx: Context):
