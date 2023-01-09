@@ -8,7 +8,7 @@ from protocols.cleaning import (
     ServiceResponse,
 )
 from protocols.cleaning.models import ServiceType
-from nexus import Agent, Context, Model
+from nexus import Agent, Context
 from nexus.setup import fund_agent_if_low
 
 
@@ -33,9 +33,6 @@ request = ServiceRequest(
 )
 
 MARKDOWN = 0.8
-
-print(Model.build_schema_digest(ServiceRequest))
-print(Model.build_schema_digest(ServiceBooking))
 
 
 @user.on_interval(period=3.0, messages=ServiceRequest)
