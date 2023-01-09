@@ -4,15 +4,10 @@ from nexus import Agent
 from nexus.setup import fund_agent_if_low
 
 
-class TestVerify(unittest.TestCase): 
-    def test_agent_registration(self):       
+class TestVerify(unittest.TestCase):
+    def test_agent_registration(self):
 
-        agent = Agent(
-        name="alice",
-        port=8000,
-        seed="alice secret phrase",
-        endpoint="http://127.0.0.1:8000/submit",
-        )
+        agent = Agent(name="alice")
 
         REG_FEE = "500000000000000000atestfet"
 
@@ -20,9 +15,9 @@ class TestVerify(unittest.TestCase):
 
         sequence = agent.get_registration_sequence()
 
-
         signature = agent._identity.sign_registration(
-                    agent._reg_contract.address, agent.get_registration_sequence())
+            agent._reg_contract.address, agent.get_registration_sequence()
+        )
 
         msg = {
             "register": {
@@ -37,7 +32,6 @@ class TestVerify(unittest.TestCase):
                 "agent_address": agent.address,
             }
         }
-
 
         tx = agent._reg_contract.execute(msg, agent.wallet, funds=REG_FEE)
         tx.wait_to_complete()
