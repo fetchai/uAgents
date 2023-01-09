@@ -21,10 +21,10 @@ from nexus.resolver import Resolver, AlmanacResolver
 from nexus.storage import KeyValueStore, get_or_create_private_keys
 from nexus.network import get_ledger, get_reg_contract
 from nexus.config import (
-    REG_UPDATE_INTERVAL_SECONDS,
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
     LEDGER_PREFIX,
+    REG_EXPIRY,
 )
 
 
@@ -195,6 +195,19 @@ class Agent(Sink):
             f"Registering Agent {self._name}...complete\nWallet address: {self.wallet.address()}"
         )
 
+    def schedule_registration(self):
+
+        if not self.registration_status():
+            return REG_EXPIRY * 5
+
+        query_msg = {"query_records": {"agent_address": self.address}}
+
+        response = self._reg_contract.query(query_msg)
+        expiry = response.get("record")[0].get("expiry")
+        height = response.get("height")
+
+        return (expiry - height) * 5
+
     def registration_status(self) -> bool:
 
         query_msg = {"query_records": {"agent_address": self.address}}
@@ -304,7 +317,7 @@ class Agent(Sink):
 
         # start the contract registration update loop
         self._loop.create_task(
-            _run_interval(self.register, self._ctx, REG_UPDATE_INTERVAL_SECONDS)
+            _run_interval(self.register, self._ctx, self.schedule_registration())
         )
 
     def run(self):
