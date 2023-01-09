@@ -8,7 +8,7 @@ from protocols.cleaning import (
     ServiceResponse,
 )
 from protocols.cleaning.models import ServiceType
-from nexus import Agent, Context, Model
+from nexus import Agent, Context
 from nexus.setup import fund_agent_if_low
 
 

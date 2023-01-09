@@ -31,7 +31,7 @@ class TestVerify(unittest.TestCase):
         address = "agent1qf5gfqm48k9acegez3sg82ney2aa6l5fvpwh3n3z0ajh0nam3ssgwnn5me7"
 
         # Signature
-        signature = "sig1qyvn5fjzrhjzqcmj2gfg4us6xj00gvscs4u9uqxy6wpvp9agxjf723eh5l6w878p67lycgd3fz77zr3h0q6mrheg48e35zsvv0rm2tsuvyn3l"
+        signature = "sig1qyvn5fjzrhjzqcmj2gfg4us6xj00gvscs4u9uqxy6wpvp9agxjf723eh5l6w878p67lycgd3fz77zr3h0q6mrheg48e35zsvv0rm2tsuvyn3l"  # pylint: disable=line-too-long
 
         # Message
         dart_digest = "a29af8b704077d394a9756dc04f0bb5f1424fc391b3de91144d683c5893ca234"
