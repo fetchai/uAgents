@@ -14,7 +14,7 @@ cleaner = Agent(
     name="cleaner",
     port=8001,
     seed="cleaner secret seed phrase",
-    endpoint="https://0992-187-213-43-21.ngrok.io/submit",
+    endpoint="http://127.0.0.1:8001/submit",
 )
 
 fund_agent_if_low(cleaner.wallet.address())

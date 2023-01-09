@@ -1,19 +1,14 @@
+# pylint: disable=protected-access
 import unittest
 
 from nexus import Agent
 from nexus.setup import fund_agent_if_low
-from nexus.network import get_reg_contract
 
 
 class TestVerify(unittest.TestCase):
     def test_agent_registration(self):
 
-        agent = Agent(
-            name="alice",
-            port=8000,
-            seed="alice secret phrase",
-            endpoint="http://127.0.0.1:8000/submit",
-        )
+        agent = Agent(name="alice")
 
         reg_fee = "500000000000000000atestfet"
 
@@ -21,11 +16,8 @@ class TestVerify(unittest.TestCase):
 
         sequence = agent.get_registration_sequence()
 
-        almanac_contract = get_reg_contract()
-
-        # pylint: disable=W0212
         signature = agent._identity.sign_registration(
-            almanac_contract.address, agent.get_registration_sequence()
+            agent._reg_contract.address, agent.get_registration_sequence()
         )
 
         msg = {
@@ -44,7 +36,8 @@ class TestVerify(unittest.TestCase):
             }
         }
 
-        almanac_contract.execute(msg, agent.wallet, funds=reg_fee).wait_to_complete()
+        transaction = agent._reg_contract.execute(msg, agent.wallet, funds=reg_fee)
+        transaction.wait_to_complete()
 
         is_registered = agent.registration_status()
         self.assertEqual(is_registered, True, "Registration failed")
