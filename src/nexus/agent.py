@@ -148,13 +148,6 @@ class Agent(Sink):
 
     async def register(self, ctx: Context):
 
-        if self.registration_status():
-            logging.info(
-                f"Agent {self._name} registration is up to date\
-                    \nWallet address: {self.wallet.address()}"
-            )
-            return
-
         agent_balance = ctx.ledger.query_bank_balance(ctx.wallet)
 
         if agent_balance < REGISTRATION_FEE:
