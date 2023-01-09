@@ -13,7 +13,7 @@ from nexus.setup import fund_agent_if_low
 cleaner = Agent(
     name="cleaner",
     port=8001,
-    seed="cleaner secret seed phrase",
+    seed="cleaner secret seed phrase(xjshgdiu)",
     endpoint="https://cf41-187-213-43-21.ngrok.io/submit",
 )
 

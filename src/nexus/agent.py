@@ -190,25 +190,16 @@ class Agent(Sink):
 
     def schedule_registration(self):
 
-        if not self.registration_status():
+        query_msg = {"query_records": {"agent_address": self.address}}
+        response = self._reg_contract.query(query_msg)
+
+        if response["record"] == []:
             return REG_EXPIRY * 5
 
-        query_msg = {"query_records": {"agent_address": self.address}}
-
-        response = self._reg_contract.query(query_msg)
         expiry = response.get("record")[0].get("expiry")
         height = response.get("height")
 
         return (expiry - height) * 5
-
-    def registration_status(self) -> bool:
-
-        query_msg = {"query_records": {"agent_address": self.address}}
-
-        if self._reg_contract.query(query_msg)["record"] != []:
-            return True
-
-        return False
 
     def get_registration_sequence(self) -> int:
         query_msg = {"query_sequence": {"agent_address": self.address}}
