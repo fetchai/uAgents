@@ -13,8 +13,8 @@ from nexus.setup import fund_agent_if_low
 cleaner = Agent(
     name="cleaner",
     port=8001,
-    seed="cleaner secret seed phrase(xjshgdiu)",
-    endpoint="https://cf41-187-213-43-21.ngrok.io/submit",
+    seed="cleaner secret seed phrase",
+    endpoint="https://bb86-2806-103e-18-2344-dd0e-5fa-5187-fb00.ngrok.io/submit",
 )
 
 fund_agent_if_low(cleaner.wallet.address())
@@ -45,7 +45,7 @@ async def startup():
     await Availability.create(
         provider=provider,
         time_start=utc.localize(datetime.fromisoformat("2023-01-05 12:00:00")),
-        time_end=utc.localize(datetime.fromisoformat("2023-01-10 00:00:00")),
+        time_end=utc.localize(datetime.fromisoformat("2023-01-13 00:00:00")),
         max_distance=5,
         min_hourly_price=5,
     )
