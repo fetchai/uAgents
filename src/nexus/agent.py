@@ -57,7 +57,7 @@ class Agent(Sink):
         self._name = name
         self._intervals: List[Tuple[float, Any]] = []
         self._port = port if port is not None else 8000
-        self._background_tasks = set()
+        self._background_tasks: Set[asyncio.Task] = set()
         self._resolver = resolve if resolve is not None else AlmanacResolver()
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
         if seed is None:
@@ -110,11 +110,6 @@ class Agent(Sink):
 
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
-
-        # start the background message queue processor
-        task = self._loop.create_task(self._process_message_queue())
-        self._background_tasks.add(task)
-        task.add_done_callback(self._background_tasks.discard)
 
         self._server = ASGIServer(self._port, self._loop, self._queries)
 
@@ -298,6 +293,11 @@ class Agent(Sink):
     def setup(self):
         # register the internal agent protocol
         self.include(self._protocol)
+
+        # start the background message queue processor
+        task = self._loop.create_task(self._process_message_queue())
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
 
         # start the contract registration update loop
         self._loop.create_task(
