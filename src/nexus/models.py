@@ -13,3 +13,7 @@ class Model(BaseModel):
             .digest()
             .hex()
         )
+
+
+class ErrorMessage(Model):
+    error: str

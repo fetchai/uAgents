@@ -1,11 +1,16 @@
 import asyncio
 import json
+from datetime import datetime
+from typing import Dict
 
 import pydantic
 import uvicorn
 
+from nexus.crypto import is_user_address
 from nexus.dispatch import dispatcher
 from nexus.envelope import Envelope
+from nexus.models import Model, ErrorMessage
+from nexus.query import enclose_response
 
 
 async def _read_asgi_body(receive):
@@ -21,9 +26,15 @@ async def _read_asgi_body(receive):
 
 
 class ASGIServer:
-    def __init__(self, port: int, loop: asyncio.AbstractEventLoop):
+    def __init__(
+        self,
+        port: int,
+        loop: asyncio.AbstractEventLoop,
+        queries: Dict[str, asyncio.Future],
+    ):
         self._port = int(port)
         self._loop = loop
+        self._queries = queries
 
     async def serve(self):
         config = uvicorn.Config(self, host="0.0.0.0", port=self._port, log_level="info")
@@ -31,6 +42,9 @@ class ASGIServer:
         await server.serve()
 
     async def __call__(self, scope, receive, send):
+        if scope["type"] == "lifespan":
+            return  # lifespan events not implemented
+
         assert scope["type"] == "http"
 
         if scope["path"] != "/submit":
@@ -69,7 +83,7 @@ class ASGIServer:
         contents = json.loads(raw_contents.decode())
 
         try:
-            env = Envelope.parse_obj(contents)
+            env: Envelope = Envelope.parse_obj(contents)
         except pydantic.ValidationError:
             await send(
                 {
@@ -85,7 +99,14 @@ class ASGIServer:
             )
             return
 
-        if not env.verify():
+        expects_response = b"sync" == headers.get(b"x-uagents-connection")
+        do_verify = not is_user_address(env.sender)
+
+        if expects_response:
+            # Add a future that will be resolved once the query is answered
+            self._queries[env.sender] = asyncio.Future()
+
+        if do_verify and env.verify() is False:
             await send(
                 {
                     "type": "http.response.start",
@@ -125,6 +146,16 @@ class ASGIServer:
             env.sender, env.target, env.protocol, env.decode_payload()
         )
 
+        # wait for any queries to be resolved
+        if expects_response:
+            response_msg: Model = await self._queries[env.sender]
+            if datetime.now() > datetime.fromtimestamp(env.expires):
+                response_msg = ErrorMessage("Query envelope expired")
+            sender = env.target
+            response = enclose_response(response_msg, sender, env.session)
+        else:
+            response = "{}"
+
         await send(
             {
                 "type": "http.response.start",
@@ -137,6 +168,6 @@ class ASGIServer:
         await send(
             {
                 "type": "http.response.body",
-                "body": b"{}",
+                "body": response.encode(),
             }
         )
