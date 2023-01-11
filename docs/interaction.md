@@ -13,6 +13,7 @@ As mentioned before, uAgent alice will only need the address of the recipient uA
 ```python
 from nexus.setup import fund_agent_if_low
 from nexus import Agent, Context, Model
+from nexus.setup import fund_agent_if_low
 
 
 class Message(Model):
@@ -27,6 +28,9 @@ agent = Agent(
     seed="agent1 secret phrase",
     endpoint="http://127.0.0.1:8000/submit",
 )
+
+# Add funds to your agent if it doesn't have enough tokens to register
+fund_agent_if_low(agent.wallet.address())
 
 # This on_interval agent function performs an action on a defined period.
 # The Context.send function sends a message to the specified uAgent address
