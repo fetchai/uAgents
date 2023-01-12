@@ -45,7 +45,7 @@ async def startup():
     await Availability.create(
         provider=provider,
         time_start=utc.localize(datetime.fromisoformat("2023-01-05 12:00:00")),
-        time_end=utc.localize(datetime.fromisoformat("2023-01-14 00:00:00")),
+        time_end=utc.localize(datetime.fromisoformat("2023-01-16 00:00:00")),
         max_distance=5,
         min_hourly_price=5,
     )
