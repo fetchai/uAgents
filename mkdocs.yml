@@ -9,6 +9,7 @@ nav:
   - Getting started: 'index.md'
   - Interact with uAgents:
     - interactions: 'interaction.md'
+    - booking-demo: 'booking-demo.md'
 
 theme:
   name: material
