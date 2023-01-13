@@ -14,7 +14,7 @@ from nexus.context import (
     MsgDigest,
 )
 from nexus.crypto import Identity, derive_key_from_seed, is_user_address
-from nexus.dispatch import Sink, dispatcher
+from nexus.dispatch import Sink, dispatcher, JsonStr
 from nexus.models import Model, ErrorMessage
 from nexus.protocol import Protocol
 from nexus.resolver import Resolver, AlmanacResolver
@@ -57,7 +57,7 @@ class Agent(Sink):
         self._name = name
         self._intervals: List[Tuple[float, Any]] = []
         self._port = port if port is not None else 8000
-        self._background_tasks = set()
+        self._background_tasks: Set[asyncio.Task] = set()
         self._resolver = resolve if resolve is not None else AlmanacResolver()
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
         if seed is None:
@@ -110,11 +110,6 @@ class Agent(Sink):
 
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
-
-        # start the background message queue processor
-        task = self._loop.create_task(self._process_message_queue())
-        self._background_tasks.add(task)
-        task.add_done_callback(self._background_tasks.discard)
 
         self._server = ASGIServer(self._port, self._loop, self._queries)
 
@@ -287,7 +282,7 @@ class Agent(Sink):
         if protocol.digest is not None:
             self.protocols[protocol.canonical_name] = protocol.digest
 
-    async def handle_message(self, sender, schema_digest: str, message: Any):
+    async def handle_message(self, sender, schema_digest: str, message: JsonStr):
         await self._message_queue.put((schema_digest, sender, message))
 
     async def startup(self):
@@ -301,6 +296,11 @@ class Agent(Sink):
     def setup(self):
         # register the internal agent protocol
         self.include(self._protocol)
+
+        # start the background message queue processor
+        task = self._loop.create_task(self._process_message_queue())
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
 
         # start the contract registration update loop
         self._loop.create_task(
@@ -321,7 +321,7 @@ class Agent(Sink):
             schema_digest, sender, message = await self._message_queue.get()
 
             # lookup the model definition
-            model_class = self._models.get(schema_digest)
+            model_class: Model = self._models.get(schema_digest)
             if model_class is None:
                 continue
 
