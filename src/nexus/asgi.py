@@ -143,7 +143,7 @@ class ASGIServer:
             return
 
         await dispatcher.dispatch(
-            env.sender, env.target, env.protocol, env.decode_payload()
+            env.sender, env.target, env.protocol, json.dumps(env.decode_payload())
         )
 
         # wait for any queries to be resolved

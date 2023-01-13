@@ -14,7 +14,7 @@ from nexus.context import (
     MsgDigest,
 )
 from nexus.crypto import Identity, derive_key_from_seed, is_user_address
-from nexus.dispatch import Sink, dispatcher
+from nexus.dispatch import Sink, dispatcher, JsonStr
 from nexus.models import Model, ErrorMessage
 from nexus.protocol import Protocol
 from nexus.resolver import Resolver, AlmanacResolver
@@ -282,7 +282,7 @@ class Agent(Sink):
         if protocol.digest is not None:
             self.protocols[protocol.canonical_name] = protocol.digest
 
-    async def handle_message(self, sender, schema_digest: str, message: Any):
+    async def handle_message(self, sender, schema_digest: str, message: JsonStr):
         await self._message_queue.put((schema_digest, sender, message))
 
     async def startup(self):
@@ -326,7 +326,7 @@ class Agent(Sink):
                 continue
 
             # parse the received message
-            recovered = model_class.parse(message)
+            recovered = model_class.parse_raw(message)
 
             context = Context(
                 self._identity.address,
