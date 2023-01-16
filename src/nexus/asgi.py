@@ -63,7 +63,7 @@ class ASGIServer:
             return
 
         headers = dict(scope.get("headers", {}))
-        if headers[b"content-type"] != b"application/json":
+        if b"application/json" not in headers[b"content-type"]:
             await send(
                 {
                     "type": "http.response.start",
@@ -143,14 +143,15 @@ class ASGIServer:
             return
 
         await dispatcher.dispatch(
-            env.sender, env.target, env.protocol, env.decode_payload()
+            env.sender, env.target, env.protocol, json.dumps(env.decode_payload())
         )
 
         # wait for any queries to be resolved
         if expects_response:
             response_msg: Model = await self._queries[env.sender]
-            if datetime.now() > datetime.fromtimestamp(env.expires):
-                response_msg = ErrorMessage("Query envelope expired")
+            if env.expires is not None:
+                if datetime.now() > datetime.fromtimestamp(env.expires):
+                    response_msg = ErrorMessage("Query envelope expired")
             sender = env.target
             response = enclose_response(response_msg, sender, env.session)
         else:

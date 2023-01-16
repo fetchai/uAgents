@@ -73,5 +73,5 @@ def enclose_response(message: Model, sender: str, session: str) -> dict:
         session=session,
         protocol=Model.build_schema_digest(message),
     )
-    response_env.encode_payload(message.json())
+    response_env.encode_payload(message.dict())
     return response_env.json()
