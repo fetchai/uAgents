@@ -51,10 +51,10 @@ def in_service_region(
     cleaner_location = geolocator.geocode(provider.location)
 
     if user_location is None:
-        raise RuntimeError(f"location {location} not found")
+        raise RuntimeError(f"user location {location} not found")
 
     if cleaner_location is None:
-        raise RuntimeError(f"location {provider.location} not found")
+        raise RuntimeError(f"provider location {provider.location} not found")
 
     cleaner_coordinates = (cleaner_location.latitude, cleaner_location.longitude)
     user_coordinates = (user_location.latitude, user_location.longitude)

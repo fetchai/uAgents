@@ -24,7 +24,7 @@ from nexus.config import (
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
     LEDGER_PREFIX,
-    REG_EXPIRY,
+    BLOCK_INTERVAL,
 )
 
 
@@ -189,12 +189,14 @@ class Agent(Sink):
         response = self._reg_contract.query(query_msg)
 
         if response["record"] == []:
-            return REG_EXPIRY * 5
+            contract_state = self._reg_contract.query({"query_contract_state":{}})
+            expiry = contract_state.get("state").get('expiry_height')
+            return expiry * BLOCK_INTERVAL
 
         expiry = response.get("record")[0].get("expiry")
         height = response.get("height")
 
-        return (expiry - height) * 5
+        return (expiry - height) * BLOCK_INTERVAL
 
     def get_registration_sequence(self) -> int:
         query_msg = {"query_sequence": {"agent_address": self.address}}
