@@ -189,8 +189,8 @@ class Agent(Sink):
         response = self._reg_contract.query(query_msg)
 
         if response["record"] == []:
-            contract_state = self._reg_contract.query({"query_contract_state":{}})
-            expiry = contract_state.get("state").get('expiry_height')
+            contract_state = self._reg_contract.query({"query_contract_state": {}})
+            expiry = contract_state.get("state").get("expiry_height")
             return expiry * BLOCK_INTERVAL
 
         expiry = response.get("record")[0].get("expiry")
