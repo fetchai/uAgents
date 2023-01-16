@@ -8,7 +8,7 @@ from nexus.setup import fund_agent_if_low
 class TestVerify(unittest.TestCase):
     def test_agent_registration(self):
 
-        agent = Agent(name="alice", seed="alice recovery password")
+        agent = Agent(name="alice")
 
         reg_fee = "500000000000000000atestfet"
 
@@ -25,9 +25,7 @@ class TestVerify(unittest.TestCase):
                 "record": {
                     "service": {
                         "protocols": [],
-                        "endpoints": [
-                            {"url": "http://127.0.0.1:8000/submit", "weight": 1}
-                        ],
+                        "endpoints": [{"url": agent._endpoint, "weight": 1}],
                     }
                 },
                 "signature": signature,

@@ -1,3 +1,5 @@
+import asyncio
+import hashlib
 import unittest
 import hashlib
 
@@ -13,6 +15,7 @@ def encode(message: str) -> bytes:
 
 class TestVerify(unittest.TestCase):
     def test_sign_and_verify_message(self):
+        asyncio.set_event_loop(asyncio.new_event_loop())
         alice = Agent(name="alice", seed="alice recovery password")
 
         alice_msg = "hello there bob"
