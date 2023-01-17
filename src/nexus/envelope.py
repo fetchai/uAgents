@@ -1,12 +1,12 @@
 import base64
 import hashlib
-import json
 import struct
 from typing import Optional, Any
 
 from pydantic import BaseModel, UUID4
 
 from nexus.crypto import Identity
+from nexus.dispatch import JsonStr
 
 
 class Envelope(BaseModel):
@@ -19,14 +19,14 @@ class Envelope(BaseModel):
     expires: Optional[int] = None
     signature: Optional[str] = None
 
-    def encode_payload(self, value: Any):
-        self.payload = base64.b64encode(json.dumps(value).encode()).decode()
+    def encode_payload(self, value: JsonStr):
+        self.payload = base64.b64encode(value.encode()).decode()
 
     def decode_payload(self) -> Optional[Any]:
         if self.payload is None:
             return None
 
-        return json.loads(base64.b64decode(self.payload).decode())
+        return base64.b64decode(self.payload).decode()
 
     def sign(self, identity: Identity):
         self.signature = identity.sign_digest(self._digest())
