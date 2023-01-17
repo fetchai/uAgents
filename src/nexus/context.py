@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 import uuid
 from dataclasses import dataclass
@@ -106,7 +105,7 @@ class Context:
         # handle local dispatch of messages
         if dispatcher.contains(destination):
             await dispatcher.dispatch(
-                self.address, destination, schema_digest, json.dumps(json_message)
+                self.address, destination, schema_digest, json_message
             )
             return
 
