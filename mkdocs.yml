@@ -8,7 +8,8 @@ site_author: developer@fetch.ai
 nav:
   - Getting started: 'index.md'
   - Interact with uAgents:
-    - interactions: 'interaction.md'
+    - simple-interactions: 'simple-interaction.md'
+    - remote-agents: 'remote-agents.md'
     - booking-demo: 'booking-demo.md'
 
 theme:

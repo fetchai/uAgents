@@ -1,14 +1,25 @@
 # Restaurant Booking Demo
 
+uAgents are very flexible and customizable, you can create any type of interaction you can think of by customizing the `Model` class. Below is an example of how to create a costume-made
+class using `Model`
+
+```python
+from nexus import Model
+
+class TableStatus(Model):
+    seats: int
+    time_start: int
+    time_end: int
+```
+
+For this example, we will create a restaurant booking service with two agents: a `restaurant` with tables available and a `user` requesting table availability.
+
 ## Restaurant Setup
 
-We can create a restaurant agent with its corresponding HTTP endpoint. We will also make sure that the agent is funded so it is able to register in the `contract-almanac`.
+We can create a restaurant agent with its corresponding http endpoint. We will also make sure that the agent is funded so it is able to register in the `contract-almanac`.
 
 
 ```python
-from protocols.book import book_proto
-from protocols.query import query_proto, TableStatus
-
 from nexus import Agent
 from nexus.setup import fund_agent_if_low
 
@@ -22,9 +33,13 @@ restaurant = Agent(
 
 fund_agent_if_low(restaurant.wallet.address())
 ```
-We now build the restaurant protocols and set the table availability information. Finally, we run the restaurant agent.
+These `query_proto` and `book_proto` are more complex message handlers to manage the logic behind the table booking request from the user. You can view them at [query protocol](https://github.com/fetchai/uAgents/blob/master/examples/09-booking-protocol-demo/protocols/query.py) and [book protocol](https://github.com/fetchai/uAgents/blob/master/examples/09-booking-protocol-demo/protocols/book.py).
+We now build the restaurant protocols and set the table availability information.
 
 ```python
+from protocols.book import book_proto
+from protocols.query import query_proto, TableStatus
+
 # build the restaurant agent from stock protocols
 restaurant.include(query_proto)
 restaurant.include(book_proto)
@@ -35,6 +50,20 @@ TABLES = {
     3: TableStatus(seats=4, time_start=17, time_end=19),
 }
 
+```
+
+### Storage
+
+You can store information using the agent's storage by simply running:
+
+```python
+agent._storage.set("key", "value")
+```
+This will save the information in a JSON file, you can retreive it a any time using `agent._storage.get("key")`.
+
+We will now store the `TABLES` information in the restaurant agent and run it.
+
+```python
 # set the table availability information in the restaurant protocols
 for (number, status) in TABLES.items():
     restaurant._storage.set(number, status.dict())
@@ -42,11 +71,11 @@ for (number, status) in TABLES.items():
 if __name__ == "__main__":
     restaurant.run()
 ```
+The restaurant agent will remain on "hold" until we run the user agent to request a table booking.
 
 ## User Setup
 
-The restaurant agent will be on hold waiting for a user to request a table, therefore we will need to run a user agent. 
-We will first import some libraries and the booking protocols. We will need the restaurant agent's address to be able to communicate with it.
+We will first make some imports including the needed protocols. We will need the restaurant agent's address to be able to communicate with it.
 
 
 ```python
@@ -73,7 +102,7 @@ fund_agent_if_low(user.wallet.address())
 
 ```
 
-Now we create the table query to generate the `QueryTableRequest` using the restaurant address. If the request has not been completed, we send the request to the restaurant agent
+Now we create the table query to generate the `QueryTableRequest`. using the restaurant address. If the request has not been completed before, we send the request to the restaurant agent
 
 ```python
 table_query = QueryTableRequest(
@@ -92,7 +121,7 @@ async def interval(ctx: Context):
         await ctx.send(RESTAURANT_ADDRESS, table_query)
 ```
 
-The functions below activate when a message is received back from the restaurant agent.
+The function below activates when a message is received back from the restaurant agent.
 `handle_query_response` will evaluate if there is a table available, if this is the case, the user
 agent will respond with a `BookTableRequest` to make the reservation
 
@@ -114,7 +143,7 @@ async def handle_query_response(ctx: Context, sender: str, msg: QueryTableRespon
 
 ```
 
-Finally, `handle_book_response` will receive a message from the restaurant agent saying if the 
+Then, `handle_book_response` will receive a message from the restaurant agent saying if the 
 reservation was successful or unsuccessful.
 
 ```python
@@ -133,3 +162,14 @@ async def handle_book_response(ctx: Context, _sender: str, msg: BookTableRespons
 if __name__ == "__main__":
     user.run()
 ```
+
+Finally, run the restaurant agent and then the user agent, you should see this printed on the user terminal:
+
+```
+There is a free table, attempting to book one now
+Table reservation was successful
+```
+
+See the full example scripts at [restaurant](https://github.com/fetchai/uAgents/blob/master/examples/09-booking-protocol-demo/restaurant.py) and 
+[user](https://github.com/fetchai/uAgents/blob/master/examples/09-booking-protocol-demo/user.py) and check out the protocols for more information on how the booking process 
+works.
