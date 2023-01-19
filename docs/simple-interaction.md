@@ -29,13 +29,20 @@ if __name__ == "__main__":
 
 Yoy should observe alice and bob printing out their name in the terminal.
 
-```
-My name is alice
-My name is bob
-My name is alice
-My name is bob
-...
-```
+!!! example "Run your agents"
+    
+    ``` bash
+    python simple-agents.py
+    ```
+
+You should see the message printed out every 2 seconds. You might see a message indicating insufficient funds to register, check out [remote agents](remote-agents.md) for more information about agent registration.
+
+<div id="termynal1" data-termynal data-ty-typeDelay="100" data-ty-lineDelay="700">
+<span data-ty>My name is alice</span>
+<span data-ty>My name is bob</span>
+<span data-ty>My name is alice</span>
+<span data-ty>My name is bob</span>
+</div>
 
 ## Agent communication
 
@@ -101,10 +108,16 @@ if __name__ == "__main__":
 
 When running the script above, you should see alice's message printed on the terminal:
 
-```
-[bob]: message received from agent1qww3ju3h6kfcuqf54gkghvt2pqe8qp97a7nzm2vp8plfxflc0epzcjsv79t:
-hello there bob my name is alice
-```
+!!! example "Run your agents"
+    
+    ``` bash
+    python agent-communication.py
+    ```
+
+<div id="termynal2" data-termynal data-ty-typeDelay="100" data-ty-lineDelay="700">
+<span data-ty>[bob]: message received from agent1qww3ju3h6kfcuqf54gkghvt2pqe8qp97a7nzm2vp8plfxflc0epzcjsv79t: hello there bob my name is alice</span>
+<span data-ty>[bob]: message received from agent1qww3ju3h6kfcuqf54gkghvt2pqe8qp97a7nzm2vp8plfxflc0epzcjsv79t: hello there bob my name is alice</span>
+</div>
 
 You could also try to add a response from bob to alice, for that you would need to add a `send` message from bob after alice's 
 message is received and a new message handler for alice to be able to manage and print out bob's message. For a slightly more complex 

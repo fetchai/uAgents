@@ -107,16 +107,36 @@ if __name__ == "__main__":
 
 Now, we first run bob and then alice from different terminals, they will register automatically in the `almanac-contract` using their funds. The received messages will print out in each terminal.
 
+!!! example "Run Bob and Alice"
+    
+    ``` bash
+    python bob.py
+    python alice.py
+    ```
 
 In bob's terminal:
-```
-[bob] From: agent1qdp9j2ev86k3h5acaayjm8tpx36zv4mjxn05pa2kwesspstzj697xy5vk2a hello there bob
-```
+
+<div id="termynal1" data-termynal data-ty-typeDelay="100" data-ty-lineDelay="700">
+<span data-ty>INFO:root:Adding funds to agent...complete</span>
+<span data-ty>INFO:root:Registering Agent bob...</span>
+<span data-ty>INFO:root:Registering Agent bob...complete.</span>
+<span data-ty>Wallet address: fetch1cr9ghmxrf943dmw484ma3v3nz2v0q6u9pynqdk</span>
+<span data-ty>[bob] From: agent1qdp9j2ev86k3h5acaayjm8tpx36zv4mjxn05pa2kwesspstzj697xy5vk2a hello there bob</span>
+<span data-ty>[bob] From: agent1qdp9j2ev86k3h5acaayjm8tpx36zv4mjxn05pa2kwesspstzj697xy5vk2a hello there bob</span>
+<span data-ty>[bob] From: agent1qdp9j2ev86k3h5acaayjm8tpx36zv4mjxn05pa2kwesspstzj697xy5vk2a hello there bob</span>
+</div>
+
 
 In alice's terminal:
 
-```
-[alice] From: agent1q2kxet3vh0scsf0sm7y2erzz33cve6tv5uk63x64upw5g68kr0chkv7hw50 hello there alice
-```
+<div id="termynal2" data-termynal data-ty-typeDelay="100" data-ty-lineDelay="700">
+<span data-ty>INFO:root:Adding funds to agent...complete</span>
+<span data-ty>INFO:root:Registering Agent alice...</span>
+<span data-ty>INFO:root:Registering Agent alice...complete.</span>
+<span data-ty>Wallet address: fetchnfu3hd87323mw484ma3v3nz2v0q6uhds7d</span>
+<span data-ty>[alice] From: agent1qdp9j2ev86k3h5acaayjm8tpx36zv4mjxn05pa2kwesspstzj697xy5vk2a hello there alice</span>
+<span data-ty>[alice] From: agent1qdp9j2ev86k3h5acaayjm8tpx36zv4mjxn05pa2kwesspstzj697xy5vk2a hello there alice</span>
+<span data-ty>[alice] From: agent1qdp9j2ev86k3h5acaayjm8tpx36zv4mjxn05pa2kwesspstzj697xy5vk2a hello there alice</span>
+</div>
 
 For a more complex example visit [restaurant booking demo](booking-demo.md)

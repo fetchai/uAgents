@@ -4,9 +4,10 @@ uAgents is a fast and lightweight framework that makes it easy to build agents f
 
 # Getting Started
 
-## System requirements
-- Python 3.8, 3.9 and 3.10
-- Supported operating systems: Linux and MacOS
+!!! Info "System requirements"
+    uAgents can be used on `Ubuntu/Debian` and `MacOS`.
+    
+    You need <a href="https://www.python.org/downloads/" target="_blank">Python 3.8, 3.9 or 3.10</a> on your system.
 
 ## Install from source
 
@@ -87,7 +88,21 @@ if __name__ == "__main__":
     alice.run()
 ```
 
-You should see a "hello, my name is alice" message printed out every 2 seconds. You might see a message indicating insufficient funds to register, check out [remote agents](remote-agents.md) for more information about agent registration.
+!!! example "Run your uAgent"
+    
+    ``` bash
+    python agent.py
+    ```
+
+You should see the message printed out every 2 seconds. You might see a message indicating insufficient funds to register, check out [remote agents](remote-agents.md) for more information about agent registration.
+
+<div id="termynal1" data-termynal data-ty-typeDelay="100" data-ty-lineDelay="700">
+<span data-ty>Hello my name is alice.</span>
+<span data-ty>Hello my name is alice.</span>
+<span data-ty>Hello my name is alice.</span>
+<span data-ty>Hello my name is alice.</span>
+<span data-ty>Hello my name is alice.</span>
+</div>
 
 Agents can also interact with each other, for the next step go to [simple interaction](simple-interaction.md)
 
