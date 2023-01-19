@@ -25,7 +25,7 @@ class TestVerify(unittest.TestCase):
                 "record": {
                     "service": {
                         "protocols": [],
-                        "endpoints": [{"url": agent._endpoint, "weight": 1}],
+                        "endpoints": [{"url": agent._endpoint[0], "weight": 1}],
                     }
                 },
                 "signature": signature,

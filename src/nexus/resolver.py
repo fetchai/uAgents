@@ -25,7 +25,9 @@ class AlmanacResolver(Resolver):
         result = _query_record(address, "service")
         if result is not None:
             record = result.get("record") or {}
-            endpoint_list = record.get("record", {}).get("service", {}).get("endpoints", [])
+            endpoint_list = (
+                record.get("record", {}).get("service", {}).get("endpoints", [])
+            )
 
             if len(endpoint_list) > 0:
                 endpoints = [val.get("url") for val in endpoint_list]

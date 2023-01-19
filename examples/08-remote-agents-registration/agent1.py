@@ -12,8 +12,8 @@ agent = Agent(
     name="alice",
     port=8000,
     seed="agent1 recovery phrase",
-    endpoint= ["http://127.0.0.1:8000/submit"],
-    weight = [1]
+    endpoint=["http://127.0.0.1:8000/submit"],
+    weight=[1],
 )
 
 fund_agent_if_low(agent.wallet.address())
