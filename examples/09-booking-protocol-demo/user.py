@@ -14,7 +14,9 @@ user = Agent(
     name="user",
     port=8000,
     seed="user recovery phrase",
-    endpoint=["http://127.0.0.1:8000/submit"],
+    endpoint={
+        "http://127.0.0.1:8000/submit": {},
+    },
 )
 
 fund_agent_if_low(user.wallet.address())

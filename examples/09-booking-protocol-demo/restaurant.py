@@ -9,7 +9,9 @@ restaurant = Agent(
     name="restaurant",
     port=8001,
     seed="restaurant recovery phrase",
-    endpoint=["http://127.0.0.1:8001/submit"],
+    endpoint={
+        "http://127.0.0.1:8001/submit": {},
+    },
 )
 
 fund_agent_if_low(restaurant.wallet.address())

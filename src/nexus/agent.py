@@ -50,8 +50,7 @@ class Agent(Sink):
         name: Optional[str] = None,
         port: Optional[int] = None,
         seed: Optional[str] = None,
-        endpoint: Optional[str] = None,
-        weight: Optional[int] = None,
+        endpoint: Optional[dict] = None,
         resolve: Optional[Resolver] = None,
         version: Optional[str] = None,
     ):
@@ -75,8 +74,7 @@ class Agent(Sink):
                 PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
                 prefix=LEDGER_PREFIX,
             )
-        self._endpoint = endpoint if endpoint is not None else ["123"]
-        self._weight = weight if weight is not None else [1] * len(self._endpoint)
+        self._endpoint = endpoint
         self._ledger = get_ledger()
         self._reg_contract = get_reg_contract()
         self._storage = KeyValueStore(self.address[0:16])
@@ -145,9 +143,6 @@ class Agent(Sink):
 
     async def register(self, ctx: Context):
 
-        if len(self._endpoint) != len(self._weight):
-            raise RuntimeError("endpoint list and weight list must have the same size")
-
         if self.registration_status():
             logging.info(
                 f"Agent {self._name} registration is up to date\
@@ -157,6 +152,16 @@ class Agent(Sink):
 
         agent_balance = ctx.ledger.query_bank_balance(ctx.wallet)
 
+        if self._endpoint is None:
+            logging.warning(
+                f"Agent {self._name} with no endpoint, external communication won't be possible"
+            )
+        else:
+            endpoints = [
+                {"url": val[0], "weight": val[1].get("weight") or 1}
+                for val in self._endpoint.items()
+            ]
+
         if agent_balance < REGISTRATION_FEE:
             logging.exception(
                 f"Insufficient funds to register {self._name}\
@@ -165,11 +170,6 @@ class Agent(Sink):
             return
 
         signature = self.sign_registration()
-
-        endpoints = [
-            {"url": endpoint, "weight": self._weight[i]}
-            for i, endpoint in enumerate(self._endpoint)
-        ]
 
         msg = {
             "register": {

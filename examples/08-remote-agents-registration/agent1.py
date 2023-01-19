@@ -6,14 +6,15 @@ class Message(Model):
     message: str
 
 
-RECIPIENT_ADDRESS = "agent1q2506gk4lqvex9vrfehcxttcfh5p7n72sakp45y7ekm09uzagcn8x4pgcfr"
+RECIPIENT_ADDRESS = "agent1qdc6s005tvknr5q52z9hkpjek9wtq5p7hp8y6g9h9gpuwanplls9q4zdq5e"
 
 agent = Agent(
     name="alice",
     port=8000,
-    seed="agent1 recovery phrase",
-    endpoint=["http://127.0.0.1:8000/submit"],
-    weight=[1],
+    seed="agent1 recovery seedx phrase",
+    endpoint={
+        "http://127.0.0.1:8000/submit": {},
+    },
 )
 
 fund_agent_if_low(agent.wallet.address())
