@@ -12,13 +12,13 @@ from nexus import Agent, Context
 from nexus.setup import fund_agent_if_low
 
 
-CLEANER_ADDRESS = "agent1q0g3v3masp6fg2dpfxtfxu9ysuzeusgpdmcz5whv30jm7m7u2vt2zms6p2z"
+CLEANER_ADDRESS = "agent1qdfdx6952trs028fxyug7elgcktam9f896ays6u9art4uaf75hwy2j9m87w"
 
 user = Agent(
     name="user",
     port=8000,
-    seed="user secret seed phrase",
-    endpoint="http://127.0.0.1:8000/submit",
+    seed="cleaning user recovery phrase",
+    endpoint=["http://127.0.0.1:8000/submit"],
 )
 
 fund_agent_if_low(user.wallet.address())

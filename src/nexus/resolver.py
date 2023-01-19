@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Optional
+import random
 
 from nexus.network import get_reg_contract
 
@@ -24,11 +25,12 @@ class AlmanacResolver(Resolver):
         result = _query_record(address, "service")
         if result is not None:
             record = result.get("record") or {}
-            endpoints = record.get("record", {}).get("service", {}).get("endpoints", [])
+            endpoint_list = record.get("record", {}).get("service", {}).get("endpoints", [])
 
-            # For now just use the first endpoint
-            if len(endpoints) > 0:
-                return endpoints[0].get("url")
+            if len(endpoint_list) > 0:
+                endpoints = [val.get("url") for val in endpoint_list]
+                weights = [val.get("weight") for val in endpoint_list]
+                return random.choices(endpoints, weights=weights)[0]
         return None
 
 

@@ -51,6 +51,7 @@ class Agent(Sink):
         port: Optional[int] = None,
         seed: Optional[str] = None,
         endpoint: Optional[str] = None,
+        weight: Optional[int] = None,
         resolve: Optional[Resolver] = None,
         version: Optional[str] = None,
     ):
@@ -74,7 +75,8 @@ class Agent(Sink):
                 PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
                 prefix=LEDGER_PREFIX,
             )
-        self._endpoint = endpoint if endpoint is not None else "123"
+        self._endpoint = endpoint if endpoint is not None else ["123"]
+        self._weight = weight if weight is not None else [1]*len(self._endpoint)
         self._ledger = get_ledger()
         self._reg_contract = get_reg_contract()
         self._storage = KeyValueStore(self.address[0:16])
@@ -143,6 +145,9 @@ class Agent(Sink):
 
     async def register(self, ctx: Context):
 
+        if len(self._endpoint) != len(self._weight):
+            raise RuntimeError("endpoint list and weight list must have the same size")
+
         if self.registration_status():
             logging.info(
                 f"Agent {self._name} registration is up to date\
@@ -161,12 +166,14 @@ class Agent(Sink):
 
         signature = self.sign_registration()
 
+        endpoints = [{"url": endpoint, "weight": self._weight[i]} for i, endpoint in enumerate(self._endpoint)]
+
         msg = {
             "register": {
                 "record": {
                     "service": {
                         "protocols": list(self.protocols.values()),
-                        "endpoints": [{"url": self._endpoint, "weight": 1}],
+                        "endpoints": endpoints,
                     }
                 },
                 "signature": signature,

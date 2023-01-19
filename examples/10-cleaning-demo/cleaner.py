@@ -13,8 +13,8 @@ from nexus.setup import fund_agent_if_low
 cleaner = Agent(
     name="cleaner",
     port=8001,
-    seed="cleaner secret seed phrase",
-    endpoint="http://127.0.0.1:8001/submit",
+    seed="cleaner secret phrase",
+    endpoint=["http://127.0.0.1:8001/submit"],
 )
 
 fund_agent_if_low(cleaner.wallet.address())
