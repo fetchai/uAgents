@@ -2,7 +2,6 @@
 import unittest
 from typing import Callable
 
-import pytest
 
 from nexus import Agent, Model, Protocol
 
@@ -82,5 +81,3 @@ class TestAgent(unittest.TestCase):
         self.assertEqual(len(models), 2)
         self.assertEqual(len(unsigned_msg_handlers), 1)
         self.assertEqual(len(signed_msg_handlers), 1)
-
-
