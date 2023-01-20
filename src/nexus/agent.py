@@ -50,7 +50,7 @@ class Agent(Sink):
         name: Optional[str] = None,
         port: Optional[int] = None,
         seed: Optional[str] = None,
-        endpoint: Optional[dict] = None,
+        endpoint: Optional[Union[List[str], Dict[str, dict]]] = None,
         resolve: Optional[Resolver] = None,
         version: Optional[str] = None,
     ):
@@ -156,11 +156,14 @@ class Agent(Sink):
             logging.warning(
                 f"Agent {self._name} with no endpoint, external communication won't be possible"
             )
-        else:
+            endpoints = []
+        elif type(self._endpoint) == dict:
             endpoints = [
                 {"url": val[0], "weight": val[1].get("weight") or 1}
                 for val in self._endpoint.items()
             ]
+        else:
+            endpoints = [{"url": val, "weight": 1} for val in self._endpoint]
 
         if agent_balance < REGISTRATION_FEE:
             logging.exception(
