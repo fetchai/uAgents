@@ -325,7 +325,7 @@ class Agent(Sink):
                 continue
 
             # parse the received message
-            recovered = model_class.parse(message)
+            recovered = model_class.parse_raw(message)
 
             context = Context(
                 self._identity.address,
