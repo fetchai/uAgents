@@ -1,7 +1,7 @@
 # Remote agents
 
 uAgents can also interact remotely from different terminals. All you need to know is the recipient agent's address.
-You can print your uAgent's address at any time by printing `my_agent.address` in your python script.
+You can print your uAgent's address at any time by printing `agent_name.address` in your python script.
 
 ## Registration
 
@@ -134,9 +134,9 @@ In alice's terminal:
 <span data-ty>INFO:root:Registering Agent alice...</span>
 <span data-ty>INFO:root:Registering Agent alice...complete.</span>
 <span data-ty>Wallet address: fetchnfu3hd87323mw484ma3v3nz2v0q6uhds7d</span>
-<span data-ty>[alice] From: agent1qdp9j2ev86k3h5acaayjm8tpx36zv4mjxn05pa2kwesspstzj697xy5vk2a hello there alice</span>
-<span data-ty>[alice] From: agent1qdp9j2ev86k3h5acaayjm8tpx36zv4mjxn05pa2kwesspstzj697xy5vk2a hello there alice</span>
-<span data-ty>[alice] From: agent1qdp9j2ev86k3h5acaayjm8tpx36zv4mjxn05pa2kwesspstzj697xy5vk2a hello there alice</span>
+<span data-ty>[alice] From: agent5kdyfj2ev86k3h5acaa93kdnch8shv4mjxn05pa2kwesspstzj023jdus93j hello there alice</span>
+<span data-ty>[alice] From: agent5kdyfj2ev86k3h5acaa93kdnch8shv4mjxn05pa2kwesspstzj023jdus93j hello there alice</span>
+<span data-ty>[alice] From: agent5kdyfj2ev86k3h5acaa93kdnch8shv4mjxn05pa2kwesspstzj023jdus93j hello there alice</span>
 </div>
 
 For a more complex example visit [restaurant booking demo](booking-demo.md)

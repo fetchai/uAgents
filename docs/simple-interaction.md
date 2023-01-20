@@ -1,4 +1,4 @@
-# Simple agents interactions
+# Simple agent interactions
 
 ## Add a second agent
 
@@ -12,12 +12,12 @@ alice = Agent(name="alice", seed="alice recovery phrase")
 bob = Agent(name="bob", seed="bob recovery phrase")
 
 @alice.on_interval(period=2.0)
-async def send_message(ctx: Context):
-    print(f'My name is {ctx.name}')
+async def say_hello(ctx: Context):
+    print(f'Hello, my name is {ctx.name}')
 
 @bob.on_interval(period=2.0)
-async def send_message(ctx: Context):
-    print(f'My name is {ctx.name}')
+async def say_hello(ctx: Context):
+    print(f'Hello, my name is {ctx.name}')
 
 bureau = Bureau()
 bureau.add(alice)
@@ -38,10 +38,10 @@ Yoy should observe alice and bob printing out their name in the terminal.
 You should see the message printed out every 2 seconds. You might see a message indicating insufficient funds to register, check out [remote agents](remote-agents.md) for more information about agent registration.
 
 <div id="termynal1" data-termynal data-ty-typeDelay="100" data-ty-lineDelay="700">
-<span data-ty>My name is alice</span>
-<span data-ty>My name is bob</span>
-<span data-ty>My name is alice</span>
-<span data-ty>My name is bob</span>
+<span data-ty>Hello, my name is alice</span>
+<span data-ty>Hello, my name is bob</span>
+<span data-ty>Hello, my name is alice</span>
+<span data-ty>Hello, my name is bob</span>
 </div>
 
 ## Agent communication

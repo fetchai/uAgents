@@ -7,7 +7,7 @@ uAgents is a fast and lightweight framework that makes it easy to build agents f
 !!! Info "System requirements"
     uAgents can be used on `Ubuntu/Debian` and `MacOS`.
     
-    You need <a href="https://www.python.org/downloads/" target="_blank">Python 3.8, 3.9 or 3.10</a> on your system.
+    You need <a href="https://www.python.org/downloads/" target="_blank">Python</a> 3.8, 3.9 or 3.10 on your system.
 
 ## Install from source
 

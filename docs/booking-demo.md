@@ -163,12 +163,25 @@ if __name__ == "__main__":
     user.run()
 ```
 
-Finally, run the restaurant agent and then the user agent, you should see this printed on the user terminal:
+Finally, run the restaurant agent and then the user agent
 
-```
-There is a free table, attempting to book one now
-Table reservation was successful
-```
+!!! example "Run Restaurant and User agents"
+    
+    ``` bash
+    python restaurant.py
+    python user.py
+    ```
+
+You should see this printed on the user terminal:
+
+<div id="termynal1" data-termynal data-ty-typeDelay="100" data-ty-lineDelay="700">
+<span data-ty>INFO:root:Adding funds to agent...complete</span>
+<span data-ty>INFO:root:Registering Agent user...</span>
+<span data-ty>INFO:root:Registering Agent user...complete.</span>
+<span data-ty>Wallet address: fetchnfu3hd87323mw484ma3v3nz2v0q6uhds7d</span>
+<span data-ty>There is a free table, attempting to book one now</span>
+<span data-ty>Table reservation was successful</span>
+</div>
 
 See the full example scripts at [restaurant](https://github.com/fetchai/uAgents/blob/master/examples/09-booking-protocol-demo/restaurant.py) and 
 [user](https://github.com/fetchai/uAgents/blob/master/examples/09-booking-protocol-demo/user.py) and check out the protocols for more information on how the booking process 
