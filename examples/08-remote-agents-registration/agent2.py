@@ -9,7 +9,7 @@ class Message(Model):
 agent = Agent(
     name="bob",
     port=8001,
-    seed="agent2 secret seed phrase12234565",
+    seed="agent2 secret seed phrase",
     endpoint={
         "http://127.0.0.1:8001/submit": {},
     },

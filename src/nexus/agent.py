@@ -157,7 +157,7 @@ class Agent(Sink):
                 f"Agent {self._name} with no endpoint, external communication won't be possible"
             )
             endpoints = []
-        elif type(self._endpoint) == dict:
+        elif isinstance(self._endpoint, dict):
             endpoints = [
                 {"url": val[0], "weight": val[1].get("weight") or 1}
                 for val in self._endpoint.items()
