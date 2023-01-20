@@ -154,7 +154,7 @@ class Agent(Sink):
 
         if self._endpoint is None:
             logging.warning(
-                f"Agent {self._name} with no endpoint, external communication won't be possible"
+                f"Agent {self._name} has no endpoint and won't be able to receive external messages"
             )
             endpoints = []
         elif isinstance(self._endpoint, dict):
