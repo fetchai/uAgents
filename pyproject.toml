@@ -23,6 +23,10 @@ pylint = "^2.15.3"
 [tool.poetry.group.orm.dependencies]
 tortoise-orm = "^0.19.2"
 
+
+[tool.poetry.group.geo.dependencies]
+geopy = "^2.3.0"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"

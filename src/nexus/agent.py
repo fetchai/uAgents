@@ -21,10 +21,10 @@ from nexus.resolver import Resolver, AlmanacResolver
 from nexus.storage import KeyValueStore, get_or_create_private_keys
 from nexus.network import get_ledger, get_reg_contract
 from nexus.config import (
-    REG_UPDATE_INTERVAL_SECONDS,
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
     LEDGER_PREFIX,
+    BLOCK_INTERVAL,
 )
 
 
@@ -142,13 +142,6 @@ class Agent(Sink):
 
     async def register(self, ctx: Context):
 
-        if self.registration_status():
-            logging.info(
-                f"Agent {self._name} registration is up to date\
-                    \nWallet address: {self.wallet.address()}"
-            )
-            return
-
         agent_balance = ctx.ledger.query_bank_balance(ctx.wallet)
 
         if agent_balance < REGISTRATION_FEE:
@@ -189,14 +182,20 @@ class Agent(Sink):
             f"Registering Agent {self._name}...complete\nWallet address: {self.wallet.address()}"
         )
 
-    def registration_status(self) -> bool:
+    def schedule_registration(self):
 
         query_msg = {"query_records": {"agent_address": self.address}}
+        response = self._reg_contract.query(query_msg)
 
-        if self._reg_contract.query(query_msg)["record"] != []:
-            return True
+        if response["record"] == []:
+            contract_state = self._reg_contract.query({"query_contract_state": {}})
+            expiry = contract_state.get("state").get("expiry_height")
+            return expiry * BLOCK_INTERVAL
 
-        return False
+        expiry = response.get("record")[0].get("expiry")
+        height = response.get("height")
+
+        return (expiry - height) * BLOCK_INTERVAL
 
     def get_registration_sequence(self) -> int:
         query_msg = {"query_sequence": {"agent_address": self.address}}
@@ -300,7 +299,7 @@ class Agent(Sink):
 
         # start the contract registration update loop
         self._loop.create_task(
-            _run_interval(self.register, self._ctx, REG_UPDATE_INTERVAL_SECONDS)
+            _run_interval(self.register, self._ctx, self.schedule_registration())
         )
 
     def run(self):

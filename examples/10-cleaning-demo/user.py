@@ -25,8 +25,8 @@ fund_agent_if_low(user.wallet.address())
 
 request = ServiceRequest(
     user=user.name,
-    address=17,
-    time_start=utc.localize(datetime.fromisoformat("2022-12-31 16:00:00")),
+    location="London Kings Cross",
+    time_start=utc.localize(datetime.fromisoformat("2023-01-10 16:00:00")),
     duration=timedelta(hours=4),
     services=[ServiceType.WINDOW, ServiceType.LAUNDRY],
     max_price=60,
@@ -51,7 +51,7 @@ async def handle_query_response(ctx: Context, sender: str, msg: ServiceResponse)
     if msg.accept:
         print("Cleaner is available, attempting to book now")
         booking = ServiceBooking(
-            address=request.address,
+            location=request.location,
             time_start=request.time_start,
             duration=request.duration,
             services=request.services,
