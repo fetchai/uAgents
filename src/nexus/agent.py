@@ -1,7 +1,7 @@
 import asyncio
 import functools
 import logging
-from typing import Dict, Optional, List, Set, Tuple, Any, Union
+from typing import Dict, Optional, Set, Union
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 
@@ -21,10 +21,10 @@ from nexus.resolver import Resolver, AlmanacResolver
 from nexus.storage import KeyValueStore, get_or_create_private_keys
 from nexus.network import get_ledger, get_reg_contract
 from nexus.config import (
-    REG_UPDATE_INTERVAL_SECONDS,
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
     LEDGER_PREFIX,
+    BLOCK_INTERVAL,
 )
 
 
@@ -55,7 +55,6 @@ class Agent(Sink):
         version: Optional[str] = None,
     ):
         self._name = name
-        self._intervals: List[Tuple[float, Any]] = []
         self._port = port if port is not None else 8000
         self._background_tasks: Set[asyncio.Task] = set()
         self._resolver = resolve if resolve is not None else AlmanacResolver()
@@ -78,11 +77,11 @@ class Agent(Sink):
         self._ledger = get_ledger()
         self._reg_contract = get_reg_contract()
         self._storage = KeyValueStore(self.address[0:16])
-        self._models = {}
-        self._replies = {}
-        self._interval_messages = {}
-        self._signed_message_handlers = {}
-        self._unsigned_message_handlers = {}
+        self._interval_messages: Set[str] = set()
+        self._signed_message_handlers: Dict[str, MessageCallback] = {}
+        self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
+        self._models: Dict[str, Model] = {}
+        self._replies: Dict[str, Set[Model]] = {}
         self._queries: Dict[str, asyncio.Future] = {}
         self._ctx = Context(
             self._identity.address,
@@ -143,13 +142,6 @@ class Agent(Sink):
 
     async def register(self, ctx: Context):
 
-        if self.registration_status():
-            logging.info(
-                f"Agent {self._name} registration is up to date\
-                    \nWallet address: {self.wallet.address()}"
-            )
-            return
-
         agent_balance = ctx.ledger.query_bank_balance(ctx.wallet)
 
         if self._endpoint is None:
@@ -203,14 +195,20 @@ class Agent(Sink):
             f"Registering Agent {self._name}...complete\nWallet address: {self.wallet.address()}"
         )
 
-    def registration_status(self) -> bool:
+    def schedule_registration(self):
 
         query_msg = {"query_records": {"agent_address": self.address}}
+        response = self._reg_contract.query(query_msg)
 
-        if self._reg_contract.query(query_msg)["record"] != []:
-            return True
+        if response["record"] == []:
+            contract_state = self._reg_contract.query({"query_contract_state": {}})
+            expiry = contract_state.get("state").get("expiry_height")
+            return expiry * BLOCK_INTERVAL
 
-        return False
+        expiry = response.get("record")[0].get("expiry")
+        height = response.get("height")
+
+        return (expiry - height) * BLOCK_INTERVAL
 
     def get_registration_sequence(self) -> int:
         query_msg = {"query_sequence": {"agent_address": self.address}}
@@ -266,10 +264,7 @@ class Agent(Sink):
             self._background_tasks.add(task)
             task.add_done_callback(self._background_tasks.discard)
 
-        for schema_digest in protocol.interval_messages:
-            self._interval_messages[schema_digest] = protocol.interval_messages[
-                schema_digest
-            ]
+        self._interval_messages.update(protocol.interval_messages)
 
         for schema_digest in protocol.models:
             if schema_digest in self._models:
@@ -300,11 +295,11 @@ class Agent(Sink):
 
     async def startup(self):
         for handler in self._on_startup:
-            await handler()
+            await handler(self._ctx)
 
     async def shutdown(self):
         for handler in self._on_shutdown:
-            await handler()
+            await handler(self._ctx)
 
     def setup(self):
         # register the internal agent protocol
@@ -317,7 +312,7 @@ class Agent(Sink):
 
         # start the contract registration update loop
         self._loop.create_task(
-            _run_interval(self.register, self._ctx, REG_UPDATE_INTERVAL_SECONDS)
+            _run_interval(self.register, self._ctx, self.schedule_registration())
         )
 
     def run(self):

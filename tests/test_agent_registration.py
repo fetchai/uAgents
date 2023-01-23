@@ -39,7 +39,12 @@ class TestVerify(unittest.TestCase):
         transaction = agent._reg_contract.execute(msg, agent.wallet, funds=reg_fee)
         transaction.wait_to_complete()
 
-        is_registered = agent.registration_status()
+        query_msg = {"query_records": {"agent_address": agent.address}}
+        response = agent._reg_contract.query(query_msg)
+
+        is_registered = False
+        if response["record"] != []:
+            is_registered = True
 
         self.assertEqual(is_registered, True, "Registration failed")
 
