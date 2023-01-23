@@ -2,7 +2,7 @@
 name = "uagents"
 version = "0.1.0"
 description = ""
-authors = ["Ed FitzGerald <edward.fitzgerald@fetch.ai>", "James Riehl <james.riehl@fetch.ai>", "Alejandro Madrigal <alejandro.madrigal@fetch.ai>"]
+authors = ["Ed FitzGerald <edward.fitzgerald@fetch.ai>", "James Riehl <james.riehl@fetch.ai>", "Alejandro Morales <alejandro.madrigal@fetch.ai>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"

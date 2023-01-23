@@ -17,6 +17,8 @@ agent = Agent(
 
 fund_agent_if_low(agent.wallet.address())
 
+print(agent.address)
+
 
 @agent.on_message(model=Message)
 async def bob_rx_message(ctx: Context, sender: str, msg: Message):
