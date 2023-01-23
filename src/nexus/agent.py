@@ -1,7 +1,7 @@
 import asyncio
 import functools
 import logging
-from typing import Dict, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Union
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 
@@ -50,7 +50,7 @@ class Agent(Sink):
         name: Optional[str] = None,
         port: Optional[int] = None,
         seed: Optional[str] = None,
-        endpoint: Optional[str] = None,
+        endpoint: Optional[Union[List[str], Dict[str, dict]]] = None,
         resolve: Optional[Resolver] = None,
         version: Optional[str] = None,
     ):
@@ -73,7 +73,7 @@ class Agent(Sink):
                 PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
                 prefix=LEDGER_PREFIX,
             )
-        self._endpoint = endpoint if endpoint is not None else "123"
+        self._endpoint = endpoint
         self._ledger = get_ledger()
         self._reg_contract = get_reg_contract()
         self._storage = KeyValueStore(self.address[0:16])
@@ -144,6 +144,19 @@ class Agent(Sink):
 
         agent_balance = ctx.ledger.query_bank_balance(ctx.wallet)
 
+        if self._endpoint is None:
+            logging.warning(
+                f"Agent {self._name} has no endpoint and won't be able to receive external messages"
+            )
+            endpoints = []
+        elif isinstance(self._endpoint, dict):
+            endpoints = [
+                {"url": val[0], "weight": val[1].get("weight") or 1}
+                for val in self._endpoint.items()
+            ]
+        else:
+            endpoints = [{"url": val, "weight": 1} for val in self._endpoint]
+
         if agent_balance < REGISTRATION_FEE:
             logging.exception(
                 f"Insufficient funds to register {self._name}\
@@ -158,7 +171,7 @@ class Agent(Sink):
                 "record": {
                     "service": {
                         "protocols": list(self.protocols.values()),
-                        "endpoints": [{"url": self._endpoint, "weight": 1}],
+                        "endpoints": endpoints,
                     }
                 },
                 "signature": signature,
