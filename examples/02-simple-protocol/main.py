@@ -1,4 +1,4 @@
-from nexus import Agent, Bureau, Context, Model
+from uagents import Agent, Bureau, Context, Model
 
 
 class Message(Model):

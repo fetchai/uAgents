@@ -8,25 +8,27 @@ from protocols.cleaning import (
     ServiceResponse,
 )
 from protocols.cleaning.models import ServiceType
-from nexus import Agent, Context
-from nexus.setup import fund_agent_if_low
+from uagents import Agent, Context
+from uagents.setup import fund_agent_if_low
 
 
-CLEANER_ADDRESS = "agent1q0g3v3masp6fg2dpfxtfxu9ysuzeusgpdmcz5whv30jm7m7u2vt2zms6p2z"
+CLEANER_ADDRESS = "agent1qdfdx6952trs028fxyug7elgcktam9f896ays6u9art4uaf75hwy2j9m87w"
 
 user = Agent(
     name="user",
     port=8000,
-    seed="user secret seed phrase",
-    endpoint="http://127.0.0.1:8000/submit",
+    seed="cleaning user recovery phrase",
+    endpoint={
+        "http://127.0.0.1:8000/submit": {},
+    },
 )
 
 fund_agent_if_low(user.wallet.address())
 
 request = ServiceRequest(
     user=user.name,
-    address=17,
-    time_start=utc.localize(datetime.fromisoformat("2022-12-31 16:00:00")),
+    location="London Kings Cross",
+    time_start=utc.localize(datetime.fromisoformat("2023-01-10 16:00:00")),
     duration=timedelta(hours=4),
     services=[ServiceType.WINDOW, ServiceType.LAUNDRY],
     max_price=60,
@@ -51,7 +53,7 @@ async def handle_query_response(ctx: Context, sender: str, msg: ServiceResponse)
     if msg.accept:
         print("Cleaner is available, attempting to book now")
         booking = ServiceBooking(
-            address=request.address,
+            location=request.location,
             time_start=request.time_start,
             duration=request.duration,
             services=request.services,

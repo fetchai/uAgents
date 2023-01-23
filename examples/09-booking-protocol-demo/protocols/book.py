@@ -1,4 +1,4 @@
-from nexus import Context, Model, Protocol
+from uagents import Context, Model, Protocol
 
 from .query import TableStatus
 

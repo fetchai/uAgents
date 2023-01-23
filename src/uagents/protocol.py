@@ -1,11 +1,11 @@
 import functools
 import hashlib
-from typing import Set, Optional, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 from apispec import APISpec
 
-from nexus.context import IntervalCallback, MessageCallback
-from nexus.models import Model
+from uagents.context import IntervalCallback, MessageCallback
+from uagents.models import Model
 
 
 OPENAPI_VERSION = "3.0.2"
@@ -13,12 +13,12 @@ OPENAPI_VERSION = "3.0.2"
 
 class Protocol:
     def __init__(self, name: Optional[str] = None, version: Optional[str] = None):
-        self._intervals = []
-        self._interval_messages = {}
-        self._signed_message_handlers = {}
-        self._unsigned_message_handlers = {}
-        self._models = {}
-        self._replies = {}
+        self._intervals: List[Tuple[IntervalCallback, float]] = []
+        self._interval_messages: Set[str] = set()
+        self._signed_message_handlers: Dict[str, MessageCallback] = {}
+        self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
+        self._models: Dict[str, Model] = {}
+        self._replies: Dict[str, Set[Model]] = {}
         self._name = name or ""
         self._version = version or "0.1.0"
         self._canonical_name = f"{self._name}:{self._version}"
@@ -93,12 +93,14 @@ class Protocol:
 
         # store the interval handler for later
         self._intervals.append((func, period))
+
+        # if message types are specified, store these for validation
         if messages is not None:
             if not isinstance(messages, set):
                 messages = {messages}
             for message in messages:
                 message_digest = Model.build_schema_digest(message)
-                self._interval_messages[message_digest] = message
+                self._interval_messages.add(message_digest)
 
                 self.spec.path(path=message.__name__, operations={})
         self._update_digest()
@@ -158,9 +160,7 @@ class Protocol:
         self._update_digest()
 
     def _update_digest(self):
-        all_model_digests = set(self._models.keys()) | set(
-            self._interval_messages.keys()
-        )
+        all_model_digests = set(self._models.keys()) | self._interval_messages
         sorted_schema_digests = sorted(list(all_model_digests))
         hasher = hashlib.sha256()
         for digest in sorted_schema_digests:

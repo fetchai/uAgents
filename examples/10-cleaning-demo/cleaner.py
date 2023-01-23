@@ -6,15 +6,17 @@ from tortoise import Tortoise
 from protocols.cleaning import cleaning_proto
 from protocols.cleaning.models import Availability, Provider, Service, ServiceType
 
-from nexus import Agent
-from nexus.setup import fund_agent_if_low
+from uagents import Agent, Context
+from uagents.setup import fund_agent_if_low
 
 
 cleaner = Agent(
     name="cleaner",
     port=8001,
-    seed="cleaner secret seed phrase",
-    endpoint="http://127.0.0.1:8001/submit",
+    seed="cleaner secret phrase",
+    endpoint={
+        "http://127.0.0.1:8001/submit": {},
+    },
 )
 
 fund_agent_if_low(cleaner.wallet.address())
@@ -26,13 +28,13 @@ cleaner.include(cleaning_proto)
 
 
 @cleaner.on_event("startup")
-async def startup():
+async def startup(_ctx: Context):
     await Tortoise.init(
         db_url="sqlite://db.sqlite3", modules={"models": ["protocols.cleaning.models"]}
     )
     await Tortoise.generate_schemas()
 
-    provider = await Provider.create(name=cleaner.name, address=12)
+    provider = await Provider.create(name=cleaner.name, location="London Kings Cross")
 
     floor = await Service.create(type=ServiceType.FLOOR)
     window = await Service.create(type=ServiceType.WINDOW)
@@ -52,7 +54,7 @@ async def startup():
 
 
 @cleaner.on_event("shutdown")
-async def shutdown():
+async def shutdown(_ctx: Context):
     await Tortoise.close_connections()
 
 

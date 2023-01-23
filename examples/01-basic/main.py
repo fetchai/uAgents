@@ -1,4 +1,4 @@
-from nexus import Agent, Context
+from uagents import Agent, Context
 
 agent = Agent()
 

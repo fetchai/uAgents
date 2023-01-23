@@ -9,13 +9,13 @@ import aiohttp
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet
 
-from nexus.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
-from nexus.crypto import Identity
-from nexus.dispatch import dispatcher
-from nexus.envelope import Envelope
-from nexus.models import Model, ErrorMessage
-from nexus.resolver import Resolver
-from nexus.storage import KeyValueStore
+from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
+from uagents.crypto import Identity
+from uagents.dispatch import dispatcher
+from uagents.envelope import Envelope
+from uagents.models import Model, ErrorMessage
+from uagents.resolver import Resolver
+from uagents.storage import KeyValueStore
 
 IntervalCallback = Callable[["Context"], Awaitable[None]]
 MessageCallback = Callable[["Context", str, Any], Awaitable[None]]

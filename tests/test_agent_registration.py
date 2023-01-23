@@ -1,8 +1,8 @@
 # pylint: disable=protected-access
 import unittest
 
-from nexus import Agent
-from nexus.setup import fund_agent_if_low
+from uagents import Agent
+from uagents.setup import fund_agent_if_low
 
 
 class TestVerify(unittest.TestCase):
@@ -25,7 +25,9 @@ class TestVerify(unittest.TestCase):
                 "record": {
                     "service": {
                         "protocols": [],
-                        "endpoints": [{"url": agent._endpoint, "weight": 1}],
+                        "endpoints": [
+                            {"url": "http://127.0.0.1:8000/submit", "weight": 1}
+                        ],
                     }
                 },
                 "signature": signature,
@@ -37,7 +39,12 @@ class TestVerify(unittest.TestCase):
         transaction = agent._reg_contract.execute(msg, agent.wallet, funds=reg_fee)
         transaction.wait_to_complete()
 
-        is_registered = agent.registration_status()
+        query_msg = {"query_records": {"agent_address": agent.address}}
+        response = agent._reg_contract.query(query_msg)
+
+        is_registered = False
+        if response["record"] != []:
+            is_registered = True
 
         self.assertEqual(is_registered, True, "Registration failed")
 

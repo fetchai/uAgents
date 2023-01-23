@@ -1,5 +1,5 @@
-from nexus.setup import fund_agent_if_low
-from nexus import Agent, Context, Model
+from uagents.setup import fund_agent_if_low
+from uagents import Agent, Context, Model
 
 
 class Message(Model):
@@ -9,11 +9,15 @@ class Message(Model):
 agent = Agent(
     name="bob",
     port=8001,
-    seed="agent2 secret phrase",
-    endpoint="http://127.0.0.1:8001/submit",
+    seed="agent2 secret seed phrase",
+    endpoint={
+        "http://127.0.0.1:8001/submit": {},
+    },
 )
 
 fund_agent_if_low(agent.wallet.address())
+
+print(agent.address)
 
 
 @agent.on_message(model=Message)

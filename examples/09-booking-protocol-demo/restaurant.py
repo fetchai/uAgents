@@ -1,15 +1,17 @@
 from protocols.book import book_proto
 from protocols.query import query_proto, TableStatus
 
-from nexus import Agent
-from nexus.setup import fund_agent_if_low
+from uagents import Agent
+from uagents.setup import fund_agent_if_low
 
 
 restaurant = Agent(
     name="restaurant",
     port=8001,
-    seed="restaurant secret phrase",
-    endpoint="http://127.0.0.1:8001/submit",
+    seed="restaurant recovery phrase",
+    endpoint={
+        "http://127.0.0.1:8001/submit": {},
+    },
 )
 
 fund_agent_if_low(restaurant.wallet.address())

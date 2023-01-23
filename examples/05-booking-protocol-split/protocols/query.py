@@ -1,6 +1,6 @@
 from enum import Enum
 
-from nexus import Context, Model, Protocol
+from uagents import Context, Model, Protocol
 
 
 class TableStatus(str, Enum):

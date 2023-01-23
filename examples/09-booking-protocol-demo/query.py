@@ -2,7 +2,7 @@ import asyncio
 
 from protocols.query import GetTotalQueries
 
-from nexus.query import query
+from uagents.query import query
 
 
 RESTAURANT_ADDRESS = "agent1qw50wcs4nd723ya9j8mwxglnhs2kzzhh0et0yl34vr75hualsyqvqdzl990"

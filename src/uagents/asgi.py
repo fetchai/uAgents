@@ -6,11 +6,11 @@ from typing import Dict
 import pydantic
 import uvicorn
 
-from nexus.crypto import is_user_address
-from nexus.dispatch import dispatcher
-from nexus.envelope import Envelope
-from nexus.models import Model, ErrorMessage
-from nexus.query import enclose_response
+from uagents.crypto import is_user_address
+from uagents.dispatch import dispatcher
+from uagents.envelope import Envelope
+from uagents.models import Model, ErrorMessage
+from uagents.query import enclose_response
 
 
 async def _read_asgi_body(receive):

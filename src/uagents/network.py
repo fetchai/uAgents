@@ -2,7 +2,7 @@ from cosmpy.aerial.contract import LedgerContract
 from cosmpy.aerial.client import LedgerClient, NetworkConfig
 from cosmpy.aerial.faucet import FaucetApi
 
-from nexus.config import AgentNetwork, CONTRACT_ALMANAC, AGENT_NETWORK
+from uagents.config import AgentNetwork, CONTRACT_ALMANAC, AGENT_NETWORK
 
 
 if AGENT_NETWORK == AgentNetwork.FETCHAI_TESTNET:

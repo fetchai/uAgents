@@ -5,10 +5,10 @@ from typing import Optional
 
 import aiohttp
 
-from nexus.crypto import generate_user_address
-from nexus.envelope import Envelope
-from nexus.models import Model
-from nexus.resolver import Resolver, AlmanacResolver
+from uagents.crypto import generate_user_address
+from uagents.envelope import Envelope
+from uagents.models import Model
+from uagents.resolver import Resolver, AlmanacResolver
 
 
 async def query(

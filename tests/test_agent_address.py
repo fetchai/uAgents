@@ -1,7 +1,7 @@
 import unittest
 
-from nexus import Agent
-from nexus.crypto import Identity
+from uagents import Agent
+from uagents.crypto import Identity
 
 
 class TestAgentAdress(unittest.TestCase):

@@ -4,17 +4,19 @@ from protocols.query import (
     QueryTableResponse,
 )
 
-from nexus import Agent, Context
-from nexus.setup import fund_agent_if_low
+from uagents import Agent, Context
+from uagents.setup import fund_agent_if_low
 
 
-RESTAURANT_ADDRESS = "agent1qw50wcs4nd723ya9j8mwxglnhs2kzzhh0et0yl34vr75hualsyqvqdzl990"
+RESTAURANT_ADDRESS = "agent1qfpqn9jhvp9cg33f27q6jvmuv52dgyg9rfuu37rmxrletlqe7lewwjed5gy"
 
 user = Agent(
     name="user",
     port=8000,
-    seed="user secret phrase",
-    endpoint="http://127.0.0.1:8000/submit",
+    seed="user recovery phrase",
+    endpoint={
+        "http://127.0.0.1:8000/submit": {},
+    },
 )
 
 fund_agent_if_low(user.wallet.address())
