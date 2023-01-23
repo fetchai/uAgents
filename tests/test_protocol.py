@@ -3,7 +3,7 @@ import unittest
 from typing import Callable
 
 
-from nexus import Agent, Model, Protocol
+from uagents import Agent, Model, Protocol
 
 
 class Message(Model):

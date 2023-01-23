@@ -6,8 +6,8 @@ from tortoise import Tortoise
 from protocols.cleaning import cleaning_proto
 from protocols.cleaning.models import Availability, Provider, Service, ServiceType
 
-from nexus import Agent, Context
-from nexus.setup import fund_agent_if_low
+from uagents import Agent, Context
+from uagents.setup import fund_agent_if_low
 
 
 cleaner = Agent(

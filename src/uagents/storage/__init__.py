@@ -3,7 +3,7 @@ import os
 from typing import Any, Optional
 from typing import Tuple
 from cosmpy.aerial.wallet import PrivateKey
-from nexus.crypto import Identity
+from uagents.crypto import Identity
 
 
 class KeyValueStore:

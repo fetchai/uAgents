@@ -2,7 +2,7 @@ import json
 import os
 import unittest
 
-from nexus.storage import KeyValueStore
+from uagents.storage import KeyValueStore
 
 
 class TestStorage(unittest.TestCase):

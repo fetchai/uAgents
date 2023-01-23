@@ -5,8 +5,8 @@ from typing import Optional, Any
 
 from pydantic import BaseModel, UUID4
 
-from nexus.crypto import Identity
-from nexus.dispatch import JsonStr
+from uagents.crypto import Identity
+from uagents.dispatch import JsonStr
 
 
 class Envelope(BaseModel):

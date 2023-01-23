@@ -1,17 +1,17 @@
-from nexus.setup import fund_agent_if_low
-from nexus import Agent, Context, Model
+from uagents.setup import fund_agent_if_low
+from uagents import Agent, Context, Model
 
 
 class Message(Model):
     message: str
 
 
-RECIPIENT_ADDRESS = "agent1qdc6s005tvknr5q52z9hkpjek9wtq5p7hp8y6g9h9gpuwanplls9q4zdq5e"
+RECIPIENT_ADDRESS = "agent1q0lqc50tgunfr8zumuj8744fqd9wl8hmh3akq0ygyzud9cp5yju524d7gcw"
 
 agent = Agent(
     name="alice",
     port=8000,
-    seed="agent1 recovery seedx phrase",
+    seed="agent1 recovery seed phrase",
     endpoint={
         "http://127.0.0.1:8000/submit": {},
     },

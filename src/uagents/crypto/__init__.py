@@ -5,7 +5,7 @@ from typing import Tuple, Union
 import bech32
 import ecdsa
 
-from nexus.config import USER_PREFIX
+from uagents.config import USER_PREFIX
 
 
 def _decode_bech32(value: str) -> Tuple[str, bytes]:

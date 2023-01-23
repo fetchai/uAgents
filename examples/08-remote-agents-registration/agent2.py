@@ -1,5 +1,5 @@
-from nexus.setup import fund_agent_if_low
-from nexus import Agent, Context, Model
+from uagents.setup import fund_agent_if_low
+from uagents import Agent, Context, Model
 
 
 class Message(Model):
@@ -16,6 +16,8 @@ agent = Agent(
 )
 
 fund_agent_if_low(agent.wallet.address())
+
+print(agent.address)
 
 
 @agent.on_message(model=Message)

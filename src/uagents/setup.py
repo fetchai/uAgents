@@ -1,7 +1,7 @@
 import logging
 
-from nexus.config import REGISTRATION_FEE
-from nexus.network import get_ledger, get_faucet
+from uagents.config import REGISTRATION_FEE
+from uagents.network import get_ledger, get_faucet
 
 
 def fund_agent_if_low(agent_address: str):

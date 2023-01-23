@@ -4,8 +4,8 @@ from typing import Dict, List, Optional, Set, Tuple, Union
 
 from apispec import APISpec
 
-from nexus.context import IntervalCallback, MessageCallback
-from nexus.models import Model
+from uagents.context import IntervalCallback, MessageCallback
+from uagents.models import Model
 
 
 OPENAPI_VERSION = "3.0.2"

@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "nexus"
+name = "uagents"
 version = "0.1.0"
 description = ""
-authors = ["Ed FitzGerald <ejafitzgerald@gmail.com>"]
+authors = ["Ed FitzGerald <edward.fitzgerald@fetch.ai>", "James Riehl <james.riehl@fetch.ai>", "Alejandro Morales <alejandro.madrigal@fetch.ai>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
@@ -22,7 +22,6 @@ pylint = "^2.15.3"
 
 [tool.poetry.group.orm.dependencies]
 tortoise-orm = "^0.19.2"
-
 
 [tool.poetry.group.geo.dependencies]
 geopy = "^2.3.0"

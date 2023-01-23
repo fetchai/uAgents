@@ -4,7 +4,7 @@ from typing import List
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 
-from nexus import Context, Model, Protocol
+from uagents import Context, Model, Protocol
 from .models import Provider, Availability, User
 
 

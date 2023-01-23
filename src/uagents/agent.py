@@ -5,22 +5,22 @@ from typing import Dict, List, Optional, Set, Union
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 
-from nexus.asgi import ASGIServer
-from nexus.context import (
+from uagents.asgi import ASGIServer
+from uagents.context import (
     Context,
     EventCallback,
     IntervalCallback,
     MessageCallback,
     MsgDigest,
 )
-from nexus.crypto import Identity, derive_key_from_seed, is_user_address
-from nexus.dispatch import Sink, dispatcher, JsonStr
-from nexus.models import Model, ErrorMessage
-from nexus.protocol import Protocol
-from nexus.resolver import Resolver, AlmanacResolver
-from nexus.storage import KeyValueStore, get_or_create_private_keys
-from nexus.network import get_ledger, get_reg_contract
-from nexus.config import (
+from uagents.crypto import Identity, derive_key_from_seed, is_user_address
+from uagents.dispatch import Sink, dispatcher, JsonStr
+from uagents.models import Model, ErrorMessage
+from uagents.protocol import Protocol
+from uagents.resolver import Resolver, AlmanacResolver
+from uagents.storage import KeyValueStore, get_or_create_private_keys
+from uagents.network import get_ledger, get_reg_contract
+from uagents.config import (
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
     LEDGER_PREFIX,
