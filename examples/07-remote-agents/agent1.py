@@ -1,5 +1,5 @@
-from nexus import Agent, Context, Model
-from nexus.resolver import RulesBasedResolver
+from uagents import Agent, Context, Model
+from uagents.resolver import RulesBasedResolver
 
 
 class Message(Model):

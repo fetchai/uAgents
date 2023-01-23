@@ -1,8 +1,8 @@
 from protocols.book import book_proto
 from protocols.query import query_proto, TableStatus
 
-from nexus import Agent
-from nexus.setup import fund_agent_if_low
+from uagents import Agent
+from uagents.setup import fund_agent_if_low
 
 
 restaurant = Agent(

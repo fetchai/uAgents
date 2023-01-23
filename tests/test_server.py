@@ -4,10 +4,10 @@ import unittest
 import uuid
 from unittest.mock import patch, AsyncMock, call
 
-from nexus import Agent, Model
-from nexus.envelope import Envelope
-from nexus.crypto import generate_user_address
-from nexus.query import enclose_response
+from uagents import Agent, Model
+from uagents.envelope import Envelope
+from uagents.crypto import generate_user_address
+from uagents.query import enclose_response
 
 
 class Message(Model):

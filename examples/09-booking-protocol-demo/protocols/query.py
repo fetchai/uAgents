@@ -1,6 +1,6 @@
 from typing import List
 
-from nexus import Context, Model, Protocol
+from uagents import Context, Model, Protocol
 
 
 class TableStatus(Model):

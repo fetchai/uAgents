@@ -2,8 +2,8 @@
 import unittest
 from typing import Callable
 
-from nexus import Agent, Context, Model
-from nexus.resolver import AlmanacResolver
+from uagents import Agent, Context, Model
+from uagents.resolver import AlmanacResolver
 
 
 class Message(Model):

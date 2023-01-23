@@ -4,8 +4,8 @@ from protocols.query import (
     QueryTableResponse,
 )
 
-from nexus import Agent, Context
-from nexus.setup import fund_agent_if_low
+from uagents import Agent, Context
+from uagents.setup import fund_agent_if_low
 
 
 RESTAURANT_ADDRESS = "agent1qfpqn9jhvp9cg33f27q6jvmuv52dgyg9rfuu37rmxrletlqe7lewwjed5gy"

@@ -1,8 +1,8 @@
 # pylint: disable=protected-access
 import unittest
 
-from nexus import Agent
-from nexus.setup import fund_agent_if_low
+from uagents import Agent
+from uagents.setup import fund_agent_if_low
 
 
 class TestVerify(unittest.TestCase):

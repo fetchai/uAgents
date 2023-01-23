@@ -1,6 +1,6 @@
 import hashlib
-from nexus import Agent, Bureau, Context, Model
-from nexus.crypto import Identity
+from uagents import Agent, Bureau, Context, Model
+from uagents.crypto import Identity
 
 
 class Message(Model):
