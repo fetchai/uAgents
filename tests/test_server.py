@@ -40,7 +40,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         env.sign(self.bob._identity)
 
         mock_send = AsyncMock()
-        with patch("nexus.asgi._read_asgi_body") as mock_receive:
+        with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = env.json().encode()
             await self.agent._server(
                 scope=dict(
@@ -83,7 +83,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         env.encode_payload(message.json())
 
         mock_send = AsyncMock()
-        with patch("nexus.asgi._read_asgi_body") as mock_receive:
+        with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = env.json().encode()
             await self.agent._server(
                 scope=dict(
@@ -126,7 +126,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         )
         env.encode_payload(message.json())
         mock_send = AsyncMock()
-        with patch("nexus.asgi._read_asgi_body") as mock_receive:
+        with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = env.json().encode()
             await asyncio.gather(
                 self.loop.create_task(
@@ -178,7 +178,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         env.encode_payload(message.json())
         env.sign(self.bob._identity)
         mock_send = AsyncMock()
-        with patch("nexus.asgi._read_asgi_body") as mock_receive:
+        with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = env.json().encode()
             await asyncio.gather(
                 self.loop.create_task(
@@ -231,7 +231,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         env.sign(self.bob._identity)
 
         mock_send = AsyncMock()
-        with patch("nexus.asgi._read_asgi_body") as mock_receive:
+        with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = env.json().encode()
             await self.agent._server(
                 scope=dict(
@@ -273,7 +273,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         env.sign(self.bob._identity)
 
         mock_send = AsyncMock()
-        with patch("nexus.asgi._read_asgi_body") as mock_receive:
+        with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = env.json().encode()
             await self.agent._server(
                 scope=dict(
@@ -305,7 +305,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
     async def test_message_fail_bad_data(self):
         message = Message(message="hello")
         mock_send = AsyncMock()
-        with patch("nexus.asgi._read_asgi_body") as mock_receive:
+        with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = message.json().encode()
             await self.agent._server(
                 scope=dict(
@@ -346,7 +346,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         env.encode_payload(message.json())
 
         mock_send = AsyncMock()
-        with patch("nexus.asgi._read_asgi_body") as mock_receive:
+        with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = env.json().encode()
             await self.agent._server(
                 scope=dict(
@@ -388,7 +388,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         env.sign(self.agent._identity)
 
         mock_send = AsyncMock()
-        with patch("nexus.asgi._read_asgi_body") as mock_receive:
+        with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = env.json().encode()
             await self.agent._server(
                 scope=dict(
@@ -430,7 +430,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         env.sign(self.bob._identity)
 
         mock_send = AsyncMock()
-        with patch("nexus.asgi._read_asgi_body") as mock_receive:
+        with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = env.json().encode()
             await self.agent._server(
                 scope=dict(
