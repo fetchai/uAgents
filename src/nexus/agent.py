@@ -1,7 +1,7 @@
 import asyncio
 import functools
 import logging
-from typing import Dict, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Union
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 
