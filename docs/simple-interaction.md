@@ -6,7 +6,7 @@ First, we need to import `Bureau` that will allow us to have a collection of age
 Then we can simply add agents `alice` and `bob` to the Bureau and run it.
 
 ```python
-from nexus import Agent, Context, Bureau
+from uagents import Agent, Context, Bureau
 
 alice = Agent(name="alice", seed="alice recovery phrase")
 bob = Agent(name="bob", seed="bob recovery phrase")
@@ -49,7 +49,7 @@ You should see the message printed out every 2 seconds. You might see a message 
 To allow our agents to communicate with each other we will need a message structure, and for that, we need to import `Model` to define a generic message.
 
 ```python
-from nexus import Model
+from uagents import Model
 
 class Message(Model):
     text: str
@@ -78,7 +78,7 @@ Finally, we need to add both agents to the `Bureau` in order to run the simultan
 
 
 ```python
-from nexus import Agent, Context, Bureau, Model
+from uagents import Agent, Context, Bureau, Model
 
 class Message(Model):
     text: str

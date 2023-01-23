@@ -8,7 +8,7 @@ You can print your uAgent's address at any time by printing `agent_name.address`
 Agent registration in the almanac-contract is a key part for remote agents communication. Each uAgent needs to register (paying a small fee) in order to be found by other uAgents. Therefore, your agents need to have funds available in their `fetch network address`. You can use the function `fund_agent_if_low` to fund your agent:
 
 ```python
-from nexus.setup import fund_agent_if_low
+from uagents.setup import fund_agent_if_low
 agent = Agent(name="alice", seed="agent1 secret phrase")
 
 fund_agent_if_low(agent.wallet.address())
@@ -34,8 +34,8 @@ We will start by defining agent alice and the recipient address (bob's address).
 a send function and a handler as we have learned in the previous section:
 
 ```python
-from nexus.setup import fund_agent_if_low
-from nexus import Agent, Context, Model
+from uagents.setup import fund_agent_if_low
+from uagents import Agent, Context, Model
 
 
 class Message(Model):
@@ -74,8 +74,8 @@ if __name__ == "__main__":
 In a different script, we will define agent bob with just a message handler to print out alice message and respond to her afterward.
 
 ```python
-from nexus.setup import fund_agent_if_low
-from nexus import Agent, Context, Model
+from uagents.setup import fund_agent_if_low
+from uagents import Agent, Context, Model
 
 
 class Message(Model):

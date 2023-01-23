@@ -4,7 +4,7 @@ uAgents are very flexible and customizable, you can create any type of interacti
 class using `Model`
 
 ```python
-from nexus import Model
+from uagents import Model
 
 class TableStatus(Model):
     seats: int
@@ -20,8 +20,8 @@ We can create a restaurant agent with its corresponding http endpoint. We will a
 
 
 ```python
-from nexus import Agent
-from nexus.setup import fund_agent_if_low
+from uagents import Agent
+from uagents.setup import fund_agent_if_low
 
 
 restaurant = Agent(
@@ -85,8 +85,8 @@ from protocols.query import (
     QueryTableResponse,
 )
 
-from nexus import Agent, Context
-from nexus.setup import fund_agent_if_low
+from uagents import Agent, Context
+from uagents.setup import fund_agent_if_low
 
 
 RESTAURANT_ADDRESS = "agent1qw50wcs4nd723ya9j8mwxglnhs2kzzhh0et0yl34vr75hualsyqvqdzl990"
