@@ -6,7 +6,7 @@ from tortoise import Tortoise
 from protocols.cleaning import cleaning_proto
 from protocols.cleaning.models import Availability, Provider, Service, ServiceType
 
-from nexus import Agent
+from nexus import Agent, Context
 from nexus.setup import fund_agent_if_low
 
 
@@ -26,7 +26,7 @@ cleaner.include(cleaning_proto)
 
 
 @cleaner.on_event("startup")
-async def startup():
+async def startup(_ctx: Context):
     await Tortoise.init(
         db_url="sqlite://db.sqlite3", modules={"models": ["protocols.cleaning.models"]}
     )
@@ -52,7 +52,7 @@ async def startup():
 
 
 @cleaner.on_event("shutdown")
-async def shutdown():
+async def shutdown(_ctx: Context):
     await Tortoise.close_connections()
 
 

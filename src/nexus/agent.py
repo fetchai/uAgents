@@ -1,7 +1,7 @@
 import asyncio
 import functools
 import logging
-from typing import Dict, Optional, List, Set, Tuple, Any, Union
+from typing import Dict, Optional, Set, Union
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 
@@ -55,7 +55,6 @@ class Agent(Sink):
         version: Optional[str] = None,
     ):
         self._name = name
-        self._intervals: List[Tuple[float, Any]] = []
         self._port = port if port is not None else 8000
         self._background_tasks: Set[asyncio.Task] = set()
         self._resolver = resolve if resolve is not None else AlmanacResolver()
@@ -78,11 +77,11 @@ class Agent(Sink):
         self._ledger = get_ledger()
         self._reg_contract = get_reg_contract()
         self._storage = KeyValueStore(self.address[0:16])
-        self._models = {}
-        self._replies = {}
-        self._interval_messages = {}
-        self._signed_message_handlers = {}
-        self._unsigned_message_handlers = {}
+        self._interval_messages: Set[str] = set()
+        self._signed_message_handlers: Dict[str, MessageCallback] = {}
+        self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
+        self._models: Dict[str, Model] = {}
+        self._replies: Dict[str, Set[Model]] = {}
         self._queries: Dict[str, asyncio.Future] = {}
         self._ctx = Context(
             self._identity.address,
@@ -252,10 +251,7 @@ class Agent(Sink):
             self._background_tasks.add(task)
             task.add_done_callback(self._background_tasks.discard)
 
-        for schema_digest in protocol.interval_messages:
-            self._interval_messages[schema_digest] = protocol.interval_messages[
-                schema_digest
-            ]
+        self._interval_messages.update(protocol.interval_messages)
 
         for schema_digest in protocol.models:
             if schema_digest in self._models:
@@ -286,11 +282,11 @@ class Agent(Sink):
 
     async def startup(self):
         for handler in self._on_startup:
-            await handler()
+            await handler(self._ctx)
 
     async def shutdown(self):
         for handler in self._on_shutdown:
-            await handler()
+            await handler(self._ctx)
 
     def setup(self):
         # register the internal agent protocol
