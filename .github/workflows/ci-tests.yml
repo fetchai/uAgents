@@ -12,6 +12,9 @@ on:
 jobs:
   tests:
     name: Tests
+    defaults:
+      run:
+        shell: bash
     strategy:
       matrix:
         python-version: [ "3.8", "3.9", "3.10" ]
@@ -33,7 +36,7 @@ jobs:
 
       - name: Load cached venv
         id: cached-poetry-dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
@@ -42,7 +45,9 @@ jobs:
         run: poetry install --no-interaction --no-root
 
       - run: poetry install --no-interaction
-      - run: poetry run pytest
+      - run: | 
+          source $VENV
+          poetry run pytest
 
   linting:
     name: Lint & Formatting
