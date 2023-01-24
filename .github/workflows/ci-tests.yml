@@ -17,8 +17,13 @@ jobs:
         shell: bash
     strategy:
       matrix:
-        python-version: [ "3.8", "3.9", "3.10" ]
         os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.10"]
+        include:
+          - os: ubuntu-latest
+            python-version: "3.8"
+          - os: ubuntu-latest
+            python-version: "3.9"
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -43,9 +48,9 @@ jobs:
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: poetry install --no-interaction --no-root
-
       - run: poetry install --no-interaction
-      - run: | 
+      - name: Run tests
+        run: | 
           source $VENV
           poetry run pytest
 
