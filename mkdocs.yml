@@ -6,11 +6,24 @@ edit_uri: ""
 site_author: developer@fetch.ai
 
 nav:
-  - Getting started: 'index.md'
-  - Interact with uAgents:
-    - simple-interactions: 'simple-interaction.md'
-    - remote-agents: 'remote-agents.md'
-    - booking-demo: 'booking-demo.md'
+  - Introduction: 'index.md'
+  - Quick start:
+    - Installation: 'installation.md'
+    - Running an agent: 'run-agent.md'
+  - Tutorials:
+    - Agent interactions: 'simple-interaction.md'
+    - Remote communication: 'remote-agents.md'
+    - Restaurant booking demo: 'booking-demo.md'
+  - Key concepts:
+    - Addresses: 'addresses.md'
+    - Storage: 'storage.md'
+    - Interval tasks: 'interval-tasks.md'
+  #  - Exchange protocol:
+    - Almanac contract:
+      - Overview: almanac-overview.md
+      - Registration: almanac-registration.md
+      - Endpoint weighting: almanac-endpoint.md
+  #  - Marketplace contract:
 
 theme:
   name: material

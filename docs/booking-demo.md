@@ -28,7 +28,7 @@ restaurant = Agent(
     name="restaurant",
     port=8001,
     seed="restaurant secret phrase",
-    endpoint="http://127.0.0.1:8001/submit",
+    endpoint=["http://127.0.0.1:8001/submit"],
 )
 
 fund_agent_if_low(restaurant.wallet.address())
@@ -53,13 +53,6 @@ TABLES = {
 ```
 
 ### Storage
-
-You can store information using the agent's storage by simply running:
-
-```python
-agent._storage.set("key", "value")
-```
-This will save the information in a JSON file, you can retreive it a any time using `agent._storage.get("key")`.
 
 We will now store the `TABLES` information in the restaurant agent and run it.
 
@@ -95,7 +88,7 @@ user = Agent(
     name="user",
     port=8000,
     seed="user secret phrase",
-    endpoint="http://127.0.0.1:8000/submit",
+    endpoint=["http://127.0.0.1:8000/submit"],
 )
 
 fund_agent_if_low(user.wallet.address())

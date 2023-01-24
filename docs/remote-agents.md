@@ -1,37 +1,12 @@
 # Remote agents
 
-uAgents can also interact remotely from different terminals. All you need to know is the recipient agent's address.
+uAgents can also interact remotely from different terminals. All you need to know is the recipient agent's address to query it's information in the [almanact contract](almanac-overview.md).
 You can print your uAgent's address at any time by printing `agent_name.address` in your python script.
-
-## Registration
-
-Agent registration in the almanac-contract is a key part for remote agents communication. Each uAgent needs to register (paying a small fee) in order to be found by other uAgents. Therefore, your agents need to have funds available in their `fetch network address`. You can use the function `fund_agent_if_low` to fund your agent:
-
-```python
-from uagents.setup import fund_agent_if_low
-agent = Agent(name="alice", seed="agent1 secret phrase")
-
-fund_agent_if_low(agent.wallet.address())
-```
-This function will check if you have enough tokens to register in the `almanac-contract`, if not it will add tokens to your `fetch network address`. Make sure to add a `seed` to your agent so you don't have to fund different addresses each time you run your agent.
-
-uAgents can communicate by querying the `almanac-contract` and retrieving an HTTP endpoint from the recipient uAgent. Therefore, we need to specify a service endpoint and a port when defining an agent:
-
-```python
-agent = Agent(
-    name="alice",
-    port=8000,
-    seed="agent1 secret phrase",
-    endpoint="http://127.0.0.1:8000/submit",
-)
-```
-
-Here we defined a local http address, but you could also define a remote address to allow agent communication over different machines through the internet.
 
 ## Alice
 
 We will start by defining agent alice and the recipient address (bob's address). Then we will include 
-a send function and a handler as we have learned in the previous section:
+a send function and a handler as we have learned in [agent interactions](simple-interaction.md):
 
 ```python
 from uagents.setup import fund_agent_if_low
@@ -48,7 +23,7 @@ alice = Agent(
     name="alice",
     port=8000,
     seed="alice secret phrase",
-    endpoint="http://127.0.0.1:8000/submit",
+    endpoint=["http://127.0.0.1:8000/submit"],
 )
 
 fund_agent_if_low(alice.wallet.address())
@@ -86,7 +61,7 @@ bob = Agent(
     name="bob",
     port=8001,
     seed="bob secret phrase",
-    endpoint="http://127.0.0.1:8001/submit",
+    endpoint=["http://127.0.0.1:8001/submit"],
 )
 
 fund_agent_if_low(bob.wallet.address())

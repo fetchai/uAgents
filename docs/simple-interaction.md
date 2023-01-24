@@ -1,4 +1,4 @@
-# Simple agent interactions
+# Agent interactions
 
 ## Add a second agent
 
@@ -35,7 +35,7 @@ Yoy should observe alice and bob printing out their name in the terminal.
     python simple-agents.py
     ```
 
-You should see the message printed out every 2 seconds. You might see a message indicating insufficient funds to register, check out [remote agents](remote-agents.md) for more information about agent registration.
+You will see the message printed out every 2 seconds. You might see a message indicating insufficient funds to register, check out [agent registration](almanac-registration.md) for more information.
 
 <div id="termynal1" data-termynal data-ty-typeDelay="100" data-ty-lineDelay="700">
 <span data-ty>Hello, my name is alice</span>
