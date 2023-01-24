@@ -27,9 +27,8 @@ agent = Agent(
     port=8000,
     seed="agent recovery seed phrase",
     endpoint={
-        "http://127.0.0.1:8000/submit": {"weight": 1},
         "http://127.0.0.1:8000/submit": {"weight": 2},
-        "http://127.0.0.1:8000/submit": {}, # weight value = 1
+        "http://127.0.0.1:8001/submit": {}, # weight value = 1
     },
 )
 ```
