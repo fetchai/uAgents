@@ -4,6 +4,7 @@ You can create your first uAgent with the following python script
 
 ```python
 from uagents import Agent
+
 alice = Agent(name="alice")
 ```
 
