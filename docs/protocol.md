@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **uAgents Exchange Protocol** defines a simple standard by which the agents communicate.
+The **μAgents Exchange Protocol** defines a simple standard by which the agents communicate.
 
 In this protocol, agents can send ***messages*** enclosed in ***envelopes***, which are then encoded and sent via HTTP to the ***endpoints*** of other agents.
 
@@ -47,7 +47,7 @@ The **sender** field exposes the address of the sender of the message.
 
 The **target** field exposes the address of the recipient of the message.
 
-The **protocol** contains the unique digest string for the protocol.
+The **protocol** contains the unique schema digest string for the message.
 
 The **payload** field exposes the payload of the protocol. Its JSON representation should be a base64 encoded string.
 

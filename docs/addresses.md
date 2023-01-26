@@ -13,6 +13,6 @@ print("Fetch network address: ", alice.wallet.address())
 
 Your agent will have two types of addresses:
 
-- `uAgent address:` represents the main uAgent identifier. Other uAgents can use this to query the agent's information in the almanac-contract.
+- `uAgent address:` represents the main μAgent identifier. Other μAgents can use this to query the agent's information in the Almanac contract.
 
-- `Fetch address:` provides the agent with the capabilities for interacting with the fetch ledger such as registering in the almanac-contract.
+- `Fetch address:` provides the agent with the capabilities for interacting with the Fetch ledger such as registering in the Almanac contract.

@@ -2,7 +2,7 @@
 
 ## Create the agent
 
-You can create your first uAgent with the following python script
+You can create your first μAgent by building a Python script with the following steps:
 
 ```python
 from uagents import Agent, Context
@@ -25,7 +25,7 @@ The `Context` object is a collection of data and functions related to the agent.
 
 ## Run the agent
 
-You can now run your first uAgent!
+You can now run your first μAgent!
 
 ```python
 from uagents import Agent, Context
@@ -46,7 +46,7 @@ if __name__ == "__main__":
     python agent.py
     ```
 
-After a few lines in the agent's logs, you should see the following printed on your terminal:
+After a few lines in the agent's logs, you should see the following text printed on your terminal:
 
 <div id="termynal1" data-termynal data-ty-typeDelay="100" data-ty-lineDelay="2000">
 <span data-ty>hello, my name is alice.</span>

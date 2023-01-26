@@ -2,8 +2,10 @@
 
 ## System requirements
 
+The system requirements for the Python μAgents package are as follows, but libraries for more platforms and languages will be released soon.
+
 !!! Info "System requirements"
-    uAgents can be used on `Ubuntu/Debian`, `MacOS`, and `Windows`.
+    The Python μAgents pacakge runs on `Ubuntu/Debian`, `MacOS`, and `Windows`.
     
     You need <a href="https://www.python.org/downloads/" target="_blank">Python</a> 3.8, 3.9 or 3.10 on your system.
 
@@ -25,8 +27,6 @@ Now install μAgents from the PyPI package registry:
 ``` bash
 pip install uagents
 ```
-
-
 
 ??? note "Alternatively, install from source code:"
 

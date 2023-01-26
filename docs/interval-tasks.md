@@ -1,6 +1,6 @@
 # Interval tasks
 
-uAgents can make use of interval tasks that will allow them to perform actions on an interval.
+μAgents can use interval tasks to periodically perform actions with some time interval.
 
 We can use the `on_interval` decorator to repeat a task in a specified period.
 We also need to import `Context` to have access to the information that the agent needs to function.
@@ -27,11 +27,11 @@ if __name__ == "__main__":
 
 You should see the message printed out in the terminal every 2 seconds. 
 
-<div id="termynal1" data-termynal data-ty-typeDelay="100" data-ty-lineDelay="700">
+<div id="termynal1" data-termynal data-ty-typeDelay="100" data-ty-lineDelay="200">
 <span data-ty>Hello my name is alice.</span>
 <span data-ty>Hello my name is alice.</span>
 <span data-ty>Hello my name is alice.</span>
 <span data-ty>Hello my name is alice.</span>
 </div>
 
-For another interval task example see [agent communication](simple-interaction.md)
+For another interval task example see [agent communication](simple-interaction.md).

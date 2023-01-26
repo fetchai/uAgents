@@ -1,11 +1,13 @@
 # Remote agents
 
-uAgents can also interact remotely from different terminals. All you need to know is the recipient agent's address to query it's information in the [almanact contract](almanac-overview.md).
-You can print your uAgent's address at any time by printing `agent_name.address` in your python script.
+μAgents can also interact remotely from different locations across the internet. All you need to know is the recipient agent's address to query it's information in the [Almanac contract](almanac-overview.md).
+See [Addresses](addresses.md) for more information about μAgent addresses.
+
+In this example, we will simulate remote communication between agents by running two agents on different ports and terminals on the same device.
 
 ## Alice
 
-We will start by defining agent alice and the recipient address (bob's address). Then we will include 
+We will start by defining agent `alice` and the recipient address (`bob`'s address in this example). Then we will include 
 a send function and a handler as we have learned in [agent interactions](simple-interaction.md):
 
 ```python
@@ -46,7 +48,7 @@ if __name__ == "__main__":
 
 ## Bob
 
-In a different script, we will define agent bob with just a message handler to print out alice message and respond to her afterward.
+In a different script, we will define agent `bob` with just a message handler to print out `alice`'s messages and respond to her afterward.
 
 ```python
 from uagents.setup import fund_agent_if_low
@@ -80,7 +82,7 @@ if __name__ == "__main__":
     bob.run()
 ```
 
-Now, we first run bob and then alice from different terminals, they will register automatically in the `almanac-contract` using their funds. The received messages will print out in each terminal.
+Now, we first run `bob` and then `alice` from different terminals. They will register automatically in the Almanac contract using their funds. The received messages will print out in each terminal.
 
 !!! example "Run Bob and Alice"
     
@@ -114,4 +116,4 @@ In alice's terminal:
 <span data-ty>[alice] From: agent5kdyfj2ev86k3h5acaa93kdnch8shv4mjxn05pa2kwesspstzj023jdus93j hello there alice</span>
 </div>
 
-For a more complex example visit [restaurant booking demo](booking-demo.md)
+For a more complex example visit [restaurant booking demo](booking-demo.md).

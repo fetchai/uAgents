@@ -2,8 +2,9 @@
 
 ## Add a second agent
 
-First, we need to import `Bureau` that will allow us to have a collection of agents and run them together.
-Then we can simply add agents `alice` and `bob` to the Bureau and run it.
+To show μAgents interacting, we'll need to create a second agent.
+Importing the `Bureau` class will allow us to create a collection of agents and run them together in the same script.
+Then we can simply add agents `alice` and `bob` to the `Bureau` and run it.
 
 ```python
 from uagents import Agent, Context, Bureau
@@ -62,10 +63,10 @@ We can use the `send` function from the `Context` class to send a message from a
 @alice.on_interval(period=2.0)
 async def send_message(ctx: Context):
     msg = f'hello there {bob.name} my name is {alice.name}'
-    await ctx.send(bob.address,Message(text=msg))
+    await ctx.send(bob.address, Message(text=msg))
 ```
 
-We also need to introduce a message handler for bob. We will do this inside the `on_message` decorator that will activate the `message_handler`  once bob receives the message.
+We also need to introduce a message handler for bob. We will do this inside the `on_message` decorator that will activate the `message_handler` once bob receives the message.
 
 ```python
 @bob.on_message(Message)
@@ -74,7 +75,7 @@ async def message_handler(sender: str, msg: Message):
     print(msg)
 ```
 
-Finally, we need to add both agents to the `Bureau` in order to run the simultaneously
+Finally, we need to add both agents to the `Bureau` in order to run them from the same script.
 
 
 ```python
@@ -89,7 +90,7 @@ bob = Agent(name="bob", seed="bob recovery phrase")
 @alice.on_interval(period=2.0)
 async def send_message(ctx: Context):
     msg = f'hello there {bob.name} my name is {alice.name}'
-    await ctx.send(bob.address,Message(text=msg))
+    await ctx.send(bob.address, Message(text=msg))
 
 
 @bob.on_message(model=Message)
@@ -121,5 +122,5 @@ When running the script above, you should see alice's message printed on the ter
 
 You could also try to add a response from bob to alice, for that you would need to add a `send` message from bob after alice's 
 message is received and a new message handler for alice to be able to manage and print out bob's message. For a slightly more complex 
-example check out the next section [remote agents](remote-agents.md)
+example check out the next section [remote agents](remote-agents.md).
 
