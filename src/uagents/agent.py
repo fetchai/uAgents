@@ -146,7 +146,7 @@ class Agent(Sink):
 
         if self._endpoint is None:
             logging.warning(
-                f"Agent {self._name} has no endpoint and won't be able to receive external messages"
+                "Agent has no endpoint and won't be able to receive external messages"
             )
             endpoints = []
         elif isinstance(self._endpoint, dict):
@@ -158,8 +158,8 @@ class Agent(Sink):
             endpoints = [{"url": val, "weight": 1} for val in self._endpoint]
 
         if agent_balance < REGISTRATION_FEE:
-            logging.exception(
-                f"Insufficient funds to register {self._name}\
+            logging.warning(
+                f"Agent does not have enough funds to register on Almanac contract\
                     \nFund using wallet address: {self.wallet.address()}"
             )
             return
