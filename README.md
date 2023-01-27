@@ -28,7 +28,7 @@ All contributions are welcome! Remember, contribution includes not only code, bu
 
 ### Development Guidelines
 
-Read our [development guidelines](DEVELOPING.md) to learn for some useful tips related to development.
+Read our [development guidelines](DEVELOPING.md) to learn some useful tips related to development.
 
 ### Issues, Questions and Discussions
 
