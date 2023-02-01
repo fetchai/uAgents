@@ -1,20 +1,22 @@
 import asyncio
 import json
 import logging
+from typing import Dict
 
 import aiohttp
 
-from uagents.config import RELAY_POLL_INTERVAL_SECONDS
+from uagents.config import MAILBOX_POLL_INTERVAL_SECONDS
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
 
 
-class RelayClient:
-    def __init__(self, agent, server_url: str):
-        self._server_url = server_url
+class MailboxClient:
+    def __init__(self, agent, config: Dict[str, str]):
+        self._base_url = config["base_url"]
+        self._api_key = config["api_key"]
         self._agent = agent
         self._access_token: str = None
-        self._poll_interval = RELAY_POLL_INTERVAL_SECONDS
+        self._poll_interval = MAILBOX_POLL_INTERVAL_SECONDS
 
     async def run(self):
         while True:
@@ -27,7 +29,7 @@ class RelayClient:
         async with aiohttp.ClientSession() as session:
 
             # check the inbox for envelopes and dispatch them
-            mailbox_url = f"{self._server_url}/v1/mailbox"
+            mailbox_url = f"{self._base_url}/v1/mailbox"
             async with session.get(
                 mailbox_url,
                 headers={"Authorization": f"token {self._access_token}"},
@@ -52,7 +54,7 @@ class RelayClient:
             # delete any envelopes that were successfully processed
             if success and len(items) > 0:
                 for item in items:
-                    env_url = f"{self._server_url}/v1/mailbox/{item['uuid']}"
+                    env_url = f"{self._base_url}/v1/mailbox/{item['uuid']}"
                     async with session.delete(
                         env_url,
                         headers={"Authorization": f"token {self._access_token}"},
@@ -66,7 +68,7 @@ class RelayClient:
         async with aiohttp.ClientSession() as session:
 
             # get challenge
-            challenge_url = f"{self._server_url}/v1/auth/challenge"
+            challenge_url = f"{self._base_url}/v1/auth/challenge"
             async with session.post(
                 challenge_url,
                 data=json.dumps({"address": self._agent.address}),
@@ -81,7 +83,7 @@ class RelayClient:
                     return
 
             # response to challenge with signature to get token
-            prove_url = f"{self._server_url}/v1/auth/prove"
+            prove_url = f"{self._base_url}/v1/auth/prove"
             async with session.post(
                 prove_url,
                 data=json.dumps(

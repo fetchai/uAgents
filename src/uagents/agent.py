@@ -20,7 +20,7 @@ from uagents.protocol import Protocol
 from uagents.resolver import Resolver, AlmanacResolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.network import get_ledger, get_reg_contract
-from uagents.relay import RelayClient
+from uagents.mailbox import MailboxClient
 from uagents.config import (
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
@@ -53,8 +53,7 @@ class Agent(Sink):
         port: Optional[int] = None,
         seed: Optional[str] = None,
         endpoint: Optional[Union[List[str], Dict[str, dict]]] = None,
-        relay_server: Optional[str] = None,
-        use_relay: Optional[bool] = False,
+        mailbox: Optional[Union[str, Dict[str, str]]] = None,
         resolve: Optional[Resolver] = None,
         version: Optional[str] = None,
     ):
@@ -79,10 +78,10 @@ class Agent(Sink):
             )
 
         self._endpoint = endpoint
-        self._relay_server = relay_server or DEFAULT_RELAY_SERVER
-        self._use_relay = use_relay
-        if self._use_relay:
-            self._relay_client = RelayClient(self, self._relay_server)
+        self._use_mailbox = mailbox is not None
+        if self._use_mailbox:
+            self._parse_mailbox_config(mailbox)
+            self._mailbox_client = MailboxClient(self, self._mailbox)
         self._ledger = get_ledger()
         self._reg_contract = get_reg_contract()
         self._storage = KeyValueStore(self.address[0:16])
@@ -145,6 +144,22 @@ class Agent(Sink):
         return self._identity.sign_registration(
             self._reg_contract.address, self.get_registration_sequence()
         )
+
+    def _parse_mailbox_config(self, mailbox: Union[str, Dict[str, str]]):
+        api_key = None
+        base_url = None
+        if isinstance(mailbox, str):
+            if mailbox.count("@") == 1:
+                api_key, base_url = mailbox.split("@")
+            else:
+                api_key = mailbox
+        elif isinstance(mailbox, dict):
+            api_key = mailbox.get("api_key")
+            base_url = mailbox.get("base_url")
+        self._mailbox = {
+            "api_key": api_key,
+            "base_url": base_url or DEFAULT_RELAY_SERVER,
+        }
 
     def update_loop(self, loop):
         self._loop = loop
@@ -322,8 +337,8 @@ class Agent(Sink):
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
 
-        if self._use_relay:
-            task = self._loop.create_task(self._relay_client.run())
+        if self._use_mailbox:
+            task = self._loop.create_task(self._mailbox_client.run())
             self._background_tasks.add(task)
             task.add_done_callback(self._background_tasks.discard)
 
