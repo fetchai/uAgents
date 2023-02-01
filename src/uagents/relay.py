@@ -24,37 +24,36 @@ class RelayClient:
             await asyncio.sleep(self._poll_interval)
 
     async def _poll_server(self):
-        while True:
-            async with aiohttp.ClientSession() as session:
-                mailbox_url = f"{self._server_url}/v1/mailbox"
-                async with session.get(
+        async with aiohttp.ClientSession() as session:
+            mailbox_url = f"{self._server_url}/v1/mailbox"
+            async with session.get(
+                mailbox_url,
+                headers={"Authorization": f"token {self._access_token}"},
+            ) as resp:
+                success = resp.status == 200
+                if success:
+                    items = (await resp.json())["items"]
+                    for item in items:
+                        env = Envelope.parse_obj(item["envelope"])
+                        if env.verify():
+                            await dispatcher.dispatch(
+                                env.sender,
+                                env.target,
+                                env.protocol,
+                                env.decode_payload(),
+                            )
+                else:
+                    logging.exception(
+                        f"Failed to retrieve messages from inbox: {(await resp.text())}"
+                    )
+
+            if success and len(items) > 0:
+                async with session.delete(
                     mailbox_url,
                     headers={"Authorization": f"token {self._access_token}"},
                 ) as resp:
-                    success = resp.status == 200
-                    if success:
-                        items = (await resp.json())["items"]
-                        for item in items:
-                            env = Envelope.parse_obj(item["envelope"])
-                            if env.verify():
-                                await dispatcher.dispatch(
-                                    env.sender,
-                                    env.target,
-                                    env.protocol,
-                                    env.decode_payload(),
-                                )
-                    else:
-                        logging.exception(
-                            f"Failed to retrieve messages from inbox: {(await resp.text())}"
-                        )
-
-                if success and len(items) > 0:
-                    async with session.delete(
-                        mailbox_url,
-                        headers={"Authorization": f"token {self._access_token}"},
-                    ) as resp:
-                        if resp.status != 200:
-                            logging.warning("Failed to delete messages from inbox")
+                    if resp.status != 200:
+                        logging.warning("Failed to delete messages from inbox")
 
     async def _get_access_token(self):
         async with aiohttp.ClientSession() as session:
