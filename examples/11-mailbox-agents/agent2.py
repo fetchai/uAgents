@@ -8,15 +8,17 @@ class Message(Model):
 
 AGENT1_ADDRESS = "agent1qv2l7qzcd2g2rcv2p93tqflrcaq5dk7c2xc7fcnfq3s37zgkhxjmq5mfyvz"
 AGENT2_ADDRESS = "agent1qv73me5ql7kl30t0grehalj0aau0l4hpthp4m5q9v4qk2hz8h63vzpgyadp"
+RELAY_SERVER_URL = "http://127.0.0.1:8000"
 
 agent = Agent(
     name="bob",
     port=8011,
     seed="agent2 secret phrase",
+    use_relay=True,
     resolve=RulesBasedResolver(
         {
-            AGENT1_ADDRESS: "http://127.0.0.1:8000/submit",
-            AGENT2_ADDRESS: "http://127.0.0.1:8001/submit",
+            AGENT1_ADDRESS: f"{RELAY_SERVER_URL}/v1/submit",
+            AGENT2_ADDRESS: f"{RELAY_SERVER_URL}/v1/submit",
         }
     ),
 )
