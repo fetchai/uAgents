@@ -25,6 +25,8 @@ class RelayClient:
 
     async def _poll_server(self):
         async with aiohttp.ClientSession() as session:
+
+            # check the inbox for envelopes and dispatch them
             mailbox_url = f"{self._server_url}/v1/mailbox"
             async with session.get(
                 mailbox_url,
@@ -47,13 +49,18 @@ class RelayClient:
                         f"Failed to retrieve messages from inbox: {(await resp.text())}"
                     )
 
+            # delete any envelopes that were successfully processed
             if success and len(items) > 0:
-                async with session.delete(
-                    mailbox_url,
-                    headers={"Authorization": f"token {self._access_token}"},
-                ) as resp:
-                    if resp.status != 200:
-                        logging.warning("Failed to delete messages from inbox")
+                for item in items:
+                    env_url = f"{self._server_url}/v1/mailbox/{item['uuid']}"
+                    async with session.delete(
+                        env_url,
+                        headers={"Authorization": f"token {self._access_token}"},
+                    ) as resp:
+                        if resp.status != 200:
+                            logging.warning(
+                                f"Failed to delete message from inbox: {(await resp.text())}"
+                            )
 
     async def _get_access_token(self):
         async with aiohttp.ClientSession() as session:
