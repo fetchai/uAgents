@@ -75,18 +75,24 @@ class Identity:
     @staticmethod
     def from_seed(seed: str, index: int) -> "Identity":
         key = derive_key_from_seed(seed, "agent", index)
-        signing_key = ecdsa.SigningKey.from_string(key, curve=ecdsa.SECP256k1)
+        signing_key = ecdsa.SigningKey.from_string(
+            key, curve=ecdsa.SECP256k1, hashfunc=hashlib.sha256
+        )
         return Identity(signing_key)
 
     @staticmethod
     def generate() -> "Identity":
-        signing_key = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
+        signing_key = ecdsa.SigningKey.generate(
+            curve=ecdsa.SECP256k1, hashfunc=hashlib.sha256
+        )
         return Identity(signing_key)
 
     @staticmethod
     def from_string(private_key_hex: str) -> "Identity":
         bytes_key = bytes.fromhex(private_key_hex)
-        signing_key = ecdsa.SigningKey.from_string(bytes_key, curve=ecdsa.SECP256k1)
+        signing_key = ecdsa.SigningKey.from_string(
+            bytes_key, curve=ecdsa.SECP256k1, hashfunc=hashlib.sha256
+        )
 
         return Identity(signing_key)
 
@@ -97,6 +103,9 @@ class Identity:
     @property
     def address(self) -> str:
         return self._address
+
+    def sign(self, data: bytes) -> str:
+        return _encode_bech32("sig", self._sk.sign(data))
 
     def sign_digest(self, digest: bytes) -> str:
         return _encode_bech32("sig", self._sk.sign_digest(digest))

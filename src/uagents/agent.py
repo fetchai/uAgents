@@ -20,11 +20,13 @@ from uagents.protocol import Protocol
 from uagents.resolver import Resolver, AlmanacResolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.network import get_ledger, get_reg_contract
+from uagents.relay import RelayClient
 from uagents.config import (
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
     LEDGER_PREFIX,
     BLOCK_INTERVAL,
+    DEFAULT_RELAY_SERVER,
 )
 
 
@@ -51,6 +53,8 @@ class Agent(Sink):
         port: Optional[int] = None,
         seed: Optional[str] = None,
         endpoint: Optional[Union[List[str], Dict[str, dict]]] = None,
+        relay_server: Optional[str] = None,
+        use_relay: Optional[bool] = False,
         resolve: Optional[Resolver] = None,
         version: Optional[str] = None,
     ):
@@ -73,7 +77,12 @@ class Agent(Sink):
                 PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
                 prefix=LEDGER_PREFIX,
             )
+
         self._endpoint = endpoint
+        self._relay_server = relay_server or DEFAULT_RELAY_SERVER
+        self._use_relay = use_relay
+        if self._use_relay:
+            self._relay_client = RelayClient(self, self._relay_server)
         self._ledger = get_ledger()
         self._reg_contract = get_reg_contract()
         self._storage = KeyValueStore(self.address[0:16])
@@ -125,6 +134,9 @@ class Agent(Sink):
     @property
     def wallet(self) -> LocalWallet:
         return self._wallet
+
+    def sign(self, data: bytes) -> str:
+        return self._identity.sign(data)
 
     def sign_digest(self, digest: bytes) -> str:
         return self._identity.sign_digest(digest)
@@ -195,7 +207,7 @@ class Agent(Sink):
             f"Registering Agent {self._name}...complete\nWallet address: {self.wallet.address()}"
         )
 
-    def schedule_registration(self):
+    def _schedule_registration(self):
 
         query_msg = {"query_records": {"agent_address": self.address}}
         response = self._reg_contract.query(query_msg)
@@ -310,9 +322,14 @@ class Agent(Sink):
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
 
+        if self._use_relay:
+            task = self._loop.create_task(self._relay_client.run())
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
+
         # start the contract registration update loop
         self._loop.create_task(
-            _run_interval(self.register, self._ctx, self.schedule_registration())
+            _run_interval(self.register, self._ctx, self._schedule_registration())
         )
 
     def run(self):
