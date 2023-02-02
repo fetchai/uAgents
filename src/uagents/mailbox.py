@@ -22,6 +22,7 @@ class MailboxClient:
         self._poll_interval = MAILBOX_POLL_INTERVAL_SECONDS
 
     async def run(self):
+        logging.info(f"Connecting to mailbox server at {self._base_url}")
         while True:
             try:
                 if self._access_token is None:

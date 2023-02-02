@@ -132,7 +132,8 @@ class Agent(Sink):
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
 
-        self._server = ASGIServer(self._port, self._loop, self._queries)
+        if not self._use_mailbox:
+            self._server = ASGIServer(self._port, self._loop, self._queries)
 
     @property
     def name(self) -> str:
@@ -322,11 +323,6 @@ class Agent(Sink):
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
 
-        if self._use_mailbox:
-            task = self._loop.create_task(self._mailbox_client.run())
-            self._background_tasks.add(task)
-            task.add_done_callback(self._background_tasks.discard)
-
         # start the contract registration update loop
         if self._endpoints is not None:
             self._loop.create_task(
@@ -337,7 +333,10 @@ class Agent(Sink):
         self.setup()
         self._loop.run_until_complete(self.startup())
         try:
-            self._loop.run_until_complete(self._server.serve())
+            if self._use_mailbox:
+                self._loop.run_until_complete(self._mailbox_client.run())
+            else:
+                self._loop.run_until_complete(self._server.serve())
         finally:
             self._loop.run_until_complete(self.shutdown())
 
