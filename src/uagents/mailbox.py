@@ -4,8 +4,11 @@ import logging
 from typing import Dict
 
 import aiohttp
+import pydantic
+from aiohttp.client_exceptions import ClientConnectorError
 
 from uagents.config import MAILBOX_POLL_INTERVAL_SECONDS
+from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
 
@@ -20,9 +23,12 @@ class MailboxClient:
 
     async def run(self):
         while True:
-            if self._access_token is None:
-                await self._get_access_token()
-            await self._poll_server()
+            try:
+                if self._access_token is None:
+                    await self._get_access_token()
+                await self._poll_server()
+            except ClientConnectorError:
+                logging.exception("Failed to connect to mailbox server")
             await asyncio.sleep(self._poll_interval)
 
     async def _poll_server(self):
@@ -38,14 +44,32 @@ class MailboxClient:
                 if success:
                     items = (await resp.json())["items"]
                     for item in items:
-                        env = Envelope.parse_obj(item["envelope"])
-                        if env.verify():
-                            await dispatcher.dispatch(
-                                env.sender,
-                                env.target,
-                                env.protocol,
-                                env.decode_payload(),
+                        try:
+                            env = Envelope.parse_obj(item["envelope"])
+                        except pydantic.ValidationError:
+                            logging.warning("Received invalid envelope")
+                            continue
+
+                        do_verify = not is_user_address(env.sender)
+
+                        if do_verify and env.verify() is False:
+                            logging.warning(
+                                "Received envelope that failed verification"
                             )
+                            continue
+
+                        if not dispatcher.contains(env.target):
+                            logging.warning(
+                                "Received envelope for unrecognized address"
+                            )
+                            continue
+
+                        await dispatcher.dispatch(
+                            env.sender,
+                            env.target,
+                            env.protocol,
+                            env.decode_payload(),
+                        )
                 else:
                     logging.exception(
                         f"Failed to retrieve messages from inbox: {(await resp.text())}"
@@ -60,8 +84,8 @@ class MailboxClient:
                         headers={"Authorization": f"token {self._access_token}"},
                     ) as resp:
                         if resp.status != 200:
-                            logging.warning(
-                                f"Failed to delete message from inbox: {(await resp.text())}"
+                            logging.exception(
+                                f"Failed to delete envelope from inbox: {(await resp.text())}"
                             )
 
     async def _get_access_token(self):
