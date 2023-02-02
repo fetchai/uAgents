@@ -23,7 +23,6 @@ Or go to the official docs site: https://docs.fetch.ai/uAgents.
 
 The [`examples`](./examples) folder contains several examples of how to create and run various types of agents.
 
-
 ## Contributing
 
 All contributions are welcome! Remember, contribution includes not only code, but any help with docs or issues raised by other developers. See our [contribution guidelines](CONTRIBUTING.md) for more details.
