@@ -26,7 +26,8 @@ from uagents.config import (
     REGISTRATION_DENOM,
     LEDGER_PREFIX,
     BLOCK_INTERVAL,
-    DEFAULT_RELAY_SERVER,
+    parse_endpoint_config,
+    parse_mailbox_config,
 )
 
 
@@ -62,6 +63,8 @@ class Agent(Sink):
         self._background_tasks: Set[asyncio.Task] = set()
         self._resolver = resolve if resolve is not None else AlmanacResolver()
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
+
+        # initialize wallet and identity
         if seed is None:
             if name is None:
                 self._wallet = LocalWallet.generate()
@@ -79,11 +82,15 @@ class Agent(Sink):
             )
 
         # configure endpoints and mailbox
-        self._parse_endpoint_config(endpoint)
+        self._endpoints = parse_endpoint_config(endpoint)
         self._use_mailbox = mailbox is not None
         if self._use_mailbox:
-            self._parse_mailbox_config(mailbox)
+            self._mailbox = parse_mailbox_config(mailbox)
             self._mailbox_client = MailboxClient(self, self._mailbox)
+            # if mailbox is provided, override endpoints with mailbox endpoint
+            self._endpoints = [
+                {"url": f"{self._mailbox['base_url']}/v1/submit", "weight": 1}
+            ]
         if self._endpoints is None:
             logging.warning(
                 f"Agent {self.name} has no endpoint and won't be able to receive external messages"
@@ -151,38 +158,6 @@ class Agent(Sink):
         return self._identity.sign_registration(
             self._reg_contract.address, self.get_registration_sequence()
         )
-
-    def _parse_endpoint_config(
-        self, endpoint: Optional[Union[List[str], Dict[str, dict]]]
-    ):
-        if isinstance(endpoint, dict):
-            self._endpoints = [
-                {"url": val[0], "weight": val[1].get("weight") or 1}
-                for val in endpoint.items()
-            ]
-        elif isinstance(endpoint, list):
-            self._endpoints = [{"url": val, "weight": 1} for val in endpoint]
-        else:
-            self._endpoints = None
-
-    def _parse_mailbox_config(self, mailbox: Union[str, Dict[str, str]]):
-        api_key = None
-        base_url = None
-        if isinstance(mailbox, str):
-            if mailbox.count("@") == 1:
-                api_key, base_url = mailbox.split("@")
-            else:
-                api_key = mailbox
-        elif isinstance(mailbox, dict):
-            api_key = mailbox.get("api_key")
-            base_url = mailbox.get("base_url")
-        self._mailbox = {
-            "api_key": api_key,
-            "base_url": base_url or DEFAULT_RELAY_SERVER,
-        }
-        self._endpoints = [
-            {"url": f"{self._mailbox['base_url']}/v1/submit", "weight": 1}
-        ]
 
     def update_loop(self, loop):
         self._loop = loop
