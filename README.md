@@ -12,10 +12,12 @@ poetry shell
 ## Documentation
 
 Build and run the docs locally with:
+
 ```bash
 mkdocs serve
 ```
-Or go to the official docs site: https://docs.fetch.ai/uagents.
+
+Or go to the official docs site: https://docs.fetch.ai/uAgents.
 
 ## Examples
 
@@ -37,4 +39,3 @@ We use [GitHub Issues](https://github.com/fetchai/uAgents/issues) for tracking r
 ## License
 
 The μAgents project is licensed under [Apache License 2.0](LICENSE).
-
