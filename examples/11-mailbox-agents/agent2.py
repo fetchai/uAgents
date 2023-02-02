@@ -11,7 +11,6 @@ AGENT2_ADDRESS = "agent1qv73me5ql7kl30t0grehalj0aau0l4hpthp4m5q9v4qk2hz8h63vzpgy
 
 agent = Agent(
     name="bob",
-    port=8011,
     seed="agent2 secret phrase",
     mailbox="my_api_key",
 )
