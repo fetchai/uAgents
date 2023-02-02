@@ -1,4 +1,5 @@
 from uagents import Agent, Context, Model
+from uagents.setup import fund_agent_if_low
 
 
 class Message(Model):
@@ -14,6 +15,8 @@ agent = Agent(
     seed="agent1 secret phrase",
     mailbox="my_api_key",
 )
+
+fund_agent_if_low(agent.wallet.address())
 
 
 @agent.on_interval(period=2.0)
