@@ -26,6 +26,6 @@ async def handle_query_request(ctx: Context, sender: str, msg: QueryTableRequest
     else:
         status = TableStatus.FREE
 
-    print(f"Table {msg.table_number} query. Status: {status}")
+    ctx.logger.info(f"Table {msg.table_number} query. Status: {status}")
 
     await ctx.send(sender, QueryTableResponse(status=status))

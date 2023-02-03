@@ -25,7 +25,7 @@ async def send_message(ctx: Context):
 
 @agent.on_message(model=Message, replies=set())
 async def on_message(ctx: Context, sender: str, msg: Message):
-    print(f"[{ctx.name:5}] From: {sender} {msg.message}")
+    ctx.logger.info(f"Received message from {sender}: {msg.message}")
 
 
 if __name__ == "__main__":

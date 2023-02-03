@@ -50,7 +50,7 @@ async def handle_query_request(ctx: Context, sender: str, msg: QueryTableRequest
         ):
             available_tables.append(int(number))
 
-    print(f"Query: {msg}. Available tables: {available_tables}.")
+    ctx.logger.info(f"Query: {msg}. Available tables: {available_tables}.")
 
     await ctx.send(sender, QueryTableResponse(tables=available_tables))
 

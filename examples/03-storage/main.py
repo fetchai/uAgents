@@ -7,7 +7,7 @@ agent = Agent()
 async def on_interval(ctx: Context):
     current_count = ctx.storage.get("count") or 0
 
-    print(f"My count is: {current_count}")
+    ctx.logger.info(f"My count is: {current_count}")
 
     ctx.storage.set("count", current_count + 1)
 
