@@ -20,11 +20,14 @@ from uagents.protocol import Protocol
 from uagents.resolver import Resolver, AlmanacResolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.network import get_ledger, get_reg_contract
+from uagents.mailbox import MailboxClient
 from uagents.config import (
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
     LEDGER_PREFIX,
     BLOCK_INTERVAL,
+    parse_endpoint_config,
+    parse_mailbox_config,
 )
 
 
@@ -51,6 +54,7 @@ class Agent(Sink):
         port: Optional[int] = None,
         seed: Optional[str] = None,
         endpoint: Optional[Union[List[str], Dict[str, dict]]] = None,
+        mailbox: Optional[Union[str, Dict[str, str]]] = None,
         resolve: Optional[Resolver] = None,
         version: Optional[str] = None,
     ):
@@ -59,10 +63,13 @@ class Agent(Sink):
         self._background_tasks: Set[asyncio.Task] = set()
         self._resolver = resolve if resolve is not None else AlmanacResolver()
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
+
+        # initialize wallet and identity
         if seed is None:
             if name is None:
                 self._wallet = LocalWallet.generate()
                 self._identity = Identity.generate()
+                self._name = self.address[0:16]
             else:
                 identity_key, wallet_key = get_or_create_private_keys(name)
                 self._wallet = LocalWallet(PrivateKey(wallet_key))
@@ -73,7 +80,22 @@ class Agent(Sink):
                 PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
                 prefix=LEDGER_PREFIX,
             )
-        self._endpoint = endpoint
+
+        # configure endpoints and mailbox
+        self._endpoints = parse_endpoint_config(endpoint)
+        self._use_mailbox = mailbox is not None
+        if self._use_mailbox:
+            self._mailbox = parse_mailbox_config(mailbox)
+            self._mailbox_client = MailboxClient(self, self._mailbox)
+            # if mailbox is provided, override endpoints with mailbox endpoint
+            self._endpoints = [
+                {"url": f"{self._mailbox['base_url']}/v1/submit", "weight": 1}
+            ]
+        if self._endpoints is None:
+            logging.warning(
+                f"Agent {self.name} has no endpoint and won't be able to receive external messages"
+            )
+
         self._ledger = get_ledger()
         self._reg_contract = get_reg_contract()
         self._storage = KeyValueStore(self.address[0:16])
@@ -110,7 +132,8 @@ class Agent(Sink):
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
 
-        self._server = ASGIServer(self._port, self._loop, self._queries)
+        if not self._use_mailbox:
+            self._server = ASGIServer(self._port, self._loop, self._queries)
 
     @property
     def name(self) -> str:
@@ -125,6 +148,9 @@ class Agent(Sink):
     @property
     def wallet(self) -> LocalWallet:
         return self._wallet
+
+    def sign(self, data: bytes) -> str:
+        return self._identity.sign(data)
 
     def sign_digest(self, digest: bytes) -> str:
         return self._identity.sign_digest(digest)
@@ -144,22 +170,9 @@ class Agent(Sink):
 
         agent_balance = ctx.ledger.query_bank_balance(ctx.wallet)
 
-        if self._endpoint is None:
-            logging.warning(
-                "Agent has no endpoint and won't be able to receive external messages"
-            )
-            endpoints = []
-        elif isinstance(self._endpoint, dict):
-            endpoints = [
-                {"url": val[0], "weight": val[1].get("weight") or 1}
-                for val in self._endpoint.items()
-            ]
-        else:
-            endpoints = [{"url": val, "weight": 1} for val in self._endpoint]
-
         if agent_balance < REGISTRATION_FEE:
             logging.warning(
-                f"Agent does not have enough funds to register on Almanac contract\
+                f"Agent {self.name} does not have enough funds to register on Almanac contract\
                     \nFund using wallet address: {self.wallet.address()}"
             )
             return
@@ -171,7 +184,7 @@ class Agent(Sink):
                 "record": {
                     "service": {
                         "protocols": list(self.protocols.values()),
-                        "endpoints": endpoints,
+                        "endpoints": self._endpoints,
                     }
                 },
                 "signature": signature,
@@ -195,7 +208,7 @@ class Agent(Sink):
             f"Registering Agent {self._name}...complete\nWallet address: {self.wallet.address()}"
         )
 
-    def schedule_registration(self):
+    def _schedule_registration(self):
 
         query_msg = {"query_records": {"agent_address": self.address}}
         response = self._reg_contract.query(query_msg)
@@ -311,15 +324,19 @@ class Agent(Sink):
         task.add_done_callback(self._background_tasks.discard)
 
         # start the contract registration update loop
-        self._loop.create_task(
-            _run_interval(self.register, self._ctx, self.schedule_registration())
-        )
+        if self._endpoints is not None:
+            self._loop.create_task(
+                _run_interval(self.register, self._ctx, self._schedule_registration())
+            )
 
     def run(self):
         self.setup()
         self._loop.run_until_complete(self.startup())
         try:
-            self._loop.run_until_complete(self._server.serve())
+            if self._use_mailbox:
+                self._loop.run_until_complete(self._mailbox_client.run())
+            else:
+                self._loop.run_until_complete(self._server.serve())
         finally:
             self._loop.run_until_complete(self.shutdown())
 
