@@ -65,7 +65,7 @@ def get_logger(logger_name):
     logger.setLevel(logging.INFO)
     log_handler = logging.StreamHandler(sys.stdout)
     log_handler.setFormatter(
-        DefaultFormatter(fmt="%(levelprefix)s [%(name)10s]: %(message)s")
+        DefaultFormatter(fmt="%(levelprefix)s [%(name)5s]: %(message)s")
     )
     logger.addHandler(log_handler)
     logger.propagate = False
