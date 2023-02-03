@@ -10,7 +10,7 @@ async def on_interval1(ctx: Context):
 
 @agent.on_interval(period=3.0)
 async def on_interval2(ctx: Context):
-    ctx.logger.info("User interval code 1")
+    ctx.logger.info("User interval code 3")
 
 
 if __name__ == "__main__":

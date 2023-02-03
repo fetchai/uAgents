@@ -71,7 +71,7 @@ We also need to introduce a message handler for bob. We will do this inside the 
 ```python
 @bob.on_message(Message)
 async def message_handler(ctx: Context, sender: str, msg: Message):
-    ctx.logger.info(f"message received from {sender}:")
+    ctx.logger.info(f"Received message from {sender}: {msg.text}")
     ctx.logger.info(msg)
 ```
 
@@ -95,7 +95,7 @@ async def send_message(ctx: Context):
 
 @bob.on_message(model=Message)
 async def message_handler(ctx: Context, sender: str, msg: Message):
-    ctx.logger.info(f"message received from {sender}: {msg.text}")
+    ctx.logger.info(f"Received message from {sender}: {msg.text}")
 
 
 bureau = Bureau()
