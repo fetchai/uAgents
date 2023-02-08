@@ -74,9 +74,14 @@ class MailboxClient:
                             env.protocol,
                             env.decode_payload(),
                         )
+                elif resp.status == 401:
+                    self._access_token = None
+                    self._logger.warning(
+                        "Access token expired: a new one should be retrieved automatically"
+                    )
                 else:
                     self._logger.exception(
-                        f"Failed to retrieve messages from inbox: {(await resp.text())}"
+                        f"Failed to retrieve messages: {resp.status}:{(await resp.text())}"
                     )
 
             # delete any envelopes that were successfully processed
@@ -124,6 +129,7 @@ class MailboxClient:
                 headers={"content-type": "application/json"},
             ) as resp:
                 if resp and resp.status == 200:
+                    self._logger.info("Mailbox access token acquired")
                     self._access_token = (await resp.json())["access_token"]
                 else:
                     self._logger.exception(
