@@ -1,6 +1,5 @@
 import asyncio
 import functools
-import logging
 from typing import Dict, List, Optional, Set, Union
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
@@ -28,6 +27,7 @@ from uagents.config import (
     BLOCK_INTERVAL,
     parse_endpoint_config,
     parse_mailbox_config,
+    get_logger,
 )
 
 
@@ -36,9 +36,9 @@ async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
         try:
             await func(ctx)
         except OSError:
-            logging.exception("OS Error in interval handler")
+            ctx.logger.exception("OS Error in interval handler")
         except RuntimeError:
-            logging.exception("Runtime Error in interval handler")
+            ctx.logger.exception("Runtime Error in interval handler")
 
         await asyncio.sleep(period)
 
@@ -80,20 +80,21 @@ class Agent(Sink):
                 PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
                 prefix=LEDGER_PREFIX,
             )
+        self._logger = get_logger(self.name)
 
         # configure endpoints and mailbox
         self._endpoints = parse_endpoint_config(endpoint)
         self._use_mailbox = mailbox is not None
         if self._use_mailbox:
             self._mailbox = parse_mailbox_config(mailbox)
-            self._mailbox_client = MailboxClient(self, self._mailbox)
+            self._mailbox_client = MailboxClient(self, self._mailbox, self._logger)
             # if mailbox is provided, override endpoints with mailbox endpoint
             self._endpoints = [
                 {"url": f"{self._mailbox['base_url']}/v1/submit", "weight": 1}
             ]
         if self._endpoints is None:
-            logging.warning(
-                f"Agent {self.name} has no endpoint and won't be able to receive external messages"
+            self._logger.warning(
+                "I have no endpoint and won't be able to receive external messages"
             )
 
         self._ledger = get_ledger()
@@ -116,6 +117,7 @@ class Agent(Sink):
             self._queries,
             replies=self._replies,
             interval_messages=self._interval_messages,
+            logger=self._logger,
         )
         self._dispatcher = dispatcher
         self._message_queue = asyncio.Queue()
@@ -171,8 +173,8 @@ class Agent(Sink):
         agent_balance = ctx.ledger.query_bank_balance(ctx.wallet)
 
         if agent_balance < REGISTRATION_FEE:
-            logging.warning(
-                f"Agent {self.name} does not have enough funds to register on Almanac contract\
+            self._logger.warning(
+                f"I do not have enough funds to register on Almanac contract\
                     \nFund using wallet address: {self.wallet.address()}"
             )
             return
@@ -193,7 +195,7 @@ class Agent(Sink):
             }
         }
 
-        logging.info(f"Registering Agent {self._name}...")
+        self._logger.info("Registering on Almanac contract...")
         transaction = await self._loop.run_in_executor(
             None,
             functools.partial(
@@ -204,9 +206,7 @@ class Agent(Sink):
             ),
         )
         await self._loop.run_in_executor(None, transaction.wait_to_complete)
-        logging.info(
-            f"Registering Agent {self._name}...complete\nWallet address: {self.wallet.address()}"
-        )
+        self._logger.info("Registering on Almanac contract...complete")
 
     def _schedule_registration(self):
 
@@ -367,6 +367,7 @@ class Agent(Sink):
                 message_received=MsgDigest(
                     message=message, schema_digest=schema_digest
                 ),
+                logger=self._logger,
             )
 
             # attempt to find the handler

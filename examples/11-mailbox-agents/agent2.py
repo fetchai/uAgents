@@ -20,7 +20,7 @@ fund_agent_if_low(agent.wallet.address())
 
 @agent.on_message(model=Message, replies={Message})
 async def bob_rx_message(ctx: Context, sender: str, msg: Message):
-    print(f"[{ctx.name:5}] From: {sender} {msg.message}")
+    ctx.logger.info(f"Received message from {sender}: {msg.message}")
 
     # send the response
     await ctx.send(sender, Message(message="hello there alice"))

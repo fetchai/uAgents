@@ -62,11 +62,6 @@ def in_service_region(
     service_distance = geodesic(user_coordinates, cleaner_coordinates).miles
     in_range = service_distance <= availability.max_distance
 
-    if not in_range:
-        print(
-            f"Cleaner is too far away, max availability distance: {availability.max_distance} miles"
-        )
-
     return in_range
 
 
@@ -80,7 +75,7 @@ async def handle_query_request(ctx: Context, sender: str, msg: ServiceRequest):
 
     user, _ = await User.get_or_create(name=msg.user, address=sender)
     msg_duration_hours: float = msg.duration.total_seconds() / 3600
-    print(f"Received service request from user `{user.name}`")
+    ctx.logger.info(f"Received service request from user `{user.name}`")
 
     if (
         set(msg.services) <= set(services)
@@ -91,11 +86,11 @@ async def handle_query_request(ctx: Context, sender: str, msg: ServiceRequest):
     ):
         accept = True
         price = markup * availability.min_hourly_price * msg_duration_hours
-        print(f"I am available! Proposing price: {price}.")
+        ctx.logger.info(f"I am available! Proposing price: {price}.")
     else:
         accept = False
         price = 0
-        print("I am not available. Declining request.")
+        ctx.logger.info("I am not available. Declining request.")
 
     await ctx.send(sender, ServiceResponse(accept=accept, price=price))
 
@@ -109,7 +104,7 @@ async def handle_book_request(ctx: Context, sender: str, msg: ServiceBooking):
 
     user = await User.get(address=sender)
     msg_duration_hours: float = msg.duration.total_seconds() / 3600
-    print(f"Received booking request from user `{user.name}`")
+    ctx.logger.info(f"Received booking request from user `{user.name}`")
 
     success = (
         set(msg.services) <= set(services)
@@ -121,7 +116,7 @@ async def handle_book_request(ctx: Context, sender: str, msg: ServiceBooking):
     if success:
         availability.time_start = msg.time_start + msg.duration
         await availability.save()
-        print("Accepted task and updated availability.")
+        ctx.logger.info("Accepted task and updated availability.")
 
     # send the response
     await ctx.send(sender, BookingResponse(success=success))

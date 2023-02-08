@@ -43,7 +43,7 @@ async def interval(ctx: Context):
     completed = ctx.storage.get("completed")
 
     if not completed:
-        print(f"Requesting cleaning service: {request}")
+        ctx.logger.info(f"Requesting cleaning service: {request}")
         await ctx.send(CLEANER_ADDRESS, request)
 
 
@@ -51,7 +51,7 @@ async def interval(ctx: Context):
 async def handle_query_response(ctx: Context, sender: str, msg: ServiceResponse):
     markdown = ctx.storage.get("markdown")
     if msg.accept:
-        print("Cleaner is available, attempting to book now")
+        ctx.logger.info("Cleaner is available, attempting to book now")
         booking = ServiceBooking(
             location=request.location,
             time_start=request.time_start,
@@ -61,16 +61,16 @@ async def handle_query_response(ctx: Context, sender: str, msg: ServiceResponse)
         )
         await ctx.send(sender, booking)
     else:
-        print("Cleaner is not available - nothing more to do")
+        ctx.logger.info("Cleaner is not available - nothing more to do")
         ctx.storage.set("completed", True)
 
 
 @user.on_message(BookingResponse, replies=set())
 async def handle_book_response(ctx: Context, _sender: str, msg: BookingResponse):
     if msg.success:
-        print("Booking was successful")
+        ctx.logger.info("Booking was successful")
     else:
-        print("Booking was UNSUCCESSFUL")
+        ctx.logger.info("Booking was UNSUCCESSFUL")
 
     ctx.storage.set("completed", True)
 

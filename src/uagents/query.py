@@ -1,14 +1,17 @@
-import logging
 import uuid
 from time import time
 from typing import Optional
 
 import aiohttp
 
+from uagents.config import get_logger
 from uagents.crypto import generate_user_address
 from uagents.envelope import Envelope
 from uagents.models import Model
 from uagents.resolver import Resolver, AlmanacResolver
+
+
+LOGGER = get_logger("query")
 
 
 async def query(
@@ -27,7 +30,7 @@ async def query(
     # resolve the endpoint
     endpoint = await resolver.resolve(destination)
     if endpoint is None:
-        logging.exception(
+        LOGGER.exception(
             f"Unable to resolve destination endpoint for address {destination}"
         )
         return
@@ -62,7 +65,7 @@ async def query(
             if success:
                 return Envelope.parse_obj(await resp.json())
 
-    logging.exception(f"Unable to query {destination} @ {endpoint}")
+    LOGGER.exception(f"Unable to query {destination} @ {endpoint}")
 
 
 def enclose_response(message: Model, sender: str, session: str) -> dict:

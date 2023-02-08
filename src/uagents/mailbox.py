@@ -1,35 +1,38 @@
 import asyncio
 import json
 import logging
-from typing import Dict
+from typing import Dict, Optional
 
 import aiohttp
 import pydantic
 from aiohttp.client_exceptions import ClientConnectorError
 
-from uagents.config import MAILBOX_POLL_INTERVAL_SECONDS
+from uagents.config import get_logger, MAILBOX_POLL_INTERVAL_SECONDS
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
 
 
 class MailboxClient:
-    def __init__(self, agent, config: Dict[str, str]):
+    def __init__(
+        self, agent, config: Dict[str, str], logger: Optional[logging.Logger] = None
+    ):
         self._base_url = config["base_url"]
         self._api_key = config["api_key"]
         self._agent = agent
         self._access_token: str = None
         self._poll_interval = MAILBOX_POLL_INTERVAL_SECONDS
+        self._logger = logger or get_logger("mailbox")
 
     async def run(self):
-        logging.info(f"Connecting to mailbox server at {self._base_url}")
+        self._logger.info(f"Connecting to mailbox server at {self._base_url}")
         while True:
             try:
                 if self._access_token is None:
                     await self._get_access_token()
                 await self._poll_server()
             except ClientConnectorError:
-                logging.exception("Failed to connect to mailbox server")
+                self._logger.exception("Failed to connect to mailbox server")
             await asyncio.sleep(self._poll_interval)
 
     async def _poll_server(self):
@@ -48,19 +51,19 @@ class MailboxClient:
                         try:
                             env = Envelope.parse_obj(item["envelope"])
                         except pydantic.ValidationError:
-                            logging.warning("Received invalid envelope")
+                            self._logger.warning("Received invalid envelope")
                             continue
 
                         do_verify = not is_user_address(env.sender)
 
                         if do_verify and env.verify() is False:
-                            logging.warning(
+                            self._logger.warning(
                                 "Received envelope that failed verification"
                             )
                             continue
 
                         if not dispatcher.contains(env.target):
-                            logging.warning(
+                            self._logger.warning(
                                 "Received envelope for unrecognized address"
                             )
                             continue
@@ -72,7 +75,7 @@ class MailboxClient:
                             env.decode_payload(),
                         )
                 else:
-                    logging.exception(
+                    self._logger.exception(
                         f"Failed to retrieve messages from inbox: {(await resp.text())}"
                     )
 
@@ -85,7 +88,7 @@ class MailboxClient:
                         headers={"Authorization": f"token {self._access_token}"},
                     ) as resp:
                         if resp.status != 200:
-                            logging.exception(
+                            self._logger.exception(
                                 f"Failed to delete envelope from inbox: {(await resp.text())}"
                             )
 
@@ -102,7 +105,7 @@ class MailboxClient:
                 if resp and resp.status == 200:
                     challenge: str = (await resp.json())["challenge"]
                 else:
-                    logging.exception(
+                    self._logger.exception(
                         f"Failed to retrieve authorization challenge: {(await resp.text())}"
                     )
                     return
@@ -123,6 +126,6 @@ class MailboxClient:
                 if resp and resp.status == 200:
                     self._access_token = (await resp.json())["access_token"]
                 else:
-                    logging.exception(
+                    self._logger.exception(
                         f"Failed to prove authorization: {(await resp.text())}"
                     )

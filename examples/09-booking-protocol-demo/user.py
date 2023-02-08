@@ -39,7 +39,7 @@ async def interval(ctx: Context):
 @user.on_message(QueryTableResponse, replies={BookTableRequest})
 async def handle_query_response(ctx: Context, sender: str, msg: QueryTableResponse):
     if len(msg.tables) > 0:
-        print("There is a free table, attempting to book one now")
+        ctx.logger.info("There is a free table, attempting to book one now")
         table_number = msg.tables[0]
         request = BookTableRequest(
             table_number=table_number,
@@ -48,16 +48,16 @@ async def handle_query_response(ctx: Context, sender: str, msg: QueryTableRespon
         )
         await ctx.send(sender, request)
     else:
-        print("No free tables - nothing more to do")
+        ctx.logger.info("No free tables - nothing more to do")
         ctx.storage.set("completed", True)
 
 
 @user.on_message(BookTableResponse, replies=set())
 async def handle_book_response(ctx: Context, _sender: str, msg: BookTableResponse):
     if msg.success:
-        print("Table reservation was successful")
+        ctx.logger.info("Table reservation was successful")
     else:
-        print("Table reservation was UNSUCCESSFUL")
+        ctx.logger.info("Table reservation was UNSUCCESSFUL")
 
     ctx.storage.set("completed", True)
 

@@ -1,6 +1,9 @@
 import logging
+import sys
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
+
+from uvicorn.logging import DefaultFormatter
 
 logging.basicConfig(level=logging.INFO)
 
@@ -55,3 +58,15 @@ def parse_mailbox_config(mailbox: Union[str, Dict[str, str]]) -> Dict[str, str]:
         "api_key": api_key,
         "base_url": base_url or DEFAULT_MAILBOX_SERVER,
     }
+
+
+def get_logger(logger_name):
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(logging.INFO)
+    log_handler = logging.StreamHandler(sys.stdout)
+    log_handler.setFormatter(
+        DefaultFormatter(fmt="%(levelprefix)s [%(name)5s]: %(message)s")
+    )
+    logger.addHandler(log_handler)
+    logger.propagate = False
+    return logger

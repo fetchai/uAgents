@@ -19,7 +19,7 @@ Let's start with a simple task of saying hello every 2 seconds:
 ```python
 @alice.on_interval(period=2.0)
 async def say_hello(ctx: Context):
-    print(f'hello, my name is {ctx.name}')
+    ctx.logger.info(f'hello, my name is {ctx.name}')
 ```
 The `Context` object is a collection of data and functions related to the agent. In this case, we just use the agent's name.
 
@@ -34,7 +34,7 @@ alice = Agent(name="alice", seed="alice recovery phrase")
 
 @alice.on_interval(period=2.0)
 async def say_hello(ctx: Context):
-    print(f'hello, my name is {ctx.name}')
+    ctx.logger.info(f'hello, my name is {ctx.name}')
 
 if __name__ == "__main__":
     alice.run()

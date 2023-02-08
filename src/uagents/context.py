@@ -45,6 +45,7 @@ class Context:
         replies: Optional[Dict[str, Set[str]]] = None,
         interval_messages: Optional[Dict[str, Set[str]]] = None,
         message_received: Optional[MsgDigest] = None,
+        logger: Optional[logging.Logger] = None,
     ):
         self.storage = storage
         self.wallet = wallet
@@ -57,6 +58,7 @@ class Context:
         self._replies = replies
         self._interval_messages = interval_messages
         self._message_received = message_received
+        self._logger = logger
 
     @property
     def name(self) -> str:
@@ -67,6 +69,10 @@ class Context:
     @property
     def address(self) -> str:
         return self._address
+
+    @property
+    def logger(self) -> str:
+        return self._logger
 
     async def send(
         self,
@@ -88,7 +94,7 @@ class Context:
             if received.schema_digest in self._replies:
                 # ensure the reply is valid
                 if schema_digest not in self._replies[received.schema_digest]:
-                    logging.exception(
+                    self._logger.exception(
                         f"Outgoing message {type(message)} "
                         f"is not a valid reply to {received.message}"
                     )
@@ -97,7 +103,7 @@ class Context:
         # check if this message is a valid interval message
         if self._message_received is None and self._interval_messages:
             if schema_digest not in self._interval_messages:
-                logging.exception(
+                self._logger.exception(
                     f"Outgoing message {type(message)} is not a valid interval message"
                 )
                 return
@@ -118,7 +124,7 @@ class Context:
         # resolve the endpoint
         endpoint = await self._resolver.resolve(destination)
         if endpoint is None:
-            logging.exception(
+            self._logger.exception(
                 f"Unable to resolve destination endpoint for address {destination}"
             )
             return
@@ -146,4 +152,6 @@ class Context:
                 success = resp.status == 200
 
         if not success:
-            logging.exception(f"Unable to send envelope to {destination} @ {endpoint}")
+            self._logger.exception(
+                f"Unable to send envelope to {destination} @ {endpoint}"
+            )

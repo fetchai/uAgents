@@ -14,11 +14,11 @@ bob = Agent(name="bob", seed="bob recovery phrase")
 
 @alice.on_interval(period=2.0)
 async def say_hello(ctx: Context):
-    print(f'Hello, my name is {ctx.name}')
+    ctx.logger.info(f'Hello, my name is {ctx.name}')
 
 @bob.on_interval(period=2.0)
 async def say_hello(ctx: Context):
-    print(f'Hello, my name is {ctx.name}')
+    ctx.logger.info(f'Hello, my name is {ctx.name}')
 
 bureau = Bureau()
 bureau.add(alice)
@@ -70,9 +70,9 @@ We also need to introduce a message handler for bob. We will do this inside the 
 
 ```python
 @bob.on_message(Message)
-async def message_handler(sender: str, msg: Message):
-    print(f"message received from {sender}:")
-    print(msg)
+async def message_handler(ctx: Context, sender: str, msg: Message):
+    ctx.logger.info(f"Received message from {sender}: {msg.text}")
+    ctx.logger.info(msg)
 ```
 
 Finally, we need to add both agents to the `Bureau` in order to run them from the same script.
@@ -95,8 +95,7 @@ async def send_message(ctx: Context):
 
 @bob.on_message(model=Message)
 async def message_handler(ctx: Context, sender: str, msg: Message):
-    print(f"[{ctx.name}]: message received from {sender}:")
-    print(msg.text)
+    ctx.logger.info(f"Received message from {sender}: {msg.text}")
 
 
 bureau = Bureau()
