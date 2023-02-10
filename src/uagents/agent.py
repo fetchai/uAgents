@@ -56,6 +56,7 @@ class Agent(Sink):
         endpoint: Optional[Union[List[str], Dict[str, dict]]] = None,
         mailbox: Optional[Union[str, Dict[str, str]]] = None,
         resolve: Optional[Resolver] = None,
+        enable_wallet_messaging: Optional[bool] = False,
         version: Optional[str] = None,
     ):
         self._name = name
@@ -97,6 +98,15 @@ class Agent(Sink):
                 "I have no endpoint and won't be able to receive external messages"
             )
 
+        if enable_wallet_messaging:
+            from uagents.wallet_messaging import WalletMessagingClient
+
+            self._wallet_messaging_client = WalletMessagingClient(
+                self.address, self._wallet, self._logger
+            )
+        else:
+            self._wallet_messaging_client = None
+
         self._ledger = get_ledger()
         self._reg_contract = get_reg_contract()
         self._storage = KeyValueStore(self.address[0:16])
@@ -117,6 +127,7 @@ class Agent(Sink):
             self._queries,
             replies=self._replies,
             interval_messages=self._interval_messages,
+            wallet_messaging_client=self._wallet_messaging_client,
             logger=self._logger,
         )
         self._dispatcher = dispatcher
@@ -159,7 +170,7 @@ class Agent(Sink):
 
     def sign_registration(self) -> str:
         return self._identity.sign_registration(
-            self._reg_contract.address, self.get_registration_sequence()
+            self._reg_contract.address, self._get_registration_sequence()
         )
 
     def update_loop(self, loop):
@@ -190,7 +201,7 @@ class Agent(Sink):
                     }
                 },
                 "signature": signature,
-                "sequence": self.get_registration_sequence(),
+                "sequence": self._get_registration_sequence(),
                 "agent_address": self.address,
             }
         }
@@ -223,7 +234,7 @@ class Agent(Sink):
 
         return (expiry - height) * BLOCK_INTERVAL
 
-    def get_registration_sequence(self) -> int:
+    def _get_registration_sequence(self) -> int:
         query_msg = {"query_sequence": {"agent_address": self.address}}
         sequence = self._reg_contract.query(query_msg)["sequence"]
 
@@ -270,6 +281,16 @@ class Agent(Sink):
             self._on_startup.append(func)
         elif event_type == "shutdown":
             self._on_shutdown.append(func)
+
+    def on_wallet_message(
+        self,
+    ):
+        if self._wallet_messaging_client is None:
+            self._logger.warning(
+                "Discarding 'on_wallet_message' handler because wallet messaging is disabled"
+            )
+            return None
+        return self._wallet_messaging_client.on_message()
 
     def include(self, protocol: Protocol):
         for func, period in protocol.intervals:
@@ -322,6 +343,16 @@ class Agent(Sink):
         task = self._loop.create_task(self._process_message_queue())
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
+
+        # start the wallet messaging client if enabled
+        if self._wallet_messaging_client is not None:
+            for task in [
+                self._wallet_messaging_client.run(),
+                self._wallet_messaging_client.process_message_queue(self._ctx),
+            ]:
+                task = self._loop.create_task(task)
+                self._background_tasks.add(task)
+                task.add_done_callback(self._background_tasks.discard)
 
         # start the contract registration update loop
         if self._endpoints is not None:

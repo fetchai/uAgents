@@ -20,6 +20,7 @@ from uagents.storage import KeyValueStore
 IntervalCallback = Callable[["Context"], Awaitable[None]]
 MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
 EventCallback = Callable[["Context"], Awaitable[None]]
+WalletMessageCallback = Callable[["Context", Any], Awaitable[None]]
 
 
 @dataclass
@@ -45,6 +46,7 @@ class Context:
         replies: Optional[Dict[str, Set[str]]] = None,
         interval_messages: Optional[Dict[str, Set[str]]] = None,
         message_received: Optional[MsgDigest] = None,
+        wallet_messaging_client: Optional[Any] = None,
         logger: Optional[logging.Logger] = None,
     ):
         self.storage = storage
@@ -58,6 +60,7 @@ class Context:
         self._replies = replies
         self._interval_messages = interval_messages
         self._message_received = message_received
+        self._wallet_messaging_client = wallet_messaging_client
         self._logger = logger
 
     @property
@@ -155,3 +158,10 @@ class Context:
             self._logger.exception(
                 f"Unable to send envelope to {destination} @ {endpoint}"
             )
+
+    async def send_wallet_message(
+        self,
+        destination: str,
+        text: str,
+    ):
+        await self._wallet_messaging_client.send(destination, text)

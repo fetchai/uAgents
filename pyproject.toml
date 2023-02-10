@@ -29,6 +29,9 @@ tortoise-orm = "^0.19.2"
 [tool.poetry.group.geo.dependencies]
 geopy = "^2.3.0"
 
+[tool.poetry.group.wallet.dependencies]
+babble = {path = "../babble"}
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"

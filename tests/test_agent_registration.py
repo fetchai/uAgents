@@ -14,10 +14,10 @@ class TestVerify(unittest.TestCase):
 
         fund_agent_if_low(agent.wallet.address())
 
-        sequence = agent.get_registration_sequence()
+        sequence = agent._get_registration_sequence()
 
         signature = agent._identity.sign_registration(
-            agent._reg_contract.address, agent.get_registration_sequence()
+            agent._reg_contract.address, agent._get_registration_sequence()
         )
 
         msg = {
