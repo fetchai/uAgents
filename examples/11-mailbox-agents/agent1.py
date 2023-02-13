@@ -9,7 +9,6 @@ class Message(Model):
 BOB_ADDRESS = "agent1q2kxet3vh0scsf0sm7y2erzz33cve6tv5uk63x64upw5g68kr0chkv7hw50"
 API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZ2VudEBmZXRjaC5haSIsImV4cCI6MTY3NjMwOTY0Nn0.uZRrJdZoxupWyLsLDjd8oZ8h5x_u0jL9UThftGeImKE"  # pylint: disable=line-too-long
 
-
 agent = Agent(
     name="alice",
     seed="alice secret phrase",

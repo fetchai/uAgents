@@ -151,14 +151,6 @@ class Agent(Sink):
     def wallet(self) -> LocalWallet:
         return self._wallet
 
-    @property
-    def mailbox(self) -> Dict[str, str]:
-        return self._mailbox
-
-    @mailbox.setter
-    def mailbox(self, config: Union[str, Dict[str, str]]):
-        self._mailbox = parse_mailbox_config(config)
-
     def sign(self, data: bytes) -> str:
         return self._identity.sign(data)
 
