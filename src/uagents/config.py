@@ -22,7 +22,7 @@ REGISTRATION_DENOM = "atestfet"
 BLOCK_INTERVAL = 5
 AGENT_NETWORK = AgentNetwork.FETCHAI_TESTNET
 
-DEFAULT_MAILBOX_SERVER = "http://127.0.0.1:8000"
+MAILBOX_SERVER_URL = "https://mailroom-staging.sandbox-london-b.fetch-ai.com"
 MAILBOX_POLL_INTERVAL_SECONDS = 1.0
 
 DEFAULT_ENVELOPE_TIMEOUT_SECONDS = 30
@@ -56,7 +56,7 @@ def parse_mailbox_config(mailbox: Union[str, Dict[str, str]]) -> Dict[str, str]:
         base_url = mailbox.get("base_url")
     return {
         "api_key": api_key,
-        "base_url": base_url or DEFAULT_MAILBOX_SERVER,
+        "base_url": base_url or MAILBOX_SERVER_URL,
     }
 
 

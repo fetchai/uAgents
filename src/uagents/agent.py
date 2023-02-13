@@ -151,6 +151,14 @@ class Agent(Sink):
     def wallet(self) -> LocalWallet:
         return self._wallet
 
+    @property
+    def mailbox(self) -> Dict[str, str]:
+        return self._mailbox
+
+    @mailbox.setter
+    def mailbox(self, config: Union[str, Dict[str, str]]):
+        self._mailbox = parse_mailbox_config(config)
+
     def sign(self, data: bytes) -> str:
         return self._identity.sign(data)
 
@@ -168,7 +176,7 @@ class Agent(Sink):
     def update_queries(self, queries):
         self._queries = queries
 
-    async def register(self, ctx: Context):
+    async def _register(self, ctx: Context):
 
         agent_balance = ctx.ledger.query_bank_balance(ctx.wallet)
 
@@ -306,11 +314,11 @@ class Agent(Sink):
     async def handle_message(self, sender, schema_digest: str, message: JsonStr):
         await self._message_queue.put((schema_digest, sender, message))
 
-    async def startup(self):
+    async def _startup(self):
         for handler in self._on_startup:
             await handler(self._ctx)
 
-    async def shutdown(self):
+    async def _shutdown(self):
         for handler in self._on_shutdown:
             await handler(self._ctx)
 
@@ -326,19 +334,19 @@ class Agent(Sink):
         # start the contract registration update loop
         if self._endpoints is not None:
             self._loop.create_task(
-                _run_interval(self.register, self._ctx, self._schedule_registration())
+                _run_interval(self._register, self._ctx, self._schedule_registration())
             )
 
     def run(self):
         self.setup()
-        self._loop.run_until_complete(self.startup())
+        self._loop.run_until_complete(self._startup())
         try:
             if self._use_mailbox:
                 self._loop.run_until_complete(self._mailbox_client.run())
             else:
                 self._loop.run_until_complete(self._server.serve())
         finally:
-            self._loop.run_until_complete(self.shutdown())
+            self._loop.run_until_complete(self._shutdown())
 
     async def _process_message_queue(self):
         while True:
