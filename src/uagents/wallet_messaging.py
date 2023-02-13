@@ -44,7 +44,7 @@ class WalletMessagingClient:
     async def send(self, destination: str, msg: WalletMessage):
         self._client.send(destination, msg)
 
-    async def run(self):
+    async def poll_server(self):
         self._logger.info(f"Connecting to wallet messaging server")
         while True:
             self._logger.info("Checking wallet messages...")

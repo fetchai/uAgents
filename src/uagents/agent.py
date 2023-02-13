@@ -347,7 +347,7 @@ class Agent(Sink):
         # start the wallet messaging client if enabled
         if self._wallet_messaging_client is not None:
             for task in [
-                self._wallet_messaging_client.run(),
+                self._wallet_messaging_client.poll_server(),
                 self._wallet_messaging_client.process_message_queue(self._ctx),
             ]:
                 task = self._loop.create_task(task)
