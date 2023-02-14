@@ -122,6 +122,7 @@ class MailboxClient:
                 data=json.dumps(
                     {
                         "address": self._agent.address,
+                        "api_key": self._api_key,
                         "challenge": challenge,
                         "challenge_response": self._agent.sign(challenge.encode()),
                     }

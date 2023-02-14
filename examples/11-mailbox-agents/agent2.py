@@ -6,13 +6,12 @@ class Message(Model):
     message: str
 
 
-AGENT1_ADDRESS = "agent1qv2l7qzcd2g2rcv2p93tqflrcaq5dk7c2xc7fcnfq3s37zgkhxjmq5mfyvz"
-AGENT2_ADDRESS = "agent1qv73me5ql7kl30t0grehalj0aau0l4hpthp4m5q9v4qk2hz8h63vzpgyadp"
+API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZ2VudEBmZXRjaC5haSIsImV4cCI6MTY3NjMwOTY0Nn0.uZRrJdZoxupWyLsLDjd8oZ8h5x_u0jL9UThftGeImKE"  # pylint: disable=line-too-long
 
 agent = Agent(
     name="bob",
-    seed="agent2 secret phrase",
-    mailbox="my_api_key",
+    seed="bob secret phrase",
+    mailbox=API_KEY,
 )
 
 fund_agent_if_low(agent.wallet.address())
