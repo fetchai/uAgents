@@ -87,10 +87,13 @@ class Agent(Sink):
         self._use_mailbox = mailbox is not None
         if self._use_mailbox:
             self._mailbox = parse_mailbox_config(mailbox)
-            self._mailbox_client = MailboxClient(self, self._mailbox, self._logger)
+            self._mailbox_client = MailboxClient(self, self._logger)
             # if mailbox is provided, override endpoints with mailbox endpoint
             self._endpoints = [
-                {"url": f"{self._mailbox['base_url']}/v1/submit", "weight": 1}
+                {
+                    "url": f"{self.mailbox['http_prefix']}://{self.mailbox['base_url']}/v1/submit",
+                    "weight": 1,
+                }
             ]
         if self._endpoints is None:
             self._logger.warning(
@@ -150,6 +153,14 @@ class Agent(Sink):
     @property
     def wallet(self) -> LocalWallet:
         return self._wallet
+
+    @property
+    def mailbox(self) -> Dict[str, str]:
+        return self._mailbox
+
+    @mailbox.setter
+    def mailbox(self, config: Union[str, Dict[str, str]]):
+        self._mailbox = parse_mailbox_config(config)
 
     def sign(self, data: bytes) -> str:
         return self._identity.sign(data)
