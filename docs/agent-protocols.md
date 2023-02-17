@@ -37,7 +37,7 @@ async def handle_book_request(ctx: Context, sender: str, msg: BookTableRequest):
 
 ```
 
-Save this file as `book.py`. To alow your agent to use this protocol, you can simply create a folder called protocols withing the directory you are running your agent from and then import it from your agent's script:
+Save this file as `book.py`. To allow your agent to use this protocol, you can simply create a folder called protocols withing the directory you are running your agent from and then import it from your agent's script:
 
 ```python
 from protocols.book import book_proto
