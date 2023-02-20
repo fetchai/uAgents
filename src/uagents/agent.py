@@ -345,6 +345,7 @@ class Agent(Sink):
         self._loop.run_until_complete(self._startup())
         try:
             if self._use_mailbox:
+                self._loop.create_task(self._mailbox_client.process_deletion_queue())
                 self._loop.run_until_complete(self._mailbox_client.run())
             else:
                 self._loop.run_until_complete(self._server.serve())
