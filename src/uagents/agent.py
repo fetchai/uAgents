@@ -95,10 +95,6 @@ class Agent(Sink):
                     "weight": 1,
                 }
             ]
-        if self._endpoints is None:
-            self._logger.warning(
-                "I have no endpoint and won't be able to receive external messages"
-            )
 
         self._ledger = get_ledger()
         self._reg_contract = get_reg_contract()
@@ -338,6 +334,10 @@ class Agent(Sink):
         if self._endpoints is not None:
             self._loop.create_task(
                 _run_interval(self._register, self._ctx, self._schedule_registration())
+            )
+        else:
+            self._logger.warning(
+                "I have no endpoint and won't be able to receive external messages"
             )
 
     def run(self):

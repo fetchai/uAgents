@@ -44,7 +44,7 @@ class MailboxClient:
             try:
                 if self._access_token is None:
                     await self._get_access_token()
-                if self.protocol == "ws":
+                if self.protocol in {"ws", "wss"}:
                     await self._open_websocket_connection()
                 else:
                     await self._poll_server()
@@ -114,7 +114,6 @@ class MailboxClient:
     async def _open_websocket_connection(self):
         async with aiohttp.ClientSession() as session:
             try:
-                self._logger.info(self.base_url)
                 async with connect(
                     f"{self.protocol}://{self.base_url}/v1/events?token={self._access_token}"
                 ) as websocket:

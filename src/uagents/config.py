@@ -58,7 +58,7 @@ def parse_mailbox_config(mailbox: Union[str, Dict[str, str]]) -> Dict[str, str]:
     if "://" in base_url:
         protocol, base_url = base_url.split("://")
     else:
-        protocol = "http"
+        protocol = "wss"
     http_prefix = "https" if protocol in {"wss", "https"} else "http"
     return {
         "api_key": api_key,
