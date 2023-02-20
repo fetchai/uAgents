@@ -6,6 +6,7 @@ To be found by other μAgents, each μAgent needs to register (paying a small fe
 
 ```python
 from uagents.setup import fund_agent_if_low
+from uagents import Agent
 
 agent = Agent(name="alice", seed="agent1 secret phrase")
 
