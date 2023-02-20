@@ -1,5 +1,5 @@
 from uagents import Agent, Context, Model
-from uagents.setup import fund_agent_if_low
+from uagents.setup import fund_agent_if_low, register_agent_with_mailbox
 
 
 class Message(Model):
@@ -7,19 +7,20 @@ class Message(Model):
 
 
 BOB_ADDRESS = "agent1q2kxet3vh0scsf0sm7y2erzz33cve6tv5uk63x64upw5g68kr0chkv7hw50"
-API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZ2VudEBmZXRjaC5haSIsImV4cCI6MTY3NjMwOTY0Nn0.uZRrJdZoxupWyLsLDjd8oZ8h5x_u0jL9UThftGeImKE"  # pylint: disable=line-too-long
 
 agent = Agent(
     name="alice",
     seed="alice secret phrase",
-    mailbox=API_KEY,
+    mailbox="my_api_key@ws://127.0.0.1:8000",
 )
 
 fund_agent_if_low(agent.wallet.address())
+register_agent_with_mailbox(agent, "alice@uagent.ai")
 
 
 @agent.on_interval(period=2.0)
 async def send_message(ctx: Context):
+    ctx.logger.info("Sending message to bob")
     await ctx.send(BOB_ADDRESS, Message(message="hello there bob"))
 
 
