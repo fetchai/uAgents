@@ -1,9 +1,13 @@
 # Agent protocols
 
-When trying to create agent interactions, it might be necessary to add protocols that contain more complex handlers to perform the desired logic within agents.
+The μAgents framework supports capturing related message types and handlers in **protocols**.
 
-We first need to define the type of messages that the handler will receive and send. We will use a table book request as an example.
-Here we define `BookTableRequest` which will contain the requested table number and `BookTableResponse` which will send back to the user if that table number is available.
+A `protocol` is built similar to an `agent`, but it has no identity and cannot be run.
+It contains only the message types and handlers that define some component of agent functionality.
+
+To show how this works, we will use a simple restaurant table booking request as an example.
+We first need to define the type of messages that the handler will receive and send. 
+Here we define `BookTableRequest` which will contain the requested table number and `BookTableResponse` which will inform the user if that table is available.
 
 ```python
 from uagents import Context, Model, Protocol
@@ -37,7 +41,8 @@ async def handle_book_request(ctx: Context, sender: str, msg: BookTableRequest):
 
 ```
 
-Save this file as `book.py`. To allow your agent to use this protocol, you can simply create a folder called protocols withing the directory you are running your agent from and then import it from your agent's script:
+We will create a folder named `protocols` and save this file in it as `book.py`. 
+We can then import it from the agent script:
 
 ```python
 from protocols.book import book_proto
