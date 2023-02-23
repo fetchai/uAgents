@@ -1,6 +1,7 @@
 # Agent protocols
 
 The μAgents framework supports capturing related message types and handlers in **protocols**.
+Agents who include the same protocol will be able to communicate with each other.
 
 A `protocol` is built similar to an `agent`, but it has no identity and cannot be run.
 It contains only the message types and handlers that define some component of agent functionality.
