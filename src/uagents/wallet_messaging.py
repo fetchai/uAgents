@@ -47,7 +47,6 @@ class WalletMessagingClient:
     async def poll_server(self):
         self._logger.info(f"Connecting to wallet messaging server")
         while True:
-            self._logger.info("Checking wallet messages...")
             for msg in self._client.receive():
                 await self._message_queue.put(msg)
             await asyncio.sleep(self._poll_interval)
