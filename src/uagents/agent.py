@@ -18,7 +18,7 @@ from uagents.models import Model, ErrorMessage
 from uagents.protocol import Protocol
 from uagents.resolver import Resolver, AlmanacResolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
-from uagents.network import get_ledger, get_reg_contract
+from uagents.network import get_ledger, get_reg_contract, wait_for_tx_to_complete
 from uagents.mailbox import MailboxClient
 from uagents.config import (
     REGISTRATION_FEE,
@@ -203,16 +203,12 @@ class Agent(Sink):
         }
 
         self._logger.info("Registering on Almanac contract...")
-        transaction = await self._loop.run_in_executor(
-            None,
-            functools.partial(
-                self._reg_contract.execute,
-                msg,
-                ctx.wallet,
-                funds=f"{REGISTRATION_FEE}{REGISTRATION_DENOM}",
-            ),
+        transaction = self._reg_contract.execute(
+            msg,
+            ctx.wallet,
+            funds=f"{REGISTRATION_FEE}{REGISTRATION_DENOM}",
         )
-        await self._loop.run_in_executor(None, transaction.wait_to_complete)
+        await wait_for_tx_to_complete(transaction.tx_hash)
         self._logger.info("Registering on Almanac contract...complete")
 
     def _schedule_registration(self):
