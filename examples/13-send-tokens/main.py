@@ -30,7 +30,7 @@ async def request_funds(ctx: Context):
 
 
 @alice.on_message(model=TransactionInfo)
-async def alice_rx_message(ctx: Context, sender: str, msg: TransactionInfo):
+async def confirm_transaction(ctx: Context, sender: str, msg: TransactionInfo):
     ctx.logger.info(f"Received transaction info from {sender}: {msg}")
     tx_resp = await wait_for_tx_to_complete(msg.tx_hash)
 
@@ -43,7 +43,7 @@ async def alice_rx_message(ctx: Context, sender: str, msg: TransactionInfo):
 
 
 @bob.on_message(model=PaymentRequest, replies=TransactionInfo)
-async def bob_rx_message(ctx: Context, sender: str, msg: PaymentRequest):
+async def send_payment(ctx: Context, sender: str, msg: PaymentRequest):
     ctx.logger.info(f"Received payment request from {sender}: {msg}")
 
     # send the payment
