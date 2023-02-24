@@ -1,5 +1,6 @@
 from uagents import Agent, Bureau, Context, Model
 from uagents.network import wait_for_tx_to_complete
+from uagents.setup import fund_agent_if_low
 
 
 class PaymentRequest(Model):
@@ -17,6 +18,9 @@ DENOM = "atestfet"
 
 alice = Agent(name="alice", seed="alice secret phrase")
 bob = Agent(name="bob", seed="bob secret phrase")
+
+fund_agent_if_low(alice.wallet.address())
+fund_agent_if_low(bob.wallet.address())
 
 
 @alice.on_interval(period=10.0)
