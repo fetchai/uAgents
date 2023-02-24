@@ -1,8 +1,6 @@
 from uagents import Agent, Bureau, Context, Model
 from uagents.network import wait_for_tx_to_complete
 
-from cosmpy.aerial.client import TxResponse
-
 
 class PaymentRequest(Model):
     wallet_address: str
@@ -49,10 +47,12 @@ async def bob_rx_message(ctx: Context, sender: str, msg: PaymentRequest):
     ctx.logger.info(f"Received payment request from {sender}: {msg}")
 
     # send the payment
-    tx = ctx.ledger.send_tokens(msg.wallet_address, msg.amount, msg.denom, ctx.wallet)
+    transaction = ctx.ledger.send_tokens(
+        msg.wallet_address, msg.amount, msg.denom, ctx.wallet
+    )
 
     # send the tx hash so alice can confirm
-    await ctx.send(alice.address, TransactionInfo(tx_hash=tx.tx_hash))
+    await ctx.send(alice.address, TransactionInfo(tx_hash=transaction.tx_hash))
 
 
 bureau = Bureau()
