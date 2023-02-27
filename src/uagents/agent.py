@@ -18,7 +18,7 @@ from uagents.models import Model, ErrorMessage
 from uagents.protocol import Protocol
 from uagents.resolver import Resolver, AlmanacResolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
-from uagents.network import get_ledger, get_reg_contract
+from uagents.network import get_ledger, get_reg_contract, wait_for_tx_to_complete
 from uagents.mailbox import MailboxClient
 from uagents.config import (
     REGISTRATION_FEE,
@@ -88,15 +88,14 @@ class Agent(Sink):
         self._use_mailbox = mailbox is not None
         if self._use_mailbox:
             self._mailbox = parse_mailbox_config(mailbox)
-            self._mailbox_client = MailboxClient(self, self._mailbox, self._logger)
+            self._mailbox_client = MailboxClient(self, self._logger)
             # if mailbox is provided, override endpoints with mailbox endpoint
             self._endpoints = [
-                {"url": f"{self._mailbox['base_url']}/v1/submit", "weight": 1}
+                {
+                    "url": f"{self.mailbox['http_prefix']}://{self.mailbox['base_url']}/v1/submit",
+                    "weight": 1,
+                }
             ]
-        if self._endpoints is None:
-            self._logger.warning(
-                "I have no endpoint and won't be able to receive external messages"
-            )
 
         if enable_wallet_messaging:
             from uagents.wallet_messaging import WalletMessagingClient
@@ -162,6 +161,14 @@ class Agent(Sink):
     def wallet(self) -> LocalWallet:
         return self._wallet
 
+    @property
+    def mailbox(self) -> Dict[str, str]:
+        return self._mailbox
+
+    @mailbox.setter
+    def mailbox(self, config: Union[str, Dict[str, str]]):
+        self._mailbox = parse_mailbox_config(config)
+
     def sign(self, data: bytes) -> str:
         return self._identity.sign(data)
 
@@ -179,7 +186,7 @@ class Agent(Sink):
     def update_queries(self, queries):
         self._queries = queries
 
-    async def register(self, ctx: Context):
+    async def _register(self, ctx: Context):
 
         agent_balance = ctx.ledger.query_bank_balance(ctx.wallet)
 
@@ -207,16 +214,12 @@ class Agent(Sink):
         }
 
         self._logger.info("Registering on Almanac contract...")
-        transaction = await self._loop.run_in_executor(
-            None,
-            functools.partial(
-                self._reg_contract.execute,
-                msg,
-                ctx.wallet,
-                funds=f"{REGISTRATION_FEE}{REGISTRATION_DENOM}",
-            ),
+        transaction = self._reg_contract.execute(
+            msg,
+            ctx.wallet,
+            funds=f"{REGISTRATION_FEE}{REGISTRATION_DENOM}",
         )
-        await self._loop.run_in_executor(None, transaction.wait_to_complete)
+        await wait_for_tx_to_complete(transaction.tx_hash)
         self._logger.info("Registering on Almanac contract...complete")
 
     def _schedule_registration(self):
@@ -327,11 +330,11 @@ class Agent(Sink):
     async def handle_message(self, sender, schema_digest: str, message: JsonStr):
         await self._message_queue.put((schema_digest, sender, message))
 
-    async def startup(self):
+    async def _startup(self):
         for handler in self._on_startup:
             await handler(self._ctx)
 
-    async def shutdown(self):
+    async def _shutdown(self):
         for handler in self._on_shutdown:
             await handler(self._ctx)
 
@@ -357,19 +360,24 @@ class Agent(Sink):
         # start the contract registration update loop
         if self._endpoints is not None:
             self._loop.create_task(
-                _run_interval(self.register, self._ctx, self._schedule_registration())
+                _run_interval(self._register, self._ctx, self._schedule_registration())
+            )
+        else:
+            self._logger.warning(
+                "I have no endpoint and won't be able to receive external messages"
             )
 
     def run(self):
         self.setup()
-        self._loop.run_until_complete(self.startup())
+        self._loop.run_until_complete(self._startup())
         try:
             if self._use_mailbox:
+                self._loop.create_task(self._mailbox_client.process_deletion_queue())
                 self._loop.run_until_complete(self._mailbox_client.run())
             else:
                 self._loop.run_until_complete(self._server.serve())
         finally:
-            self._loop.run_until_complete(self.shutdown())
+            self._loop.run_until_complete(self._shutdown())
 
     async def _process_message_queue(self):
         while True:
