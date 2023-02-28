@@ -2,10 +2,12 @@ import asyncio
 import functools
 import logging
 from typing import List, Optional
+from aiohttp import ClientConnectorError
 
 from babble import Client, Identity as BabbleIdentity
 from babble.client import Message as WalletMessage
 from cosmpy.aerial.wallet import LocalWallet
+from requests import HTTPError, ConnectionError
 
 from uagents.config import WALLET_MESSAGING_POLL_INTERVAL_SECONDS, get_logger
 from uagents.context import Context, WalletMessageCallback
@@ -47,8 +49,11 @@ class WalletMessagingClient:
     async def poll_server(self):
         self._logger.info(f"Connecting to wallet messaging server")
         while True:
-            for msg in self._client.receive():
-                await self._message_queue.put(msg)
+            try:
+                for msg in self._client.receive():
+                    await self._message_queue.put(msg)
+            except (HTTPError, ConnectionError):
+                self._logger.warning("Failed to get messages from wallet messaging server")
             await asyncio.sleep(self._poll_interval)
 
     async def process_message_queue(self, ctx: Context):
