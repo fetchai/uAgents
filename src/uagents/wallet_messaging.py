@@ -15,11 +15,17 @@ class WalletMessagingClient:
     def __init__(
         self,
         delegate_address: str,
+        delegate_pubkey_b64: str,
+        signature: str,
+        signed_bytes: str,
         wallet: LocalWallet,
         logger: Optional[logging.Logger] = None,
     ):
         self._client = Client(
             delegate_address,
+            delegate_pubkey_b64,
+            signature,
+            signed_bytes,
             BabbleIdentity(wallet.signer().private_key_bytes),
         )
         self._poll_interval = WALLET_MESSAGING_POLL_INTERVAL_SECONDS

@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import base64
 from typing import Dict, List, Optional, Set, Union
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
@@ -100,8 +101,18 @@ class Agent(Sink):
         if enable_wallet_messaging:
             from uagents.wallet_messaging import WalletMessagingClient
 
+            delegate_pubkey = self._identity.pub_key
+            delegate_pubkey_b64 = base64.b64encode(bytes.fromhex(delegate_pubkey)).decode()
+            public_key = base64.b64decode(self._wallet.public_key().public_key).hex()
+            signed_bytes, signature = self._identity.sign_arbitrary(public_key.encode())
+
             self._wallet_messaging_client = WalletMessagingClient(
-                self.address, self._wallet, self._logger
+                self.address,
+                delegate_pubkey_b64,
+                signature,
+                signed_bytes,
+                self._wallet,
+                self._logger
             )
         else:
             self._wallet_messaging_client = None
