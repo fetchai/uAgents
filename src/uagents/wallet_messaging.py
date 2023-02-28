@@ -2,7 +2,6 @@ import asyncio
 import functools
 import logging
 from typing import List, Optional
-from aiohttp import ClientConnectorError
 
 from babble import Client, Identity as BabbleIdentity
 from babble.client import Message as WalletMessage
