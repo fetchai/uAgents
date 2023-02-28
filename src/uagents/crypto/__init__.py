@@ -2,10 +2,11 @@ import hashlib
 import struct
 from secrets import token_bytes
 from typing import Tuple, Union
-import bech32
-import ecdsa
 import json
 import base64
+
+import bech32
+import ecdsa
 from ecdsa.util import sigencode_string_canonize
 
 from uagents.config import USER_PREFIX
@@ -107,7 +108,7 @@ class Identity:
     @property
     def address(self) -> str:
         return self._address
-    
+
     @property
     def pub_key(self) -> str:
         return self._pub_key
@@ -118,7 +119,7 @@ class Identity:
     def sign_b64(self, data: bytes) -> str:
         raw_signature = bytes(self._sk.sign(data, sigencode=sigencode_string_canonize))
         return base64.b64encode(raw_signature).decode()
-    
+
     def sign_digest(self, digest: bytes) -> str:
         return _encode_bech32("sig", self._sk.sign_digest(digest))
 
