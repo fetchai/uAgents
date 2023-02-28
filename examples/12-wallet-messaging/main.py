@@ -2,11 +2,11 @@ from uagents import Agent, Bureau, Context
 from uagents.wallet_messaging import WalletMessage
 
 
-alice_seed = "alice recovery phrase"
-bob_seed = "bob recovery phrase"
+ALICE_SEED = "alice recovery phrase"
+BOB_SEED = "bob recovery phrase"
 
-alice = Agent(name="alice", seed=alice_seed, enable_wallet_messaging=True)
-bob = Agent(name="bob", seed=bob_seed, enable_wallet_messaging=True)
+alice = Agent(name="alice", seed=ALICE_SEED, enable_wallet_messaging=True)
+bob = Agent(name="bob", seed=BOB_SEED, enable_wallet_messaging=True)
 
 
 @alice.on_wallet_message()
@@ -22,7 +22,7 @@ async def send_message(ctx: Context):
 
 
 @bob.on_wallet_message()
-async def reply(ctx: Context, msg: WalletMessage):
+async def wallet_reply(ctx: Context, msg: WalletMessage):
     ctx.logger.info(f"Got wallet message: {msg.text}")
 
 
