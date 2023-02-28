@@ -2,8 +2,12 @@ import hashlib
 import struct
 from secrets import token_bytes
 from typing import Tuple, Union
+import json
+import base64
+
 import bech32
 import ecdsa
+from ecdsa.util import sigencode_string_canonize
 
 from uagents.config import USER_PREFIX
 
@@ -71,6 +75,7 @@ class Identity:
         # build the address
         pub_key_bytes = self._sk.get_verifying_key().to_string(encoding="compressed")
         self._address = _encode_bech32("agent", pub_key_bytes)
+        self._pub_key = pub_key_bytes.hex()
 
     @staticmethod
     def from_seed(seed: str, index: int) -> "Identity":
@@ -104,8 +109,16 @@ class Identity:
     def address(self) -> str:
         return self._address
 
+    @property
+    def pub_key(self) -> str:
+        return self._pub_key
+
     def sign(self, data: bytes) -> str:
         return _encode_bech32("sig", self._sk.sign(data))
+
+    def sign_b64(self, data: bytes) -> str:
+        raw_signature = bytes(self._sk.sign(data, sigencode=sigencode_string_canonize))
+        return base64.b64encode(raw_signature).decode()
 
     def sign_digest(self, digest: bytes) -> str:
         return _encode_bech32("sig", self._sk.sign_digest(digest))
@@ -116,6 +129,36 @@ class Identity:
         hasher.update(encode_length_prefixed(self.address))
         hasher.update(encode_length_prefixed(sequence))
         return self.sign_digest(hasher.digest())
+
+    def sign_arbitrary(self, data: bytes) -> Tuple[str, str]:
+        # create the sign doc
+        sign_doc = {
+            "chain_id": "",
+            "account_number": "0",
+            "sequence": "0",
+            "fee": {
+                "gas": "0",
+                "amount": [],
+            },
+            "msgs": [
+                {
+                    "type": "sign/MsgSignData",
+                    "value": {
+                        "signer": self.address,
+                        "data": base64.b64encode(data).decode(),
+                    },
+                },
+            ],
+            "memo": "",
+        }
+
+        raw_sign_doc = json.dumps(
+            sign_doc, sort_keys=True, separators=(",", ":")
+        ).encode()
+        signature = self.sign_b64(raw_sign_doc)
+        enc_sign_doc = base64.b64encode(raw_sign_doc).decode()
+
+        return enc_sign_doc, signature
 
     @staticmethod
     def verify_digest(address: str, digest: bytes, signature: str) -> bool:

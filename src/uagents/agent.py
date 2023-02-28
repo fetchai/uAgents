@@ -101,7 +101,7 @@ class Agent(Sink):
             from uagents.wallet_messaging import WalletMessagingClient
 
             self._wallet_messaging_client = WalletMessagingClient(
-                self.address, self._wallet, self._logger
+                self._identity, self._wallet, self._logger
             )
         else:
             self._wallet_messaging_client = None

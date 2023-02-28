@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import functools
 import logging
 from typing import List, Optional
@@ -9,17 +10,25 @@ from cosmpy.aerial.wallet import LocalWallet
 
 from uagents.config import WALLET_MESSAGING_POLL_INTERVAL_SECONDS, get_logger
 from uagents.context import Context, WalletMessageCallback
+from uagents.crypto import Identity
 
 
 class WalletMessagingClient:
     def __init__(
         self,
-        delegate_address: str,
+        identity: Identity,
         wallet: LocalWallet,
         logger: Optional[logging.Logger] = None,
     ):
-        self._client = Client(
-            delegate_address,
+        delegate_pubkey = identity.pub_key
+        delegate_pubkey_b64 = base64.b64encode(bytes.fromhex(delegate_pubkey)).decode()
+        public_key = base64.b64decode(wallet.public_key().public_key).hex()
+        signed_bytes, signature = identity.sign_arbitrary(public_key.encode())
+        self._client = Client(  # pylint: disable=E1121
+            identity.address,
+            delegate_pubkey_b64,
+            signature,
+            signed_bytes,
             BabbleIdentity(wallet.signer().private_key_bytes),
         )
         self._poll_interval = WALLET_MESSAGING_POLL_INTERVAL_SECONDS
@@ -45,7 +54,7 @@ class WalletMessagingClient:
         self._client.send(destination, msg)
 
     async def poll_server(self):
-        self._logger.info(f"Connecting to wallet messaging server")
+        self._logger.info("Connecting to wallet messaging server")
         while True:
             for msg in self._client.receive():
                 await self._message_queue.put(msg)
