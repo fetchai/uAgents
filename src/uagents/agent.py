@@ -151,6 +151,10 @@ class Agent(Sink):
         return self._wallet
 
     @property
+    def storage(self) -> KeyValueStore:
+        return self._storage
+
+    @property
     def mailbox(self) -> Dict[str, str]:
         return self._mailbox
 
