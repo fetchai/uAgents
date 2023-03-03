@@ -69,7 +69,6 @@ class Agent(Sink):
             if name is None:
                 self._wallet = LocalWallet.generate()
                 self._identity = Identity.generate()
-                self._name = self.address[0:16]
             else:
                 identity_key, wallet_key = get_or_create_private_keys(name)
                 self._wallet = LocalWallet(PrivateKey(wallet_key))
@@ -80,6 +79,8 @@ class Agent(Sink):
                 PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
                 prefix=LEDGER_PREFIX,
             )
+        if name is None:
+            self._name = self.address[0:16]
         self._logger = get_logger(self.name)
 
         # configure endpoints and mailbox
@@ -138,9 +139,7 @@ class Agent(Sink):
 
     @property
     def name(self) -> str:
-        if self._name is not None:
-            return self._name
-        return self.address[:10]
+        return self._name
 
     @property
     def address(self) -> str:
