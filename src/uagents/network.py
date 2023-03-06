@@ -9,11 +9,12 @@ from cosmpy.aerial.client import (
     NetworkConfig,
     DEFAULT_QUERY_INTERVAL_SECS,
     DEFAULT_QUERY_TIMEOUT_SECS,
+    create_bank_send_msg,
 )
 from cosmpy.aerial.exceptions import NotFoundError, QueryTimeoutError
 from cosmpy.aerial.faucet import FaucetApi
 from cosmpy.aerial.tx import SigningCfg, Transaction
-from cosmpy.aerial.tx_helpers import TxResponse, SubmittedTx
+from cosmpy.aerial.tx_helpers import TxResponse
 from cosmpy.aerial.wallet import Wallet
 
 from uagents.config import AgentNetwork, CONTRACT_ALMANAC, AGENT_NETWORK
@@ -65,9 +66,19 @@ async def wait_for_tx_to_complete(
         await asyncio.sleep(poll_period.total_seconds())
 
 
+def create_send_tokens_transaction(
+    sender: Wallet, destination: str, amount: int, denom: str, **kwargs
+):
+    transaction = Transaction()
+    transaction.add_message(
+        create_bank_send_msg(sender.address(), destination, amount, denom)
+    )
+    return prepare_basic_transaction(_ledger, transaction, sender, **kwargs)
+
+
 def prepare_basic_transaction(
     client: LedgerClient,
-    tx: Transaction,
+    transaction: Transaction,
     sender: Wallet,
     account: Optional[Account] = None,
     gas_limit: Optional[int] = None,
@@ -79,24 +90,26 @@ def prepare_basic_transaction(
     if gas_limit is not None:
         fee = client.estimate_fee_from_gas(gas_limit)
     else:
-        tx.seal(
+        transaction.seal(
             SigningCfg.direct(sender.public_key(), account.sequence),
             fee="",
             gas_limit=0,
             memo=memo,
         )
-        tx.sign(sender.signer(), client.network_config.chain_id, account.number)
-        tx.complete()
+        transaction.sign(
+            sender.signer(), client.network_config.chain_id, account.number
+        )
+        transaction.complete()
 
         # simulate the gas and fee for the transaction
-        gas_limit, fee = client.estimate_gas_and_fee_for_tx(tx)
+        gas_limit, fee = client.estimate_gas_and_fee_for_tx(transaction)
 
     # finally, build the final transaction that will be executed with the correct gas and fee values
-    tx.seal(
+    transaction.seal(
         SigningCfg.direct(sender.public_key(), account.sequence),
         fee=fee,
         gas_limit=gas_limit,
         memo=memo,
     )
 
-    return tx
+    return transaction

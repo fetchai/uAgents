@@ -163,5 +163,6 @@ class Context:
         self,
         destination: str,
         text: str,
+        msg_type: int = 1,
     ):
-        await self._wallet_messaging_client.send(destination, text)
+        await self._wallet_messaging_client.send(destination, text, msg_type)

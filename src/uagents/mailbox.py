@@ -97,7 +97,6 @@ class MailboxClient:
 
     async def _poll_server(self):
         async with aiohttp.ClientSession() as session:
-
             # check the inbox for envelopes and handle them
             mailbox_url = f"{self.http_prefix}://{self.base_url}/v1/mailbox"
             async with session.get(
@@ -140,7 +139,6 @@ class MailboxClient:
 
     async def _get_access_token(self):
         async with aiohttp.ClientSession() as session:
-
             # get challenge
             challenge_url = f"{self.http_prefix}://{self.base_url}/v1/auth/challenge"
             async with session.post(

@@ -90,7 +90,6 @@ class Protocol:
         func: IntervalCallback,
         messages: Optional[Union[Model, Set[Model]]],
     ):
-
         # store the interval handler for later
         self._intervals.append((func, period))
 
@@ -147,9 +146,10 @@ class Protocol:
         if replies is not None:
             if not isinstance(replies, set):
                 replies = {replies}
-            self._replies[model_digest] = {
-                Model.build_schema_digest(reply): reply for reply in replies
-            }
+            for reply in replies:
+                reply_schema_digest = Model.build_schema_digest(reply)
+                self._replies[reply_schema_digest] = reply
+                self._models[reply_schema_digest] = reply
 
             self.spec.path(
                 path=model.__name__,
