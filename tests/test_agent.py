@@ -38,7 +38,7 @@ class TestAgent(unittest.TestCase):
         def _(_ctx):
             pass
 
-        interval = self.agent._protocol._intervals[0]
+        interval = self.agent._protocol._interval_handlers[0]
         self.assertTrue(isinstance(interval[0], Callable))
         self.assertEqual(interval[1], 10)
 
