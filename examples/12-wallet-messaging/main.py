@@ -2,8 +2,8 @@ from uagents import Agent, Bureau, Context
 from uagents.wallet_messaging import WalletMessage
 
 
-ALICE_SEED = "alice recovery phrase"
-BOB_SEED = "bob recovery phrase"
+ALICE_SEED = "alice dorado recovery phrase"
+BOB_SEED = "bob dorado recovery phrase"
 
 alice = Agent(name="alice", seed=ALICE_SEED, enable_wallet_messaging=True)
 bob = Agent(name="bob", seed=BOB_SEED, enable_wallet_messaging=True)

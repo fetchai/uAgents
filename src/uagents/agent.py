@@ -81,6 +81,8 @@ class Agent(Sink):
                 PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
                 prefix=LEDGER_PREFIX,
             )
+        self._ledger = get_ledger()
+        self._reg_contract = get_reg_contract()
         self._logger = get_logger(self.name)
 
         # configure endpoints and mailbox
@@ -101,13 +103,14 @@ class Agent(Sink):
             from uagents.wallet_messaging import WalletMessagingClient
 
             self._wallet_messaging_client = WalletMessagingClient(
-                self._identity, self._wallet, self._logger
+                self._identity,
+                self._wallet,
+                self._ledger.network_config.chain_id,
+                self._logger,
             )
         else:
             self._wallet_messaging_client = None
 
-        self._ledger = get_ledger()
-        self._reg_contract = get_reg_contract()
         self._storage = KeyValueStore(self.address[0:16])
         self._interval_messages: Set[str] = set()
         self._signed_message_handlers: Dict[str, MessageCallback] = {}
