@@ -19,6 +19,7 @@ class WalletMessagingClient:
         self,
         identity: Identity,
         wallet: LocalWallet,
+        chain_id: str,
         logger: Optional[logging.Logger] = None,
     ):
         delegate_pubkey = identity.pub_key
@@ -31,6 +32,7 @@ class WalletMessagingClient:
             signature,
             signed_bytes,
             BabbleIdentity(wallet.signer().private_key_bytes),
+            chain_id,
         )
         self._poll_interval = WALLET_MESSAGING_POLL_INTERVAL_SECONDS
         self._logger = logger or get_logger("wallet_messaging")
