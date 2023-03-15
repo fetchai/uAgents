@@ -27,7 +27,7 @@ TABLES = {
 }
 
 for (number, status) in TABLES.items():
-    restaurant._storage.set(number, status.dict())  # pylint: disable=protected-access
+    restaurant.storage.set(number, status.dict())
 
 if __name__ == "__main__":
     restaurant.run()

@@ -1,6 +1,6 @@
 import asyncio
 import functools
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 
@@ -70,7 +70,6 @@ class Agent(Sink):
             if name is None:
                 self._wallet = LocalWallet.generate()
                 self._identity = Identity.generate()
-                self._name = self.address[0:16]
             else:
                 identity_key, wallet_key = get_or_create_private_keys(name)
                 self._wallet = LocalWallet(PrivateKey(wallet_key))
@@ -83,6 +82,8 @@ class Agent(Sink):
             )
         self._ledger = get_ledger()
         self._reg_contract = get_reg_contract()
+        if name is None:
+            self._name = self.address[0:16]
         self._logger = get_logger(self.name)
 
         # configure endpoints and mailbox
@@ -112,6 +113,7 @@ class Agent(Sink):
             self._wallet_messaging_client = None
 
         self._storage = KeyValueStore(self.address[0:16])
+        self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
         self._interval_messages: Set[str] = set()
         self._signed_message_handlers: Dict[str, MessageCallback] = {}
         self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
@@ -152,9 +154,7 @@ class Agent(Sink):
 
     @property
     def name(self) -> str:
-        if self._name is not None:
-            return self._name
-        return self.address[:10]
+        return self._name
 
     @property
     def address(self) -> str:
@@ -163,6 +163,10 @@ class Agent(Sink):
     @property
     def wallet(self) -> LocalWallet:
         return self._wallet
+
+    @property
+    def storage(self) -> KeyValueStore:
+        return self._storage
 
     @property
     def mailbox(self) -> Dict[str, str]:
@@ -298,9 +302,7 @@ class Agent(Sink):
 
     def include(self, protocol: Protocol):
         for func, period in protocol.intervals:
-            task = self._loop.create_task(_run_interval(func, self._ctx, period))
-            self._background_tasks.add(task)
-            task.add_done_callback(self._background_tasks.discard)
+            self._interval_handlers.append((func, period))
 
         self._interval_messages.update(protocol.interval_messages)
 
@@ -342,6 +344,15 @@ class Agent(Sink):
     def setup(self):
         # register the internal agent protocol
         self.include(self._protocol)
+        self._loop.run_until_complete(self._startup())
+        self.start_background_tasks()
+
+    def start_background_tasks(self):
+        # Start the interval tasks
+        for func, period in self._interval_handlers:
+            task = self._loop.create_task(_run_interval(func, self._ctx, period))
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
 
         # start the background message queue processor
         task = self._loop.create_task(self._process_message_queue())
@@ -370,7 +381,6 @@ class Agent(Sink):
 
     def run(self):
         self.setup()
-        self._loop.run_until_complete(self._startup())
         try:
             if self._use_mailbox:
                 self._loop.create_task(self._mailbox_client.process_deletion_queue())

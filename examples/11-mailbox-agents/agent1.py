@@ -1,21 +1,24 @@
 from uagents import Agent, Context, Model
-from uagents.setup import fund_agent_if_low, register_agent_with_mailbox
+from uagents.setup import fund_agent_if_low
 
 
 class Message(Model):
     message: str
 
 
-BOB_ADDRESS = "agent1q2kxet3vh0scsf0sm7y2erzz33cve6tv5uk63x64upw5g68kr0chkv7hw50"
+BOB_ADDRESS = "agent1qwdxsdmxus9v7ama8y95krj048286euu0vsaxq6qgzjec00xlfyevfmf3cu"
+
+API_KEY = "my_api_key"
+MAILBOX_URL = "ws://127.0.0.1:8000"
+
 
 agent = Agent(
     name="alice",
-    seed="alice secret phrase",
-    mailbox="my_api_key@ws://127.0.0.1:8000",
+    seed="alice new phrase",
+    mailbox=f"{API_KEY}@{MAILBOX_URL}",
 )
 
 fund_agent_if_low(agent.wallet.address())
-register_agent_with_mailbox(agent, "alice@uagent.ai")
 
 
 @agent.on_interval(period=2.0)
