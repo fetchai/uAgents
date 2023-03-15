@@ -3,7 +3,7 @@ import logging
 import uuid
 from dataclasses import dataclass
 from time import time
-from typing import Dict, Set, Optional, Callable, Any, Awaitable
+from typing import Dict, Set, Optional, Callable, Any, Awaitable, Type
 
 import aiohttp
 from cosmpy.aerial.client import LedgerClient
@@ -42,8 +42,8 @@ class Context:
         wallet: LocalWallet,
         ledger: LedgerClient,
         queries: Dict[str, asyncio.Future],
-        replies: Optional[Dict[str, Set[str]]] = None,
-        interval_messages: Optional[Dict[str, Set[str]]] = None,
+        replies: Optional[Dict[str, Set[Type[Model]]]] = None,
+        interval_messages: Optional[Set[str]] = None,
         message_received: Optional[MsgDigest] = None,
         logger: Optional[logging.Logger] = None,
     ):
@@ -71,7 +71,7 @@ class Context:
         return self._address
 
     @property
-    def logger(self) -> str:
+    def logger(self) -> logging.Logger:
         return self._logger
 
     async def send(
@@ -144,7 +144,6 @@ class Context:
         env.encode_payload(json_message)
         env.sign(self._identity)
 
-        success = False
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 endpoint, headers={"content-type": "application/json"}, data=env.json()

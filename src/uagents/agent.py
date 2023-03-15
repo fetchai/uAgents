@@ -1,8 +1,9 @@
 import asyncio
 import functools
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Union, Type
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
+from cosmpy.crypto.address import Address
 
 from uagents.asgi import ASGIServer
 from uagents.context import (
@@ -103,8 +104,8 @@ class Agent(Sink):
         self._interval_messages: Set[str] = set()
         self._signed_message_handlers: Dict[str, MessageCallback] = {}
         self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
-        self._models: Dict[str, Model] = {}
-        self._replies: Dict[str, Set[Model]] = {}
+        self._models: Dict[str, Type[Model]] = {}
+        self._replies: Dict[str, Set[Type[Model]]] = {}
         self._queries: Dict[str, asyncio.Future] = {}
         self._ctx = Context(
             self._identity.address,
@@ -158,8 +159,9 @@ class Agent(Sink):
         return self._identity.sign_digest(digest)
 
     def sign_registration(self) -> str:
+        assert self._reg_contract.address is not None
         return self._identity.sign_registration(
-            self._reg_contract.address, self.get_registration_sequence()
+            str(self._reg_contract.address), self.get_registration_sequence()
         )
 
     def update_loop(self, loop):
@@ -170,7 +172,7 @@ class Agent(Sink):
 
     async def _register(self, ctx: Context):
 
-        agent_balance = ctx.ledger.query_bank_balance(ctx.wallet)
+        agent_balance = ctx.ledger.query_bank_balance(Address(ctx.address))
 
         if agent_balance < REGISTRATION_FEE:
             self._logger.warning(
@@ -213,7 +215,7 @@ class Agent(Sink):
         query_msg = {"query_records": {"agent_address": self.address}}
         response = self._reg_contract.query(query_msg)
 
-        if response["record"] == []:
+        if not response["record"]:
             contract_state = self._reg_contract.query({"query_contract_state": {}})
             expiry = contract_state.get("state").get("expiry_height")
             return expiry * BLOCK_INTERVAL
@@ -249,7 +251,7 @@ class Agent(Sink):
     ):
         return self._protocol.on_message(model, replies, allow_unverified)
 
-    def on_event(self, event_type: str) -> EventCallback:
+    def on_event(self, event_type: str):
         def decorator_on_event(func: EventCallback) -> EventCallback:
             @functools.wraps(func)
             def handler(*args, **kwargs):

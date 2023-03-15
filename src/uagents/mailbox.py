@@ -20,7 +20,7 @@ class MailboxClient:
         self._base_url = config["base_url"]
         self._api_key = config["api_key"]
         self._agent = agent
-        self._access_token: str = None
+        self._access_token: Optional[str] = None
         self._poll_interval = MAILBOX_POLL_INTERVAL_SECONDS
         self._logger = logger or get_logger("mailbox")
 

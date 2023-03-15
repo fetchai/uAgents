@@ -1,12 +1,11 @@
 import functools
 import hashlib
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union, Type
 
 from apispec import APISpec
 
 from uagents.context import IntervalCallback, MessageCallback
 from uagents.models import Model
-
 
 OPENAPI_VERSION = "3.0.2"
 
@@ -17,8 +16,8 @@ class Protocol:
         self._interval_messages: Set[str] = set()
         self._signed_message_handlers: Dict[str, MessageCallback] = {}
         self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
-        self._models: Dict[str, Model] = {}
-        self._replies: Dict[str, Set[Model]] = {}
+        self._models: Dict[str, Type[Model]] = {}
+        self._replies: Dict[str, Dict[str, Type[Model]]] = {}
         self._name = name or ""
         self._version = version or "0.1.0"
         self._canonical_name = f"{self._name}:{self._version}"
@@ -88,7 +87,7 @@ class Protocol:
         self,
         period: float,
         func: IntervalCallback,
-        messages: Optional[Union[Model, Set[Model]]],
+        messages: Optional[Union[Type[Model], Set[Type[Model]]]],
     ):
 
         # store the interval handler for later
@@ -107,15 +106,15 @@ class Protocol:
 
     def on_query(
         self,
-        model: Model,
+        model: Type[Model],
         replies: Optional[Union[Model, Set[Model]]] = None,
     ):
         return self.on_message(model, replies, allow_unverified=True)
 
     def on_message(
         self,
-        model: Model,
-        replies: Optional[Union[Model, Set[Model]]] = None,
+        model: Type[Model],
+        replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
         allow_unverified: Optional[bool] = False,
     ):
         def decorator_on_message(func: MessageCallback):
@@ -131,9 +130,9 @@ class Protocol:
 
     def _add_message_handler(
         self,
-        model: Model,
+        model: Type[Model],
         func: MessageCallback,
-        replies: Optional[Union[Model, Set[Model]]],
+        replies: Optional[Union[Type[Model], Set[Type[Model]]]],
         allow_unverified: Optional[bool] = False,
     ):
         model_digest = Model.build_schema_digest(model)
