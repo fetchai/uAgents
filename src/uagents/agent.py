@@ -130,7 +130,7 @@ class Agent(Sink):
         self._protocol = Protocol(name=self._name, version=self._version)
 
         # keep track of supported protocols
-        self.protocols = {}
+        self.protocols: Dict[str, Protocol] = {}
 
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
@@ -187,7 +187,9 @@ class Agent(Sink):
             "register": {
                 "record": {
                     "service": {
-                        "protocols": list(self.protocols.values()),
+                        "protocols": list(
+                            map(lambda x: x.digest, self.protocols.values())
+                        ),
                         "endpoints": self._endpoints,
                     }
                 },
@@ -232,21 +234,23 @@ class Agent(Sink):
         return sequence
 
     def on_interval(
-        self, period: float, messages: Optional[Union[Model, Set[Model]]] = None
+        self,
+        period: float,
+        messages: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
     ):
         return self._protocol.on_interval(period, messages)
 
     def on_query(
         self,
-        model: Model,
+        model: Type[Model],
         replies: Optional[Union[Model, Set[Model]]] = None,
     ):
         return self._protocol.on_query(model, replies)
 
     def on_message(
         self,
-        model: Model,
-        replies: Optional[Union[Model, Set[Model]]] = None,
+        model: Type[Model],
+        replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
         allow_unverified: Optional[bool] = False,
     ):
         return self._protocol.on_message(model, replies, allow_unverified)
