@@ -6,13 +6,16 @@ class Message(Model):
     message: str
 
 
-BOB_ADDRESS = "agent1q2kxet3vh0scsf0sm7y2erzz33cve6tv5uk63x64upw5g68kr0chkv7hw50"
-API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZ2VudEBmZXRjaC5haSIsImV4cCI6MTY3NjMwOTY0Nn0.uZRrJdZoxupWyLsLDjd8oZ8h5x_u0jL9UThftGeImKE"  # pylint: disable=line-too-long
+BOB_ADDRESS = "agent1qwdxsdmxus9v7ama8y95krj048286euu0vsaxq6qgzjec00xlfyevfmf3cu"
+
+API_KEY = "my_api_key"
+MAILBOX_URL = "ws://127.0.0.1:8000"
+
 
 agent = Agent(
     name="alice",
-    seed="alice secret phrase",
-    mailbox=API_KEY,
+    seed="alice new phrase",
+    mailbox=f"{API_KEY}@{MAILBOX_URL}",
 )
 
 fund_agent_if_low(agent.wallet.address())
@@ -20,6 +23,7 @@ fund_agent_if_low(agent.wallet.address())
 
 @agent.on_interval(period=2.0)
 async def send_message(ctx: Context):
+    ctx.logger.info("Sending message to bob")
     await ctx.send(BOB_ADDRESS, Message(message="hello there bob"))
 
 

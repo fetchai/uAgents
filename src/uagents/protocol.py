@@ -14,7 +14,7 @@ OPENAPI_VERSION = "3.0.2"
 
 class Protocol:
     def __init__(self, name: Optional[str] = None, version: Optional[str] = None):
-        self._intervals: List[Tuple[IntervalCallback, float]] = []
+        self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
         self._interval_messages: Set[str] = set()
         self._signed_message_handlers: Dict[str, MessageCallback] = {}
         self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
@@ -33,7 +33,7 @@ class Protocol:
 
     @property
     def intervals(self):
-        return self._intervals
+        return self._interval_handlers
 
     @property
     def models(self):
@@ -95,7 +95,7 @@ class Protocol:
     ):
 
         # store the interval handler for later
-        self._intervals.append((func, period))
+        self._interval_handlers.append((func, period))
 
         # if message types are specified, store these for validation
         if messages is not None:

@@ -18,11 +18,12 @@ nav:
     - Addresses: 'addresses.md'
     - Storage: 'storage.md'
     - Interval tasks: 'interval-tasks.md'
-    - Exchange protocol: 'protocol.md'
+    - Agent protocols: 'agent-protocols.md'
     - Almanac contract:
       - Overview: almanac-overview.md
       - Registration: almanac-registration.md
       - Endpoint weighting: almanac-endpoint.md
+    - Exchange protocol: 'protocol.md'
   #  - Marketplace contract:
 
 theme:

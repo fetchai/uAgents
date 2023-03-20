@@ -6,12 +6,14 @@ class Message(Model):
     message: str
 
 
-API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZ2VudEBmZXRjaC5haSIsImV4cCI6MTY3NjMwOTY0Nn0.uZRrJdZoxupWyLsLDjd8oZ8h5x_u0jL9UThftGeImKE"  # pylint: disable=line-too-long
+API_KEY = "my_api_key"
+MAILBOX_URL = "ws://127.0.0.1:8000"
+
 
 agent = Agent(
     name="bob",
-    seed="bob secret phrase",
-    mailbox=API_KEY,
+    seed="bob new phrase",
+    mailbox=f"{API_KEY}@{MAILBOX_URL}",
 )
 
 fund_agent_if_low(agent.wallet.address())
