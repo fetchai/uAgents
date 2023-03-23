@@ -42,7 +42,7 @@ async def handle_query_request(ctx: Context, sender: str, msg: QueryTableRequest
     }
 
     available_tables = []
-    for (number, status) in tables.items():
+    for number, status in tables.items():
         if (
             status.seats >= msg.guests
             and status.time_start <= msg.time_start
