@@ -28,7 +28,6 @@ class TestVerify(unittest.TestCase):
         self.assertEqual(result, True, "Verification failed")
 
     def test_verify_dart_digest(self):
-
         # Generate public key
         address = "agent1qf5gfqm48k9acegez3sg82ney2aa6l5fvpwh3n3z0ajh0nam3ssgwnn5me7"
 

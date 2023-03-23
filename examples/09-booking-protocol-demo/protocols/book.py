@@ -18,7 +18,6 @@ book_proto = Protocol()
 
 @book_proto.on_message(model=BookTableRequest, replies=BookTableResponse)
 async def handle_book_request(ctx: Context, sender: str, msg: BookTableRequest):
-
     tables = {
         int(num): TableStatus(**status)
         for (

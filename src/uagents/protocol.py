@@ -93,7 +93,6 @@ class Protocol:
         func: IntervalCallback,
         messages: Optional[Union[Type[Model], Set[Type[Model]]]],
     ):
-
         # store the interval handler for later
         self._interval_handlers.append((func, period))
 

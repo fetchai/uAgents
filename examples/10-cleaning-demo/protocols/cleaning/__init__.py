@@ -44,7 +44,6 @@ cleaning_proto = Protocol(name=PROTOCOL_NAME, version=PROTOCOL_VERSION)
 def in_service_region(
     location: str, availability: Availability, provider: Provider
 ) -> bool:
-
     geolocator = Nominatim(user_agent="micro_agents")
 
     user_location = geolocator.geocode(location)
@@ -67,7 +66,6 @@ def in_service_region(
 
 @cleaning_proto.on_message(model=ServiceRequest, replies=ServiceResponse)
 async def handle_query_request(ctx: Context, sender: str, msg: ServiceRequest):
-
     provider = await Provider.filter(name=ctx.name).first()
     availability = await Availability.get(provider=provider)
     services = [int(service.type) for service in await provider.services]
@@ -97,7 +95,6 @@ async def handle_query_request(ctx: Context, sender: str, msg: ServiceRequest):
 
 @cleaning_proto.on_message(model=ServiceBooking, replies=BookingResponse)
 async def handle_book_request(ctx: Context, sender: str, msg: ServiceBooking):
-
     provider = await Provider.filter(name=ctx.name).first()
     availability = await Availability.get(provider=provider)
     services = [int(service.type) for service in await provider.services]
