@@ -26,7 +26,7 @@ TABLES = {
     3: TableStatus(seats=4, time_start=17, time_end=19),
 }
 
-for (number, status) in TABLES.items():
+for number, status in TABLES.items():
     restaurant.storage.set(number, status.dict())
 
 if __name__ == "__main__":

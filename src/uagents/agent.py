@@ -180,7 +180,6 @@ class Agent(Sink):
         self._queries = queries
 
     async def _register(self, ctx: Context):
-
         agent_balance = ctx.ledger.query_bank_balance(ctx.wallet)
 
         if agent_balance < REGISTRATION_FEE:
@@ -216,7 +215,6 @@ class Agent(Sink):
         self._logger.info("Registering on Almanac contract...complete")
 
     def _schedule_registration(self):
-
         query_msg = {"query_records": {"agent_address": self.address}}
         response = self._reg_contract.query(query_msg)
 
