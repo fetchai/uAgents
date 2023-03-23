@@ -21,7 +21,7 @@ class Resolver(ABC):
 
 
 class AlmanacResolver(Resolver):
-    async def resolve(self, address: str) -> str:
+    async def resolve(self, address: str) -> Optional[str]:
         result = _query_record(address, "service")
         if result is not None:
             record = result.get("record") or {}

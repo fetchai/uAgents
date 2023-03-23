@@ -151,9 +151,9 @@ class ASGIServer:
             response_msg: Model = await self._queries[env.sender]
             if env.expires is not None:
                 if datetime.now() > datetime.fromtimestamp(env.expires):
-                    response_msg = ErrorMessage("Query envelope expired")
+                    response_msg = ErrorMessage(error="Query envelope expired")
             sender = env.target
-            response = enclose_response(response_msg, sender, env.session)
+            response = enclose_response(response_msg, sender, str(env.session))
         else:
             response = "{}"
 
