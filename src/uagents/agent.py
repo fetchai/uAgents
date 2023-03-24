@@ -58,7 +58,7 @@ async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
 async def _handle_error(ctx: Context, destination: str, msg: ErrorMessage):
     await ctx.send(destination, msg)
 
-
+# pylint: disable=R0904
 class Agent(Sink):
     def __init__(
         self,
@@ -206,6 +206,15 @@ class Agent(Sink):
         signature = self.sign_registration()
 
         self._logger.info("Registering on contract...")
+
+        if (
+            self.verify_name_registration(ctx.name)
+            and self.get_agent_address(ctx.name) != self.address
+        ):
+            self._logger.error(
+                f"Please select another name for your agent, {ctx.name} is already registered"
+            )
+
         transaction = Transaction()
 
         almanac_msg = {
@@ -297,8 +306,7 @@ class Agent(Sink):
         res = self._service_contract.query(query_msg)
         if res["record"] is not None:
             return True
-        else:
-            return False
+        return False
 
     def on_interval(
         self,
