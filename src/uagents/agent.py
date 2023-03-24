@@ -182,7 +182,7 @@ class Agent(Sink):
         self._queries = queries
 
     async def _register(self, ctx: Context):
-        agent_balance = ctx.ledger.query_bank_balance(Address(ctx.address))
+        agent_balance = ctx.ledger.query_bank_balance(Address(ctx.wallet.address()))
 
         if agent_balance < REGISTRATION_FEE:
             self._logger.warning(
@@ -310,7 +310,7 @@ class Agent(Sink):
                 self._replies[schema_digest] = protocol.replies[schema_digest]
 
         if protocol.digest is not None:
-            self.protocols[protocol.canonical_name] = protocol.digest
+            self.protocols[protocol.digest] = protocol
 
     async def handle_message(self, sender, schema_digest: str, message: JsonStr):
         await self._message_queue.put((schema_digest, sender, message))
