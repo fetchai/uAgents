@@ -7,7 +7,6 @@ from uagents.setup import fund_agent_if_low
 
 class TestVerify(unittest.TestCase):
     def test_agent_registration(self):
-
         agent = Agent(name="alice")
 
         reg_fee = "500000000000000000atestfet"
