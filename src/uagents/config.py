@@ -8,7 +8,7 @@ from uvicorn.logging import DefaultFormatter
 logging.basicConfig(level=logging.INFO)
 
 
-class AgentNetwork(Enum):
+class Network(Enum):
     FETCHAI_TESTNET = 1
     FETCHAI_MAINNET = 2
 
@@ -20,7 +20,8 @@ CONTRACT_ALMANAC = "fetch1tjagw8g8nn4cwuw00cf0m5tl4l6wfw9c0ue507fhx9e3yrsck8zs0l
 REGISTRATION_FEE = 500000000000000000
 REGISTRATION_DENOM = "atestfet"
 BLOCK_INTERVAL = 5
-AGENT_NETWORK = AgentNetwork.FETCHAI_TESTNET
+AGENT_NETWORK = Network.FETCHAI_TESTNET
+WALLET_NETWORK = Network.FETCHAI_TESTNET
 
 MAILBOX_SERVER_URL = "127.0.0.1:8000"
 MAILBOX_POLL_INTERVAL_SECONDS = 1.0

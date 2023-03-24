@@ -19,7 +19,12 @@ from uagents.models import Model, ErrorMessage
 from uagents.protocol import Protocol
 from uagents.resolver import Resolver, AlmanacResolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
-from uagents.network import get_ledger, get_reg_contract, wait_for_tx_to_complete
+from uagents.network import (
+    WALLET_CHAIN_ID,
+    get_ledger,
+    get_reg_contract,
+    wait_for_tx_to_complete,
+)
 from uagents.mailbox import MailboxClient
 from uagents.config import (
     REGISTRATION_FEE,
@@ -107,7 +112,7 @@ class Agent(Sink):
             self._wallet_messaging_client = WalletMessagingClient(
                 self._identity,
                 self._wallet,
-                self._ledger.network_config.chain_id,
+                WALLET_CHAIN_ID,
                 self._logger,
             )
         else:
@@ -186,7 +191,7 @@ class Agent(Sink):
     def sign_registration(self) -> str:
         assert self._reg_contract.address is not None
         return self._identity.sign_registration(
-            str(self._reg_contract.address), self.get_registration_sequence()
+            str(self._reg_contract.address), self._get_registration_sequence()
         )
 
     def update_loop(self, loop):
