@@ -4,6 +4,10 @@ from typing import Dict, List, Optional, Set, Union, Type, Tuple
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
+from cosmpy.aerial.contract.cosmwasm import create_cosmwasm_execute_msg
+from cosmpy.aerial.client import prepare_and_broadcast_basic_transaction
+from cosmpy.aerial.tx import Transaction
+
 
 from uagents.asgi import ASGIServer
 from uagents.context import (
@@ -19,9 +23,16 @@ from uagents.models import Model, ErrorMessage
 from uagents.protocol import Protocol
 from uagents.resolver import Resolver, AlmanacResolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
-from uagents.network import get_ledger, get_reg_contract, wait_for_tx_to_complete
+from uagents.network import (
+    get_ledger,
+    get_reg_contract,
+    get_service_contract,
+    wait_for_tx_to_complete,
+)
 from uagents.mailbox import MailboxClient
 from uagents.config import (
+    CONTRACT_ALMANAC,
+    CONTRACT_SERVICE,
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
     LEDGER_PREFIX,
@@ -100,6 +111,7 @@ class Agent(Sink):
 
         self._ledger = get_ledger()
         self._reg_contract = get_reg_contract()
+        self._service_contract = get_service_contract()
         self._storage = KeyValueStore(self.address[0:16])
         self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
         self._interval_messages: Set[str] = set()
@@ -193,7 +205,10 @@ class Agent(Sink):
 
         signature = self.sign_registration()
 
-        msg = {
+        self._logger.info("Registering on contract...")
+        transaction = Transaction()
+
+        almanac_msg = {
             "register": {
                 "record": {
                     "service": {
@@ -209,14 +224,46 @@ class Agent(Sink):
             }
         }
 
-        self._logger.info("Registering on Almanac contract...")
-        transaction = self._reg_contract.execute(
-            msg,
-            ctx.wallet,
-            funds=f"{REGISTRATION_FEE}{REGISTRATION_DENOM}",
+        ownership_msg = {
+            "update_ownership": {
+                "domain": f"{ctx.name}.agent",
+                "owner": {"address": {"address": str(ctx.wallet.address())}},
+                "permissions": "admin",
+            }
+        }
+
+        register_msg = {
+            "register": {
+                "domain": f"{ctx.name}.agent",
+                "agent_address": self.address,
+            }
+        }
+
+        transaction.add_message(
+            create_cosmwasm_execute_msg(
+                ctx.wallet.address(),
+                CONTRACT_ALMANAC,
+                almanac_msg,
+                funds=f"{REGISTRATION_FEE}{REGISTRATION_DENOM}",
+            )
+        )
+
+        transaction.add_message(
+            create_cosmwasm_execute_msg(
+                ctx.wallet.address(), CONTRACT_SERVICE, ownership_msg
+            )
+        )
+        transaction.add_message(
+            create_cosmwasm_execute_msg(
+                ctx.wallet.address(), CONTRACT_SERVICE, register_msg
+            )
+        )
+
+        transaction = prepare_and_broadcast_basic_transaction(
+            ctx.ledger, transaction, ctx.wallet
         )
         await wait_for_tx_to_complete(transaction.tx_hash)
-        self._logger.info("Registering on Almanac contract...complete")
+        self._logger.info("Registering on contract...complete")
 
     def _schedule_registration(self):
         query_msg = {"query_records": {"agent_address": self.address}}
@@ -237,6 +284,21 @@ class Agent(Sink):
         sequence = self._reg_contract.query(query_msg)["sequence"]
 
         return sequence
+
+    def get_agent_address(self, name: str) -> str:
+        query_msg = {"domain_record": {"domain": f"{name}.agent"}}
+        res = self._service_contract.query(query_msg)
+        if self.verify_name_registration(name):
+            return res["record"]["records"][0]["agent_address"]["records"][0]["address"]
+        return "Name not registered"
+
+    def verify_name_registration(self, name: str) -> bool:
+        query_msg = {"domain_record": {"domain": f"{name}.agent"}}
+        res = self._service_contract.query(query_msg)
+        if res["record"] is not None:
+            return True
+        else:
+            return False
 
     def on_interval(
         self,

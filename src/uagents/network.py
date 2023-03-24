@@ -13,7 +13,12 @@ from cosmpy.aerial.exceptions import NotFoundError, QueryTimeoutError
 from cosmpy.aerial.faucet import FaucetApi
 from cosmpy.aerial.tx_helpers import TxResponse
 
-from uagents.config import AgentNetwork, CONTRACT_ALMANAC, AGENT_NETWORK
+from uagents.config import (
+    AgentNetwork,
+    CONTRACT_ALMANAC,
+    CONTRACT_SERVICE,
+    AGENT_NETWORK,
+)
 
 
 if AGENT_NETWORK == AgentNetwork.FETCHAI_TESTNET:
@@ -24,7 +29,8 @@ elif AGENT_NETWORK == AgentNetwork.FETCHAI_MAINNET:
 else:
     raise NotImplementedError
 
-_contract = LedgerContract(None, _ledger, CONTRACT_ALMANAC)
+_almanac_contract = LedgerContract(None, _ledger, CONTRACT_ALMANAC)
+_service_contract = LedgerContract(None, _ledger, CONTRACT_SERVICE)
 
 
 def get_ledger() -> LedgerClient:
@@ -36,7 +42,11 @@ def get_faucet() -> FaucetApi:
 
 
 def get_reg_contract() -> LedgerContract:
-    return _contract
+    return _almanac_contract
+
+
+def get_service_contract() -> LedgerContract:
+    return _service_contract
 
 
 async def wait_for_tx_to_complete(
