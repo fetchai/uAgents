@@ -58,6 +58,7 @@ async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
 async def _handle_error(ctx: Context, destination: str, msg: ErrorMessage):
     await ctx.send(destination, msg)
 
+
 # pylint: disable=R0904
 class Agent(Sink):
     def __init__(
