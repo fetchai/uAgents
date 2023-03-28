@@ -308,8 +308,7 @@ class Agent(Sink):
             registered_address = res["record"]["records"][0]["agent_address"]["records"]
             if len(registered_address) > 0:
                 return registered_address[0]["address"]
-            else:
-                return 0
+            return 0
         return 1
 
     def on_interval(
