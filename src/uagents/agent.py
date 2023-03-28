@@ -207,11 +207,9 @@ class Agent(Sink):
         signature = self.sign_registration()
 
         self._logger.info("Registering on contract...")
+        reg_address = self.get_agent_address(ctx.name)
 
-        if (
-            self.verify_name_registration(ctx.name)
-            and self.get_agent_address(ctx.name) != self.address
-        ):
+        if isinstance(reg_address, str) and reg_address != self.address:
             self._logger.error(
                 f"Please select another name for your agent, {ctx.name} is already registered"
             )
@@ -289,6 +287,14 @@ class Agent(Sink):
 
         return (expiry - height) * BLOCK_INTERVAL
 
+    def _is_almanac_registered(self) -> bool:
+        query_msg = {"query_records": {"agent_address": self.address}}
+        response = self._reg_contract.query(query_msg)
+
+        if not response["record"]:
+            return False
+        return True
+
     def get_registration_sequence(self) -> int:
         query_msg = {"query_sequence": {"agent_address": self.address}}
         sequence = self._reg_contract.query(query_msg)["sequence"]
@@ -298,16 +304,13 @@ class Agent(Sink):
     def get_agent_address(self, name: str) -> str:
         query_msg = {"domain_record": {"domain": f"{name}.agent"}}
         res = self._service_contract.query(query_msg)
-        if self.verify_name_registration(name):
-            return res["record"]["records"][0]["agent_address"]["records"][0]["address"]
-        return "Name not registered"
-
-    def verify_name_registration(self, name: str) -> bool:
-        query_msg = {"domain_record": {"domain": f"{name}.agent"}}
-        res = self._service_contract.query(query_msg)
         if res["record"] is not None:
-            return True
-        return False
+            registered_address = res["record"]["records"][0]["agent_address"]["records"]
+            if len(registered_address) > 0:
+                return registered_address[0]["address"]
+            else:
+                return 0
+        return 1
 
     def on_interval(
         self,
@@ -414,9 +417,17 @@ class Agent(Sink):
 
         # start the contract registration update loop
         if self._endpoints is not None:
-            self._loop.create_task(
-                _run_interval(self._register, self._ctx, self._schedule_registration())
-            )
+            if (
+                not self._is_almanac_registered()
+                or self._schedule_registration() < 3600
+            ):
+                self._loop.create_task(
+                    _run_interval(
+                        self._register, self._ctx, self._schedule_registration()
+                    )
+                )
+            else:
+                self._logger.info("Registration up to date!")
         else:
             self._logger.warning(
                 "I have no endpoint and won't be able to receive external messages"
