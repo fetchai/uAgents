@@ -207,11 +207,10 @@ class Agent(Sink):
         signature = self.sign_registration()
 
         self._logger.info("Registering on contract...")
-        reg_address = self.get_agent_address(ctx.name)
 
-        if isinstance(reg_address, str) and reg_address != self.address:
+        if not self.is_name_available(ctx.name) and not self.is_owner(ctx.name):
             self._logger.error(
-                f"Please select another name for your agent, {ctx.name} is already registered"
+                f"Please select another name for your agent, {ctx.name} is owned by another address"
             )
 
         transaction = Transaction()
@@ -310,6 +309,22 @@ class Agent(Sink):
                 return registered_address[0]["address"]
             return 0
         return 1
+
+    def is_name_available(self, name: str):
+        query_msg = {"domain_record": {"domain": f"{name}.agent"}}
+        return self._service_contract.query(query_msg)["is_available"]
+
+    def is_owner(self, name: str):
+        query_msg = {
+            "permissions": {
+                "domain": f"{name}.agent",
+                "owner": {"address": {"address": str(self.wallet.address())}},
+            }
+        }
+        permission = self._service_contract.query(query_msg)["permissions"]
+        if permission == "admin":
+            return True
+        return False
 
     def on_interval(
         self,
