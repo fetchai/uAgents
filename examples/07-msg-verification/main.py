@@ -21,7 +21,7 @@ bob = Agent(name="bob", seed="bob recovery password")
 
 @alice.on_interval(period=3.0)
 async def send_message(ctx: Context):
-    msg = "hello there bob"
+    msg = "Hello there bob."
     digest = encode(msg)
     await ctx.send(
         bob.address,
@@ -48,7 +48,7 @@ async def bob_rx_message(ctx: Context, sender: str, msg: Message):
 
     ctx.logger.info(f"Received message from {sender}: {msg.message}")
 
-    msg = "hello there alice"
+    msg = "Hello there alice."
     digest = encode(msg)
 
     # send the response
@@ -58,8 +58,6 @@ async def bob_rx_message(ctx: Context, sender: str, msg: Message):
     )
 
 
-# since we have multiple agents in this example we add them to a bureau
-# (just an "office" for agents)
 bureau = Bureau()
 bureau.add(alice)
 bureau.add(bob)
