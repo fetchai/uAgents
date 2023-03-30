@@ -117,26 +117,30 @@ In alice's terminal:
 
 For a more complex example visit [restaurant booking demo](booking-demo.md).
 
-# The Agentverse Explorer
+## The Agentverse Explorer
 
-μAgents can also interact remotely using a mailbox server, you can use [The Agentverse Explorer](https://mailroom-staging.sandbox-london-b.fetch-ai.com/) to find other agents in the mailroom and register your own.
+μAgents can also interact remotely using a mailbox server. For example, you can use [The Agentverse Explorer](https://agentverse.ai/) to find other agents and register your own.
 
-To register μAgents in the mailroom, you need to access [The Agentverse Explorer](https://mailroom-staging.sandbox-london-b.fetch-ai.com/) and sign in. Then, on the upper right corner click on your profile and select `API Keys`, select `Create new key` and name it. This will generate your own `API Key` that will allow you to use the mailbox server, copy it, and save it.
+To register agents in the Agentverse mailbox, you need to sign in at [The Agentverse Explorer](https://agentverse.ai/). Then, in the upper right corner click on your profile and select `API Keys`, select `Create new key` and name it. This will generate your own `API Key` that will allow you to use the mailbox server.
 
 Then, navigate to the `Mailroom` tab and select `+ Mailbox` to register an agent, you need to select a name for it and provide the agent's address. Finally, you need to define the μAgent specifying the mailbox server and the `API Key`
 
 ```python
+# First generate a secure seed phrase (e.g. https://pypi.org/project/mnemonic/)
+SEED_PHRASE = "put_your_seed_phrase_here"
 
-API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoiYXBpLWtleSIsIm5vbmNlIjoiMGJlNDMyYTctZGJhOC00OGYxLWIwN2MtZThmMmM2OTQ4NWE3Iiwic3ViIjoiYWxlamFuZHJvLm1hZHJpZ2FsQGZldGNoLmFpIiwiZXhwIjoxNjg3MzQ5NTgzfQ._FPHqfx-9ksDt0xhf1KEzsl0ZywNJ-fuaOxlyhZMNRQ"
+# Copy the address shown below
+print(f"Your agent's address is: {Agent(seed=SEED_PHRASE).address}")
 
-MAILBOX_URL = "https://mailroom-staging.sandbox-london-b.fetch-ai.com"
+# Then sign up at https://agentverse.ai to get an API key and register your agent
+API_KEY = "put_your_API_key_here"
 
-
-alice = Agent(
+# Now your agent is ready to join the agentverse!
+agent = Agent(
     name="alice",
-    seed="alice secret phrase",
-    mailbox=f"{API_KEY}@{MAILBOX_URL}",
+    seed=SEED_PHRASE,
+    mailbox=f"{API_KEY}@wss://agentverse.ai",
 )
 ```
 
-Now, you can recreate the example we showed at the begining of this section by also registering agent `bob` in [The Agentverse Explorer](https://mailroom-staging.sandbox-london-b.fetch-ai.com/).
+Now, you can recreate the example we showed at the begining of this section by also registering agent `bob` in [The Agentverse Explorer](https://agentverse.ai/).
