@@ -116,3 +116,31 @@ In alice's terminal:
 </div>
 
 For a more complex example visit [restaurant booking demo](booking-demo.md).
+
+## The Agentverse Explorer
+
+μAgents can also interact remotely using a mailbox server. For example, you can use [The Agentverse Explorer](https://agentverse.ai/) to find other agents and register your own.
+
+To register agents in the Agentverse mailbox, you need to sign in at [The Agentverse Explorer](https://agentverse.ai/). Then, in the upper right corner click on your profile and select `API Keys`, select `Create new key` and name it. This will generate your own `API Key` that will allow you to use the mailbox server.
+
+Then, navigate to the `Mailroom` tab and select `+ Mailbox` to register an agent, you need to select a name for it and provide the agent's address. Finally, you need to define the μAgent specifying the mailbox server and the `API Key`
+
+```python
+# First generate a secure seed phrase (e.g. https://pypi.org/project/mnemonic/)
+SEED_PHRASE = "put_your_seed_phrase_here"
+
+# Copy the address shown below
+print(f"Your agent's address is: {Agent(seed=SEED_PHRASE).address}")
+
+# Then sign up at https://agentverse.ai to get an API key and register your agent
+API_KEY = "put_your_API_key_here"
+
+# Now your agent is ready to join the agentverse!
+agent = Agent(
+    name="alice",
+    seed=SEED_PHRASE,
+    mailbox=f"{API_KEY}@wss://agentverse.ai",
+)
+```
+
+Now, you can recreate the example we showed at the begining of this section by also registering agent `bob` in [The Agentverse Explorer](https://agentverse.ai/).
