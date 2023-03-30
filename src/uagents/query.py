@@ -49,7 +49,6 @@ async def query(
     )
     env.encode_payload(json_message)
 
-    success = False
     async with aiohttp.ClientSession() as session:
         async with session.post(
             endpoint,
@@ -68,7 +67,7 @@ async def query(
     LOGGER.exception(f"Unable to query {destination} @ {endpoint}")
 
 
-def enclose_response(message: Model, sender: str, session: str) -> dict:
+def enclose_response(message: Model, sender: str, session: str) -> str:
     response_env = Envelope(
         version=1,
         sender=sender,

@@ -1,8 +1,9 @@
 import asyncio
 import functools
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Union, Type, Tuple
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
+from cosmpy.crypto.address import Address
 
 from uagents.asgi import ASGIServer
 from uagents.context import (
@@ -104,8 +105,8 @@ class Agent(Sink):
         self._interval_messages: Set[str] = set()
         self._signed_message_handlers: Dict[str, MessageCallback] = {}
         self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
-        self._models: Dict[str, Model] = {}
-        self._replies: Dict[str, Set[Model]] = {}
+        self._models: Dict[str, Type[Model]] = {}
+        self._replies: Dict[str, Set[Type[Model]]] = {}
         self._queries: Dict[str, asyncio.Future] = {}
         self._ctx = Context(
             self._identity.address,
@@ -130,7 +131,7 @@ class Agent(Sink):
         self._protocol = Protocol(name=self._name, version=self._version)
 
         # keep track of supported protocols
-        self.protocols = {}
+        self.protocols: Dict[str, Protocol] = {}
 
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
@@ -169,8 +170,9 @@ class Agent(Sink):
         return self._identity.sign_digest(digest)
 
     def sign_registration(self) -> str:
+        assert self._reg_contract.address is not None
         return self._identity.sign_registration(
-            self._reg_contract.address, self.get_registration_sequence()
+            str(self._reg_contract.address), self.get_registration_sequence()
         )
 
     def update_loop(self, loop):
@@ -180,7 +182,7 @@ class Agent(Sink):
         self._queries = queries
 
     async def _register(self, ctx: Context):
-        agent_balance = ctx.ledger.query_bank_balance(ctx.wallet)
+        agent_balance = ctx.ledger.query_bank_balance(Address(ctx.wallet.address()))
 
         if agent_balance < REGISTRATION_FEE:
             self._logger.warning(
@@ -195,7 +197,9 @@ class Agent(Sink):
             "register": {
                 "record": {
                     "service": {
-                        "protocols": list(self.protocols.values()),
+                        "protocols": list(
+                            map(lambda x: x.digest, self.protocols.values())
+                        ),
                         "endpoints": self._endpoints,
                     }
                 },
@@ -218,7 +222,7 @@ class Agent(Sink):
         query_msg = {"query_records": {"agent_address": self.address}}
         response = self._reg_contract.query(query_msg)
 
-        if response["record"] == []:
+        if not response["record"]:
             contract_state = self._reg_contract.query({"query_contract_state": {}})
             expiry = contract_state.get("state").get("expiry_height")
             return expiry * BLOCK_INTERVAL
@@ -235,26 +239,28 @@ class Agent(Sink):
         return sequence
 
     def on_interval(
-        self, period: float, messages: Optional[Union[Model, Set[Model]]] = None
+        self,
+        period: float,
+        messages: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
     ):
         return self._protocol.on_interval(period, messages)
 
     def on_query(
         self,
-        model: Model,
+        model: Type[Model],
         replies: Optional[Union[Model, Set[Model]]] = None,
     ):
         return self._protocol.on_query(model, replies)
 
     def on_message(
         self,
-        model: Model,
-        replies: Optional[Union[Model, Set[Model]]] = None,
+        model: Type[Model],
+        replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
         allow_unverified: Optional[bool] = False,
     ):
         return self._protocol.on_message(model, replies, allow_unverified)
 
-    def on_event(self, event_type: str) -> EventCallback:
+    def on_event(self, event_type: str):
         def decorator_on_event(func: EventCallback) -> EventCallback:
             @functools.wraps(func)
             def handler(*args, **kwargs):
@@ -304,7 +310,7 @@ class Agent(Sink):
                 self._replies[schema_digest] = protocol.replies[schema_digest]
 
         if protocol.digest is not None:
-            self.protocols[protocol.canonical_name] = protocol.digest
+            self.protocols[protocol.digest] = protocol
 
     async def handle_message(self, sender, schema_digest: str, message: JsonStr):
         await self._message_queue.put((schema_digest, sender, message))

@@ -18,7 +18,7 @@ from uagents.envelope import Envelope
 class MailboxClient:
     def __init__(self, agent, logger: Optional[logging.Logger] = None):
         self._agent = agent
-        self._access_token: str = None
+        self._access_token: Optional[str] = None
         self._envelopes_to_delete = asyncio.Queue()
         self._poll_interval = MAILBOX_POLL_INTERVAL_SECONDS
         self._logger = logger or get_logger("mailbox")
