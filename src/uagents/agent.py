@@ -20,7 +20,6 @@ from uagents.protocol import Protocol
 from uagents.resolver import Resolver, AlmanacResolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.network import (
-    WALLET_CHAIN_ID,
     get_ledger,
     get_reg_contract,
     wait_for_tx_to_complete,
@@ -62,7 +61,8 @@ class Agent(Sink):
         endpoint: Optional[Union[List[str], Dict[str, dict]]] = None,
         mailbox: Optional[Union[str, Dict[str, str]]] = None,
         resolve: Optional[Resolver] = None,
-        enable_wallet_messaging: Optional[bool] = False,
+        enable_wallet_messaging: Optional[Union[bool, Dict[str, str]]] = False,
+        wallet_key_derivation_index: Optional[int] = 0,
         version: Optional[str] = None,
     ):
         self._name = name
@@ -83,7 +83,11 @@ class Agent(Sink):
         else:
             self._identity = Identity.from_seed(seed, 0)
             self._wallet = LocalWallet(
-                PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
+                PrivateKey(
+                    derive_key_from_seed(
+                        seed, LEDGER_PREFIX, wallet_key_derivation_index
+                    )
+                ),
                 prefix=LEDGER_PREFIX,
             )
         self._ledger = get_ledger()
@@ -107,12 +111,19 @@ class Agent(Sink):
             ]
 
         if enable_wallet_messaging:
+            wallet_chain_id = self._ledger.network_config.chain_id
+            if (
+                isinstance(enable_wallet_messaging, dict)
+                and "chain_id" in enable_wallet_messaging
+            ):
+                wallet_chain_id = enable_wallet_messaging["chain_id"]
+
             from uagents.wallet_messaging import WalletMessagingClient
 
             self._wallet_messaging_client = WalletMessagingClient(
                 self._identity,
                 self._wallet,
-                WALLET_CHAIN_ID,
+                wallet_chain_id,
                 self._logger,
             )
         else:

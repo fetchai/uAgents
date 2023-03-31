@@ -64,7 +64,7 @@ class WalletMessagingClient:
             try:
                 for msg in self._client.receive():
                     await self._message_queue.put(msg)
-            except (HTTPError, ConnectionError, JSONDecodeError):
+            except (HTTPError, ConnectionError, JSONDecodeError, BaseException):
                 self._logger.warning(
                     "Failed to get messages from wallet messaging server"
                 )

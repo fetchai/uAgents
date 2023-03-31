@@ -17,7 +17,7 @@ from cosmpy.aerial.tx import SigningCfg, Transaction
 from cosmpy.aerial.tx_helpers import TxResponse
 from cosmpy.aerial.wallet import Wallet
 
-from uagents.config import Network, CONTRACT_ALMANAC, AGENT_NETWORK, WALLET_NETWORK
+from uagents.config import Network, CONTRACT_ALMANAC, AGENT_NETWORK
 
 
 if AGENT_NETWORK == Network.FETCHAI_TESTNET:
@@ -27,12 +27,6 @@ elif AGENT_NETWORK == Network.FETCHAI_MAINNET:
     _ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
 else:
     raise NotImplementedError
-
-
-if WALLET_NETWORK == Network.FETCHAI_MAINNET:
-    WALLET_CHAIN_ID = NetworkConfig.fetchai_mainnet().chain_id
-else:
-    WALLET_CHAIN_ID = NetworkConfig.fetchai_stable_testnet().chain_id
 
 
 _contract = LedgerContract(None, _ledger, CONTRACT_ALMANAC)
