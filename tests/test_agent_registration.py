@@ -13,10 +13,10 @@ class TestVerify(unittest.TestCase):
 
         fund_agent_if_low(agent.wallet.address())
 
-        sequence = agent.get_registration_sequence()
+        sequence = agent._almanac_contract.get_sequence(agent.address)
 
         signature = agent._identity.sign_registration(
-            agent._reg_contract.address, agent.get_registration_sequence()
+            agent._almanac_contract.address, sequence
         )
 
         msg = {
@@ -35,11 +35,11 @@ class TestVerify(unittest.TestCase):
             }
         }
 
-        transaction = agent._reg_contract.execute(msg, agent.wallet, funds=reg_fee)
+        transaction = agent._almanac_contract.execute(msg, agent.wallet, funds=reg_fee)
         transaction.wait_to_complete()
 
         query_msg = {"query_records": {"agent_address": agent.address}}
-        response = agent._reg_contract.query(query_msg)
+        response = agent._almanac_contract.query(query_msg)
 
         is_registered = False
         if response["record"] != []:
