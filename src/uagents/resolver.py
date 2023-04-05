@@ -2,11 +2,11 @@ from abc import ABC, abstractmethod
 from typing import Dict, Optional
 import random
 
-from uagents.network import get_reg_contract
+from uagents.network import get_almanac_contract
 
 
 def _query_record(agent_address: str, service: str) -> dict:
-    contract = get_reg_contract()
+    contract = get_almanac_contract()
     query_msg = {
         "query_record": {"agent_address": agent_address, "record_type": service}
     }

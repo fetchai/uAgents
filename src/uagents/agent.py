@@ -25,7 +25,7 @@ from uagents.resolver import Resolver, AlmanacResolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.network import (
     get_ledger,
-    get_reg_contract,
+    get_almanac_contract,
     get_service_contract,
     wait_for_tx_to_complete,
 )
@@ -36,7 +36,6 @@ from uagents.config import (
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
     LEDGER_PREFIX,
-    BLOCK_INTERVAL,
     parse_endpoint_config,
     parse_mailbox_config,
     get_logger,
@@ -59,7 +58,6 @@ async def _handle_error(ctx: Context, destination: str, msg: ErrorMessage):
     await ctx.send(destination, msg)
 
 
-# pylint: disable=R0904
 class Agent(Sink):
     def __init__(
         self,
@@ -111,7 +109,7 @@ class Agent(Sink):
             ]
 
         self._ledger = get_ledger()
-        self._reg_contract = get_reg_contract()
+        self._almanac_contract = get_almanac_contract()
         self._service_contract = get_service_contract()
         self._storage = KeyValueStore(self.address[0:16])
         self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
@@ -183,9 +181,10 @@ class Agent(Sink):
         return self._identity.sign_digest(digest)
 
     def sign_registration(self) -> str:
-        assert self._reg_contract.address is not None
+        assert self._almanac_contract.address is not None
         return self._identity.sign_registration(
-            str(self._reg_contract.address), self.get_registration_sequence()
+            str(self._almanac_contract.address),
+            self._almanac_contract.get_sequence(self.address),
         )
 
     def update_loop(self, loop):
@@ -208,43 +207,25 @@ class Agent(Sink):
 
         self._logger.info("Registering on contract...")
 
-        if not self.is_name_available(ctx.name) and not self.is_owner(ctx.name):
+        if not self._service_contract.is_name_available(
+            ctx.name
+        ) and not self._service_contract.is_owner(ctx.name, str(self.wallet.address())):
             self._logger.error(
                 f"Please select another name for your agent, {ctx.name} is owned by another address"
             )
+            return
 
         transaction = Transaction()
 
-        almanac_msg = {
-            "register": {
-                "record": {
-                    "service": {
-                        "protocols": list(
-                            map(lambda x: x.digest, self.protocols.values())
-                        ),
-                        "endpoints": self._endpoints,
-                    }
-                },
-                "signature": signature,
-                "sequence": self.get_registration_sequence(),
-                "agent_address": self.address,
-            }
-        }
-
-        ownership_msg = {
-            "update_ownership": {
-                "domain": f"{ctx.name}.agent",
-                "owner": {"address": {"address": str(ctx.wallet.address())}},
-                "permissions": "admin",
-            }
-        }
-
-        register_msg = {
-            "register": {
-                "domain": f"{ctx.name}.agent",
-                "agent_address": self.address,
-            }
-        }
+        almanac_msg = self._almanac_contract.get_registration_msg(
+            self.protocols, self._endpoints, signature, self.address
+        )
+        ownership_msg = self._service_contract.get_ownership_msg(
+            ctx.name, str(self.wallet.address())
+        )
+        register_msg = self._service_contract.get_registration_msg(
+            ctx.name, self.address
+        )
 
         transaction.add_message(
             create_cosmwasm_execute_msg(
@@ -273,32 +254,7 @@ class Agent(Sink):
         self._logger.info("Registering on contract...complete")
 
     def _schedule_registration(self):
-        query_msg = {"query_records": {"agent_address": self.address}}
-        response = self._reg_contract.query(query_msg)
-
-        if not response["record"]:
-            contract_state = self._reg_contract.query({"query_contract_state": {}})
-            expiry = contract_state.get("state").get("expiry_height")
-            return expiry * BLOCK_INTERVAL
-
-        expiry = response.get("record")[0].get("expiry")
-        height = response.get("height")
-
-        return (expiry - height) * BLOCK_INTERVAL
-
-    def _is_almanac_registered(self) -> bool:
-        query_msg = {"query_records": {"agent_address": self.address}}
-        response = self._reg_contract.query(query_msg)
-
-        if not response["record"]:
-            return False
-        return True
-
-    def get_registration_sequence(self) -> int:
-        query_msg = {"query_sequence": {"agent_address": self.address}}
-        sequence = self._reg_contract.query(query_msg)["sequence"]
-
-        return sequence
+        return self._almanac_contract.get_expiry(self.address)
 
     def get_agent_address(self, name: str) -> str:
         query_msg = {"domain_record": {"domain": f"{name}.agent"}}
@@ -309,22 +265,6 @@ class Agent(Sink):
                 return registered_address[0]["address"]
             return 0
         return 1
-
-    def is_name_available(self, name: str):
-        query_msg = {"domain_record": {"domain": f"{name}.agent"}}
-        return self._service_contract.query(query_msg)["is_available"]
-
-    def is_owner(self, name: str):
-        query_msg = {
-            "permissions": {
-                "domain": f"{name}.agent",
-                "owner": {"address": {"address": str(self.wallet.address())}},
-            }
-        }
-        permission = self._service_contract.query(query_msg)["permissions"]
-        if permission == "admin":
-            return True
-        return False
 
     def on_interval(
         self,
@@ -432,7 +372,7 @@ class Agent(Sink):
         # start the contract registration update loop
         if self._endpoints is not None:
             if (
-                not self._is_almanac_registered()
+                not self._almanac_contract.is_registered(self.address)
                 or self._schedule_registration() < 3600
             ):
                 self._loop.create_task(

@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Dict, List, Union
 
 from cosmpy.aerial.contract import LedgerContract
 from cosmpy.aerial.client import (
@@ -18,7 +18,96 @@ from uagents.config import (
     CONTRACT_ALMANAC,
     CONTRACT_SERVICE,
     AGENT_NETWORK,
+    BLOCK_INTERVAL,
 )
+
+
+class AlmanacContract(LedgerContract):
+    def is_registered(self, address: str) -> bool:
+        query_msg = {"query_records": {"agent_address": address}}
+        response = self.query(query_msg)
+
+        if not response["record"]:
+            return False
+        return True
+
+    def get_expiry(self, address: str):
+        query_msg = {"query_records": {"agent_address": address}}
+        response = self.query(query_msg)
+
+        if not response["record"]:
+            contract_state = self.query({"query_contract_state": {}})
+            expiry = contract_state.get("state").get("expiry_height")
+            return expiry * BLOCK_INTERVAL
+
+        expiry = response.get("record")[0].get("expiry")
+        height = response.get("height")
+
+        return (expiry - height) * BLOCK_INTERVAL
+
+    def get_registration_msg(
+        self,
+        protocols: Dict,
+        endpoints: Optional[Union[List[str], Dict[str, dict]]],
+        signature: str,
+        address: str,
+    ) -> dict:
+        return {
+            "register": {
+                "record": {
+                    "service": {
+                        "protocols": list(map(lambda x: x.digest, protocols.values())),
+                        "endpoints": endpoints,
+                    }
+                },
+                "signature": signature,
+                "sequence": self.get_sequence(address),
+                "agent_address": address,
+            }
+        }
+
+    def get_sequence(self, address: str) -> int:
+        query_msg = {"query_sequence": {"agent_address": address}}
+        sequence = self.query(query_msg)["sequence"]
+
+        return sequence
+
+
+class ServiceContract(LedgerContract):
+    def is_name_available(self, name: str):
+        query_msg = {"domain_record": {"domain": f"{name}.agent"}}
+        return self.query(query_msg)["is_available"]
+
+    def is_owner(self, name: str, wallet_address: str):
+        query_msg = {
+            "permissions": {
+                "domain": f"{name}.agent",
+                "owner": {"address": {"address": wallet_address}},
+            }
+        }
+        permission = self.query(query_msg)["permissions"]
+        if permission == "admin":
+            return True
+        return False
+
+    @staticmethod
+    def get_ownership_msg(name: str, wallet_address: str):
+        return {
+            "update_ownership": {
+                "domain": f"{name}.agent",
+                "owner": {"address": {"address": wallet_address}},
+                "permissions": "admin",
+            }
+        }
+
+    @staticmethod
+    def get_registration_msg(name: str, address: str):
+        return {
+            "register": {
+                "domain": f"{name}.agent",
+                "agent_address": address,
+            }
+        }
 
 
 if AGENT_NETWORK == AgentNetwork.FETCHAI_TESTNET:
@@ -29,8 +118,9 @@ elif AGENT_NETWORK == AgentNetwork.FETCHAI_MAINNET:
 else:
     raise NotImplementedError
 
-_almanac_contract = LedgerContract(None, _ledger, CONTRACT_ALMANAC)
-_service_contract = LedgerContract(None, _ledger, CONTRACT_SERVICE)
+
+_almanac_contract = AlmanacContract(None, _ledger, CONTRACT_ALMANAC)
+_service_contract = ServiceContract(None, _ledger, CONTRACT_SERVICE)
 
 
 def get_ledger() -> LedgerClient:
@@ -41,7 +131,7 @@ def get_faucet() -> FaucetApi:
     return _faucet_api
 
 
-def get_reg_contract() -> LedgerContract:
+def get_almanac_contract() -> LedgerContract:
     return _almanac_contract
 
 
