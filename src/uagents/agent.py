@@ -223,7 +223,7 @@ class Agent(Sink):
         ownership_msg = self._service_contract.get_ownership_msg(
             ctx.name, str(self.wallet.address())
         )
-        register_msg = self._service_contract.get_registration_msg(
+        registration_msg = self._service_contract.get_registration_msg(
             ctx.name, self.address
         )
 
@@ -243,7 +243,7 @@ class Agent(Sink):
         )
         transaction.add_message(
             create_cosmwasm_execute_msg(
-                ctx.wallet.address(), CONTRACT_SERVICE, register_msg
+                ctx.wallet.address(), CONTRACT_SERVICE, registration_msg
             )
         )
 
