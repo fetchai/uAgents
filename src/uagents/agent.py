@@ -35,6 +35,7 @@ from uagents.config import (
     CONTRACT_SERVICE,
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
+    MIN_REGISTRATION_TIME,
     LEDGER_PREFIX,
     parse_endpoint_config,
     parse_mailbox_config,
@@ -373,7 +374,7 @@ class Agent(Sink):
         if self._endpoints is not None:
             if (
                 not self._almanac_contract.is_registered(self.address)
-                or self._schedule_registration() < 3600
+                or self._schedule_registration() < MIN_REGISTRATION_TIME
             ):
                 self._loop.create_task(
                     _run_interval(
