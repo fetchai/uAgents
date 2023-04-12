@@ -45,6 +45,14 @@ class AlmanacContract(LedgerContract):
 
         return (expiry - height) * BLOCK_INTERVAL
 
+    def get_endpoints(self, address: str):
+        query_msg = {"query_records": {"agent_address": address}}
+        response = self.query(query_msg)
+
+        if not response["record"]:
+            return 0
+        return response.get("record")[0]["record"]["service"]["endpoints"]
+
     def get_registration_msg(
         self,
         protocols: Dict,

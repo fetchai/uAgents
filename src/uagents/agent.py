@@ -1,5 +1,6 @@
 import asyncio
 import functools
+from re import S
 from typing import Dict, List, Optional, Set, Union, Type, Tuple
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
@@ -375,6 +376,7 @@ class Agent(Sink):
             if (
                 not self._almanac_contract.is_registered(self.address)
                 or self._schedule_registration() < MIN_REGISTRATION_TIME
+                or self._endpoints != self._almanac_contract.get_endpoints(self.address)
             ):
                 self._loop.create_task(
                     _run_interval(
