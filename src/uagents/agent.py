@@ -97,6 +97,9 @@ class Agent(Sink):
                     "weight": 1,
                 }
             ]
+        else:
+            self._mailbox = None
+            self._mailbox_client = None
 
         self._ledger = get_ledger()
         self._reg_contract = get_reg_contract()
@@ -158,6 +161,10 @@ class Agent(Sink):
     @property
     def mailbox(self) -> Dict[str, str]:
         return self._mailbox
+
+    @property
+    def mailbox_client(self) -> MailboxClient:
+        return self._mailbox_client
 
     @mailbox.setter
     def mailbox(self, config: Union[str, Dict[str, str]]):
@@ -420,13 +427,21 @@ class Bureau:
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
         self._server = ASGIServer(self._port, self._loop, self._queries)
+        self._use_mailbox = False
 
     def add(self, agent: Agent):
         agent.update_loop(self._loop)
         agent.update_queries(self._queries)
+        if agent.mailbox is not None:
+            self._use_mailbox = True
         self._agents.append(agent)
 
     def run(self):
         for agent in self._agents:
             agent.setup()
-        self._loop.run_until_complete(self._server.serve())
+            if agent.mailbox is not None:
+                self._loop.create_task(agent.mailbox_client.process_deletion_queue())
+                self._loop.create_task(agent.mailbox_client.run())
+        if not self._use_mailbox:
+            self._loop.create_task(self._server.serve())
+        self._loop.run_forever()
