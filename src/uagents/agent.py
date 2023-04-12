@@ -1,6 +1,5 @@
 import asyncio
 import functools
-from re import S
 from typing import Dict, List, Optional, Set, Union, Type, Tuple
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
