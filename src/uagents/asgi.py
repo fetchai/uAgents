@@ -37,7 +37,9 @@ class ASGIServer:
         self._queries = queries
 
     async def serve(self):
-        config = uvicorn.Config(self, host="0.0.0.0", port=self._port, log_level="warning")
+        config = uvicorn.Config(
+            self, host="0.0.0.0", port=self._port, log_level="warning"
+        )
         server = uvicorn.Server(config)
         await server.serve()
 
