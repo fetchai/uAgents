@@ -140,7 +140,9 @@ class Agent(Sink):
         self._dispatcher.register(self.address, self)
 
         if not self._use_mailbox:
-            self._server = ASGIServer(self._port, self._loop, self._queries)
+            self._server = ASGIServer(
+                self._port, self._loop, self._queries, logger=self._logger
+            )
 
     @property
     def name(self) -> str:
@@ -426,7 +428,8 @@ class Bureau:
         self._agents = []
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
-        self._server = ASGIServer(self._port, self._loop, self._queries)
+        self._logger = get_logger("bureau")
+        self._server = ASGIServer(self._port, self._loop, self._queries, self._logger)
         self._use_mailbox = False
 
     def add(self, agent: Agent):
@@ -437,11 +440,20 @@ class Bureau:
         self._agents.append(agent)
 
     def run(self):
+        tasks = []
         for agent in self._agents:
             agent.setup()
             if agent.mailbox is not None:
-                self._loop.create_task(agent.mailbox_client.process_deletion_queue())
-                self._loop.create_task(agent.mailbox_client.run())
+                tasks.append(
+                    self._loop.create_task(
+                        agent.mailbox_client.process_deletion_queue()
+                    )
+                )
+                tasks.append(self._loop.create_task(agent.mailbox_client.run()))
         if not self._use_mailbox:
-            self._loop.create_task(self._server.serve())
-        self._loop.run_forever()
+            tasks.append(self._loop.create_task(self._server.serve()))
+
+        try:
+            self._loop.run_until_complete(asyncio.gather(*tasks))
+        finally:
+            self._loop.close()

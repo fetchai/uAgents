@@ -1,16 +1,21 @@
 import asyncio
 import json
 from datetime import datetime
-from typing import Dict
+from logging import Logger
+from typing import Dict, Optional
 
 import pydantic
 import uvicorn
 
+from uagents.config import get_logger
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
 from uagents.models import Model, ErrorMessage
 from uagents.query import enclose_response
+
+
+HOST = "0.0.0.0"
 
 
 async def _read_asgi_body(receive):
@@ -31,17 +36,25 @@ class ASGIServer:
         port: int,
         loop: asyncio.AbstractEventLoop,
         queries: Dict[str, asyncio.Future],
+        logger: Optional[Logger] = None,
     ):
         self._port = int(port)
         self._loop = loop
         self._queries = queries
+        self._logger = logger or get_logger("server")
+        self._server = None
+
+    @property
+    def server(self):
+        return self._server
 
     async def serve(self):
-        config = uvicorn.Config(
-            self, host="0.0.0.0", port=self._port, log_level="warning"
+        config = uvicorn.Config(self, host=HOST, port=self._port, log_level="warning")
+        self._server = uvicorn.Server(config)
+        self._logger.info(
+            f"Starting server on http://{HOST}:{self._port} (Press CTRL+C to quit)"
         )
-        server = uvicorn.Server(config)
-        await server.serve()
+        await self._server.serve()
 
     async def __call__(self, scope, receive, send):
         if scope["type"] == "lifespan":
