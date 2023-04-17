@@ -28,7 +28,7 @@ fund_agent_if_low(user.wallet.address())
 request = ServiceRequest(
     user=user.name,
     location="London Kings Cross",
-    time_start=utc.localize(datetime.fromisoformat("2023-01-10 16:00:00")),
+    time_start=utc.localize(datetime.fromisoformat("2023-04-10 16:00:00")),
     duration=timedelta(hours=4),
     services=[ServiceType.WINDOW, ServiceType.LAUNDRY],
     max_price=60,
