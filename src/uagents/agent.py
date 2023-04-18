@@ -429,7 +429,7 @@ class Bureau:
     def __init__(
         self,
         port: Optional[int] = None,
-        endpoint: Optional[Union[List[str], Dict[str, dict]]] = None,
+        endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
     ):
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
         self._agents = []
