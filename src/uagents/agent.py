@@ -1,6 +1,6 @@
 import asyncio
 import functools
-from typing import Dict, List, Optional, Set, Union, Type, Tuple
+from typing import Dict, List, Optional, Set, Union, Type, Tuple, Any
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
@@ -183,6 +183,9 @@ class Agent(Sink):
         return self._identity.sign_registration(
             str(self._reg_contract.address), self.get_registration_sequence()
         )
+
+    def update_endpoints(self, endpoints: List[Dict[str, Any]]):
+        self._endpoints = endpoints
 
     def update_loop(self, loop):
         self._loop = loop
@@ -423,9 +426,14 @@ class Agent(Sink):
 
 
 class Bureau:
-    def __init__(self, port: Optional[int] = None):
+    def __init__(
+        self,
+        port: Optional[int] = None,
+        endpoint: Optional[Union[List[str], Dict[str, dict]]] = None,
+    ):
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
         self._agents = []
+        self._endpoints = parse_endpoint_config(endpoint)
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
         self._logger = get_logger("bureau")
@@ -437,6 +445,8 @@ class Bureau:
         agent.update_queries(self._queries)
         if agent.mailbox is not None:
             self._use_mailbox = True
+        else:
+            agent.update_endpoints(self._endpoints)
         self._agents.append(agent)
 
     def run(self):
