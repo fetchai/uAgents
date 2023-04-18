@@ -54,7 +54,7 @@ class Agent(Sink):
         name: Optional[str] = None,
         port: Optional[int] = None,
         seed: Optional[str] = None,
-        endpoint: Optional[Union[List[str], Dict[str, dict]]] = None,
+        endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
         mailbox: Optional[Union[str, Dict[str, str]]] = None,
         resolve: Optional[Resolver] = None,
         version: Optional[str] = None,
@@ -339,6 +339,10 @@ class Agent(Sink):
         # register the internal agent protocol
         self.include(self._protocol)
         self._loop.run_until_complete(self._startup())
+        if self._endpoints is None:
+            self._logger.warning(
+                "I have no endpoint and won't be able to receive external messages"
+            )
         self.start_background_tasks()
 
     def start_background_tasks(self):
@@ -357,10 +361,6 @@ class Agent(Sink):
         if self._endpoints is not None:
             self._loop.create_task(
                 _run_interval(self._register, self._ctx, self._schedule_registration())
-            )
-        else:
-            self._logger.warning(
-                "I have no endpoint and won't be able to receive external messages"
             )
 
     def run(self):
