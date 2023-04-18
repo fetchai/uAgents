@@ -29,7 +29,7 @@ DEFAULT_ENVELOPE_TIMEOUT_SECONDS = 30
 
 
 def parse_endpoint_config(
-    endpoint: Optional[Union[List[str], Dict[str, dict]]]
+    endpoint: Optional[Union[str, List[str], Dict[str, dict]]]
 ) -> List[Dict[str, Any]]:
     if isinstance(endpoint, dict):
         endpoints = [
@@ -38,6 +38,8 @@ def parse_endpoint_config(
         ]
     elif isinstance(endpoint, list):
         endpoints = [{"url": val, "weight": 1} for val in endpoint]
+    elif isinstance(endpoint, str):
+        endpoints = [{"url": endpoint, "weight": 1}]
     else:
         endpoints = None
     return endpoints
