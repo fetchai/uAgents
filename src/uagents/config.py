@@ -22,7 +22,7 @@ REGISTRATION_DENOM = "atestfet"
 BLOCK_INTERVAL = 5
 AGENT_NETWORK = Network.FETCHAI_TESTNET
 
-MAILBOX_SERVER_URL = "127.0.0.1:8000"
+MAILBOX_SERVER_URL = "wss://agentverse.ai"
 MAILBOX_POLL_INTERVAL_SECONDS = 1.0
 
 WALLET_MESSAGING_POLL_INTERVAL_SECONDS = 2.0
@@ -32,7 +32,7 @@ DEFAULT_ENVELOPE_TIMEOUT_SECONDS = 30
 
 
 def parse_endpoint_config(
-    endpoint: Optional[Union[List[str], Dict[str, dict]]]
+    endpoint: Optional[Union[str, List[str], Dict[str, dict]]]
 ) -> List[Dict[str, Any]]:
     if isinstance(endpoint, dict):
         endpoints = [
@@ -41,6 +41,8 @@ def parse_endpoint_config(
         ]
     elif isinstance(endpoint, list):
         endpoints = [{"url": val, "weight": 1} for val in endpoint]
+    elif isinstance(endpoint, str):
+        endpoints = [{"url": endpoint, "weight": 1}]
     else:
         endpoints = None
     return endpoints

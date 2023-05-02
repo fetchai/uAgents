@@ -1,6 +1,6 @@
 import asyncio
 import functools
-from typing import Dict, List, Optional, Set, Union, Type, Tuple
+from typing import Dict, List, Optional, Set, Union, Type, Tuple, Any
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
@@ -58,7 +58,7 @@ class Agent(Sink):
         name: Optional[str] = None,
         port: Optional[int] = None,
         seed: Optional[str] = None,
-        endpoint: Optional[Union[List[str], Dict[str, dict]]] = None,
+        endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
         mailbox: Optional[Union[str, Dict[str, str]]] = None,
         resolve: Optional[Resolver] = None,
         enable_wallet_messaging: Optional[Union[bool, Dict[str, str]]] = False,
@@ -109,6 +109,9 @@ class Agent(Sink):
                     "weight": 1,
                 }
             ]
+        else:
+            self._mailbox = None
+            self._mailbox_client = None
 
         if enable_wallet_messaging:
             wallet_chain_id = self._ledger.network_config.chain_id
@@ -167,7 +170,9 @@ class Agent(Sink):
         self._dispatcher.register(self.address, self)
 
         if not self._use_mailbox:
-            self._server = ASGIServer(self._port, self._loop, self._queries)
+            self._server = ASGIServer(
+                self._port, self._loop, self._queries, logger=self._logger
+            )
 
     @property
     def name(self) -> str:
@@ -189,6 +194,10 @@ class Agent(Sink):
     def mailbox(self) -> Dict[str, str]:
         return self._mailbox
 
+    @property
+    def mailbox_client(self) -> MailboxClient:
+        return self._mailbox_client
+
     @mailbox.setter
     def mailbox(self, config: Union[str, Dict[str, str]]):
         self._mailbox = parse_mailbox_config(config)
@@ -204,6 +213,9 @@ class Agent(Sink):
         return self._identity.sign_registration(
             str(self._reg_contract.address), self._get_registration_sequence()
         )
+
+    def update_endpoints(self, endpoints: List[Dict[str, Any]]):
+        self._endpoints = endpoints
 
     def update_loop(self, loop):
         self._loop = loop
@@ -367,6 +379,10 @@ class Agent(Sink):
         # register the internal agent protocol
         self.include(self._protocol)
         self._loop.run_until_complete(self._startup())
+        if self._endpoints is None:
+            self._logger.warning(
+                "I have no endpoint and won't be able to receive external messages"
+            )
         self.start_background_tasks()
 
     def start_background_tasks(self):
@@ -395,10 +411,6 @@ class Agent(Sink):
         if self._endpoints is not None:
             self._loop.create_task(
                 _run_interval(self._register, self._ctx, self._schedule_registration())
-            )
-        else:
-            self._logger.warning(
-                "I have no endpoint and won't be able to receive external messages"
             )
 
     def run(self):
@@ -464,19 +476,41 @@ class Agent(Sink):
 
 
 class Bureau:
-    def __init__(self, port: Optional[int] = None):
+    def __init__(
+        self,
+        port: Optional[int] = None,
+        endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
+    ):
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
         self._agents = []
+        self._endpoints = parse_endpoint_config(endpoint)
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
-        self._server = ASGIServer(self._port, self._loop, self._queries)
+        self._logger = get_logger("bureau")
+        self._server = ASGIServer(self._port, self._loop, self._queries, self._logger)
+        self._use_mailbox = False
 
     def add(self, agent: Agent):
         agent.update_loop(self._loop)
         agent.update_queries(self._queries)
+        if agent.mailbox is not None:
+            self._use_mailbox = True
+        else:
+            agent.update_endpoints(self._endpoints)
         self._agents.append(agent)
 
     def run(self):
+        tasks = []
         for agent in self._agents:
             agent.setup()
-        self._loop.run_until_complete(self._server.serve())
+            if agent.mailbox is not None:
+                tasks.append(
+                    self._loop.create_task(
+                        agent.mailbox_client.process_deletion_queue()
+                    )
+                )
+                tasks.append(self._loop.create_task(agent.mailbox_client.run()))
+        if not self._use_mailbox:
+            tasks.append(self._loop.create_task(self._server.serve()))
+
+        self._loop.run_until_complete(asyncio.gather(*tasks))
