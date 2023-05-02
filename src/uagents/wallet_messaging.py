@@ -2,6 +2,7 @@ import asyncio
 import base64
 import functools
 import logging
+import sys
 from typing import List, Optional
 
 from babble import Client, Identity as BabbleIdentity
@@ -9,7 +10,11 @@ from babble.client import Message as WalletMessage
 from cosmpy.aerial.wallet import LocalWallet
 from requests import HTTPError, JSONDecodeError
 
-from uagents.config import WALLET_MESSAGING_POLL_INTERVAL_SECONDS, get_logger
+from uagents.config import (
+    WALLET_MESSAGING_POLL_INTERVAL_SECONDS,
+    WALLET_MESSAGING_MAX_CONSECUTIVE_FAILURES,
+    get_logger,
+)
 from uagents.context import Context, WalletMessageCallback
 from uagents.crypto import Identity
 
@@ -60,11 +65,24 @@ class WalletMessagingClient:
 
     async def poll_server(self):
         self._logger.info("Connecting to wallet messaging server")
+        consecutive_failures = 0
         while True:
             try:
                 for msg in self._client.receive():
                     await self._message_queue.put(msg)
-            except (HTTPError, ConnectionError, JSONDecodeError, BaseException) as ex:
+                consecutive_failures = 0
+            except (  # pylint: disable=W0703
+                HTTPError,
+                ConnectionError,
+                JSONDecodeError,
+                BaseException,
+            ) as ex:
+                consecutive_failures += 1
+                if consecutive_failures > WALLET_MESSAGING_MAX_CONSECUTIVE_FAILURES:
+                    self._logger.exception(
+                        "Failed to retrieve wallet messages too many times. Shutting down now."
+                    )
+                    sys.exit(1)
                 self._logger.warning(
                     f"Failed to get messages from wallet messaging server: {ex}"
                 )
