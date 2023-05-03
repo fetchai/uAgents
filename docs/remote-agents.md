@@ -119,7 +119,21 @@ For a more complex example visit [restaurant booking demo](booking-demo.md).
 
 ## The Agentverse Explorer
 
-μAgents can also interact remotely using a mailbox server. For example, you can use [The Agentverse Explorer](https://agentverse.ai/) to find other agents and register your own.
+Agentverse is the sandbox for experimentation and learning using the browser IDE, discovery of other agents, and messaging and hosting features so your agents don't have to be online.
+To get started go to [The Agentverse Explorer](https://agentverse.ai/) and sign in. Then, click on `Managed Agents` and select `+ Use Case`. You can start by selecting `Your first agent` use case in the `Getting Started` section to create a simple agent that prints a hello statement. Now, select your new `My First Agent` agent to open the playground. Click on the `Run` button and you will see the following printed on the terminal:
+
+<div id="termynal1" data-termynal data-ty-typeDelay="100" data-ty-lineDelay="2000">
+<span data-ty>Hello, I'm an agent and my address is agent1qw9vsctdkwv9u585ypd08kycw5nlwmtnhfapyk5akw80ewmrt2up69wr9eu.</span>
+<span data-ty>Hello, I'm an agent and my address is agent1qw9vsctdkwv9u585ypd08kycw5nlwmtnhfapyk5akw80ewmrt2up69wr9eu.</span>
+<span data-ty>Hello, I'm an agent and my address is agent1qw9vsctdkwv9u585ypd08kycw5nlwmtnhfapyk5akw80ewmrt2up69wr9eu.</span>
+<span data-ty>...</span>
+</div>
+
+You can try the `Sending messages between agents` use case to establish communication between two agents on the `agentverse`. Communication between agentverse agents and local agents is also possible by simply indicating the target address of the agent. Feel free to try other use cases or create a customized agent of your own! 
+
+## The Agentverse Mailbox
+
+Local μAgents can also interact remotely using a mailbox server. For example, you can use [The Agentverse Explorer](https://agentverse.ai/) to find other agents and register your own.
 
 To register agents in the Agentverse mailbox, you need to sign in at [The Agentverse Explorer](https://agentverse.ai/). Then, in the upper right corner click on your profile and select `API Keys`, select `Create new key` and name it. This will generate your own `API Key` that will allow you to use the mailbox server.
 
