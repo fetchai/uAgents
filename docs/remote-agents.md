@@ -124,9 +124,9 @@ Agentverse is the sandbox for experimentation and learning using the browser IDE
 To get started go to [The Agentverse Explorer](https://agentverse.ai/) and sign in. Then, click on `Managed Agents` and select `+ Use Case`. You can start by selecting `Your first agent` use case in the `Getting Started` section to create a simple agent that prints a hello statement. Now, select your new `My First Agent` agent to open the playground. Click on the `Run` button and you will see the following printed on the terminal:
 
 <div id="termynal3" data-termynal data-ty-typeDelay="100" data-ty-lineDelay="2000">
-<span data-ty>Hello, I'm an agent and my address is agent1qw9vsctdkwv9u585ypd08kycw5nlwmtnhfapyk5akw80ewmrt2up69wr9eu.</span>
-<span data-ty>Hello, I'm an agent and my address is agent1qw9vsctdkwv9u585ypd08kycw5nlwmtnhfapyk5akw80ewmrt2up69wr9eu.</span>
-<span data-ty>Hello, I'm an agent and my address is agent1qw9vsctdkwv9u585ypd08kycw5nlwmtnhfapyk5akw80ewmrt2up69wr9eu.</span>
+<span data-ty>Hello, I'm an agent and my address is agent1...</span>
+<span data-ty>Hello, I'm an agent and my address is agent1...</span>
+<span data-ty>Hello, I'm an agent and my address is agent1...</span>
 <span data-ty>...</span>
 </div>
 
