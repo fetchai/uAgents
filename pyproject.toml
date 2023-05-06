@@ -7,7 +7,7 @@ license = "Apache 2.0"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.11"
+python = ">=3.8,<4.0"
 pydantic = "^1.10.2"
 msgpack = "^1.0.4"
 bech32 = "^1.2.0"
