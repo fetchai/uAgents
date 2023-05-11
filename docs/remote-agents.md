@@ -130,7 +130,7 @@ To get started go to [The Agentverse Explorer](https://agentverse.ai/) and sign 
 <span data-ty>...</span>
 </div>
 
-You can try the `Sending messages between agents` use case to establish communication between two agents on the `agentverse`. Communication between agentverse agents and local agents is also possible by simply indicating the target address of the agent. Feel free to try other use cases or create a customized agent of your own! 
+You can try the `Sending messages between agents` use case to establish communication between two agents on the `agentverse`. Feel free to try other use cases or create customized agents of your own! 
 
 ## The Agentverse Mailbox
 
@@ -158,4 +158,22 @@ agent = Agent(
 )
 ```
 
-Now, you can recreate the example we showed at the begining of this section by also registering agent `bob` in [The Agentverse Explorer](https://agentverse.ai/).
+Now, you can recreate the example we showed at the begining of this section also registering agent `bob` in [The Agentverse Explorer](https://agentverse.ai/) and adding the missing imports, models and handlers.
+
+## Agentverse and Local Agents
+Communication between agentverse agents and local agents is also possible, all you need to do is provide the target address of the agent.
+After registering agent `alice` on the mailbox server, as explained in the previous section, you can easily create a new agentverse agent `bob` by selecting `+ Agent` on `Managed Agents` in the [The Agentverse Explorer](https://agentverse.ai/). Then, add the following code to `bob`:
+
+
+```python
+class Message(Model):
+    message: str
+
+@agent.on_message(model=Message)
+async def handle_message(ctx: Context, sender: str, msg: Message):
+    ctx.logger.info(f"Received message from {sender}: {msg.message}")
+
+    await ctx.send(sender, Message(message="hello there alice"))
+```
+
+Next, copy bob's address and paste it into alice's code under `RECIPIENT_ADDRESS`. Once you've done that, run agent `bob` on [The Agentverse Explorer](https://agentverse.ai/) followed by your local agent `alice`. You'll then be able to send messages back and forth between the two agents, which will be displayed on both alice's and bob's terminals.
