@@ -162,6 +162,7 @@ class Identity:
 
     @staticmethod
     def verify_digest(address: str, digest: bytes, signature: str) -> bool:
+
         pk_prefix, pk_data = _decode_bech32(address)
         sig_prefix, sig_data = _decode_bech32(signature)
 
