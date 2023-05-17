@@ -7,7 +7,7 @@ The system requirements for the Python μAgents package are as follows, but libr
 !!! Info "System requirements"
     The Python μAgents pacakge runs on `Ubuntu/Debian`, `MacOS`, and `Windows`.
     
-    You need <a href="https://www.python.org/downloads/" target="_blank">Python</a> 3.8, 3.9 or 3.10 on your system.
+    You need <a href="https://www.python.org/downloads/" target="_blank">Python</a> 3.8, 3.9, 3.10 or 3.11 on your system.
 
 ## Install from PyPI
 
@@ -47,4 +47,21 @@ pip install uagents
 
     ```
     poetry shell
+    ```
+
+??? warning note "Troubleshooting"
+
+    If you encounter any issues during the installation process, here are some common problems and their solutions:
+
+    Problem:
+    ```
+    Installing coincurve (17.0.0): Failed
+    ```
+
+    Solution:
+    Install the most up to date version of `automake` and `autoconf libtool` with:
+
+    ```
+    brew install automake
+    brew install autoconf libtool
     ```
