@@ -43,11 +43,11 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = env.json().encode()
             await self.agent._server(
-                scope=dict(
-                    type="http",
-                    path="/submit",
-                    headers={b"content-type": b"application/json"},
-                ),
+                scope={
+                    "type": "http",
+                    "path": "/submit",
+                    "headers": {b"content-type": b"application/json"},
+                },
                 receive=None,
                 send=mock_send,
             )
@@ -86,11 +86,11 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = env.json().encode()
             await self.agent._server(
-                scope=dict(
-                    type="http",
-                    path="/submit",
-                    headers={b"content-type": b"application/json"},
-                ),
+                scope={
+                    "type": "http",
+                    "path": "/submit",
+                    "headers": {b"content-type": b"application/json"},
+                },
                 receive=None,
                 send=mock_send,
             )
@@ -131,14 +131,14 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             await asyncio.gather(
                 self.loop.create_task(
                     self.agent._server(
-                        scope=dict(
-                            type="http",
-                            path="/submit",
-                            headers={
+                        scope={
+                            "type": "http",
+                            "path": "/submit",
+                            "headers": {
                                 b"content-type": b"application/json",
                                 b"x-uagents-connection": b"sync",
                             },
-                        ),
+                        },
                         receive=None,
                         send=mock_send,
                     )
@@ -183,14 +183,14 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             await asyncio.gather(
                 self.loop.create_task(
                     self.agent._server(
-                        scope=dict(
-                            type="http",
-                            path="/submit",
-                            headers={
+                        scope={
+                            "type": "http",
+                            "path": "/submit",
+                            "headers": {
                                 b"content-type": b"application/json",
                                 b"x-uagents-connection": b"sync",
                             },
-                        ),
+                        },
                         receive=None,
                         send=mock_send,
                     )
@@ -234,11 +234,11 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = env.json().encode()
             await self.agent._server(
-                scope=dict(
-                    type="http",
-                    path="/bad/path",
-                    headers={b"content-type": b"application/json"},
-                ),
+                scope={
+                    "type": "http",
+                    "path": "/bad/path",
+                    "headers": {b"content-type": b"application/json"},
+                },
                 receive=None,
                 send=mock_send,
             )
@@ -276,11 +276,11 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = env.json().encode()
             await self.agent._server(
-                scope=dict(
-                    type="http",
-                    path="/submit",
-                    headers={b"content-type": b"application/badapp"},
-                ),
+                scope={
+                    "type": "http",
+                    "path": "/submit",
+                    "headers": {b"content-type": b"application/badapp"},
+                },
                 receive=None,
                 send=mock_send,
             )
@@ -308,11 +308,11 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = message.json().encode()
             await self.agent._server(
-                scope=dict(
-                    type="http",
-                    path="/submit",
-                    headers={b"content-type": b"application/json"},
-                ),
+                scope={
+                    "type": "http",
+                    "path": "/submit",
+                    "headers": {b"content-type": b"application/json"},
+                },
                 receive=None,
                 send=mock_send,
             )
@@ -349,11 +349,11 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = env.json().encode()
             await self.agent._server(
-                scope=dict(
-                    type="http",
-                    path="/submit",
-                    headers={b"content-type": b"application/json"},
-                ),
+                scope={
+                    "type": "http",
+                    "path": "/submit",
+                    "headers": {b"content-type": b"application/json"},
+                },
                 receive=None,
                 send=mock_send,
             )
@@ -391,11 +391,11 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = env.json().encode()
             await self.agent._server(
-                scope=dict(
-                    type="http",
-                    path="/submit",
-                    headers={b"content-type": b"application/json"},
-                ),
+                scope={
+                    "type": "http",
+                    "path": "/submit",
+                    "headers": {b"content-type": b"application/json"},
+                },
                 receive=None,
                 send=mock_send,
             )
@@ -433,11 +433,11 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = env.json().encode()
             await self.agent._server(
-                scope=dict(
-                    type="http",
-                    path="/submit",
-                    headers={b"content-type": b"application/json"},
-                ),
+                scope={
+                    "type": "http",
+                    "path": "/submit",
+                    "headers": {b"content-type": b"application/json"},
+                },
                 receive=None,
                 send=mock_send,
             )
