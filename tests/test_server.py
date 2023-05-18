@@ -18,7 +18,6 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self.agent = Agent(name="alice", seed="alice recovery password")
         self.bob = Agent(name="bob", seed="bob recovery password")
-        self.loop: asyncio.BaseEventLoop = self._asyncioTestLoop
         return super().setUp()
 
     async def mock_process_sync_message(self, sender: str, msg: Model):
@@ -129,7 +128,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = env.json().encode()
             await asyncio.gather(
-                self.loop.create_task(
+                asyncio.create_task(
                     self.agent._server(
                         scope={
                             "type": "http",
@@ -143,7 +142,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                         send=mock_send,
                     )
                 ),
-                self.loop.create_task(self.mock_process_sync_message(user, reply)),
+                asyncio.create_task(self.mock_process_sync_message(user, reply)),
             )
         response = enclose_response(reply, self.agent.address, session)
         mock_send.assert_has_calls(
@@ -181,7 +180,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = env.json().encode()
             await asyncio.gather(
-                self.loop.create_task(
+                asyncio.create_task(
                     self.agent._server(
                         scope={
                             "type": "http",
@@ -195,7 +194,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                         send=mock_send,
                     )
                 ),
-                self.loop.create_task(
+                asyncio.create_task(
                     self.mock_process_sync_message(self.bob.address, reply)
                 ),
             )
