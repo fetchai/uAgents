@@ -53,15 +53,15 @@ pip install uagents
 
     If you encounter any issues during the installation process, here are some common problems and their solutions:
 
-    Problem:
+    **Problem** (MacOS/Python 3.11):
     ```
     Installing coincurve (17.0.0): Failed
     ```
 
-    Solution:
-    Install the most up to date version of `automake` and `autoconf libtool` with:
+    **Solution**:
+    Install the latest versions of `automake`, `autoconf`, and `libtool` with:
+    ```
+    brew install automake autoconf libtool
+    ```
 
-    ```
-    brew install automake
-    brew install autoconf libtool
-    ```
+    For any other problems, please let us know by creating as [issue](https://github.com/fetchai/uAgents/issues).
