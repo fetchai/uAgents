@@ -32,13 +32,15 @@ Envelopes have the following form and are quite similar to blockchain transactio
 ```python
 @dataclass
 class Envelope:
-    sender: str:    # bech32-encoded public address
-    target: str:    # bech32-encoded public address
-    session: str    # UUID
-    protocol: str   # protocol digest
-    payload: bytes  # JSON type: base64 str
-	expires: int    # Unix timestamp in seconds
-    signature: str  # bech32-encoded signature
+    sender: str:            # bech32-encoded public address
+    target: str:            # bech32-encoded public address
+    session: str            # UUID
+    schema_digest: str      # digest of message schema used for routing
+    protocol_digest: str    # digest of protocol containing message 
+    payload: bytes          # JSON type: base64 str
+	expires: int            # Unix timestamp in seconds
+    nonce: int              # unique message nonce
+    signature: str          # bech32-encoded signature
 ```
 
 ### Semantics
@@ -47,11 +49,15 @@ The **sender** field exposes the address of the sender of the message.
 
 The **target** field exposes the address of the recipient of the message.
 
-The **protocol** contains the unique schema digest string for the message.
+The **schema_digest** contains the unique schema digest string for the message.
+
+The **protocol_digest** contains the unique digest for protocol containing the message if available.
 
 The **payload** field exposes the payload of the protocol. Its JSON representation should be a base64 encoded string.
 
 The **expires** field contains the Unix timestamp in seconds at which the message is no longer valid.
+
+The **nonce** is a sequential number used to ensure each message is unique.
 
 The **signature** field contains the signature that is used to authenticate that the message has been sent from the **sender** agent.
 
