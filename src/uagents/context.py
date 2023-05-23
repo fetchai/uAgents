@@ -152,7 +152,7 @@ class Context:
             target=destination,
             session=uuid.uuid4(),
             schema_digest=schema_digest,
-            protocol_digest=self.get_message_protocol(schema_digest) or "",
+            protocol_digest=self.get_message_protocol(schema_digest),
             expires=expires,
         )
         env.encode_payload(json_message)
