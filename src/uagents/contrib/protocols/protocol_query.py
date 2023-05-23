@@ -11,7 +11,7 @@ class ProtocolResponse(Model):
     manifests: List[Dict[str, Any]]
 
 
-proto_query = Protocol()
+proto_query = Protocol(name="QueryProtocolManifests", version="0.1.0")
 
 
 @proto_query.on_query(ProtocolQuery)
