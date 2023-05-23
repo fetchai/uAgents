@@ -15,7 +15,7 @@ proto_query = Protocol(name="QueryProtocolManifests", version="0.1.0")
 
 
 @proto_query.on_query(ProtocolQuery)
-async def send_protocol_message_schemas(ctx: Context, sender: str, msg: ProtocolQuery):
+async def send_protocol_manifests(ctx: Context, sender: str, msg: ProtocolQuery):
     manifests = []
     if msg.protocol_digest is not None:
         if msg.protocol_digest in ctx.protocols:
