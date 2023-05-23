@@ -38,7 +38,7 @@ class Envelope:
     schema_digest: str      # digest of message schema used for routing
     protocol_digest: str    # digest of protocol containing message 
     payload: bytes          # JSON type: base64 str
-	expires: int            # Unix timestamp in seconds
+    expires: int            # Unix timestamp in seconds
     nonce: int              # unique message nonce
     signature: str          # bech32-encoded signature
 ```
