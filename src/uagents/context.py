@@ -1,9 +1,10 @@
+from __future__ import annotations
 import asyncio
 import logging
 import uuid
 from dataclasses import dataclass
 from time import time
-from typing import Dict, Set, Optional, Callable, Any, Awaitable, Type
+from typing import Dict, Set, Optional, Callable, Any, Awaitable, Type, TYPE_CHECKING
 
 import aiohttp
 from cosmpy.aerial.client import LedgerClient
@@ -16,6 +17,9 @@ from uagents.envelope import Envelope
 from uagents.models import Model, ErrorMessage
 from uagents.resolver import Resolver
 from uagents.storage import KeyValueStore
+
+if TYPE_CHECKING:
+    from uagents.protocol import Protocol
 
 IntervalCallback = Callable[["Context"], Awaitable[None]]
 MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
@@ -45,6 +49,7 @@ class Context:
         replies: Optional[Dict[str, Set[Type[Model]]]] = None,
         interval_messages: Optional[Set[str]] = None,
         message_received: Optional[MsgDigest] = None,
+        protocols: Optional[Dict[str, Protocol]] = None,
         logger: Optional[logging.Logger] = None,
     ):
         self.storage = storage
@@ -58,6 +63,7 @@ class Context:
         self._replies = replies
         self._interval_messages = interval_messages
         self._message_received = message_received
+        self._protocols = protocols or {}
         self._logger = logger
 
     @property
@@ -73,6 +79,13 @@ class Context:
     @property
     def logger(self) -> logging.Logger:
         return self._logger
+
+    def get_message_protocol(self, message_schema_digest) -> Optional[str]:
+        for protocol_digest, protocol in self._protocols.items():
+            for reply_models in protocol.replies.values():
+                if message_schema_digest in reply_models:
+                    return protocol_digest
+        return None
 
     async def send(
         self,
@@ -138,7 +151,8 @@ class Context:
             sender=self.address,
             target=destination,
             session=uuid.uuid4(),
-            protocol=schema_digest,
+            schema_digest=schema_digest,
+            protocol_digest=self.get_message_protocol(schema_digest) or "",
             expires=expires,
         )
         env.encode_payload(json_message)

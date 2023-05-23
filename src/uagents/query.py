@@ -44,7 +44,7 @@ async def query(
         sender=generate_user_address(),
         target=destination,
         session=uuid.uuid4(),
-        protocol=schema_digest,
+        schema_digest=schema_digest,
         expires=expires,
     )
     env.encode_payload(json_message)
@@ -73,7 +73,7 @@ def enclose_response(message: Model, sender: str, session: str) -> str:
         sender=sender,
         target="",
         session=session,
-        protocol=Model.build_schema_digest(message),
+        schema_digest=Model.build_schema_digest(message),
     )
     response_env.encode_payload(message.json())
     return response_env.json()
