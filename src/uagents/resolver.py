@@ -5,36 +5,30 @@ import random
 from uagents.network import get_almanac_contract, get_service_contract
 
 
-def _query_record(agent_address: str, service: str) -> dict:
-    contract = get_almanac_contract()
-    query_msg = {
-        "query_record": {"agent_address": agent_address, "record_type": service}
-    }
-    result = contract.query(query_msg)
-    return result
+def query_record(agent_address: str, service: str) -> dict:
+   contract = get_almanac_contract()
+   query_msg = {
+       "query_record": {"agent_address": agent_address, "record_type": service}
+   }
+   result = contract.query(query_msg)
+   return result
 
-def _get_agent_address(name: str) -> str:
-    query_msg = {"domain_record": {"domain": f"{name}.agent"}}
-    res = get_service_contract().query(query_msg)
-    if res["record"] is not None:
-        registered_address = res["record"]["records"][0]["agent_address"]["records"]
-        if len(registered_address) > 0:
-            return registered_address[0]["address"]
-        return 0
-    return 1
+def get_agent_address(name: str) -> str:
+   query_msg = {"domain_record": {"domain": f"{name}.agent"}}
+   result = get_service_contract().query(query_msg)
+   if result["record"] is not None:
+       registered_address = result["record"]["records"][0]["agent_address"]["records"]
+       if len(registered_address) > 0:
+           return registered_address[0]["address"]
+       return 0
+   return 1
 
-def _is_agent_address(address):
-    prefix = "agent"
-    expected_length = 65
 
-    if len(address) != expected_length:
-        return False
+def is_agent_address(address):
+   prefix = "agent"
+   expected_length = 65
 
-    if not address.startswith(prefix):
-        return False
-
-    return True
-
+   return len(address) == expected_length and address.startswith(prefix)
 
 class Resolver(ABC):
     @abstractmethod
@@ -45,12 +39,12 @@ class Resolver(ABC):
 class AlmanacResolver(Resolver):
     async def resolve(self, destination: str) -> Optional[str]:
 
-        if _is_agent_address(destination):
+        if is_agent_address(destination):
             address = destination
         else:
-            address = _get_agent_address(destination)
+            address = get_agent_address(destination)
 
-        result = _query_record(address, "service")
+        result = query_record(address, "service")
         if result is not None:
             record = result.get("record") or {}
             endpoint_list = (
