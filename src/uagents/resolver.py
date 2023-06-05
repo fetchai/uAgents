@@ -37,7 +37,7 @@ def is_agent_address(address):
 
 class Resolver(ABC):
     @abstractmethod
-    async def resolve(self, address: str) -> Optional[str]:
+    async def resolve(self, destination: str) -> Optional[str]:
         pass
 
 
