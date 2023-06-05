@@ -68,5 +68,5 @@ class RulesBasedResolver(Resolver):
     def __init__(self, rules: Dict[str, str]):
         self._rules = rules
 
-    async def resolve(self, address: str) -> Optional[str]:
-        return self._rules.get(address)
+    async def resolve(self, destination: str) -> Optional[str]:
+        return self._rules.get(destination)

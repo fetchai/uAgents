@@ -77,22 +77,7 @@ class Agent(Sink):
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
 
         # initialize wallet and identity
-        if seed is None:
-            if name is None:
-                self._wallet = LocalWallet.generate()
-                self._identity = Identity.generate()
-            else:
-                identity_key, wallet_key = get_or_create_private_keys(name)
-                self._wallet = LocalWallet(PrivateKey(wallet_key))
-                self._identity = Identity.from_string(identity_key)
-        else:
-            self._identity = Identity.from_seed(seed, 0)
-            self._wallet = LocalWallet(
-                PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
-                prefix=LEDGER_PREFIX,
-            )
-        if name is None:
-            self._name = self.address[0:16]
+        self._initialize_wallet_and_identity(seed, name)
         self._logger = get_logger(self.name)
 
         # configure endpoints and mailbox
@@ -155,6 +140,24 @@ class Agent(Sink):
             self._server = ASGIServer(
                 self._port, self._loop, self._queries, logger=self._logger
             )
+
+    def _initialize_wallet_and_identity(self, seed, name):
+        if seed is None:
+            if name is None:
+                self._wallet = LocalWallet.generate()
+                self._identity = Identity.generate()
+            else:
+                identity_key, wallet_key = get_or_create_private_keys(name)
+                self._wallet = LocalWallet(PrivateKey(wallet_key))
+                self._identity = Identity.from_string(identity_key)
+        else:
+            self._identity = Identity.from_seed(seed, 0)
+            self._wallet = LocalWallet(
+                PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
+                prefix=LEDGER_PREFIX,
+            )
+        if name is None:
+            self._name = self.address[0:16]
 
     @property
     def name(self) -> str:
