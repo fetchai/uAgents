@@ -221,26 +221,12 @@ class Agent(Sink):
 
         signature = self.sign_registration()
 
-        self._logger.info("Registering on contract...")
-
-        if not self._service_contract.is_name_available(
-            ctx.name
-        ) and not self._service_contract.is_owner(ctx.name, str(self.wallet.address())):
-            self._logger.error(
-                f"Please select another name for your agent, {ctx.name} is owned by another address"
-            )
-            return
+        self._logger.info("Registering on almanac contract...")
 
         transaction = Transaction()
 
         almanac_msg = self._almanac_contract.get_registration_msg(
             self.protocols, self._endpoints, signature, self.address
-        )
-        ownership_msg = self._service_contract.get_ownership_msg(
-            ctx.name, str(self.wallet.address())
-        )
-        registration_msg = self._service_contract.get_registration_msg(
-            ctx.name, self.address
         )
 
         transaction.add_message(
@@ -252,25 +238,33 @@ class Agent(Sink):
             )
         )
 
-        transaction.add_message(
-            create_cosmwasm_execute_msg(
-                ctx.wallet.address(), CONTRACT_SERVICE, ownership_msg
-            )
-        )
-        transaction.add_message(
-            create_cosmwasm_execute_msg(
-                ctx.wallet.address(), CONTRACT_SERVICE, registration_msg
-            )
-        )
-
         transaction = prepare_and_broadcast_basic_transaction(
             ctx.ledger, transaction, ctx.wallet
         )
         await wait_for_tx_to_complete(transaction.tx_hash)
-        self._logger.info("Registering on contract...complete")
+        self._logger.info("Registering on almanac contract...complete")
 
     def _schedule_registration(self):
         return self._almanac_contract.get_expiry(self.address)
+
+    async def register_name(self):
+        self._logger.info("Registering name...")
+
+        transaction = self._service_contract.get_registration_tx(
+            self.name, str(self.wallet.address()), self.address
+        )
+
+        if transaction is None:
+            self._logger.error(
+                f"Please select another name for your agent, {self.name} is owned by another address"
+            )
+
+            return
+        transaction = prepare_and_broadcast_basic_transaction(
+            self._ledger, transaction, self.wallet
+        )
+        await wait_for_tx_to_complete(transaction.tx_hash)
+        self._logger.info("Registering name...complete")
 
     def get_agent_address(self, name: str) -> str:
         query_msg = {"domain_record": {"domain": f"{name}.agent"}}

@@ -10,8 +10,10 @@ from cosmpy.aerial.client import (
     DEFAULT_QUERY_TIMEOUT_SECS,
 )
 from cosmpy.aerial.exceptions import NotFoundError, QueryTimeoutError
+from cosmpy.aerial.contract.cosmwasm import create_cosmwasm_execute_msg
 from cosmpy.aerial.faucet import FaucetApi
 from cosmpy.aerial.tx_helpers import TxResponse
+from cosmpy.aerial.tx import Transaction
 
 from uagents.config import (
     AgentNetwork,
@@ -116,6 +118,28 @@ class ServiceContract(LedgerContract):
                 "agent_address": address,
             }
         }
+
+    def get_registration_tx(self, name: str, wallet_address: str, agent_address: str):
+        if not _service_contract.is_name_available(
+            name
+        ) and not _service_contract.is_owner(name, wallet_address):
+            return
+
+        transaction = Transaction()
+
+        ownership_msg = _service_contract.get_ownership_msg(name, wallet_address)
+        registration_msg = _service_contract.get_registration_msg(name, agent_address)
+
+        transaction.add_message(
+            create_cosmwasm_execute_msg(wallet_address, CONTRACT_SERVICE, ownership_msg)
+        )
+        transaction.add_message(
+            create_cosmwasm_execute_msg(
+                wallet_address, CONTRACT_SERVICE, registration_msg
+            )
+        )
+
+        return transaction
 
 
 if AGENT_NETWORK == AgentNetwork.FETCHAI_TESTNET:
