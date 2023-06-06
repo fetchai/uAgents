@@ -2,6 +2,7 @@ from protocols.book import book_proto
 from protocols.query import query_proto, TableStatus
 
 from uagents import Agent
+from uagents.contrib.protocols.protocol_query import proto_query
 from uagents.setup import fund_agent_if_low
 
 
@@ -19,6 +20,7 @@ fund_agent_if_low(restaurant.wallet.address())
 # build the restaurant agent from stock protocols
 restaurant.include(query_proto)
 restaurant.include(book_proto)
+restaurant.include(proto_query)
 
 TABLES = {
     1: TableStatus(seats=2, time_start=16, time_end=22),

@@ -80,6 +80,10 @@ class Context:
     def logger(self) -> logging.Logger:
         return self._logger
 
+    @property
+    def protocols(self) -> Optional[Dict[str, Protocol]]:
+        return self._protocols
+
     def get_message_protocol(self, message_schema_digest) -> Optional[str]:
         for protocol_digest, protocol in self._protocols.items():
             for reply_models in protocol.replies.values():

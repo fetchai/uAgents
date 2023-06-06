@@ -1,18 +1,22 @@
 import asyncio
 
-from protocols.query import GetTotalQueries
+from protocols.query import GetTotalQueries, TotalQueries
 
+from uagents.contrib.protocols.protocol_query import ProtocolQuery, ProtocolResponse
 from uagents.query import query
 
 
-RESTAURANT_ADDRESS = "agent1qw50wcs4nd723ya9j8mwxglnhs2kzzhh0et0yl34vr75hualsyqvqdzl990"
-
-get_total_queries = GetTotalQueries()
+RESTAURANT_ADDRESS = "agent1qfpqn9jhvp9cg33f27q6jvmuv52dgyg9rfuu37rmxrletlqe7lewwjed5gy"
 
 
 async def main():
-    env = await query(RESTAURANT_ADDRESS, get_total_queries)
-    print(f"Query response: {env.decode_payload()}")
+    env = await query(RESTAURANT_ADDRESS, GetTotalQueries())
+    msg = TotalQueries.parse_raw(env.decode_payload())
+    print(f"Query response: {msg.json()}\n\n")
+
+    env = await query(RESTAURANT_ADDRESS, ProtocolQuery())
+    msg = ProtocolResponse.parse_raw(env.decode_payload())
+    print("Protocol query response:", msg.json(indent=4))
 
 
 if __name__ == "__main__":
