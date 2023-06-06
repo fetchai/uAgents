@@ -73,7 +73,7 @@ class MailboxClient:
         await dispatcher.dispatch(
             env.sender,
             env.target,
-            env.protocol,
+            env.schema_digest,
             env.decode_payload(),
         )
 
