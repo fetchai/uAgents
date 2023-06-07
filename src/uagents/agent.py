@@ -108,19 +108,6 @@ class Agent(Sink):
         self._models: Dict[str, Type[Model]] = {}
         self._replies: Dict[str, Set[Type[Model]]] = {}
         self._queries: Dict[str, asyncio.Future] = {}
-        self._ctx = Context(
-            self._identity.address,
-            self._name,
-            self._storage,
-            self._resolver,
-            self._identity,
-            self._wallet,
-            self._ledger,
-            self._queries,
-            replies=self._replies,
-            interval_messages=self._interval_messages,
-            logger=self._logger,
-        )
         self._dispatcher = dispatcher
         self._message_queue = asyncio.Queue()
         self._on_startup = []
@@ -132,6 +119,21 @@ class Agent(Sink):
 
         # keep track of supported protocols
         self.protocols: Dict[str, Protocol] = {}
+
+        self._ctx = Context(
+            self._identity.address,
+            self._name,
+            self._storage,
+            self._resolver,
+            self._identity,
+            self._wallet,
+            self._ledger,
+            self._queries,
+            replies=self._replies,
+            interval_messages=self._interval_messages,
+            protocols=self.protocols,
+            logger=self._logger,
+        )
 
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
@@ -448,6 +450,7 @@ class Agent(Sink):
                 message_received=MsgDigest(
                     message=message, schema_digest=schema_digest
                 ),
+                protocols=self.protocols,
                 logger=self._logger,
             )
 
