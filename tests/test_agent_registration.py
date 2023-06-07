@@ -51,7 +51,7 @@ class TestRegistration(unittest.TestCase):
         agent = Agent()
         fund_agent_if_low(agent.wallet.address())
 
-        ownership_msg = agent._service_contract.get_ownership_msg(
+        ownership_msg = agent._service_contract._get_ownership_msg(
             agent.name, str(agent.wallet.address())
         )
 
@@ -109,10 +109,10 @@ class TestRegistration(unittest.TestCase):
         )
         self.assertEqual(is_owner, False)
 
-        ownership_msg = agent._service_contract.get_ownership_msg(
+        ownership_msg = agent._service_contract._get_ownership_msg(
             agent.name, str(agent.wallet.address())
         )
-        registration_msg = agent._service_contract.get_registration_msg(
+        registration_msg = agent._service_contract._get_registration_msg(
             agent.name, agent.address
         )
 

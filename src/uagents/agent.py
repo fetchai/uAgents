@@ -250,6 +250,12 @@ class Agent(Sink):
     async def register_name(self):
         self._logger.info("Registering name...")
 
+        if not self._almanac_contract.is_registered(self.address):
+            self._logger.warning(
+                f"Agent {self.name} needs to be registered in almanac contract to register its name"
+            )
+            return
+
         transaction = self._service_contract.get_registration_tx(
             self.name, str(self.wallet.address()), self.address
         )
@@ -273,7 +279,9 @@ class Agent(Sink):
             registered_address = res["record"]["records"][0]["agent_address"]["records"]
             if len(registered_address) > 0:
                 return registered_address[0]["address"]
+            self._logger.warning(f"Agent {self.name} registration expired")
             return 0
+        self._logger.warning(f"Agent {self.name} is not registered")
         return 1
 
     def on_interval(

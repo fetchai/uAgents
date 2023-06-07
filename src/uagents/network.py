@@ -96,12 +96,9 @@ class ServiceContract(LedgerContract):
             }
         }
         permission = self.query(query_msg)["permissions"]
-        if permission == "admin":
-            return True
-        return False
+        return permission == "admin"
 
-    @staticmethod
-    def get_ownership_msg(name: str, wallet_address: str):
+    def _get_ownership_msg(self, name: str, wallet_address: str):
         return {
             "update_ownership": {
                 "domain": f"{name}.agent",
@@ -110,8 +107,7 @@ class ServiceContract(LedgerContract):
             }
         }
 
-    @staticmethod
-    def get_registration_msg(name: str, address: str):
+    def _get_registration_msg(self, name: str, address: str):
         return {
             "register": {
                 "domain": f"{name}.agent",
@@ -120,15 +116,13 @@ class ServiceContract(LedgerContract):
         }
 
     def get_registration_tx(self, name: str, wallet_address: str, agent_address: str):
-        if not _service_contract.is_name_available(
-            name
-        ) and not _service_contract.is_owner(name, wallet_address):
+        if not self.is_name_available(name) and not self.is_owner(name, wallet_address):
             return
 
         transaction = Transaction()
 
-        ownership_msg = _service_contract.get_ownership_msg(name, wallet_address)
-        registration_msg = _service_contract.get_registration_msg(name, agent_address)
+        ownership_msg = self._get_ownership_msg(name, wallet_address)
+        registration_msg = self._get_registration_msg(name, agent_address)
 
         transaction.add_message(
             create_cosmwasm_execute_msg(wallet_address, CONTRACT_SERVICE, ownership_msg)

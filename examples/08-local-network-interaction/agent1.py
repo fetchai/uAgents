@@ -10,9 +10,9 @@ class Message(Model):
 
 
 bob = Agent(
-    name="bob123",
+    name="agent bob",
     port=8001,
-    seed="bobs secret",
+    seed="agent bob secret phrase",
     endpoint=["http://127.0.0.1:8001/submit"],
 )
 
@@ -22,8 +22,7 @@ fund_agent_if_low(bob.wallet.address())
 @bob.on_event("startup")
 async def register_name(ctx: Context):
     await bob.register_name()
-
-print(bob.get_agent_address("hollaaaa"))
+    print("agent bob registered address: ", bob.get_agent_address("agent bob"))
 
 
 @bob.on_message(model=Message)
