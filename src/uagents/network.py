@@ -117,7 +117,7 @@ class ServiceContract(LedgerContract):
 
     def get_registration_tx(self, name: str, wallet_address: str, agent_address: str):
         if not self.is_name_available(name) and not self.is_owner(name, wallet_address):
-            return
+            return None
 
         transaction = Transaction()
 

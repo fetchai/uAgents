@@ -32,7 +32,6 @@ from uagents.network import (
 from uagents.mailbox import MailboxClient
 from uagents.config import (
     CONTRACT_ALMANAC,
-    CONTRACT_SERVICE,
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
     MIN_REGISTRATION_TIME,
@@ -264,7 +263,7 @@ class Agent(Sink):
 
         if transaction is None:
             self._logger.error(
-                f"Please select another name for your agent, {self.name} is owned by another address"
+                f"Please select another name, {self.name} is owned by another address"
             )
 
             return
