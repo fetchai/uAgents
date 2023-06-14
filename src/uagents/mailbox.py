@@ -75,6 +75,7 @@ class MailboxClient:
             env.target,
             env.schema_digest,
             env.decode_payload(),
+            env.session,
         )
 
         # queue envelope for deletion from server
