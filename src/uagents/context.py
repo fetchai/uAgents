@@ -61,7 +61,7 @@ class Context:
         self._resolver = resolve
         self._identity = identity
         self._queries = queries
-        self._session = session
+        self._session = session or uuid.uuid4()
         self._replies = replies
         self._interval_messages = interval_messages
         self._message_received = message_received
@@ -87,7 +87,7 @@ class Context:
         return self._protocols
 
     @property
-    def session(self) -> Optional[uuid.UUID]:
+    def session(self) -> uuid.UUID:
         return self._session
 
     def get_message_protocol(self, message_schema_digest) -> Optional[str]:
@@ -131,13 +131,10 @@ class Context:
                 )
                 return
 
-        # get session if available, otherwise generate a new one
-        session = self._session or uuid.uuid4()
-
         # handle local dispatch of messages
         if dispatcher.contains(destination):
             await dispatcher.dispatch(
-                self.address, destination, schema_digest, json_message, session
+                self.address, destination, schema_digest, json_message, self._session
             )
             return
 
@@ -163,7 +160,7 @@ class Context:
             version=1,
             sender=self.address,
             target=destination,
-            session=session,
+            session=self._session,
             schema_digest=schema_digest,
             protocol_digest=self.get_message_protocol(schema_digest),
             expires=expires,
