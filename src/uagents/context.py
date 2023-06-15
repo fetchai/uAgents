@@ -46,6 +46,7 @@ class Context:
         wallet: LocalWallet,
         ledger: LedgerClient,
         queries: Dict[str, asyncio.Future],
+        session: Optional[uuid.UUID] = None,
         replies: Optional[Dict[str, Set[Type[Model]]]] = None,
         interval_messages: Optional[Set[str]] = None,
         message_received: Optional[MsgDigest] = None,
@@ -60,6 +61,7 @@ class Context:
         self._resolver = resolve
         self._identity = identity
         self._queries = queries
+        self._session = session or uuid.uuid4()
         self._replies = replies
         self._interval_messages = interval_messages
         self._message_received = message_received
@@ -83,6 +85,10 @@ class Context:
     @property
     def protocols(self) -> Optional[Dict[str, Protocol]]:
         return self._protocols
+
+    @property
+    def session(self) -> uuid.UUID:
+        return self._session
 
     def get_message_protocol(self, message_schema_digest) -> Optional[str]:
         for protocol_digest, protocol in self._protocols.items():
@@ -128,7 +134,7 @@ class Context:
         # handle local dispatch of messages
         if dispatcher.contains(destination):
             await dispatcher.dispatch(
-                self.address, destination, schema_digest, json_message
+                self.address, destination, schema_digest, json_message, self._session
             )
             return
 
@@ -154,7 +160,7 @@ class Context:
             version=1,
             sender=self.address,
             target=destination,
-            session=uuid.uuid4(),
+            session=self._session,
             schema_digest=schema_digest,
             protocol_digest=self.get_message_protocol(schema_digest),
             expires=expires,
