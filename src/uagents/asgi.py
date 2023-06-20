@@ -11,8 +11,8 @@ from uagents.config import get_logger
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
-from uagents.models import Model, ErrorMessage
-from uagents.query import enclose_response
+from uagents.models import ErrorMessage
+from uagents.query import enclose_response_raw
 
 
 HOST = "0.0.0.0"
@@ -163,12 +163,14 @@ class ASGIServer:
 
         # wait for any queries to be resolved
         if expects_response:
-            response_msg: Model = await self._queries[env.sender]
+            response_msg, schema_digest = await self._queries[env.sender]
             if env.expires is not None:
                 if datetime.now() > datetime.fromtimestamp(env.expires):
                     response_msg = ErrorMessage(error="Query envelope expired")
             sender = env.target
-            response = enclose_response(response_msg, sender, str(env.session))
+            response = enclose_response_raw(
+                response_msg, schema_digest, sender, str(env.session)
+            )
         else:
             response = "{}"
 
