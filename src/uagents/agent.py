@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import requests
 from typing import Dict, List, Optional, Set, Union, Type, Tuple, Any
 import uuid
 
@@ -23,6 +24,7 @@ from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.network import get_ledger, get_reg_contract, wait_for_tx_to_complete
 from uagents.mailbox import MailboxClient
 from uagents.config import (
+    ALMANAC_API_URL,
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
     LEDGER_PREFIX,
@@ -297,7 +299,7 @@ class Agent(Sink):
         elif event_type == "shutdown":
             self._on_shutdown.append(func)
 
-    def include(self, protocol: Protocol):
+    def include(self, protocol: Protocol, publish_manifest: Optional[bool] = False):
         for func, period in protocol.intervals:
             self._interval_handlers.append((func, period))
 
@@ -326,6 +328,15 @@ class Agent(Sink):
 
         if protocol.digest is not None:
             self.protocols[protocol.digest] = protocol
+
+        if publish_manifest:
+            self.publish_manifest()
+
+    def publish_manifest(self, manifest: Dict[str, Any]):
+        try:
+            requests.post(ALMANAC_API_URL + "/v1/almanac/manifests", json=manifest)
+        except Exception as ex:     
+            self._logger.warning(f"Unable to publish manifest: {ex}")
 
     async def handle_message(
         self, sender, schema_digest: str, message: JsonStr, session: uuid.UUID
