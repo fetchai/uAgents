@@ -6,6 +6,7 @@ import aiohttp
 
 from uagents.config import get_logger
 from uagents.crypto import generate_user_address
+from uagents.dispatch import JsonStr
 from uagents.envelope import Envelope
 from uagents.models import Model
 from uagents.resolver import Resolver, AlmanacResolver
@@ -68,12 +69,19 @@ async def query(
 
 
 def enclose_response(message: Model, sender: str, session: str) -> str:
+    schema_digest = Model.build_schema_digest(message)
+    return enclose_response_raw(message.json(), schema_digest, sender, session)
+
+
+def enclose_response_raw(
+    json_message: JsonStr, schema_digest: str, sender: str, session: str
+) -> str:
     response_env = Envelope(
         version=1,
         sender=sender,
         target="",
         session=session,
-        schema_digest=Model.build_schema_digest(message),
+        schema_digest=schema_digest,
     )
-    response_env.encode_payload(message.json())
+    response_env.encode_payload(json_message)
     return response_env.json()
