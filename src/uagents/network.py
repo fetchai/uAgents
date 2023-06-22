@@ -125,7 +125,9 @@ class NameServiceContract(LedgerContract):
         registration_msg = self._get_registration_msg(name, agent_address)
 
         transaction.add_message(
-            create_cosmwasm_execute_msg(wallet_address, CONTRACT_NAME_SERVICE, ownership_msg)
+            create_cosmwasm_execute_msg(
+                wallet_address, CONTRACT_NAME_SERVICE, ownership_msg
+            )
         )
         transaction.add_message(
             create_cosmwasm_execute_msg(
