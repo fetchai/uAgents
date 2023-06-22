@@ -3,6 +3,7 @@ import unittest
 
 from uagents import Agent
 from uagents.setup import fund_agent_if_low
+from uagents.resolver import get_agent_address
 from uagents.config import (
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
@@ -129,7 +130,7 @@ class TestRegistration(unittest.TestCase):
         )
         self.assertEqual(is_owner, True, "Domain ownership failed")
 
-        query_address = agent.get_agent_address(agent.name)
+        query_address = get_agent_address(agent.name)
 
         self.assertEqual(
             query_address == agent.address, True, "Service contract registration failed"

@@ -57,8 +57,8 @@ class GlobalResolver(Resolver):
 
 
 class AlmanacResolver(Resolver):
-    async def resolve(self, address: str) -> Optional[str]:
-        result = query_record(address, "service")
+    async def resolve(self, destination: str) -> Optional[str]:
+        result = query_record(destination, "service")
         if result is not None:
             record = result.get("record") or {}
             endpoint_list = (
@@ -68,14 +68,14 @@ class AlmanacResolver(Resolver):
             if len(endpoint_list) > 0:
                 endpoints = [val.get("url") for val in endpoint_list]
                 weights = [val.get("weight") for val in endpoint_list]
-                return address, random.choices(endpoints, weights=weights)[0]
+                return destination, random.choices(endpoints, weights=weights)[0]
 
         return None, None
 
 
 class NameServiceResolver(Resolver):
-    async def resolve(self, name: str) -> Optional[str]:
-        return get_agent_address(name)
+    async def resolve(self, destination: str) -> Optional[str]:
+        return get_agent_address(destination)
 
 
 class RulesBasedResolver(Resolver):
