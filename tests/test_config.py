@@ -107,10 +107,6 @@ expected_configs = [
 ]
 
 
-for agent in agents:
-    print(agent.agentverse)
-
-
 class TestConfig(unittest.TestCase):
     def test_parse_agentverse_config(self):
         for agent, expected_config in zip(agents, expected_configs):
