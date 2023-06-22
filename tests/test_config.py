@@ -1,7 +1,6 @@
 import unittest
 
 from uagents import Agent
-from uagents.config import parse_agentverse_config
 
 
 agents = [
