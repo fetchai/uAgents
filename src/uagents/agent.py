@@ -24,13 +24,13 @@ from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.network import get_ledger, get_reg_contract, wait_for_tx_to_complete
 from uagents.mailbox import MailboxClient
 from uagents.config import (
-    AGENTVERSE_URL,
+    ConfigurationError,
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
     LEDGER_PREFIX,
     BLOCK_INTERVAL,
     parse_endpoint_config,
-    parse_mailbox_config,
+    parse_agentverse_config,
     get_logger,
 )
 
@@ -58,6 +58,7 @@ class Agent(Sink):
         port: Optional[int] = None,
         seed: Optional[str] = None,
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
+        agentverse: Optional[Union[str, Dict[str, str]]] = None,
         mailbox: Optional[Union[str, Dict[str, str]]] = None,
         resolve: Optional[Resolver] = None,
         version: Optional[str] = None,
@@ -68,30 +69,24 @@ class Agent(Sink):
         self._resolver = resolve if resolve is not None else AlmanacResolver()
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
 
-        # initialize wallet and identity
-        if seed is None:
-            if name is None:
-                self._wallet = LocalWallet.generate()
-                self._identity = Identity.generate()
-            else:
-                identity_key, wallet_key = get_or_create_private_keys(name)
-                self._wallet = LocalWallet(PrivateKey(wallet_key))
-                self._identity = Identity.from_string(identity_key)
-        else:
-            self._identity = Identity.from_seed(seed, 0)
-            self._wallet = LocalWallet(
-                PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
-                prefix=LEDGER_PREFIX,
-            )
-        if name is None:
-            self._name = self.address[0:16]
+        self._initialize_wallet_and_identity(seed, name)
+
         self._logger = get_logger(self.name)
 
         # configure endpoints and mailbox
         self._endpoints = parse_endpoint_config(endpoint)
-        self._use_mailbox = mailbox is not None
+        self._use_mailbox = False
+
+        # agentverse config overrides mailbox config
+        # but mailbox is kept for backwards compatibility
+        if agentverse and mailbox:
+            raise ConfigurationError(
+                "Cannot specify both agentverse and mailbox configuration"
+            )
+        agentverse = mailbox if agentverse is None else agentverse
+        self._agentverse = parse_agentverse_config(agentverse)
+        self._use_mailbox = self._agentverse["use_mailbox"]
         if self._use_mailbox:
-            self._mailbox = parse_mailbox_config(mailbox)
             self._mailbox_client = MailboxClient(self, self._logger)
             # if mailbox is provided, override endpoints with mailbox endpoint
             self._endpoints = [
@@ -101,7 +96,6 @@ class Agent(Sink):
                 }
             ]
         else:
-            self._mailbox = None
             self._mailbox_client = None
 
         self._ledger = get_ledger()
@@ -149,6 +143,24 @@ class Agent(Sink):
                 self._port, self._loop, self._queries, logger=self._logger
             )
 
+    def _initialize_wallet_and_identity(self, seed, name):
+        if seed is None:
+            if name is None:
+                self._wallet = LocalWallet.generate()
+                self._identity = Identity.generate()
+            else:
+                identity_key, wallet_key = get_or_create_private_keys(name)
+                self._wallet = LocalWallet(PrivateKey(wallet_key))
+                self._identity = Identity.from_string(identity_key)
+        else:
+            self._identity = Identity.from_seed(seed, 0)
+            self._wallet = LocalWallet(
+                PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
+                prefix=LEDGER_PREFIX,
+            )
+        if name is None:
+            self._name = self.address[0:16]
+
     @property
     def name(self) -> str:
         return self._name
@@ -167,7 +179,11 @@ class Agent(Sink):
 
     @property
     def mailbox(self) -> Dict[str, str]:
-        return self._mailbox
+        return self._agentverse
+
+    @property
+    def agentverse(self) -> Dict[str, str]:
+        return self._agentverse
 
     @property
     def mailbox_client(self) -> MailboxClient:
@@ -175,7 +191,11 @@ class Agent(Sink):
 
     @mailbox.setter
     def mailbox(self, config: Union[str, Dict[str, str]]):
-        self._mailbox = parse_mailbox_config(config)
+        self._agentverse = parse_agentverse_config(config)
+
+    @agentverse.setter
+    def agentverse(self, config: Union[str, Dict[str, str]]):
+        self._agentverse = parse_agentverse_config(config)
 
     def sign(self, data: bytes) -> str:
         return self._identity.sign(data)
@@ -335,7 +355,9 @@ class Agent(Sink):
     def publish_manifest(self, manifest: Dict[str, Any]):
         try:
             resp = requests.post(
-                AGENTVERSE_URL + "/v1/almanac/manifests", json=manifest, timeout=5
+                self._agentverse["base_url"] + "/v1/almanac/manifests",
+                json=manifest,
+                timeout=5,
             )
             if resp.status_code == 200:
                 self._logger.info(
