@@ -1,6 +1,7 @@
 import asyncio
 import functools
 from typing import Dict, List, Optional, Set, Union, Type, Tuple, Any
+import uuid
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
@@ -359,8 +360,10 @@ class Agent(Sink):
         if protocol.digest is not None:
             self.protocols[protocol.digest] = protocol
 
-    async def handle_message(self, sender, schema_digest: str, message: JsonStr):
-        await self._message_queue.put((schema_digest, sender, message))
+    async def handle_message(
+        self, sender, schema_digest: str, message: JsonStr, session: uuid.UUID
+    ):
+        await self._message_queue.put((schema_digest, sender, message, session))
 
     async def _startup(self):
         for handler in self._on_startup:
@@ -425,7 +428,7 @@ class Agent(Sink):
     async def _process_message_queue(self):
         while True:
             # get an element from the queue
-            schema_digest, sender, message = await self._message_queue.get()
+            schema_digest, sender, message, session = await self._message_queue.get()
 
             # lookup the model definition
             model_class: Model = self._models.get(schema_digest)
@@ -444,6 +447,7 @@ class Agent(Sink):
                 self._wallet,
                 self._ledger,
                 self._queries,
+                session=session,
                 replies=self._replies,
                 interval_messages=self._interval_messages,
                 message_received=MsgDigest(

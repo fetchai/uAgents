@@ -1,12 +1,15 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Set
+import uuid
 
 JsonStr = str
 
 
 class Sink(ABC):
     @abstractmethod
-    async def handle_message(self, sender: str, schema_digest: str, message: JsonStr):
+    async def handle_message(
+        self, sender: str, schema_digest: str, message: JsonStr, session: uuid.UUID
+    ):
         pass
 
 
@@ -28,10 +31,15 @@ class Dispatcher:
         return address in self._sinks
 
     async def dispatch(
-        self, sender: str, destination: str, schema_digest: str, message: JsonStr
+        self,
+        sender: str,
+        destination: str,
+        schema_digest: str,
+        message: JsonStr,
+        session: uuid.UUID,
     ):
         for handler in self._sinks.get(destination, set()):
-            await handler.handle_message(sender, schema_digest, message)
+            await handler.handle_message(sender, schema_digest, message, session)
 
 
 dispatcher = Dispatcher()
