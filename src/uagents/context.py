@@ -174,7 +174,6 @@ class Context:
             sender=self.address,
             target=destination_address,
             session=self._session,
-
             schema_digest=schema_digest,
             protocol_digest=self.get_message_protocol(schema_digest),
             expires=expires,

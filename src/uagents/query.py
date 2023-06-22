@@ -9,7 +9,7 @@ from uagents.crypto import generate_user_address
 from uagents.dispatch import JsonStr
 from uagents.envelope import Envelope
 from uagents.models import Model
-from uagents.resolver import Resolver, AlmanacResolver
+from uagents.resolver import Resolver, GlobalResolver
 
 
 LOGGER = get_logger("query")
@@ -22,7 +22,7 @@ async def query(
     timeout: Optional[int] = 30,
 ) -> Optional[Envelope]:
     if resolver is None:
-        resolver = AlmanacResolver()
+        resolver = GlobalResolver()
 
     # convert the message into object form
     json_message = message.json()

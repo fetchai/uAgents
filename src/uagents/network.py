@@ -18,7 +18,7 @@ from cosmpy.aerial.tx import Transaction
 from uagents.config import (
     AgentNetwork,
     CONTRACT_ALMANAC,
-    CONTRACT_SERVICE,
+    CONTRACT_NAME_SERVICE,
     AGENT_NETWORK,
     BLOCK_INTERVAL,
 )
@@ -83,7 +83,7 @@ class AlmanacContract(LedgerContract):
         return sequence
 
 
-class ServiceContract(LedgerContract):
+class NameServiceContract(LedgerContract):
     def is_name_available(self, name: str):
         query_msg = {"domain_record": {"domain": f"{name}.agent"}}
         return self.query(query_msg)["is_available"]
@@ -125,11 +125,11 @@ class ServiceContract(LedgerContract):
         registration_msg = self._get_registration_msg(name, agent_address)
 
         transaction.add_message(
-            create_cosmwasm_execute_msg(wallet_address, CONTRACT_SERVICE, ownership_msg)
+            create_cosmwasm_execute_msg(wallet_address, CONTRACT_NAME_SERVICE, ownership_msg)
         )
         transaction.add_message(
             create_cosmwasm_execute_msg(
-                wallet_address, CONTRACT_SERVICE, registration_msg
+                wallet_address, CONTRACT_NAME_SERVICE, registration_msg
             )
         )
 
@@ -146,7 +146,7 @@ else:
 
 
 _almanac_contract = AlmanacContract(None, _ledger, CONTRACT_ALMANAC)
-_service_contract = ServiceContract(None, _ledger, CONTRACT_SERVICE)
+_name_service_contract = NameServiceContract(None, _ledger, CONTRACT_NAME_SERVICE)
 
 
 def get_ledger() -> LedgerClient:
@@ -162,7 +162,7 @@ def get_almanac_contract() -> LedgerContract:
 
 
 def get_service_contract() -> LedgerContract:
-    return _service_contract
+    return _name_service_contract
 
 
 async def wait_for_tx_to_complete(

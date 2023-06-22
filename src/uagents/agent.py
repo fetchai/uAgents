@@ -22,7 +22,7 @@ from uagents.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents.dispatch import Sink, dispatcher, JsonStr
 from uagents.models import Model, ErrorMessage
 from uagents.protocol import Protocol
-from uagents.resolver import Resolver, AlmanacResolver
+from uagents.resolver import Resolver, GlobalResolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.network import (
     get_ledger,
@@ -73,7 +73,7 @@ class Agent(Sink):
         self._name = name
         self._port = port if port is not None else 8000
         self._background_tasks: Set[asyncio.Task] = set()
-        self._resolver = resolve if resolve is not None else AlmanacResolver()
+        self._resolver = resolve if resolve is not None else GlobalResolver()
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
 
         # initialize wallet and identity
@@ -273,18 +273,6 @@ class Agent(Sink):
         )
         await wait_for_tx_to_complete(transaction.tx_hash)
         self._logger.info("Registering name...complete")
-
-    def get_agent_address(self, name: str) -> str:
-        query_msg = {"domain_record": {"domain": f"{name}.agent"}}
-        res = self._service_contract.query(query_msg)
-        if res["record"] is not None:
-            registered_address = res["record"]["records"][0]["agent_address"]["records"]
-            if len(registered_address) > 0:
-                return registered_address[0]["address"]
-            self._logger.warning(f"Agent {self.name} registration expired")
-            return 0
-        self._logger.warning(f"Agent {self.name} is not registered")
-        return 1
 
     def on_interval(
         self,

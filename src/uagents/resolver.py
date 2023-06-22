@@ -41,27 +41,41 @@ class Resolver(ABC):
         pass
 
 
-class AlmanacResolver(Resolver):
+class GlobalResolver(Resolver):
     async def resolve(self, destination: str) -> Optional[str]:
+        almanac_resolver = AlmanacResolver()
+        name_service_resolver = NameServiceResolver()
         address = (
             destination
             if is_agent_address(destination)
-            else get_agent_address(destination)
+            else await name_service_resolver.resolve(destination)
         )
 
         if is_agent_address(address):
-            result = query_record(address, "service")
-            if result is not None:
-                record = result.get("record") or {}
-                endpoint_list = (
-                    record.get("record", {}).get("service", {}).get("endpoints", [])
-                )
-
-                if len(endpoint_list) > 0:
-                    endpoints = [val.get("url") for val in endpoint_list]
-                    weights = [val.get("weight") for val in endpoint_list]
-                    return address, random.choices(endpoints, weights=weights)[0]
+            return await almanac_resolver.resolve(address)
         return None, None
+
+
+class AlmanacResolver(Resolver):
+    async def resolve(self, address: str) -> Optional[str]:
+        result = query_record(address, "service")
+        if result is not None:
+            record = result.get("record") or {}
+            endpoint_list = (
+                record.get("record", {}).get("service", {}).get("endpoints", [])
+            )
+
+            if len(endpoint_list) > 0:
+                endpoints = [val.get("url") for val in endpoint_list]
+                weights = [val.get("weight") for val in endpoint_list]
+                return address, random.choices(endpoints, weights=weights)[0]
+
+        return None, None
+
+
+class NameServiceResolver(Resolver):
+    async def resolve(self, name: str) -> Optional[str]:
+        return get_agent_address(name)
 
 
 class RulesBasedResolver(Resolver):
