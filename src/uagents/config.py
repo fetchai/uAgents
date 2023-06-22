@@ -22,9 +22,8 @@ REGISTRATION_DENOM = "atestfet"
 BLOCK_INTERVAL = 5
 AGENT_NETWORK = AgentNetwork.FETCHAI_TESTNET
 
-MAILBOX_SERVER_URL = "wss://agentverse.ai"
+AGENTVERSE_URL = "https://agentverse.ai"
 MAILBOX_POLL_INTERVAL_SECONDS = 1.0
-ALMANAC_API_URL = "https://almanac.agentverse.ai"
 
 DEFAULT_ENVELOPE_TIMEOUT_SECONDS = 30
 
@@ -48,7 +47,7 @@ def parse_endpoint_config(
 
 def parse_mailbox_config(mailbox: Union[str, Dict[str, str]]) -> Dict[str, str]:
     api_key = None
-    base_url = MAILBOX_SERVER_URL
+    base_url = AGENTVERSE_URL.replace("https", "wss")
     if isinstance(mailbox, str):
         if mailbox.count("@") == 1:
             api_key, base_url = mailbox.split("@")

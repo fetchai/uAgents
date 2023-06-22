@@ -17,10 +17,10 @@ restaurant = Agent(
 
 fund_agent_if_low(restaurant.wallet.address())
 
-# build the restaurant agent from stock protocols
-restaurant.include(query_proto)
-restaurant.include(book_proto)
-restaurant.include(proto_query)
+# build the restaurant agent from stock protocols and publish their details
+restaurant.include(query_proto, publish_manifest=True)
+restaurant.include(book_proto, publish_manifest=True)
+restaurant.include(proto_query, publish_manifest=True)
 
 TABLES = {
     1: TableStatus(seats=2, time_start=16, time_end=22),
