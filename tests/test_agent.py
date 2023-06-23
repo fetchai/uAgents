@@ -3,7 +3,7 @@ import unittest
 from typing import Callable
 
 from uagents import Agent, Context, Model
-from uagents.resolver import AlmanacResolver
+from uagents.resolver import GlobalResolver
 
 
 class Message(Model):
@@ -31,7 +31,7 @@ class TestAgent(unittest.TestCase):
         self.assertIsNotNone(self.agent._identity)
         self.assertIsNotNone(self.agent._server)
         self.assertTrue(self.agent._dispatcher.contains(self.agent.address))
-        self.assertTrue(isinstance(self.agent._resolver, AlmanacResolver))
+        self.assertTrue(isinstance(self.agent._resolver, GlobalResolver))
 
     def test_agent_on_interval(self):
         @self.agent.on_interval(period=10)

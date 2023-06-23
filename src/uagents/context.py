@@ -158,7 +158,7 @@ class Context:
             return
 
         # resolve the endpoint
-        endpoint = await self._resolver.resolve(destination)
+        destination_address, endpoint = await self._resolver.resolve(destination)
         if endpoint is None:
             self._logger.exception(
                 f"Unable to resolve destination endpoint for address {destination}"
@@ -172,7 +172,7 @@ class Context:
         env = Envelope(
             version=1,
             sender=self.address,
-            target=destination,
+            target=destination_address,
             session=self._session,
             schema_digest=schema_digest,
             protocol_digest=self.get_message_protocol(schema_digest),
@@ -189,5 +189,5 @@ class Context:
 
         if not success:
             self._logger.exception(
-                f"Unable to send envelope to {destination} @ {endpoint}"
+                f"Unable to send envelope to {destination_address} @ {endpoint}"
             )
