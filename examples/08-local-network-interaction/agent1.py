@@ -18,7 +18,6 @@ bob = Agent(
 )
 
 fund_agent_if_low(bob.wallet.address())
-print(bob.address)
 
 
 @bob.on_event("startup")
