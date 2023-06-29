@@ -48,7 +48,6 @@ class TestRegistration(unittest.TestCase):
             "Shouldn't be registered on alamanac",
         )
 
-
     def test_name_service_failed_ownership(self):
         agent = Agent()
 
