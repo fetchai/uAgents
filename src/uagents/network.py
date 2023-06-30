@@ -98,15 +98,6 @@ class NameServiceContract(LedgerContract):
         permission = self.query(query_msg)["permissions"]
         return permission == "admin"
 
-    def _get_ownership_msg(self, name: str, wallet_address: str):
-        return {
-            "update_ownership": {
-                "domain": f"{name}.agent",
-                "owner": {"address": {"address": wallet_address}},
-                "permissions": "admin",
-            }
-        }
-
     def _get_registration_msg(self, name: str, address: str):
         return {
             "register": {
