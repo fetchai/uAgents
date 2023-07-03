@@ -33,12 +33,8 @@ class Model(BaseModel):
                 Model._restore_descriptions(field.type_, orig_descriptions[field.name])
 
     @staticmethod
-    def _refresh_schema_cache(
-        model: Type["Model"],
-        by_alias: bool = True,
-        ref_template: str = default_ref_template,
-    ):
-        schema = model_schema(model, by_alias, ref_template)
+    def _refresh_schema_cache(model: Type["Model"]):
+        schema = model_schema(model, True, default_ref_template)
         model.__schema_cache__[(True, default_ref_template)] = schema
 
     @staticmethod
