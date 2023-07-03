@@ -40,8 +40,8 @@ class Model(BaseModel):
     @staticmethod
     def build_schema_digest(model: Union["Model", Type["Model"]]) -> str:
         orig_descriptions: Dict[str, Union[str, Dict]] = {}
-        obj_for_descr_remove = model if isinstance(model, type) else model.__class__
-        Model._remove_descriptions(obj_for_descr_remove, orig_descriptions)
+        type_obj = model if isinstance(model, type) else model.__class__
+        Model._remove_descriptions(type_obj, orig_descriptions)
         digest = (
             hashlib.sha256(
                 model.schema_json(indent=None, sort_keys=True).encode("utf8")
@@ -49,8 +49,8 @@ class Model(BaseModel):
             .digest()
             .hex()
         )
-        Model._restore_descriptions(obj_for_descr_remove, orig_descriptions)
-        Model._refresh_schema_cache(obj_for_descr_remove)
+        Model._restore_descriptions(type_obj, orig_descriptions)
+        Model._refresh_schema_cache(type_obj)
         return f"model:{digest}"
 
 
