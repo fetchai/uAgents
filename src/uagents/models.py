@@ -3,7 +3,6 @@ from typing import Type, Union, Dict
 
 from pydantic import BaseModel
 from pydantic.schema import model_schema, default_ref_template
-from pydantic.main import BaseModel
 
 
 class Model(BaseModel):
@@ -39,8 +38,8 @@ class Model(BaseModel):
         by_alias: bool = True,
         ref_template: str = default_ref_template,
     ):
-        s = model_schema(model, by_alias, ref_template)
-        model.__schema_cache__[(True, default_ref_template)] = s
+        schema = model_schema(model, by_alias, ref_template)
+        model.__schema_cache__[(True, default_ref_template)] = schema
 
     @staticmethod
     def build_schema_digest(model: Union["Model", Type["Model"]]) -> str:
