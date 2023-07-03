@@ -10,27 +10,27 @@ class Model(BaseModel):
     def _remove_descriptions(
         model: Type["Model"], orig_descriptions: Dict[str, Union[str, Dict]]
     ):
-        for _, field in model.__fields__.items():
+        for field_name, field in model.__fields__.items():
             if field.field_info and field.field_info.description:
-                orig_descriptions[field.name] = field.field_info.description
+                orig_descriptions[field_name] = field.field_info.description
                 field.field_info.description = None
             elif issubclass(field.type_, Model):
-                orig_descriptions[field.name] = {}
-                Model._remove_descriptions(field.type_, orig_descriptions[field.name])
+                orig_descriptions[field_name] = {}
+                Model._remove_descriptions(field.type_, orig_descriptions[field_name])
 
     @staticmethod
     def _restore_descriptions(
         model: Type["Model"], orig_descriptions: Dict[str, Union[str, Dict]]
     ):
-        for _, field in model.__fields__.items():
+        for field_name, field in model.__fields__.items():
             if (
                 field.field_info
-                and field.name in orig_descriptions
+                and field_name in orig_descriptions
                 and not issubclass(field.type_, Model)
             ):
-                field.field_info.description = orig_descriptions[field.name]
+                field.field_info.description = orig_descriptions[field_name]
             elif issubclass(field.type_, Model):
-                Model._restore_descriptions(field.type_, orig_descriptions[field.name])
+                Model._restore_descriptions(field.type_, orig_descriptions[field_name])
 
     @staticmethod
     def _refresh_schema_cache(model: Type["Model"]):
