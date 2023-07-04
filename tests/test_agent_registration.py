@@ -48,24 +48,6 @@ class TestRegistration(unittest.TestCase):
             "Shouldn't be registered on alamanac",
         )
 
-    def test_name_service_ownership(self):
-        agent = Agent()
-        fund_agent_if_low(agent.wallet.address())
-
-        ownership_msg = agent._service_contract._get_ownership_msg(
-            agent.name, str(agent.wallet.address())
-        )
-
-        transaction = agent._service_contract.execute(ownership_msg, agent.wallet)
-
-        transaction.wait_to_complete()
-
-        is_owner = agent._service_contract.is_owner(
-            agent.name, str(agent.wallet.address())
-        )
-
-        self.assertEqual(is_owner, True, "Domain ownership failed")
-
     def test_name_service_failed_ownership(self):
         agent = Agent()
 
@@ -110,14 +92,10 @@ class TestRegistration(unittest.TestCase):
         )
         self.assertEqual(is_owner, False)
 
-        ownership_msg = agent._service_contract._get_ownership_msg(
-            agent.name, str(agent.wallet.address())
-        )
         registration_msg = agent._service_contract._get_registration_msg(
             agent.name, agent.address
         )
 
-        agent._service_contract.execute(ownership_msg, agent.wallet).wait_to_complete()
         agent._service_contract.execute(
             registration_msg, agent.wallet
         ).wait_to_complete()
