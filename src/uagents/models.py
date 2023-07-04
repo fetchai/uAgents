@@ -34,7 +34,7 @@ class Model(BaseModel):
 
     @staticmethod
     def _refresh_schema_cache(model: Type["Model"]):
-        schema = model_schema(model, True, default_ref_template)
+        schema = model_schema(model, by_alias=True, ref_template=default_ref_template)
         model.__schema_cache__[(True, default_ref_template)] = schema
 
     @staticmethod
