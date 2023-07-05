@@ -6,7 +6,7 @@ from pydantic.schema import model_schema, default_ref_template
 
 
 class Model(BaseModel):
-    _schema_without_descrs: ClassVar[Union[Dict[str, Any], None]] = None
+    schema_no_descriptions: ClassVar[Union[Dict[str, Any], None]] = None
 
     @staticmethod
     def _remove_descriptions(
@@ -42,7 +42,7 @@ class Model(BaseModel):
     @staticmethod
     def build_schema_digest(model: Union["Model", Type["Model"]]) -> str:
         type_obj = model if isinstance(model, type) else model.__class__
-        if type_obj._schema_without_descrs is None:
+        if type_obj.schema_no_descriptions is None:
             orig_descriptions: Dict[str, Union[str, Dict]] = {}
             Model._remove_descriptions(type_obj, orig_descriptions)
         digest = (
@@ -52,8 +52,8 @@ class Model(BaseModel):
             .digest()
             .hex()
         )
-        if type_obj._schema_without_descrs is None:
-            type_obj._schema_without_descrs = type_obj.schema()
+        if type_obj.schema_no_descriptions is None:
+            type_obj.schema_no_descriptions = type_obj.schema()
             Model._restore_descriptions(type_obj, orig_descriptions)
             Model._refresh_schema_cache(type_obj)
         return f"model:{digest}"
