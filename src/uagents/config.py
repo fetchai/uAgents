@@ -18,7 +18,7 @@ LEDGER_PREFIX = "fetch"
 USER_PREFIX = "user"
 CONTRACT_ALMANAC = "fetch1h5rhtj5m6dqjmufj5m3t4mq6l7cnd8dvaxclwmrk6tfdm0gy3lmszksf0s"
 CONTRACT_NAME_SERVICE = (
-    "fetch1yrf4xpglq02fzj50m9wn44qdq89a5vr0ufa42qa506uhwal4n79s99sp87"
+    "fetch1mxz8kn3l5ksaftx8a9pj9a6prpzk2uhxnqdkwuqvuh37tw80xu6qges77l"
 )
 REGISTRATION_FEE = 500000000000000000
 REGISTRATION_DENOM = "atestfet"
