@@ -1,8 +1,6 @@
 # pylint: disable=function-redefined
 import unittest
 from pydantic import Field
-
-
 from uagents import Model, Protocol
 
 
@@ -23,11 +21,9 @@ class TestFieldDescr(unittest.TestCase):
         Model.build_schema_digest(Message)
 
         message_field_info = Message.__fields__["message"].field_info
-        self.assertTrue(message_field_info is not None)
-        self.assertTrue(
-            message_field_info.description is not None
-            and message_field_info.description == "message field description"
-        )
+        self.assertIsNotNone(message_field_info)
+        self.assertIsNotNone(message_field_info.description)
+        self.assertEqual(message_field_info.description, "message field description")
 
     def test_model_digest(self):
         class Message(Model):
@@ -42,13 +38,20 @@ class TestFieldDescr(unittest.TestCase):
 
         self.assertEqual(model_digest_no_descr, model_digest_with_descr)
 
-    def test_proto_digest(self):
+    def test_protocol(self):
         class Message(Model):
             message: str
 
         @self.protocol_no_descr.on_query(Message)
         def _(_ctx, _sender, _msg):
             pass
+
+        self.assertNotIn(
+            "description",
+            self.protocol_no_descr.manifest()["models"][0]["schema"]["properties"][
+                "message"
+            ],
+        )
 
         proto_digest_no_descr = self.protocol_no_descr.digest
 
@@ -58,6 +61,13 @@ class TestFieldDescr(unittest.TestCase):
         @self.protocol_with_descr.on_query(Message)
         def _(_ctx, _sender, _msg):
             pass
+
+        self.assertEqual(
+            self.protocol_with_descr.manifest()["models"][0]["schema"]["properties"][
+                "message"
+            ]["description"],
+            "message field description",
+        )
 
         proto_digest_with_descr = self.protocol_with_descr.digest
 
