@@ -16,7 +16,7 @@ class AgentNetwork(Enum):
 AGENT_PREFIX = "agent"
 LEDGER_PREFIX = "fetch"
 USER_PREFIX = "user"
-CONTRACT_ALMANAC = "fetch1h5rhtj5m6dqjmufj5m3t4mq6l7cnd8dvaxclwmrk6tfdm0gy3lmszksf0s"
+CONTRACT_ALMANAC = "fetch1tjagw8g8nn4cwuw00cf0m5tl4l6wfw9c0ue507fhx9e3yrsck8zs0l3q4w"
 CONTRACT_NAME_SERVICE = (
     "fetch1mxz8kn3l5ksaftx8a9pj9a6prpzk2uhxnqdkwuqvuh37tw80xu6qges77l"
 )
