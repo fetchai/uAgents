@@ -1,4 +1,3 @@
-# pylint: disable=function-redefined
 import unittest
 from pydantic import Field
 from uagents import Model, Protocol
