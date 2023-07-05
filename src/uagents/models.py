@@ -35,7 +35,7 @@ class Model(BaseModel):
                 Model._restore_descriptions(field.type_, orig_descriptions[field_name])
 
     @staticmethod
-    def _refresh_schema_cache(model: Type["Model"]):
+    def _restore_schema_cache(model: Type["Model"]):
         schema = model_schema(model, by_alias=True, ref_template=default_ref_template)
         model.__schema_cache__[(True, default_ref_template)] = schema
 
@@ -55,7 +55,7 @@ class Model(BaseModel):
         if type_obj.schema_no_descriptions is None:
             type_obj.schema_no_descriptions = type_obj.schema()
             Model._restore_descriptions(type_obj, orig_descriptions)
-            Model._refresh_schema_cache(type_obj)
+            Model._restore_schema_cache(type_obj)
         return f"model:{digest}"
 
 
