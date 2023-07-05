@@ -1,3 +1,4 @@
+# pylint: disable=function-redefined
 import unittest
 from pydantic import Field
 
