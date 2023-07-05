@@ -1,11 +1,13 @@
 import hashlib
-from typing import Type, Union, Dict
+from typing import Type, Union, Dict, ClassVar, Any
 
 from pydantic import BaseModel
 from pydantic.schema import model_schema, default_ref_template
 
 
 class Model(BaseModel):
+    _schema_without_descrs: ClassVar[Union[Dict[str, Any], None]] = None
+
     @staticmethod
     def _remove_descriptions(
         model: Type["Model"], orig_descriptions: Dict[str, Union[str, Dict]]
@@ -39,9 +41,10 @@ class Model(BaseModel):
 
     @staticmethod
     def build_schema_digest(model: Union["Model", Type["Model"]]) -> str:
-        orig_descriptions: Dict[str, Union[str, Dict]] = {}
         type_obj = model if isinstance(model, type) else model.__class__
-        Model._remove_descriptions(type_obj, orig_descriptions)
+        if type_obj._schema_without_descrs is None:
+            orig_descriptions: Dict[str, Union[str, Dict]] = {}
+            Model._remove_descriptions(type_obj, orig_descriptions)
         digest = (
             hashlib.sha256(
                 model.schema_json(indent=None, sort_keys=True).encode("utf8")
@@ -49,8 +52,10 @@ class Model(BaseModel):
             .digest()
             .hex()
         )
-        Model._restore_descriptions(type_obj, orig_descriptions)
-        Model._refresh_schema_cache(type_obj)
+        if type_obj._schema_without_descrs is None:
+            type_obj._schema_without_descrs = type_obj.schema()
+            Model._restore_descriptions(type_obj, orig_descriptions)
+            Model._refresh_schema_cache(type_obj)
         return f"model:{digest}"
 
 

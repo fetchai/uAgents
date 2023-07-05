@@ -176,7 +176,7 @@ class Protocol:
 
         for schema_digest, model in all_models.items():
             manifest["models"].append(
-                {"digest": schema_digest, "schema": model.schema()}
+                {"digest": schema_digest, "schema": model._schema_without_descrs}
             )
 
         for request, responses in self._replies.items():
@@ -198,6 +198,12 @@ class Protocol:
         # print(schema_digest)
         encoded = json.dumps(manifest, indent=None, sort_keys=True).encode("utf8")
         metadata["digest"] = f"proto:{hashlib.sha256(encoded).digest().hex()}"
+
+        manifest["models"] = []
+        for schema_digest, model in all_models.items():
+            manifest["models"].append(
+                {"digest": schema_digest, "schema": model.schema()}
+            )
 
         final_manifest: Dict[str, Any] = copy.deepcopy(manifest)
         final_manifest["metadata"] = metadata
