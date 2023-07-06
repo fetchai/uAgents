@@ -41,7 +41,7 @@ class TestFieldDescr(unittest.TestCase):
 
         self.assertEqual(
             Message.schema_json(indent=None, sort_keys=True),
-            Message.schema_json_no_descr(),
+            Message.schema_json_no_descriptions(),
         )
 
         class Message(Model):
@@ -50,7 +50,7 @@ class TestFieldDescr(unittest.TestCase):
 
         self.assertNotEqual(
             Message.schema_json(indent=None, sort_keys=True),
-            Message.schema_json_no_descr(),
+            Message.schema_json_no_descriptions(),
         )
 
         class MessageArgs(Model):
@@ -63,7 +63,7 @@ class TestFieldDescr(unittest.TestCase):
 
         self.assertNotEqual(
             Message.schema_json(indent=None, sort_keys=True),
-            Message.schema_json_no_descr(),
+            Message.schema_json_no_descriptions(),
         )
 
     def test_model_digest(self):
