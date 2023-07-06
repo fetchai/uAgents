@@ -5,6 +5,8 @@ from pydantic import BaseModel
 
 
 class Model(BaseModel):
+    _schema_no_descr = None
+
     @staticmethod
     def remove_descriptions(schema: Dict[str, Dict[str, str]]):
         fields_with_descr = []
@@ -23,9 +25,11 @@ class Model(BaseModel):
 
     @classmethod
     def schema_no_descr(cls) -> Dict[str, Any]:
-        orig_schema = json.loads(cls.schema_json(indent=None, sort_keys=True))
-        Model.remove_descriptions(orig_schema)
-        return orig_schema
+        if cls._schema_no_descr is None:
+            schema = json.loads(cls.schema_json(indent=None, sort_keys=True))
+            Model.remove_descriptions(schema)
+            cls._schema_no_descr = schema
+        return cls._schema_no_descr
 
     @classmethod
     def schema_json_no_descr(cls) -> str:
