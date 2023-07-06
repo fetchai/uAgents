@@ -49,7 +49,7 @@ class TestFieldDescr(unittest.TestCase):
         self.assertEqual(model_digest_no_descr, model_digest_with_descr)
 
     def test_protocol(self):
-        @self.protocol_no_descr.on_query(create_message_no_descr())
+        @self.protocol_no_descr.on_message(create_message_no_descr())
         def _(_ctx, _sender, _msg):
             pass
 
@@ -64,7 +64,7 @@ class TestFieldDescr(unittest.TestCase):
             self.protocol_no_descr
         )
 
-        @self.protocol_with_descr.on_query(create_message_with_descr())
+        @self.protocol_with_descr.on_message(create_message_with_descr())
         def _(_ctx, _sender, _msg):
             pass
 
