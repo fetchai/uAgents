@@ -1,3 +1,4 @@
+# pylint: disable=function-redefined
 import unittest
 from pydantic import Field
 from uagents import Model, Protocol
@@ -33,14 +34,37 @@ class TestFieldDescr(unittest.TestCase):
         self.protocol_with_descr = protocol_with_descr
         return super().setUp()
 
-    def test_field_description(self):
-        message_with_descr = create_message_with_descr()
+    def test_schema_json(self):
+        class Message(Model):
+            message: str
+            id: str
 
-        Model.build_schema_digest(message_with_descr)
+        self.assertEqual(
+            Message.schema_json(indent=None, sort_keys=True),
+            Message.schema_json_no_descr(),
+        )
 
-        message_field_info = message_with_descr.__fields__["message"].field_info
-        self.assertIsNotNone(message_field_info)
-        self.assertEqual(message_field_info.description, "message field description")
+        class Message(Model):
+            message: str = Field(description="message field description")
+            id: str = Field(description="id field description")
+
+        self.assertNotEqual(
+            Message.schema_json(indent=None, sort_keys=True),
+            Message.schema_json_no_descr(),
+        )
+
+        class MessageArgs(Model):
+            arg: str = Field(description="arg field description")
+
+        class Message(Model):
+            message: str = Field(description="message field description")
+            id: str = Field(description="id field description")
+            args: MessageArgs
+
+        self.assertNotEqual(
+            Message.schema_json(indent=None, sort_keys=True),
+            Message.schema_json_no_descr(),
+        )
 
     def test_model_digest(self):
         model_digest_no_descr = Model.build_schema_digest(create_message_no_descr())
@@ -81,6 +105,16 @@ class TestFieldDescr(unittest.TestCase):
 
         self.assertEqual(model_digest_no_descr, model_digest_with_descr)
         self.assertEqual(proto_digest_no_descr, proto_digest_with_descr)
+
+    def test_compute_digest(self):
+        protocol = Protocol(name="test", version="1.1.1")
+
+        @protocol.on_message(create_message_with_descr())
+        def _(_ctx, _sender, _msg):
+            pass
+
+        # computed_digest = Protocol.compute_digest(protocol.manifest())
+        # self.assertEqual(protocol.digest, computed_digest)
 
 
 if __name__ == "__main__":

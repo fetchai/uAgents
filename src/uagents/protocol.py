@@ -176,7 +176,7 @@ class Protocol:
 
         for schema_digest, model in all_models.items():
             manifest["models"].append(
-                {"digest": schema_digest, "schema": model.schema_no_descriptions}
+                {"digest": schema_digest, "schema": model.schema_json_no_descr()}
             )
 
         for request, responses in self._replies.items():
@@ -204,7 +204,6 @@ class Protocol:
             manifest["models"].append(
                 {"digest": schema_digest, "schema": model.schema()}
             )
-
         final_manifest: Dict[str, Any] = copy.deepcopy(manifest)
         final_manifest["metadata"] = metadata
 
@@ -213,9 +212,9 @@ class Protocol:
     @staticmethod
     def compute_digest(manifest: Dict[str, Any]) -> str:
         cleaned_manifest = copy.deepcopy(manifest)
-        if "metadata" in cleaned_manifest:
-            del cleaned_manifest["metadata"]
         cleaned_manifest["metadata"] = {}
+        for model in cleaned_manifest["models"]:
+            Model.remove_descriptions(model["schema"])
 
         encoded = json.dumps(cleaned_manifest, indent=None, sort_keys=True).encode(
             "utf8"
