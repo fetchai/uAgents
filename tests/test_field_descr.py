@@ -113,8 +113,8 @@ class TestFieldDescr(unittest.TestCase):
         def _(_ctx, _sender, _msg):
             pass
 
-        # computed_digest = Protocol.compute_digest(protocol.manifest())
-        # self.assertEqual(protocol.digest, computed_digest)
+        computed_digest = Protocol.compute_digest(protocol.manifest())
+        self.assertEqual(protocol.digest, computed_digest)
 
 
 if __name__ == "__main__":

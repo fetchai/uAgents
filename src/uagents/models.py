@@ -1,5 +1,5 @@
 import hashlib
-from typing import Type, Union, Dict
+from typing import Type, Union, Dict, Any
 import json
 from pydantic import BaseModel
 
@@ -22,10 +22,14 @@ class Model(BaseModel):
                 Model.remove_descriptions(definition)
 
     @classmethod
-    def schema_json_no_descr(cls) -> str:
+    def schema_no_descr(cls) -> Dict[str, Any]:
         orig_schema = json.loads(cls.schema_json(indent=None, sort_keys=True))
         Model.remove_descriptions(orig_schema)
-        return json.dumps(orig_schema)
+        return orig_schema
+
+    @classmethod
+    def schema_json_no_descr(cls) -> str:
+        return json.dumps(cls.schema_no_descr())
 
     @staticmethod
     def build_schema_digest(model: Union["Model", Type["Model"]]) -> str:
