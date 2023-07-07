@@ -9,7 +9,7 @@ class Model(BaseModel):
     _schema_no_descriptions = None
 
     @staticmethod
-    def remove_descriptions(schema: Dict[str, Dict[str, str]]):
+    def remove_descriptions(schema: Dict[str, Any]):
         if not "properties" in schema:
             return
 
