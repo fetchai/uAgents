@@ -9,7 +9,7 @@ from uagents.crypto import generate_user_address
 from uagents.dispatch import JsonStr
 from uagents.envelope import Envelope
 from uagents.models import Model
-from uagents.resolver import Resolver, AlmanacResolver
+from uagents.resolver import Resolver, GlobalResolver
 
 
 LOGGER = get_logger("query")
@@ -22,14 +22,14 @@ async def query(
     timeout: Optional[int] = 30,
 ) -> Optional[Envelope]:
     if resolver is None:
-        resolver = AlmanacResolver()
+        resolver = GlobalResolver()
 
     # convert the message into object form
     json_message = message.json()
     schema_digest = Model.build_schema_digest(message)
 
     # resolve the endpoint
-    endpoint = await resolver.resolve(destination)
+    destination_address, endpoint = await resolver.resolve(destination)
     if endpoint is None:
         LOGGER.exception(
             f"Unable to resolve destination endpoint for address {destination}"
@@ -43,7 +43,7 @@ async def query(
     env = Envelope(
         version=1,
         sender=generate_user_address(),
-        target=destination,
+        target=destination_address,
         session=uuid.uuid4(),
         schema_digest=schema_digest,
         expires=expires,
