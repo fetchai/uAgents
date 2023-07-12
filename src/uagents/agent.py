@@ -399,10 +399,6 @@ class Agent(Sink):
         # register the internal agent protocol
         self.include(self._protocol)
         self._loop.run_until_complete(self._startup())
-        if self._endpoints is None:
-            self._logger.warning(
-                "I have no endpoint and won't be able to receive external messages"
-            )
         self.start_background_tasks()
 
     def start_background_tasks(self):
