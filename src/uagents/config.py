@@ -8,7 +8,7 @@ from uvicorn.logging import DefaultFormatter
 logging.basicConfig(level=logging.INFO)
 
 
-class Network(Enum):
+class AgentNetwork(Enum):
     FETCHAI_TESTNET = 1
     FETCHAI_MAINNET = 2
 
@@ -17,10 +17,14 @@ AGENT_PREFIX = "agent"
 LEDGER_PREFIX = "fetch"
 USER_PREFIX = "user"
 CONTRACT_ALMANAC = "fetch1tjagw8g8nn4cwuw00cf0m5tl4l6wfw9c0ue507fhx9e3yrsck8zs0l3q4w"
+CONTRACT_NAME_SERVICE = (
+    "fetch1mxz8kn3l5ksaftx8a9pj9a6prpzk2uhxnqdkwuqvuh37tw80xu6qges77l"
+)
 REGISTRATION_FEE = 500000000000000000
 REGISTRATION_DENOM = "atestfet"
+MIN_REGISTRATION_TIME = 3600
 BLOCK_INTERVAL = 5
-AGENT_NETWORK = Network.FETCHAI_TESTNET
+AGENT_NETWORK = AgentNetwork.FETCHAI_TESTNET
 
 MAILBOX_SERVER_URL = "wss://agentverse.ai"
 MAILBOX_POLL_INTERVAL_SECONDS = 1.0

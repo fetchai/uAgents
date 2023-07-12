@@ -1,9 +1,14 @@
 import asyncio
 import functools
 from typing import Dict, List, Optional, Set, Union, Type, Tuple, Any
+import uuid
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
+from cosmpy.aerial.contract.cosmwasm import create_cosmwasm_execute_msg
+from cosmpy.aerial.client import prepare_and_broadcast_basic_transaction
+from cosmpy.aerial.tx import Transaction
+
 
 from uagents.asgi import ASGIServer
 from uagents.context import (
@@ -17,19 +22,21 @@ from uagents.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents.dispatch import Sink, dispatcher, JsonStr
 from uagents.models import Model, ErrorMessage
 from uagents.protocol import Protocol
-from uagents.resolver import Resolver, AlmanacResolver
+from uagents.resolver import Resolver, GlobalResolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.network import (
     get_ledger,
-    get_reg_contract,
+    get_almanac_contract,
+    get_service_contract,
     wait_for_tx_to_complete,
 )
 from uagents.mailbox import MailboxClient
 from uagents.config import (
+    CONTRACT_ALMANAC,
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
+    MIN_REGISTRATION_TIME,
     LEDGER_PREFIX,
-    BLOCK_INTERVAL,
     parse_endpoint_config,
     parse_mailbox_config,
     get_logger,
@@ -68,32 +75,11 @@ class Agent(Sink):
         self._name = name
         self._port = port if port is not None else 8000
         self._background_tasks: Set[asyncio.Task] = set()
-        self._resolver = resolve if resolve is not None else AlmanacResolver()
+        self._resolver = resolve if resolve is not None else GlobalResolver()
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
 
         # initialize wallet and identity
-        if seed is None:
-            if name is None:
-                self._wallet = LocalWallet.generate()
-                self._identity = Identity.generate()
-            else:
-                identity_key, wallet_key = get_or_create_private_keys(name)
-                self._wallet = LocalWallet(PrivateKey(wallet_key))
-                self._identity = Identity.from_string(identity_key)
-        else:
-            self._identity = Identity.from_seed(seed, 0)
-            self._wallet = LocalWallet(
-                PrivateKey(
-                    derive_key_from_seed(
-                        seed, LEDGER_PREFIX, wallet_key_derivation_index
-                    )
-                ),
-                prefix=LEDGER_PREFIX,
-            )
-        self._ledger = get_ledger()
-        self._reg_contract = get_reg_contract()
-        if name is None:
-            self._name = self.address[0:16]
+        self._initialize_wallet_and_identity(seed, name, wallet_key_derivation_index)
         self._logger = get_logger(self.name)
 
         # configure endpoints and mailbox
@@ -112,6 +98,23 @@ class Agent(Sink):
         else:
             self._mailbox = None
             self._mailbox_client = None
+
+        self._ledger = get_ledger()
+        self._almanac_contract = get_almanac_contract()
+        self._service_contract = get_service_contract()
+        self._storage = KeyValueStore(self.address[0:16])
+        self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
+        self._interval_messages: Set[str] = set()
+        self._signed_message_handlers: Dict[str, MessageCallback] = {}
+        self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
+        self._models: Dict[str, Type[Model]] = {}
+        self._replies: Dict[str, Set[Type[Model]]] = {}
+        self._queries: Dict[str, asyncio.Future] = {}
+        self._dispatcher = dispatcher
+        self._message_queue = asyncio.Queue()
+        self._on_startup = []
+        self._on_shutdown = []
+        self._version = version or "0.1.0"
 
         if enable_wallet_messaging:
             wallet_chain_id = self._ledger.network_config.chain_id
@@ -132,14 +135,12 @@ class Agent(Sink):
         else:
             self._wallet_messaging_client = None
 
-        self._storage = KeyValueStore(self.address[0:16])
-        self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
-        self._interval_messages: Set[str] = set()
-        self._signed_message_handlers: Dict[str, MessageCallback] = {}
-        self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
-        self._models: Dict[str, Type[Model]] = {}
-        self._replies: Dict[str, Set[Type[Model]]] = {}
-        self._queries: Dict[str, asyncio.Future] = {}
+        # initialize the internal agent protocol
+        self._protocol = Protocol(name=self._name, version=self._version)
+
+        # keep track of supported protocols
+        self.protocols: Dict[str, Protocol] = {}
+
         self._ctx = Context(
             self._identity.address,
             self._name,
@@ -152,19 +153,9 @@ class Agent(Sink):
             replies=self._replies,
             interval_messages=self._interval_messages,
             wallet_messaging_client=self._wallet_messaging_client,
+            protocols=self.protocols,
             logger=self._logger,
         )
-        self._dispatcher = dispatcher
-        self._message_queue = asyncio.Queue()
-        self._on_startup = []
-        self._on_shutdown = []
-        self._version = version or "0.1.0"
-
-        # initialize the internal agent protocol
-        self._protocol = Protocol(name=self._name, version=self._version)
-
-        # keep track of supported protocols
-        self.protocols: Dict[str, Protocol] = {}
 
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
@@ -172,6 +163,26 @@ class Agent(Sink):
         if not self._use_mailbox:
             self._server = ASGIServer(
                 self._port, self._loop, self._queries, logger=self._logger
+            )
+
+    def _initialize_wallet_and_identity(self, seed, name, wallet_key_derivation_index):
+        if seed is None:
+            if name is None:
+                self._wallet = LocalWallet.generate()
+                self._identity = Identity.generate()
+            else:
+                identity_key, wallet_key = get_or_create_private_keys(name)
+                self._wallet = LocalWallet(PrivateKey(wallet_key))
+                self._identity = Identity.from_string(identity_key)
+        else:
+            self._identity = Identity.from_seed(seed, 0)
+            self._wallet = LocalWallet(
+                PrivateKey(
+                    derive_key_from_seed(
+                        seed, LEDGER_PREFIX, wallet_key_derivation_index
+                    )
+                ),
+                prefix=LEDGER_PREFIX,
             )
 
     @property
@@ -209,9 +220,10 @@ class Agent(Sink):
         return self._identity.sign_digest(digest)
 
     def sign_registration(self) -> str:
-        assert self._reg_contract.address is not None
+        assert self._almanac_contract.address is not None
         return self._identity.sign_registration(
-            str(self._reg_contract.address), self._get_registration_sequence()
+            str(self._almanac_contract.address),
+            self._almanac_contract.get_sequence(self.address),
         )
 
     def update_endpoints(self, endpoints: List[Dict[str, Any]]):
@@ -235,50 +247,56 @@ class Agent(Sink):
 
         signature = self.sign_registration()
 
-        msg = {
-            "register": {
-                "record": {
-                    "service": {
-                        "protocols": list(
-                            map(lambda x: x.digest, self.protocols.values())
-                        ),
-                        "endpoints": self._endpoints,
-                    }
-                },
-                "signature": signature,
-                "sequence": self._get_registration_sequence(),
-                "agent_address": self.address,
-            }
-        }
+        self._logger.info("Registering on almanac contract...")
 
-        self._logger.info("Registering on Almanac contract...")
-        transaction = self._reg_contract.execute(
-            msg,
-            ctx.wallet,
-            funds=f"{REGISTRATION_FEE}{REGISTRATION_DENOM}",
+        transaction = Transaction()
+
+        almanac_msg = self._almanac_contract.get_registration_msg(
+            self.protocols, self._endpoints, signature, self.address
+        )
+
+        transaction.add_message(
+            create_cosmwasm_execute_msg(
+                ctx.wallet.address(),
+                CONTRACT_ALMANAC,
+                almanac_msg,
+                funds=f"{REGISTRATION_FEE}{REGISTRATION_DENOM}",
+            )
+        )
+
+        transaction = prepare_and_broadcast_basic_transaction(
+            ctx.ledger, transaction, ctx.wallet
         )
         await wait_for_tx_to_complete(transaction.tx_hash)
-        self._logger.info("Registering on Almanac contract...complete")
+        self._logger.info("Registering on almanac contract...complete")
 
     def _schedule_registration(self):
-        query_msg = {"query_records": {"agent_address": self.address}}
-        response = self._reg_contract.query(query_msg)
+        return self._almanac_contract.get_expiry(self.address)
 
-        if not response["record"]:
-            contract_state = self._reg_contract.query({"query_contract_state": {}})
-            expiry = contract_state.get("state").get("expiry_height")
-            return expiry * BLOCK_INTERVAL
+    async def register_name(self):
+        self._logger.info("Registering name...")
 
-        expiry = response.get("record")[0].get("expiry")
-        height = response.get("height")
+        if not self._almanac_contract.is_registered(self.address):
+            self._logger.warning(
+                f"Agent {self.name} needs to be registered in almanac contract to register its name"
+            )
+            return
 
-        return (expiry - height) * BLOCK_INTERVAL
+        transaction = self._service_contract.get_registration_tx(
+            self.name, str(self.wallet.address()), self.address
+        )
 
-    def _get_registration_sequence(self) -> int:
-        query_msg = {"query_sequence": {"agent_address": self.address}}
-        sequence = self._reg_contract.query(query_msg)["sequence"]
+        if transaction is None:
+            self._logger.error(
+                f"Please select another name, {self.name} is owned by another address"
+            )
 
-        return sequence
+            return
+        transaction = prepare_and_broadcast_basic_transaction(
+            self._ledger, transaction, self.wallet
+        )
+        await wait_for_tx_to_complete(transaction.tx_hash)
+        self._logger.info("Registering name...complete")
 
     def on_interval(
         self,
@@ -364,8 +382,10 @@ class Agent(Sink):
         if protocol.digest is not None:
             self.protocols[protocol.digest] = protocol
 
-    async def handle_message(self, sender, schema_digest: str, message: JsonStr):
-        await self._message_queue.put((schema_digest, sender, message))
+    async def handle_message(
+        self, sender, schema_digest: str, message: JsonStr, session: uuid.UUID
+    ):
+        await self._message_queue.put((schema_digest, sender, message, session))
 
     async def _startup(self):
         for handler in self._on_startup:
@@ -409,8 +429,21 @@ class Agent(Sink):
 
         # start the contract registration update loop
         if self._endpoints is not None:
-            self._loop.create_task(
-                _run_interval(self._register, self._ctx, self._schedule_registration())
+            if (
+                not self._almanac_contract.is_registered(self.address)
+                or self._schedule_registration() < MIN_REGISTRATION_TIME
+                or self._endpoints != self._almanac_contract.get_endpoints(self.address)
+            ):
+                self._loop.create_task(
+                    _run_interval(
+                        self._register, self._ctx, self._schedule_registration()
+                    )
+                )
+            else:
+                self._logger.info("Registration up to date!")
+        else:
+            self._logger.warning(
+                "I have no endpoint and won't be able to receive external messages"
             )
 
     def run(self):
@@ -427,7 +460,7 @@ class Agent(Sink):
     async def _process_message_queue(self):
         while True:
             # get an element from the queue
-            schema_digest, sender, message = await self._message_queue.get()
+            schema_digest, sender, message, session = await self._message_queue.get()
 
             # lookup the model definition
             model_class: Model = self._models.get(schema_digest)
@@ -446,11 +479,13 @@ class Agent(Sink):
                 self._wallet,
                 self._ledger,
                 self._queries,
+                session=session,
                 replies=self._replies,
                 interval_messages=self._interval_messages,
                 message_received=MsgDigest(
                     message=message, schema_digest=schema_digest
                 ),
+                protocols=self.protocols,
                 logger=self._logger,
             )
 

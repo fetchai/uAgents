@@ -10,5 +10,6 @@ disable=missing-module-docstring,
         too-many-arguments,
         logging-fstring-interpolation,
         import-outside-toplevel,
-        too-many-statements
+        too-many-statements,
+        too-many-locals
 
