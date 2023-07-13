@@ -15,7 +15,7 @@ def query_record(agent_address: str, service: str) -> dict:
 
 
 def get_agent_address(name: str) -> str:
-    query_msg = {"domain_record": {"domain": f"{name}.agent"}}
+    query_msg = {"domain_record": {"domain": f"{name}"}}
     result = get_service_contract().query(query_msg)
     if result["record"] is not None:
         registered_address = result["record"]["records"][0]["agent_address"]["records"]

@@ -84,35 +84,39 @@ class AlmanacContract(LedgerContract):
 
 
 class NameServiceContract(LedgerContract):
-    def is_name_available(self, name: str):
-        query_msg = {"domain_record": {"domain": f"{name}.agent"}}
+    def is_name_available(self, name: str, domain: str):
+        query_msg = {"domain_record": {"domain": f"{name}.{domain}"}}
         return self.query(query_msg)["is_available"]
 
-    def is_owner(self, name: str, wallet_address: str):
+    def is_owner(self, name: str, domain: str, wallet_address: str):
         query_msg = {
             "permissions": {
-                "domain": f"{name}.agent",
+                "domain": f"{name}.{domain}",
                 "owner": {"address": {"address": wallet_address}},
             }
         }
         permission = self.query(query_msg)["permissions"]
         return permission == "admin"
 
-    def _get_registration_msg(self, name: str, address: str):
+    def _get_registration_msg(self, name: str, address: str, domain: str):
         return {
             "register": {
-                "domain": f"{name}.agent",
+                "domain": f"{name}.{domain}",
                 "agent_address": address,
             }
         }
 
-    def get_registration_tx(self, name: str, wallet_address: str, agent_address: str):
-        if not self.is_name_available(name) and not self.is_owner(name, wallet_address):
+    def get_registration_tx(
+        self, name: str, wallet_address: str, agent_address: str, domain: str
+    ):
+        if not self.is_name_available(name, domain) and not self.is_owner(
+            name, domain, wallet_address
+        ):
             return None
 
         transaction = Transaction()
 
-        registration_msg = self._get_registration_msg(name, agent_address)
+        registration_msg = self._get_registration_msg(name, agent_address, domain)
 
         transaction.add_message(
             create_cosmwasm_execute_msg(

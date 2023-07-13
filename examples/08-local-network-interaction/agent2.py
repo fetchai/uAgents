@@ -7,9 +7,9 @@ class Message(Model):
 
 
 alice = Agent(
-    name="alice",
+    name="alice-local",
     port=8000,
-    seed="alice secret phrase",
+    seed="alice-local secret phrase",
     endpoint=["http://127.0.0.1:8000/submit"],
 )
 
@@ -18,7 +18,7 @@ fund_agent_if_low(alice.wallet.address())
 
 @alice.on_interval(period=2.0)
 async def send_message(ctx: Context):
-    await ctx.send("agent bob", Message(message="Hello there bob."))
+    await ctx.send("bob-local.agent", Message(message="Hello there bob."))
 
 
 @alice.on_message(model=Message)

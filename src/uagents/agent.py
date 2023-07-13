@@ -249,7 +249,7 @@ class Agent(Sink):
     def _schedule_registration(self):
         return self._almanac_contract.get_expiry(self.address)
 
-    async def register_name(self):
+    async def register_name(self, domain: str):
         self._logger.info("Registering name...")
 
         if not self._almanac_contract.is_registered(self.address):
@@ -259,7 +259,7 @@ class Agent(Sink):
             return
 
         transaction = self._service_contract.get_registration_tx(
-            self.name, str(self.wallet.address()), self.address
+            self.name, str(self.wallet.address()), self.address, domain
         )
 
         if transaction is None:
