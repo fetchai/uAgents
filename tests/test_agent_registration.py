@@ -51,14 +51,18 @@ class TestRegistration(unittest.TestCase):
     def test_name_service_failed_ownership(self):
         agent = Agent()
 
+        domain = "agent"
+
         is_owner = agent._service_contract.is_owner(
-            agent.name, str(agent.wallet.address())
+            agent.name, domain, str(agent.wallet.address())
         )
 
         self.assertEqual(is_owner, False, "Agent shouldn't own any domain")
 
     def test_registration(self):
         agent = Agent()
+
+        domain = "agent"
 
         reg_fee = f"{REGISTRATION_FEE}{REGISTRATION_DENOM}"
 
@@ -100,7 +104,7 @@ class TestRegistration(unittest.TestCase):
             registration_msg, agent.wallet
         ).wait_to_complete()
 
-        is_name_available = agent._service_contract.is_name_available(agent.name)
+        is_name_available = agent._service_contract.is_name_available(agent.name, domain)
         self.assertEqual(is_name_available, False, "Agent name shouldn't be available")
 
         is_owner = agent._service_contract.is_owner(

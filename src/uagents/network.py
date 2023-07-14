@@ -98,6 +98,10 @@ class NameServiceContract(LedgerContract):
         permission = self.query(query_msg)["permissions"]
         return permission == "admin"
 
+    def is_domain_public(self, domain: str):
+        res = self.query({"domain_record": {"domain": f".{domain}"}})
+        return res["is_public"]
+
     def _get_registration_msg(self, name: str, address: str, domain: str):
         return {
             "register": {

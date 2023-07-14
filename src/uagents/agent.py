@@ -258,6 +258,12 @@ class Agent(Sink):
             )
             return
 
+        if not self._service_contract.is_domain_public(domain):
+            self._logger.warning(
+                f"Domain {domain} is not public, please select a public domain"
+            )
+            return
+
         transaction = self._service_contract.get_registration_tx(
             self.name, str(self.wallet.address()), self.address, domain
         )
