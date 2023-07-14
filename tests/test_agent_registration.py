@@ -92,12 +92,12 @@ class TestRegistration(unittest.TestCase):
         self.assertEqual(is_name_available, True, "Agent name should be available")
 
         is_owner = agent._service_contract.is_owner(
-            agent.name, str(agent.wallet.address())
+            agent.name, domain, str(agent.wallet.address())
         )
         self.assertEqual(is_owner, False)
 
         registration_msg = agent._service_contract._get_registration_msg(
-            agent.name, agent.address
+            agent.name, agent.address, domain
         )
 
         agent._service_contract.execute(
@@ -108,11 +108,11 @@ class TestRegistration(unittest.TestCase):
         self.assertEqual(is_name_available, False, "Agent name shouldn't be available")
 
         is_owner = agent._service_contract.is_owner(
-            agent.name, str(agent.wallet.address())
+            agent.name, domain, str(agent.wallet.address())
         )
         self.assertEqual(is_owner, True, "Domain ownership failed")
 
-        query_address = get_agent_address(agent.name)
+        query_address = get_agent_address(agent.name + "." + domain)
 
         self.assertEqual(
             query_address == agent.address, True, "Service contract registration failed"
