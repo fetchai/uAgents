@@ -88,7 +88,7 @@ class TestRegistration(unittest.TestCase):
             "Almanac registration failed",
         )
 
-        is_name_available = agent._service_contract.is_name_available(agent.name)
+        is_name_available = agent._service_contract.is_name_available(agent.name, domain)
         self.assertEqual(is_name_available, True, "Agent name should be available")
 
         is_owner = agent._service_contract.is_owner(
