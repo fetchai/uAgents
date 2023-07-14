@@ -88,7 +88,9 @@ class TestRegistration(unittest.TestCase):
             "Almanac registration failed",
         )
 
-        is_name_available = agent._service_contract.is_name_available(agent.name, domain)
+        is_name_available = agent._service_contract.is_name_available(
+            agent.name, domain
+        )
         self.assertEqual(is_name_available, True, "Agent name should be available")
 
         is_owner = agent._service_contract.is_owner(
@@ -104,7 +106,9 @@ class TestRegistration(unittest.TestCase):
             registration_msg, agent.wallet
         ).wait_to_complete()
 
-        is_name_available = agent._service_contract.is_name_available(agent.name, domain)
+        is_name_available = agent._service_contract.is_name_available(
+            agent.name, domain
+        )
         self.assertEqual(is_name_available, False, "Agent name shouldn't be available")
 
         is_owner = agent._service_contract.is_owner(
