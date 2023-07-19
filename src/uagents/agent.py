@@ -93,10 +93,11 @@ class Agent(Sink):
                 self._logger.warning(
                     "Ignoring the provided 'mailbox' configuration since 'agentverse' overrides it"
                 )
+            else:
+                agentverse = mailbox
             self._logger.warning(
                 "The 'mailbox' configuration is deprecated in favor of 'agentverse'"
             )
-            agentverse = mailbox
         self._agentverse = parse_agentverse_config(agentverse)
         self._use_mailbox = self._agentverse["use_mailbox"]
         if self._use_mailbox:
