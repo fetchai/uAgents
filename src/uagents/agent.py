@@ -373,7 +373,7 @@ class Agent(Sink):
     def publish_manifest(self, manifest: Dict[str, Any]):
         try:
             resp = requests.post(
-                self._agentverse["base_url"] + "/v1/almanac/manifests",
+                f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/v1/almanac/manifests",
                 json=manifest,
                 timeout=5,
             )
