@@ -33,7 +33,6 @@ from uagents.network import (
 )
 from uagents.mailbox import MailboxClient
 from uagents.config import (
-    ConfigurationError,
     CONTRACT_ALMANAC,
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
@@ -87,13 +86,17 @@ class Agent(Sink):
         self._endpoints = parse_endpoint_config(endpoint)
         self._use_mailbox = False
 
-        # agentverse config overrides mailbox config
-        # but mailbox is kept for backwards compatibility
-        if agentverse and mailbox:
-            raise ConfigurationError(
-                "Cannot specify both agentverse and mailbox configuration"
+        if mailbox:
+            # agentverse config overrides mailbox config
+            # but mailbox is kept for backwards compatibility
+            if agentverse:
+                self._logger.warning(
+                    "Ignoring the provided 'mailbox' configuration since 'agentverse' overrides it"
+                )
+            self._logger.warning(
+                "Then 'mailbox' configuration is deprecated in favor of 'agentverse'"
             )
-        agentverse = mailbox if agentverse is None else agentverse
+            agentverse = mailbox
         self._agentverse = parse_agentverse_config(agentverse)
         self._use_mailbox = self._agentverse["use_mailbox"]
         if self._use_mailbox:
@@ -373,7 +376,8 @@ class Agent(Sink):
     def publish_manifest(self, manifest: Dict[str, Any]):
         try:
             resp = requests.post(
-                f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/v1/almanac/manifests",
+                f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}"
+                + "/v1/almanac/manifests",
                 json=manifest,
                 timeout=5,
             )

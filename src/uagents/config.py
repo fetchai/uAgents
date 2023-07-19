@@ -32,10 +32,6 @@ MAILBOX_POLL_INTERVAL_SECONDS = 1.0
 DEFAULT_ENVELOPE_TIMEOUT_SECONDS = 30
 
 
-class ConfigurationError(Exception):
-    pass
-
-
 def parse_endpoint_config(
     endpoint: Optional[Union[str, List[str], Dict[str, dict]]]
 ) -> List[Dict[str, Any]]:
