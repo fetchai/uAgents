@@ -26,7 +26,7 @@ MIN_REGISTRATION_TIME = 3600
 BLOCK_INTERVAL = 5
 AGENT_NETWORK = AgentNetwork.FETCHAI_TESTNET
 
-MAILBOX_SERVER_URL = "wss://agentverse.ai"
+AGENTVERSE_URL = "https://agentverse.ai"
 MAILBOX_POLL_INTERVAL_SECONDS = 1.0
 
 DEFAULT_ENVELOPE_TIMEOUT_SECONDS = 30
@@ -49,28 +49,34 @@ def parse_endpoint_config(
     return endpoints
 
 
-def parse_mailbox_config(mailbox: Union[str, Dict[str, str]]) -> Dict[str, str]:
+def parse_agentverse_config(
+    config: Optional[Union[str, Dict[str, str]]] = None,
+) -> Dict[str, str]:
     api_key = None
-    base_url = MAILBOX_SERVER_URL
-    if isinstance(mailbox, str):
-        if mailbox.count("@") == 1:
-            api_key, base_url = mailbox.split("@")
+    base_url = AGENTVERSE_URL
+    protocol = None
+    protocol_override = None
+    if isinstance(config, str):
+        if config.count("@") == 1:
+            api_key, base_url = config.split("@")
+        elif "://" in config:
+            base_url = config
         else:
-            api_key = mailbox
-    elif isinstance(mailbox, dict):
-        api_key = mailbox.get("api_key")
-        base_url = mailbox.get("base_url")
-        protocol = mailbox.get("protocol") or "http"
+            api_key = config
+    elif isinstance(config, dict):
+        api_key = config.get("api_key")
+        base_url = config.get("base_url") or base_url
+        protocol_override = config.get("protocol")
     if "://" in base_url:
         protocol, base_url = base_url.split("://")
-    else:
-        protocol = "wss"
+    protocol = protocol_override or protocol or "https"
     http_prefix = "https" if protocol in {"wss", "https"} else "http"
     return {
         "api_key": api_key,
         "base_url": base_url,
         "protocol": protocol,
         "http_prefix": http_prefix,
+        "use_mailbox": api_key is not None,
     }
 
 
