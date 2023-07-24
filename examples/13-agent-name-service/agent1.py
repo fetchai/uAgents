@@ -22,7 +22,7 @@ bob = Agent(
 ledger = get_ledger()
 my_wallet = LocalWallet.from_unsafe_seed("registration test wallet")
 name_service_contract = get_name_service_contract()
-domain = "agent"
+DOMAIN = "agent"
 
 for wallet in [my_wallet, bob.wallet]:
     fund_agent_if_low(wallet.address())
@@ -31,7 +31,7 @@ for wallet in [my_wallet, bob.wallet]:
 @bob.on_event("startup")
 async def register_agent_name(ctx: Context):
     await name_service_contract.register(
-        ledger, my_wallet, ctx.address, ctx.name, domain
+        ledger, my_wallet, ctx.address, ctx.name, DOMAIN
     )
 
 
