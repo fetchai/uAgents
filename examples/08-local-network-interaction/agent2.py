@@ -6,10 +6,12 @@ class Message(Model):
     message: str
 
 
+RECIPIENT_ADDRESS = "agent1q2kxet3vh0scsf0sm7y2erzz33cve6tv5uk63x64upw5g68kr0chkv7hw50"
+
 alice = Agent(
-    name="alice-local",
+    name="alice",
     port=8000,
-    seed="alice-local secret phrase",
+    seed="alice secret phrase",
     endpoint=["http://127.0.0.1:8000/submit"],
 )
 
@@ -18,7 +20,7 @@ fund_agent_if_low(alice.wallet.address())
 
 @alice.on_interval(period=2.0)
 async def send_message(ctx: Context):
-    await ctx.send("bob-local.agent", Message(message="Hello there bob."))
+    await ctx.send(RECIPIENT_ADDRESS, Message(message="Hello there bob."))
 
 
 @alice.on_message(model=Message)
