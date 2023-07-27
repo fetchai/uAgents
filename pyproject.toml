@@ -32,7 +32,7 @@ tortoise-orm = "^0.19.2"
 geopy = "^2.3.0"
 
 [tool.poetry.group.wallet.dependencies]
-fetchai-babble = "^0.2.0"
+fetchai-babble = "^0.3.0"
 
 [tool.poetry.extras]
 wallet = ["fetchai-babble"]

@@ -1,15 +1,11 @@
 import asyncio
 import functools
-from typing import Dict, List, Optional, Set, Union, Type, Tuple, Any
+from typing import Dict, List, Optional, Set, Union, Type, Tuple, Any, Coroutine
 import uuid
 import requests
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
-from cosmpy.aerial.contract.cosmwasm import create_cosmwasm_execute_msg
-from cosmpy.aerial.client import prepare_and_broadcast_basic_transaction
-from cosmpy.aerial.tx import Transaction
-
 
 from uagents.asgi import ASGIServer
 from uagents.context import (
@@ -28,14 +24,10 @@ from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.network import (
     get_ledger,
     get_almanac_contract,
-    get_service_contract,
-    wait_for_tx_to_complete,
 )
 from uagents.mailbox import MailboxClient
 from uagents.config import (
-    CONTRACT_ALMANAC,
     REGISTRATION_FEE,
-    REGISTRATION_DENOM,
     MIN_REGISTRATION_TIME,
     LEDGER_PREFIX,
     parse_endpoint_config,
@@ -54,6 +46,11 @@ async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
             ctx.logger.exception("Runtime Error in interval handler")
 
         await asyncio.sleep(period)
+
+
+async def _delay(coroutine: Coroutine, delay_seconds: float):
+    await asyncio.sleep(delay_seconds)
+    await coroutine
 
 
 async def _handle_error(ctx: Context, destination: str, msg: ErrorMessage):
@@ -116,7 +113,6 @@ class Agent(Sink):
 
         self._ledger = get_ledger()
         self._almanac_contract = get_almanac_contract()
-        self._service_contract = get_service_contract()
         self._storage = KeyValueStore(self.address[0:16])
         self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
         self._interval_messages: Set[str] = set()
@@ -199,6 +195,8 @@ class Agent(Sink):
                 ),
                 prefix=LEDGER_PREFIX,
             )
+        if name is None:
+            self._name = self.address[0:16]
 
     @property
     def name(self) -> str:
@@ -258,68 +256,55 @@ class Agent(Sink):
     def update_queries(self, queries):
         self._queries = queries
 
-    async def _register(self, ctx: Context):
-        agent_balance = ctx.ledger.query_bank_balance(Address(ctx.wallet.address()))
-
-        if agent_balance < REGISTRATION_FEE:
+    async def register(self):
+        if self._endpoints is None:
             self._logger.warning(
-                f"I do not have enough funds to register on Almanac contract\
-                    \nFund using wallet address: {self.wallet.address()}"
+                "I have no endpoint and cannot receive external messages"
             )
             return
 
-        signature = self.sign_registration()
-
-        self._logger.info("Registering on almanac contract...")
-
-        transaction = Transaction()
-
-        almanac_msg = self._almanac_contract.get_registration_msg(
-            self.protocols, self._endpoints, signature, self.address
-        )
-
-        transaction.add_message(
-            create_cosmwasm_execute_msg(
-                ctx.wallet.address(),
-                CONTRACT_ALMANAC,
-                almanac_msg,
-                funds=f"{REGISTRATION_FEE}{REGISTRATION_DENOM}",
+        # register if not yet registered or registration is about to expire
+        # or anything has changed from the last registration
+        if (
+            not self._almanac_contract.is_registered(self.address)
+            or self._schedule_registration() < MIN_REGISTRATION_TIME
+            or self._endpoints != self._almanac_contract.get_endpoints(self.address)
+            or list(self.protocols.keys())
+            != self._almanac_contract.get_protocols(self.address)
+        ):
+            agent_balance = self._ledger.query_bank_balance(
+                Address(self.wallet.address())
             )
-        )
 
-        transaction = prepare_and_broadcast_basic_transaction(
-            ctx.ledger, transaction, ctx.wallet
+            if agent_balance < REGISTRATION_FEE:
+                self._logger.warning(
+                    f"I do not have enough funds to register on Almanac contract\
+                        \nFund using wallet address: {self.wallet.address()}"
+                )
+                return
+            self._logger.info("Registering on almanac contract...")
+            signature = self.sign_registration()
+            await self._almanac_contract.register(
+                self._ledger,
+                self.wallet,
+                self.address,
+                list(self.protocols.keys()),
+                self._endpoints,
+                signature,
+            )
+            self._logger.info("Registering on almanac contract...complete")
+        else:
+            self._logger.info("Almanac registration is up to date!")
+
+    async def _registration_loop(self):
+        await self.register()
+        # schedule the next registration
+        self._loop.create_task(
+            _delay(self._registration_loop(), self._schedule_registration())
         )
-        await wait_for_tx_to_complete(transaction.tx_hash)
-        self._logger.info("Registering on almanac contract...complete")
 
     def _schedule_registration(self):
         return self._almanac_contract.get_expiry(self.address)
-
-    async def register_name(self):
-        self._logger.info("Registering name...")
-
-        if not self._almanac_contract.is_registered(self.address):
-            self._logger.warning(
-                f"Agent {self.name} needs to be registered in almanac contract to register its name"
-            )
-            return
-
-        transaction = self._service_contract.get_registration_tx(
-            self.name, str(self.wallet.address()), self.address
-        )
-
-        if transaction is None:
-            self._logger.error(
-                f"Please select another name, {self.name} is owned by another address"
-            )
-
-            return
-        transaction = prepare_and_broadcast_basic_transaction(
-            self._ledger, transaction, self.wallet
-        )
-        await wait_for_tx_to_complete(transaction.tx_hash)
-        self._logger.info("Registering name...complete")
 
     def on_interval(
         self,
@@ -431,6 +416,7 @@ class Agent(Sink):
         await self._message_queue.put((schema_digest, sender, message, session))
 
     async def _startup(self):
+        await self._registration_loop()
         for handler in self._on_startup:
             await handler(self._ctx)
 
@@ -465,25 +451,6 @@ class Agent(Sink):
                 task = self._loop.create_task(task)
                 self._background_tasks.add(task)
                 task.add_done_callback(self._background_tasks.discard)
-
-        # start the contract registration update loop
-        if self._endpoints is not None:
-            if (
-                not self._almanac_contract.is_registered(self.address)
-                or self._schedule_registration() < MIN_REGISTRATION_TIME
-                or self._endpoints != self._almanac_contract.get_endpoints(self.address)
-            ):
-                self._loop.create_task(
-                    _run_interval(
-                        self._register, self._ctx, self._schedule_registration()
-                    )
-                )
-            else:
-                self._logger.info("Registration up to date!")
-        else:
-            self._logger.warning(
-                "I have no endpoint and won't be able to receive external messages"
-            )
 
     def run(self):
         self.setup()
@@ -556,7 +523,7 @@ class Bureau:
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
     ):
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
-        self._agents = []
+        self._agents: List[Agent] = []
         self._endpoints = parse_endpoint_config(endpoint)
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
@@ -567,7 +534,7 @@ class Bureau:
     def add(self, agent: Agent):
         agent.update_loop(self._loop)
         agent.update_queries(self._queries)
-        if agent.mailbox is not None:
+        if agent.agentverse["use_mailbox"]:
             self._use_mailbox = True
         else:
             agent.update_endpoints(self._endpoints)
@@ -577,7 +544,7 @@ class Bureau:
         tasks = []
         for agent in self._agents:
             agent.setup()
-            if agent.mailbox is not None:
+            if agent.agentverse["use_mailbox"]:
                 tasks.append(
                     self._loop.create_task(
                         agent.mailbox_client.process_deletion_queue()

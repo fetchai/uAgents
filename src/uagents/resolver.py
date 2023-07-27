@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Optional
 import random
 
-from uagents.network import get_almanac_contract, get_service_contract
+from uagents.network import get_almanac_contract, get_name_service_contract
 
 
 def query_record(agent_address: str, service: str) -> dict:
@@ -15,8 +15,8 @@ def query_record(agent_address: str, service: str) -> dict:
 
 
 def get_agent_address(name: str) -> str:
-    query_msg = {"domain_record": {"domain": f"{name}.agent"}}
-    result = get_service_contract().query(query_msg)
+    query_msg = {"domain_record": {"domain": f"{name}"}}
+    result = get_name_service_contract().query(query_msg)
     if result["record"] is not None:
         registered_address = result["record"]["records"][0]["agent_address"]["records"]
         if len(registered_address) > 0:

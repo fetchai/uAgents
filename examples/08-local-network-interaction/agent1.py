@@ -1,5 +1,4 @@
 from uagents.setup import fund_agent_if_low
-from uagents.resolver import get_agent_address
 from uagents import Agent, Context, Model
 
 
@@ -11,19 +10,13 @@ class Message(Model):
 
 
 bob = Agent(
-    name="agent bob",
+    name="bob",
     port=8001,
-    seed="agent bob secret phrase",
+    seed="bob secret phrase",
     endpoint=["http://127.0.0.1:8001/submit"],
 )
 
 fund_agent_if_low(bob.wallet.address())
-
-
-@bob.on_event("startup")
-async def register_name(ctx: Context):
-    await bob.register_name()
-    print("agent bob registered address: ", get_agent_address(ctx.name))
 
 
 @bob.on_message(model=Message)
