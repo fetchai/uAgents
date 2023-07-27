@@ -2,6 +2,7 @@ import asyncio
 import functools
 from typing import Dict, List, Optional, Set, Union, Type, Tuple, Any
 import uuid
+import requests
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
@@ -38,7 +39,7 @@ from uagents.config import (
     MIN_REGISTRATION_TIME,
     LEDGER_PREFIX,
     parse_endpoint_config,
-    parse_mailbox_config,
+    parse_agentverse_config,
     get_logger,
 )
 
@@ -66,6 +67,7 @@ class Agent(Sink):
         port: Optional[int] = None,
         seed: Optional[str] = None,
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
+        agentverse: Optional[Union[str, Dict[str, str]]] = None,
         mailbox: Optional[Union[str, Dict[str, str]]] = None,
         resolve: Optional[Resolver] = None,
         enable_wallet_messaging: Optional[Union[bool, Dict[str, str]]] = False,
@@ -84,9 +86,23 @@ class Agent(Sink):
 
         # configure endpoints and mailbox
         self._endpoints = parse_endpoint_config(endpoint)
-        self._use_mailbox = mailbox is not None
+        self._use_mailbox = False
+
+        if mailbox:
+            # agentverse config overrides mailbox config
+            # but mailbox is kept for backwards compatibility
+            if agentverse:
+                self._logger.warning(
+                    "Ignoring the provided 'mailbox' configuration since 'agentverse' overrides it"
+                )
+            else:
+                agentverse = mailbox
+            self._logger.warning(
+                "The 'mailbox' configuration is deprecated in favor of 'agentverse'"
+            )
+        self._agentverse = parse_agentverse_config(agentverse)
+        self._use_mailbox = self._agentverse["use_mailbox"]
         if self._use_mailbox:
-            self._mailbox = parse_mailbox_config(mailbox)
             self._mailbox_client = MailboxClient(self, self._logger)
             # if mailbox is provided, override endpoints with mailbox endpoint
             self._endpoints = [
@@ -96,7 +112,6 @@ class Agent(Sink):
                 }
             ]
         else:
-            self._mailbox = None
             self._mailbox_client = None
 
         self._ledger = get_ledger()
@@ -203,7 +218,11 @@ class Agent(Sink):
 
     @property
     def mailbox(self) -> Dict[str, str]:
-        return self._mailbox
+        return self._agentverse
+
+    @property
+    def agentverse(self) -> Dict[str, str]:
+        return self._agentverse
 
     @property
     def mailbox_client(self) -> MailboxClient:
@@ -211,7 +230,11 @@ class Agent(Sink):
 
     @mailbox.setter
     def mailbox(self, config: Union[str, Dict[str, str]]):
-        self._mailbox = parse_mailbox_config(config)
+        self._agentverse = parse_agentverse_config(config)
+
+    @agentverse.setter
+    def agentverse(self, config: Union[str, Dict[str, str]]):
+        self._agentverse = parse_agentverse_config(config)
 
     def sign(self, data: bytes) -> str:
         return self._identity.sign(data)
@@ -352,7 +375,7 @@ class Agent(Sink):
             return None
         return self._wallet_messaging_client.on_message()
 
-    def include(self, protocol: Protocol):
+    def include(self, protocol: Protocol, publish_manifest: Optional[bool] = False):
         for func, period in protocol.intervals:
             self._interval_handlers.append((func, period))
 
@@ -381,6 +404,26 @@ class Agent(Sink):
 
         if protocol.digest is not None:
             self.protocols[protocol.digest] = protocol
+
+        if publish_manifest:
+            self.publish_manifest(protocol.manifest())
+
+    def publish_manifest(self, manifest: Dict[str, Any]):
+        try:
+            resp = requests.post(
+                f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}"
+                + "/v1/almanac/manifests",
+                json=manifest,
+                timeout=5,
+            )
+            if resp.status_code == 200:
+                self._logger.info(
+                    f"Manifest published successfully: {manifest['metadata']['name']}"
+                )
+            else:
+                self._logger.warning(f"Unable to publish manifest: {resp.text}")
+        except requests.exceptions.RequestException as ex:
+            self._logger.warning(f"Unable to publish manifest: {ex}")
 
     async def handle_message(
         self, sender, schema_digest: str, message: JsonStr, session: uuid.UUID
