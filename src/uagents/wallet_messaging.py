@@ -2,7 +2,6 @@ import asyncio
 import base64
 import functools
 import logging
-import sys
 from typing import List, Optional
 
 from babble import Client, Identity as BabbleIdentity
