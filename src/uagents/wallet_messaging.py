@@ -12,7 +12,6 @@ from requests import HTTPError, JSONDecodeError
 
 from uagents.config import (
     WALLET_MESSAGING_POLL_INTERVAL_SECONDS,
-    WALLET_MESSAGING_MAX_CONSECUTIVE_FAILURES,
     get_logger,
 )
 from uagents.context import Context, WalletMessageCallback
@@ -65,24 +64,15 @@ class WalletMessagingClient:
 
     async def poll_server(self):
         self._logger.info("Connecting to wallet messaging server")
-        consecutive_failures = 0
         while True:
             try:
                 for msg in self._client.receive():
                     await self._message_queue.put(msg)
-                consecutive_failures = 0
-            except (  # pylint: disable=W0703
+            except (
                 HTTPError,
                 ConnectionError,
                 JSONDecodeError,
-                BaseException,
             ) as ex:
-                consecutive_failures += 1
-                if consecutive_failures > WALLET_MESSAGING_MAX_CONSECUTIVE_FAILURES:
-                    self._logger.exception(
-                        "Failed to retrieve wallet messages too many times. Shutting down now."
-                    )
-                    sys.exit(1)
                 self._logger.warning(
                     f"Failed to get messages from wallet messaging server: {ex}"
                 )
