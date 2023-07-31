@@ -8,16 +8,16 @@ from uagents.network import get_ledger, get_faucet
 LOGGER = get_logger("setup")
 
 
-def fund_agent_if_low(agent_address: str):
+def fund_agent_if_low(wallet_address: str):
     ledger = get_ledger()
     faucet = get_faucet()
 
-    agent_balance = ledger.query_bank_balance(Address(agent_address))
+    agent_balance = ledger.query_bank_balance(Address(wallet_address))
 
     if agent_balance < REGISTRATION_FEE:
         # Add tokens to agent's wallet
         LOGGER.info("Adding funds to agent...")
-        faucet.get_wealth(agent_address)
+        faucet.get_wealth(wallet_address)
         LOGGER.info("Adding funds to agent...complete")
 
 

@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta
-from typing import Optional, Dict, List, Union
+from typing import Any, Optional, Dict, List
 
 from cosmpy.aerial.contract import LedgerContract
 from cosmpy.aerial.client import (
@@ -8,12 +8,14 @@ from cosmpy.aerial.client import (
     NetworkConfig,
     DEFAULT_QUERY_INTERVAL_SECS,
     DEFAULT_QUERY_TIMEOUT_SECS,
+    prepare_and_broadcast_basic_transaction,
 )
 from cosmpy.aerial.exceptions import NotFoundError, QueryTimeoutError
 from cosmpy.aerial.contract.cosmwasm import create_cosmwasm_execute_msg
 from cosmpy.aerial.faucet import FaucetApi
 from cosmpy.aerial.tx_helpers import TxResponse
 from cosmpy.aerial.tx import Transaction
+from cosmpy.aerial.wallet import LocalWallet
 
 from uagents.config import (
     AgentNetwork,
@@ -21,7 +23,52 @@ from uagents.config import (
     CONTRACT_NAME_SERVICE,
     AGENT_NETWORK,
     BLOCK_INTERVAL,
+    REGISTRATION_FEE,
+    REGISTRATION_DENOM,
+    get_logger,
 )
+
+
+logger = get_logger("network")
+
+if AGENT_NETWORK == AgentNetwork.FETCHAI_TESTNET:
+    _ledger = LedgerClient(NetworkConfig.fetchai_stable_testnet())
+    _faucet_api = FaucetApi(NetworkConfig.fetchai_stable_testnet())
+elif AGENT_NETWORK == AgentNetwork.FETCHAI_MAINNET:
+    _ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
+else:
+    raise NotImplementedError
+
+
+def get_ledger() -> LedgerClient:
+    return _ledger
+
+
+def get_faucet() -> FaucetApi:
+    return _faucet_api
+
+
+async def wait_for_tx_to_complete(
+    tx_hash: str,
+    timeout: Optional[timedelta] = None,
+    poll_period: Optional[timedelta] = None,
+) -> TxResponse:
+    if timeout is None:
+        timeout = timedelta(seconds=DEFAULT_QUERY_TIMEOUT_SECS)
+    if poll_period is None:
+        poll_period = timedelta(seconds=DEFAULT_QUERY_INTERVAL_SECS)
+    start = datetime.now()
+    while True:
+        try:
+            return _ledger.query_tx(tx_hash)
+        except NotFoundError:
+            pass
+
+        delta = datetime.now() - start
+        if delta >= timeout:
+            raise QueryTimeoutError()
+
+        await asyncio.sleep(poll_period.total_seconds())
 
 
 class AlmanacContract(LedgerContract):
@@ -52,29 +99,55 @@ class AlmanacContract(LedgerContract):
         response = self.query(query_msg)
 
         if not response["record"]:
-            return 0
+            return None
         return response.get("record")[0]["record"]["service"]["endpoints"]
 
-    def get_registration_msg(
+    def get_protocols(self, address: str):
+        query_msg = {"query_records": {"agent_address": address}}
+        response = self.query(query_msg)
+
+        if not response["record"]:
+            return None
+        return response.get("record")[0]["record"]["service"]["protocols"]
+
+    async def register(
         self,
-        protocols: Dict,
-        endpoints: Optional[Union[List[str], Dict[str, dict]]],
+        ledger: LedgerClient,
+        wallet: LocalWallet,
+        agent_address: str,
+        protocols: List[str],
+        endpoints: List[Dict[str, Any]],
         signature: str,
-        address: str,
-    ) -> dict:
-        return {
+    ):
+        transaction = Transaction()
+
+        almanac_msg = {
             "register": {
                 "record": {
                     "service": {
-                        "protocols": list(map(lambda x: x.digest, protocols.values())),
+                        "protocols": protocols,
                         "endpoints": endpoints,
                     }
                 },
                 "signature": signature,
-                "sequence": self.get_sequence(address),
-                "agent_address": address,
+                "sequence": self.get_sequence(agent_address),
+                "agent_address": agent_address,
             }
         }
+
+        transaction.add_message(
+            create_cosmwasm_execute_msg(
+                wallet.address(),
+                self.address,
+                almanac_msg,
+                funds=f"{REGISTRATION_FEE}{REGISTRATION_DENOM}",
+            )
+        )
+
+        transaction = prepare_and_broadcast_basic_transaction(
+            ledger, transaction, wallet
+        )
+        await wait_for_tx_to_complete(transaction.tx_hash)
 
     def get_sequence(self, address: str) -> int:
         query_msg = {"query_sequence": {"agent_address": address}}
@@ -83,37 +156,48 @@ class AlmanacContract(LedgerContract):
         return sequence
 
 
+_almanac_contract = AlmanacContract(None, _ledger, CONTRACT_ALMANAC)
+
+
+def get_almanac_contract() -> AlmanacContract:
+    return _almanac_contract
+
+
 class NameServiceContract(LedgerContract):
-    def is_name_available(self, name: str):
-        query_msg = {"domain_record": {"domain": f"{name}.agent"}}
+    def is_name_available(self, name: str, domain: str):
+        query_msg = {"domain_record": {"domain": f"{name}.{domain}"}}
         return self.query(query_msg)["is_available"]
 
-    def is_owner(self, name: str, wallet_address: str):
+    def is_owner(self, name: str, domain: str, wallet_address: str):
         query_msg = {
             "permissions": {
-                "domain": f"{name}.agent",
+                "domain": f"{name}.{domain}",
                 "owner": {"address": {"address": wallet_address}},
             }
         }
         permission = self.query(query_msg)["permissions"]
         return permission == "admin"
 
-    def _get_registration_msg(self, name: str, address: str):
-        return {
+    def is_domain_public(self, domain: str):
+        res = self.query({"domain_record": {"domain": f".{domain}"}})
+        return res["is_public"]
+
+    def get_registration_tx(
+        self, name: str, wallet_address: str, agent_address: str, domain: str
+    ):
+        if not self.is_name_available(name, domain) and not self.is_owner(
+            name, domain, wallet_address
+        ):
+            return None
+
+        registration_msg = {
             "register": {
-                "domain": f"{name}.agent",
-                "agent_address": address,
+                "domain": f"{name}.{domain}",
+                "agent_address": agent_address,
             }
         }
 
-    def get_registration_tx(self, name: str, wallet_address: str, agent_address: str):
-        if not self.is_name_available(name) and not self.is_owner(name, wallet_address):
-            return None
-
         transaction = Transaction()
-
-        registration_msg = self._get_registration_msg(name, agent_address)
-
         transaction.add_message(
             create_cosmwasm_execute_msg(
                 wallet_address, CONTRACT_NAME_SERVICE, registration_msg
@@ -122,54 +206,46 @@ class NameServiceContract(LedgerContract):
 
         return transaction
 
+    async def register(
+        self,
+        ledger: LedgerClient,
+        wallet: LocalWallet,
+        agent_address: str,
+        name: str,
+        domain: str,
+    ):
+        logger.info("Registering name...")
 
-if AGENT_NETWORK == AgentNetwork.FETCHAI_TESTNET:
-    _ledger = LedgerClient(NetworkConfig.fetchai_stable_testnet())
-    _faucet_api = FaucetApi(NetworkConfig.fetchai_stable_testnet())
-elif AGENT_NETWORK == AgentNetwork.FETCHAI_MAINNET:
-    _ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
-else:
-    raise NotImplementedError
+        if not get_almanac_contract().is_registered(agent_address):
+            logger.warning(
+                f"Agent {name} needs to be registered in almanac contract to register its name"
+            )
+            return
+
+        if not self.is_domain_public(domain):
+            logger.warning(
+                f"Domain {domain} is not public, please select a public domain"
+            )
+            return
+
+        transaction = self.get_registration_tx(
+            name, str(wallet.address()), agent_address, domain
+        )
+
+        if transaction is None:
+            logger.error(
+                f"Please select another name, {name} is owned by another address"
+            )
+            return
+        transaction = prepare_and_broadcast_basic_transaction(
+            ledger, transaction, wallet
+        )
+        await wait_for_tx_to_complete(transaction.tx_hash)
+        logger.info("Registering name...complete")
 
 
-_almanac_contract = AlmanacContract(None, _ledger, CONTRACT_ALMANAC)
 _name_service_contract = NameServiceContract(None, _ledger, CONTRACT_NAME_SERVICE)
 
 
-def get_ledger() -> LedgerClient:
-    return _ledger
-
-
-def get_faucet() -> FaucetApi:
-    return _faucet_api
-
-
-def get_almanac_contract() -> LedgerContract:
-    return _almanac_contract
-
-
-def get_service_contract() -> LedgerContract:
+def get_name_service_contract() -> NameServiceContract:
     return _name_service_contract
-
-
-async def wait_for_tx_to_complete(
-    tx_hash: str,
-    timeout: Optional[timedelta] = None,
-    poll_period: Optional[timedelta] = None,
-) -> TxResponse:
-    if timeout is None:
-        timeout = timedelta(seconds=DEFAULT_QUERY_TIMEOUT_SECS)
-    if poll_period is None:
-        poll_period = timedelta(seconds=DEFAULT_QUERY_INTERVAL_SECS)
-    start = datetime.now()
-    while True:
-        try:
-            return _ledger.query_tx(tx_hash)
-        except NotFoundError:
-            pass
-
-        delta = datetime.now() - start
-        if delta >= timeout:
-            raise QueryTimeoutError()
-
-        await asyncio.sleep(poll_period.total_seconds())
