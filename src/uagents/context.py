@@ -122,7 +122,7 @@ class Context:
         timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ):
         schema_digest = Model.build_schema_digest(message)
-        await self._send_raw(
+        await self.send_raw(
             destination,
             message.json(),
             schema_digest,
@@ -143,7 +143,7 @@ class Context:
         schema_digest = Model.build_schema_digest(message)
         for address in agents:
             try:
-                await self._send_raw(
+                await self.send_raw(
                     address,
                     message.json(),
                     schema_digest,
@@ -153,7 +153,7 @@ class Context:
             except Exception as e:
                 self.logger.error(f"Error sending message to {address}: {e}")
 
-    async def _send_raw(
+    async def send_raw(
         self,
         destination: str,
         json_message: JsonStr,
