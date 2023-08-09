@@ -29,10 +29,12 @@ An agent that interacts within a communication environment.
 - `_ledger` - The ledger for recording agent transactions.
 - `_almanac_contract` - The almanac contract for agent metadata.
 - `_storage` - Key-value store for agent data storage.
-- `_interval_handlers` _List[Tuple[IntervalCallback, float]]_ - List of interval handlers and their periods.
+- `_interval_handlers` _List[Tuple[IntervalCallback, float]]_ - List of interval
+  handlers and their periods.
 - `_interval_messages` _Set[str]_ - Set of interval message names.
 - `_signed_message_handlers` _Dict[str, MessageCallback]_ - Handlers for signed messages.
-- `_unsigned_message_handlers` _Dict[str, MessageCallback]_ - Handlers for unsigned messages.
+- `_unsigned_message_handlers` _Dict[str, MessageCallback]_ - Handlers for
+  unsigned messages.
 - `_models` _Dict[str, Type[Model]]_ - Dictionary of supported data models.
 - `_replies` _Dict[str, Set[Type[Model]]]_ - Dictionary of reply data models.
 - `_queries` _Dict[str, asyncio.Future]_ - Dictionary of active queries.
@@ -428,7 +430,8 @@ Include a protocol into the agent's capabilities.
 
 **Raises**:
 
-- `RuntimeError` - If a duplicate model, signed message handler, or message handler is encountered.
+- `RuntimeError` - If a duplicate model, signed message handler, or message handler
+  is encountered.
 
 <a id="src.uagents.agent.Agent.publish_manifest"></a>
 
@@ -507,7 +510,8 @@ This class manages a collection of agents and orchestrates their execution.
 **Arguments**:
 
 - `port` _Optional[int]_ - The port number for the server.
-- `endpoint` _Optional[Union[str, List[str], Dict[str, dict]]]_ - Configuration for agent endpoints.
+- `endpoint` _Optional[Union[str, List[str], Dict[str, dict]]]_ - Configuration
+  for agent endpoints.
   
 
 **Attributes**:
@@ -520,6 +524,24 @@ This class manages a collection of agents and orchestrates their execution.
 - `_logger` _Logger_ - The logger instance.
 - `_server` _ASGIServer_ - The ASGI server instance for handling requests.
 - `_use_mailbox` _bool_ - A flag indicating whether mailbox functionality is enabled.
+
+<a id="src.uagents.agent.Bureau.__init__"></a>
+
+#### `__`init`__`
+
+```python
+def __init__(port: Optional[int] = None,
+             endpoint: Optional[Union[str, List[str], Dict[str,
+                                                           dict]]] = None)
+```
+
+Initialize a Bureau instance.
+
+**Arguments**:
+
+- `port` _Optional[int]_ - The port number for the server.
+- `endpoint` _Optional[Union[str, List[str], Dict[str, dict]]]_ - Configuration
+  for agent endpoints.
 
 <a id="src.uagents.agent.Bureau.add"></a>
 

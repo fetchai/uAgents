@@ -100,10 +100,12 @@ class Agent(Sink):
         _ledger: The ledger for recording agent transactions.
         _almanac_contract: The almanac contract for agent metadata.
         _storage: Key-value store for agent data storage.
-        _interval_handlers (List[Tuple[IntervalCallback, float]]): List of interval handlers and their periods.
+        _interval_handlers (List[Tuple[IntervalCallback, float]]): List of interval
+        handlers and their periods.
         _interval_messages (Set[str]): Set of interval message names.
         _signed_message_handlers (Dict[str, MessageCallback]): Handlers for signed messages.
-        _unsigned_message_handlers (Dict[str, MessageCallback]): Handlers for unsigned messages.
+        _unsigned_message_handlers (Dict[str, MessageCallback]): Handlers for
+        unsigned messages.
         _models (Dict[str, Type[Model]]): Dictionary of supported data models.
         _replies (Dict[str, Set[Type[Model]]]): Dictionary of reply data models.
         _queries (Dict[str, asyncio.Future]): Dictionary of active queries.
@@ -617,7 +619,8 @@ class Agent(Sink):
             publish_manifest (Optional[bool]): Flag to publish the protocol's manifest.
 
         Raises:
-            RuntimeError: If a duplicate model, signed message handler, or message handler is encountered.
+            RuntimeError: If a duplicate model, signed message handler, or message handler
+            is encountered.
 
         """
         for func, period in protocol.intervals:
@@ -818,7 +821,8 @@ class Bureau:
 
     Args:
         port (Optional[int]): The port number for the server.
-        endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): Configuration for agent endpoints.
+        endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): Configuration
+        for agent endpoints.
 
     Attributes:
         _loop (asyncio.AbstractEventLoop): The event loop.
@@ -831,6 +835,27 @@ class Bureau:
         _use_mailbox (bool): A flag indicating whether mailbox functionality is enabled.
 
     """
+    def __init__(
+        self,
+        port: Optional[int] = None,
+        endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
+    ):
+        """
+        Initialize a Bureau instance.
+
+        Args:
+            port (Optional[int]): The port number for the server.
+            endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): Configuration
+            for agent endpoints.
+        """
+        self._loop = asyncio.get_event_loop_policy().get_event_loop()
+        self._agents: List[Agent] = []
+        self._endpoints = parse_endpoint_config(endpoint)
+        self._port = port or 8000
+        self._queries: Dict[str, asyncio.Future] = {}
+        self._logger = get_logger("bureau")
+        self._server = ASGIServer(self._port, self._loop, self._queries, self._logger)
+        self._use_mailbox = False
 
     def add(self, agent: Agent):
         """

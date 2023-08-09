@@ -56,7 +56,8 @@ Represents the context in which messages are handled and processed.
 
 **Methods**:
 
-- `get_message_protocol(message_schema_digest)` - Get the protocol associated with a message schema digest.
+- `get_message_protocol(message_schema_digest)` - Get the protocol associated
+  with a message schema digest.
   send(destination, message, timeout): Send a message to a destination.
 
 <a id="src.uagents.context.Context.__init__"></a>
@@ -91,9 +92,9 @@ Initialize the Context instance.
 - `identity` _Identity_ - The identity associated with the context.
 - `wallet` _LocalWallet_ - The local wallet instance for managing identities.
 - `ledger` _LedgerClient_ - The ledger client for interacting with distributed ledgers.
-- `queries` _Dict[str, asyncio.Future]_ - Dictionary of query names and their asyncio Futures.
+- `queries` _Dict[str, asyncio.Future]_ - Dictionary of query names and their Futures.
 - `session` _Optional[uuid.UUID]_ - The optional session UUID.
-- `replies` _Optional[Dict[str, Set[Type[Model]]]]_ - The optional dictionary of reply models.
+- `replies` _Optional[Dict[str, Set[Type[Model]]]]_ - Optional dictionary of reply models.
 - `interval_messages` _Optional[Set[str]]_ - The optional set of interval messages.
 - `message_received` _Optional[MsgDigest]_ - The optional message digest received.
 - `protocols` _Optional[Dict[str, Protocol]]_ - The optional dictionary of protocols.
@@ -191,7 +192,8 @@ Get the protocol associated with a given message schema digest.
 
 **Returns**:
 
-- `Optional[str]` - The protocol digest associated with the message schema digest, or None if not found.
+- `Optional[str]` - The protocol digest associated with the message schema digest,
+  or None if not found.
 
 <a id="src.uagents.context.Context.send"></a>
 

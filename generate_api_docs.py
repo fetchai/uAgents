@@ -46,14 +46,14 @@ def replace_underscores(text: str) -> str:
     return text_b
 
 
-def is_relative_to(p1: Path, p2: Path) -> bool:
+def is_relative_to(path_1: Path, path_2: Path) -> bool:
     """Check if a path is relative to another path."""
-    return str(p1).startswith(str(p2))
+    return str(path_1).startswith(str(path_2))
 
 
-def is_not_dir(p: Path) -> bool:
+def is_not_dir(path: Path) -> bool:
     """Call p.is_dir() method and negate the result."""
-    return not p.is_dir()
+    return not path.is_dir()
 
 
 def should_skip(module_path: Path) -> bool:
@@ -94,8 +94,8 @@ def make_pydoc(dotted_path: str, destination_file: Path) -> None:
         api_doc_content = run_pydoc_markdown(dotted_path)
         destination_file.parent.mkdir(parents=True, exist_ok=True)
         destination_file.write_text(api_doc_content)
-    except Exception as e:  # pylint: disable=broad-except
-        print(f"Error: {str(e)}")
+    except Exception as ex:  # pylint: disable=broad-except
+        print(f"Error: {str(ex)}")
         return
     print("Done!")
 

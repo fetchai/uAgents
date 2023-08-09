@@ -66,7 +66,8 @@ class Protocol:
         Property to access the registered replies.
 
         Returns:
-            Dict[str, Dict[str, Type[Model]]]: Dictionary of registered replies with request schema digests as keys.
+            Dict[str, Dict[str, Type[Model]]]: Dictionary of registered replies with request
+            schema digests as keys.
         """
         return self._replies
 
@@ -86,7 +87,8 @@ class Protocol:
         Property to access the signed message handlers.
 
         Returns:
-            Dict[str, MessageCallback]: Dictionary of signed message handlers with message schema digests as keys.
+            Dict[str, MessageCallback]: Dictionary of signed message handlers with message schema
+            digests as keys.
         """
         return self._signed_message_handlers
 
@@ -96,7 +98,8 @@ class Protocol:
         Property to access the unsigned message handlers.
 
         Returns:
-            Dict[str, MessageCallback]: Dictionary of unsigned message handlers with message schema digests as keys.
+            Dict[str, MessageCallback]: Dictionary of unsigned message handlers with message schema
+            digests as keys.
         """
         return self._unsigned_message_handlers
 
@@ -150,7 +153,8 @@ class Protocol:
 
         Args:
             period (float): The interval period in seconds.
-            messages (Optional[Union[Type[Model], Set[Type[Model]]]], optional): The associated message types. Defaults to None.
+            messages (Optional[Union[Type[Model], Set[Type[Model]]]], optional): The associated
+            message types. Defaults to None.
 
         Returns:
             Callable: The decorator to register the interval handler.
@@ -202,7 +206,8 @@ class Protocol:
 
         Args:
             model (Type[Model]): The message model type.
-            replies (Optional[Union[Type[Model], Set[Type[Model]]]], optional): The associated reply types. Defaults to None.
+            replies (Optional[Union[Type[Model], Set[Type[Model]]]], optional): The associated
+            reply types. Defaults to None.
 
         Returns:
             Callable: The decorator to register the query handler.
@@ -220,8 +225,10 @@ class Protocol:
 
         Args:
             model (Type[Model]): The message model type.
-            replies (Optional[Union[Type[Model], Set[Type[Model]]]], optional): The associated reply types. Defaults to None.
-            allow_unverified (Optional[bool], optional): Whether to allow unverified messages. Defaults to False.
+            replies (Optional[Union[Type[Model], Set[Type[Model]]]], optional): The associated
+            reply types. Defaults to None.
+            allow_unverified (Optional[bool], optional): Whether to allow unverified messages.
+            Defaults to False.
 
         Returns:
             Callable: The decorator to register the message handler.
@@ -252,7 +259,8 @@ class Protocol:
             model (Type[Model]): The message model type.
             func (MessageCallback): The message handler function.
             replies (Optional[Union[Type[Model], Set[Type[Model]]]]): The associated reply types.
-            allow_unverified (Optional[bool], optional): Whether to allow unverified messages. Defaults to False.
+            allow_unverified (Optional[bool], optional): Whether to allow unverified messages.
+            Defaults to False.
         """
         model_digest = Model.build_schema_digest(model)
 

@@ -21,7 +21,8 @@ Query a remote agent with a message and retrieve the response envelope.
 
 - `destination` _str_ - The destination address of the remote agent.
 - `message` _Model_ - The message to send.
-- `resolver` _Optional[Resolver], optional_ - The resolver to use for endpoint resolution. Defaults to GlobalResolver.
+- `resolver` _Optional[Resolver], optional_ - The resolver to use for endpoint resolution.
+  Defaults to GlobalResolver.
 - `timeout` _Optional[int], optional_ - The timeout for the query in seconds. Defaults to 30.
   
 

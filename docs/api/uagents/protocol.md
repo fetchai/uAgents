@@ -70,7 +70,8 @@ Property to access the registered replies.
 
 **Returns**:
 
-  Dict[str, Dict[str, Type[Model]]]: Dictionary of registered replies with request schema digests as keys.
+  Dict[str, Dict[str, Type[Model]]]: Dictionary of registered replies with request
+  schema digests as keys.
 
 <a id="src.uagents.protocol.Protocol.interval_messages"></a>
 
@@ -100,7 +101,8 @@ Property to access the signed message handlers.
 
 **Returns**:
 
-  Dict[str, MessageCallback]: Dictionary of signed message handlers with message schema digests as keys.
+  Dict[str, MessageCallback]: Dictionary of signed message handlers with message schema
+  digests as keys.
 
 <a id="src.uagents.protocol.Protocol.unsigned_message_handlers"></a>
 
@@ -115,7 +117,8 @@ Property to access the unsigned message handlers.
 
 **Returns**:
 
-  Dict[str, MessageCallback]: Dictionary of unsigned message handlers with message schema digests as keys.
+  Dict[str, MessageCallback]: Dictionary of unsigned message handlers with message schema
+  digests as keys.
 
 <a id="src.uagents.protocol.Protocol.name"></a>
 
@@ -192,7 +195,8 @@ Decorator to register an interval handler for the protocol.
 **Arguments**:
 
 - `period` _float_ - The interval period in seconds.
-- `messages` _Optional[Union[Type[Model], Set[Type[Model]]]], optional_ - The associated message types. Defaults to None.
+- `messages` _Optional[Union[Type[Model], Set[Type[Model]]]], optional_ - The associated
+  message types. Defaults to None.
   
 
 **Returns**:
@@ -213,7 +217,8 @@ Decorator to register a query handler for the protocol.
 **Arguments**:
 
 - `model` _Type[Model]_ - The message model type.
-- `replies` _Optional[Union[Type[Model], Set[Type[Model]]]], optional_ - The associated reply types. Defaults to None.
+- `replies` _Optional[Union[Type[Model], Set[Type[Model]]]], optional_ - The associated
+  reply types. Defaults to None.
   
 
 **Returns**:
@@ -235,8 +240,10 @@ Decorator to register a message handler for the protocol.
 **Arguments**:
 
 - `model` _Type[Model]_ - The message model type.
-- `replies` _Optional[Union[Type[Model], Set[Type[Model]]]], optional_ - The associated reply types. Defaults to None.
-- `allow_unverified` _Optional[bool], optional_ - Whether to allow unverified messages. Defaults to False.
+- `replies` _Optional[Union[Type[Model], Set[Type[Model]]]], optional_ - The associated
+  reply types. Defaults to None.
+- `allow_unverified` _Optional[bool], optional_ - Whether to allow unverified messages.
+  Defaults to False.
   
 
 **Returns**:

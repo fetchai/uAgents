@@ -42,8 +42,8 @@ def get_agent_address(name: str) -> str:
         registered_address = result["record"]["records"][0]["agent_address"]["records"]
         if len(registered_address) > 0:
             return registered_address[0]["address"]
-        return "0"
-    return "1"
+        return 0
+    return 1
 
 
 def is_agent_address(address):
@@ -67,6 +67,7 @@ def is_agent_address(address):
 
 class Resolver(ABC):
     @abstractmethod
+    # pylint: disable=unnecessary-pass
     async def resolve(self, destination: str) -> Optional[str]:
         """
         Resolve the destination to an endpoint.

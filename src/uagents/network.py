@@ -73,8 +73,10 @@ async def wait_for_tx_to_complete(
 
     Args:
         tx_hash (str): The hash of the transaction to monitor.
-        timeout (Optional[timedelta], optional): The maximum time to wait for the transaction to complete. Defaults to None.
-        poll_period (Optional[timedelta], optional): The time interval to poll the Ledger for the transaction status. Defaults to None.
+        timeout (Optional[timedelta], optional): The maximum time to wait for
+        the transaction to complete. Defaults to None.
+        poll_period (Optional[timedelta], optional): The time interval to poll
+        the Ledger for the transaction status. Defaults to None.
 
     Returns:
         TxResponse: The response object containing the transaction details.
@@ -343,7 +345,8 @@ class NameServiceContract(LedgerContract):
             domain (str): The domain in which the name is registered.
 
         Returns:
-            Optional[Transaction]: The registration transaction, or None if the name is not available or not owned by the wallet address.
+            Optional[Transaction]: The registration transaction, or None if the name is not
+            available or not owned by the wallet address.
         """
         if not self.is_name_available(name, domain) and not self.is_owner(
             name, domain, wallet_address

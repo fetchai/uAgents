@@ -48,8 +48,10 @@ Wait for a transaction to complete on the Ledger.
 **Arguments**:
 
 - `tx_hash` _str_ - The hash of the transaction to monitor.
-- `timeout` _Optional[timedelta], optional_ - The maximum time to wait for the transaction to complete. Defaults to None.
-- `poll_period` _Optional[timedelta], optional_ - The time interval to poll the Ledger for the transaction status. Defaults to None.
+- `timeout` _Optional[timedelta], optional_ - The maximum time to wait for
+  the transaction to complete. Defaults to None.
+- `poll_period` _Optional[timedelta], optional_ - The time interval to poll
+  the Ledger for the transaction status. Defaults to None.
   
 
 **Returns**:
@@ -313,7 +315,8 @@ Get the registration transaction for registering a name within a domain.
 
 **Returns**:
 
-- `Optional[Transaction]` - The registration transaction, or None if the name is not available or not owned by the wallet address.
+- `Optional[Transaction]` - The registration transaction, or None if the name is not
+  available or not owned by the wallet address.
 
 <a id="src.uagents.network.NameServiceContract.register"></a>
 

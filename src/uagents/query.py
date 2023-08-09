@@ -29,7 +29,8 @@ async def query(
     Args:
         destination (str): The destination address of the remote agent.
         message (Model): The message to send.
-        resolver (Optional[Resolver], optional): The resolver to use for endpoint resolution. Defaults to GlobalResolver.
+        resolver (Optional[Resolver], optional): The resolver to use for endpoint resolution.
+        Defaults to GlobalResolver.
         timeout (Optional[int], optional): The timeout for the query in seconds. Defaults to 30.
 
     Returns:

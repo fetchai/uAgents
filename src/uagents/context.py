@@ -72,7 +72,8 @@ class Context:
         protocols (Optional[Dict[str, Protocol]]): The dictionary of protocols.
 
     Methods:
-        get_message_protocol(message_schema_digest): Get the protocol associated with a message schema digest.
+        get_message_protocol(message_schema_digest): Get the protocol associated
+        with a message schema digest.
         send(destination, message, timeout): Send a message to a destination.
 
     """
@@ -105,9 +106,9 @@ class Context:
             identity (Identity): The identity associated with the context.
             wallet (LocalWallet): The local wallet instance for managing identities.
             ledger (LedgerClient): The ledger client for interacting with distributed ledgers.
-            queries (Dict[str, asyncio.Future]): Dictionary of query names and their asyncio Futures.
+            queries (Dict[str, asyncio.Future]): Dictionary of query names and their Futures.
             session (Optional[uuid.UUID]): The optional session UUID.
-            replies (Optional[Dict[str, Set[Type[Model]]]]): The optional dictionary of reply models.
+            replies (Optional[Dict[str, Set[Type[Model]]]]): Optional dictionary of reply models.
             interval_messages (Optional[Set[str]]): The optional set of interval messages.
             message_received (Optional[MsgDigest]): The optional message digest received.
             protocols (Optional[Dict[str, Protocol]]): The optional dictionary of protocols.
@@ -188,7 +189,8 @@ class Context:
             message_schema_digest (str): The schema digest of the message.
 
         Returns:
-            Optional[str]: The protocol digest associated with the message schema digest, or None if not found.
+            Optional[str]: The protocol digest associated with the message schema digest,
+            or None if not found.
         """
         for protocol_digest, protocol in self._protocols.items():
             for reply_models in protocol.replies.values():
