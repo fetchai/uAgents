@@ -1,4 +1,4 @@
-"""Agent Framework"""
+"""Agent"""
 
 import asyncio
 import functools
@@ -238,7 +238,22 @@ class Agent(Sink):
             seed (str or None): The seed for generating keys.
             name (str or None): The name of the agent.
         """
-        # Rest of the method implementation...
+        if seed is None:
+            if name is None:
+                self._wallet = LocalWallet.generate()
+                self._identity = Identity.generate()
+            else:
+                identity_key, wallet_key = get_or_create_private_keys(name)
+                self._wallet = LocalWallet(PrivateKey(wallet_key))
+                self._identity = Identity.from_string(identity_key)
+        else:
+            self._identity = Identity.from_seed(seed, 0)
+            self._wallet = LocalWallet(
+                PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
+                prefix=LEDGER_PREFIX,
+            )
+        if name is None:
+            self._name = self.address[0:16]
 
     @property
     def name(self) -> str:

@@ -2,7 +2,7 @@
 
 # src.uagents.agent
 
-Agent Framework
+Agent
 
 <a id="src.uagents.agent.Agent"></a>
 
