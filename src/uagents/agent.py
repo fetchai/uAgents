@@ -69,6 +69,7 @@ async def _delay(coroutine: Coroutine, delay_seconds: float):
     await asyncio.sleep(delay_seconds)
     await coroutine
 
+
 async def _handle_error(ctx: Context, destination: str, msg: ErrorMessage):
     """
     Handle an error message by sending it to the specified destination.
@@ -118,6 +119,7 @@ class Agent(Sink):
     Methods:
         __init__: Initialize the Agent instance.
     """
+
     def __init__(
         self,
         name: Optional[str] = None,
@@ -344,7 +346,6 @@ class Agent(Sink):
             config (Union[str, Dict[str, str]]): The new agentverse configuration.
         """
         self._agentverse = parse_agentverse_config(config)
-
 
     def sign(self, data: bytes) -> str:
         """

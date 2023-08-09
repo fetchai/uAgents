@@ -106,12 +106,13 @@ class AlmanacContract(LedgerContract):
     registration, and getting the endpoints associated with an agent's registration.
 
     Args:
-        ledger (Ledger): An instance of the Ledger class representing the blockchain ledger.
+        ledger contract (LedgerContract): An instance of the LedgeContract class.
 
     Attributes:
-        ledger (Ledger): An instance of the Ledger class representing the blockchain ledger.
+        ledger contract (LedgerContract): An instance of the LedgeContract class.
 
     """
+
     def is_registered(self, address: str) -> bool:
         """
         Check if an agent is registered in the Almanac contract.
@@ -274,12 +275,13 @@ class NameServiceContract(LedgerContract):
     obtaining registration transaction details, and registering a name within a domain.
 
     Args:
-        ledger (Ledger): An instance of the Ledger class representing the blockchain ledger.
+        ledger contract (LedgerContract): An instance of the LedgeContract class.
 
     Attributes:
-        ledger (Ledger): An instance of the Ledger class representing the blockchain ledger.
+        ledger contract (LedgerContract): An instance of the LedgeContract class.
 
     """
+
     def is_name_available(self, name: str, domain: str):
         """
         Check if a name is available within a domain.

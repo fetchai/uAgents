@@ -26,6 +26,7 @@ class KeyValueStore:
         _save: Save the store data to the file.
 
     """
+
     def __init__(self, name: str, cwd: str = None):
         """
         Initialize the KeyValueStore instance.

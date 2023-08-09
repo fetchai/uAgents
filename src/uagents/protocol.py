@@ -155,6 +155,7 @@ class Protocol:
         Returns:
             Callable: The decorator to register the interval handler.
         """
+
         def decorator_on_interval(func: IntervalCallback):
             @functools.wraps(func)
             def handler(*args, **kwargs):
@@ -225,6 +226,7 @@ class Protocol:
         Returns:
             Callable: The decorator to register the message handler.
         """
+
         def decorator_on_message(func: MessageCallback):
             @functools.wraps(func)
             def handler(*args, **kwargs):

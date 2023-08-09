@@ -14,13 +14,13 @@ UAGENTS_DIR = Path("src/uagents")
 IGNORE_NAMES = {}
 IGNORE_PREFIXES = {
     Path(UAGENTS_DIR, "__init__.py"),
-    Path(UAGENTS_DIR, "asgi.py"), 
-    Path(UAGENTS_DIR, "config.py"), 
-    Path(UAGENTS_DIR, "contrib"), 
+    Path(UAGENTS_DIR, "asgi.py"),
+    Path(UAGENTS_DIR, "config.py"),
+    Path(UAGENTS_DIR, "contrib"),
     Path(UAGENTS_DIR, "crypto"),
-    Path(UAGENTS_DIR, "dispatch.py"), 
-    Path(UAGENTS_DIR, "mailbox.py"), 
-    Path(UAGENTS_DIR, "models.py"), 
+    Path(UAGENTS_DIR, "dispatch.py"),
+    Path(UAGENTS_DIR, "mailbox.py"),
+    Path(UAGENTS_DIR, "models.py"),
 }
 
 

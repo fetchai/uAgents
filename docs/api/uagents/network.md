@@ -72,12 +72,12 @@ registration, and getting the endpoints associated with an agent's registration.
 
 **Arguments**:
 
-- `ledger` _Ledger_ - An instance of the Ledger class representing the blockchain ledger.
+  ledger contract (LedgerContract): An instance of the LedgeContract class.
   
 
 **Attributes**:
 
-- `ledger` _Ledger_ - An instance of the Ledger class representing the blockchain ledger.
+  ledger contract (LedgerContract): An instance of the LedgeContract class.
 
 <a id="src.uagents.network.AlmanacContract.is_registered"></a>
 
@@ -225,12 +225,12 @@ obtaining registration transaction details, and registering a name within a doma
 
 **Arguments**:
 
-- `ledger` _Ledger_ - An instance of the Ledger class representing the blockchain ledger.
+  ledger contract (LedgerContract): An instance of the LedgeContract class.
   
 
 **Attributes**:
 
-- `ledger` _Ledger_ - An instance of the Ledger class representing the blockchain ledger.
+  ledger contract (LedgerContract): An instance of the LedgeContract class.
 
 <a id="src.uagents.network.NameServiceContract.is_name_available"></a>
 

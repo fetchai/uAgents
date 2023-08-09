@@ -32,16 +32,18 @@ EventCallback = Callable[["Context"], Awaitable[None]]
 class MsgDigest:
     """
     Represents a message digest containing a message and its schema digest.
-    
+
     Attributes:
         message (Any): The message content.
         schema_digest (str): The schema digest of the message.
     """
+
     message: Any
     schema_digest: str
 
 
 ERROR_MESSAGE_DIGEST = Model.build_schema_digest(ErrorMessage)
+
 
 class Context:
     """
@@ -74,6 +76,7 @@ class Context:
         send(destination, message, timeout): Send a message to a destination.
 
     """
+
     def __init__(
         self,
         address: str,
@@ -129,7 +132,7 @@ class Context:
     def name(self) -> str:
         """
         Get the name associated with the context or a truncated address if name is None.
-        
+
         Returns:
             str: The name or truncated address.
         """
@@ -141,7 +144,7 @@ class Context:
     def address(self) -> str:
         """
         Get the address of the context.
-        
+
         Returns:
             str: The address of the context.
         """
@@ -151,7 +154,7 @@ class Context:
     def logger(self) -> logging.Logger:
         """
         Get the logger instance associated with the context.
-        
+
         Returns:
             logging.Logger: The logger instance.
         """
@@ -161,7 +164,7 @@ class Context:
     def protocols(self) -> Optional[Dict[str, Protocol]]:
         """
         Get the dictionary of protocols associated with the context.
-        
+
         Returns:
             Optional[Dict[str, Protocol]]: The dictionary of protocols.
         """
@@ -171,7 +174,7 @@ class Context:
     def session(self) -> uuid.UUID:
         """
         Get the session UUID associated with the context.
-        
+
         Returns:
             uuid.UUID: The session UUID.
         """
@@ -180,10 +183,10 @@ class Context:
     def get_message_protocol(self, message_schema_digest) -> Optional[str]:
         """
         Get the protocol associated with a given message schema digest.
-        
+
         Args:
             message_schema_digest (str): The schema digest of the message.
-            
+
         Returns:
             Optional[str]: The protocol digest associated with the message schema digest, or None if not found.
         """
@@ -201,7 +204,7 @@ class Context:
     ):
         """
         Send a message to the specified destination.
-        
+
         Args:
             destination (str): The destination address to send the message to.
             message (Model): The message to be sent.
