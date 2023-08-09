@@ -150,8 +150,8 @@ class Context:
                     message_type=type(message),
                     timeout=timeout,
                 )
-            except Exception as e:
-                self.logger.error(f"Error sending message to {address}: {e}")
+            except asyncio.exceptions.CancelledError:
+                self.logger.error(f"Error sending message to {address}")
 
     async def send_raw(
         self,
