@@ -835,6 +835,7 @@ class Bureau:
         _use_mailbox (bool): A flag indicating whether mailbox functionality is enabled.
 
     """
+
     def __init__(
         self,
         port: Optional[int] = None,
