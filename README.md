@@ -1,14 +1,8 @@
 The **μAgents** (micro-Agents) project is a fast and lightweight framework that makes it easy to build agents for all kinds of decentralised use cases.
 
-## Installation
+## Python Library
 
-Install μAgents for Python 3.8, 3.9, 3.10, or 3.11:
-
-```bash
-cd python
-poetry install
-poetry shell
-```
+Go to the [`python`](https://github.com/fetchai/uAgents/tree/main/python) folder for details on the Python uAgents library.
 
 ## Documentation
 
@@ -39,4 +33,3 @@ We use [GitHub Issues](https://github.com/fetchai/uAgents/issues) for tracking r
 ## License
 
 The μAgents project is licensed under [Apache License 2.0](https://github.com/fetchai/uAgents/blob/main/LICENSE).
-
