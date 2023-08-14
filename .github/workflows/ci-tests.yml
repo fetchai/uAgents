@@ -15,6 +15,7 @@ jobs:
     defaults:
       run:
         shell: bash
+        working-directory: ./python
     strategy:
       matrix:
         os: [ubuntu-latest]
