@@ -58,6 +58,10 @@ jobs:
 
   linting:
     name: Lint & Formatting
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./python
     runs-on: ubuntu-latest
     strategy:
       matrix:
