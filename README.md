@@ -4,20 +4,6 @@ The **μAgents** (micro-Agents) project is a fast and lightweight framework that
 
 Go to the [`python`](https://github.com/fetchai/uAgents/tree/main/python) folder for details on the Python uAgents library.
 
-## Documentation
-
-Build and run the docs locally with:
-
-```bash
-mkdocs serve
-```
-
-Or go to the official docs site: https://docs.fetch.ai/uAgents.
-
-## Examples
-
-The [`examples`](https://github.com/fetchai/uAgents/tree/main/examples) folder contains several examples of how to create and run various types of agents.
-
 ## Contributing
 
 All contributions are welcome! Remember, contribution includes not only code, but any help with docs or issues raised by other developers. See our [contribution guidelines](https://github.com/fetchai/uAgents/blob/main/CONTRIBUTING.md) for more details.
