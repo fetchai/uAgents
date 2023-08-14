@@ -2591,5 +2591,5 @@ wallet = []
 
 [metadata]
 lock-version = "2.0"
-python-versions = ">=3.8,<3.12"
-content-hash = "18e84da21abb5e9e2bc24874c036866ed6fbdc525ecc000fc1c2facf82ffa174"
+python-versions = "^3.8"
+content-hash = "2e3a22389559917036be8d8fa03ac27cea99d01dd9f9903c3a9d5450bb909f16"
