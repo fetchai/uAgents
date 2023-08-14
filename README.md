@@ -2,9 +2,10 @@ The **μAgents** (micro-Agents) project is a fast and lightweight framework that
 
 ## Installation
 
-Install μAgents for Python 3.8, 3.9, or 3.10:
+Install μAgents for Python 3.8, 3.9, 3.10, or 3.11:
 
 ```bash
+cd python
 poetry install
 poetry shell
 ```
