@@ -1,27 +1,8 @@
 The **μAgents** (micro-Agents) project is a fast and lightweight framework that makes it easy to build agents for all kinds of decentralised use cases.
 
-## Installation
+## Python Library
 
-Install μAgents for Python 3.8, 3.9, or 3.10:
-
-```bash
-poetry install
-poetry shell
-```
-
-## Documentation
-
-Build and run the docs locally with:
-
-```bash
-mkdocs serve
-```
-
-Or go to the official docs site: https://docs.fetch.ai/uAgents.
-
-## Examples
-
-The [`examples`](https://github.com/fetchai/uAgents/tree/main/examples) folder contains several examples of how to create and run various types of agents.
+Go to the [`python`](https://github.com/fetchai/uAgents/tree/main/python) folder for details on the Python uAgents library.
 
 ## Contributing
 
@@ -38,4 +19,3 @@ We use [GitHub Issues](https://github.com/fetchai/uAgents/issues) for tracking r
 ## License
 
 The μAgents project is licensed under [Apache License 2.0](https://github.com/fetchai/uAgents/blob/main/LICENSE).
-
