@@ -116,9 +116,9 @@ class Context:
     def get_agents_by_protocol(
         self, protocol_digest: str, limit: Optional[int] = None
     ) -> List[str]:
-        if not isinstance(
-            protocol_digest, str
-        ) or not protocol_digest.startswith("proto:"):
+        if not isinstance(protocol_digest, str) or not protocol_digest.startswith(
+            "proto:"
+        ):
             self.logger.error(f"Invalid protocol digest: {protocol_digest}")
             raise ValueError("Invalid protocol digest")
         response = requests.post(
@@ -128,11 +128,7 @@ class Context:
         )
         if response.status_code == 200:
             data = response.json()
-            agents = [
-                agent["address"]
-                for agent in data
-                if agent["status"] == "local"
-            ]
+            agents = [agent["address"] for agent in data if agent["status"] == "local"]
             return agents[:limit]
         return []
 
@@ -160,9 +156,7 @@ class Context:
     ):
         agents = self.get_agents_by_protocol(destination_protocol, limit=limit)
         if not agents:
-            self.logger.error(
-                f"No active agents found for: {destination_protocol}"
-            )
+            self.logger.error(f"No active agents found for: {destination_protocol}")
             return
         schema_digest = Model.build_schema_digest(message)
         futures = await asyncio.gather(
@@ -178,7 +172,6 @@ class Context:
             ]
         )
         self.logger.debug(f"Sent {len(futures)} messages")
-
 
     async def send_raw(
         self,
