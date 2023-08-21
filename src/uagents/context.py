@@ -5,14 +5,28 @@ import logging
 import uuid
 from dataclasses import dataclass
 from time import time
-from typing import Dict, Set, Optional, Callable, Any, Awaitable, Type, TYPE_CHECKING
+from typing import (
+    Dict,
+    List,
+    Set,
+    Optional,
+    Callable,
+    Any,
+    Awaitable,
+    Type,
+    TYPE_CHECKING,
+)
 
 import aiohttp
 import requests
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet
 
-from uagents.config import ALMANAC_API_URL, DEFAULT_ENVELOPE_TIMEOUT_SECONDS
+from uagents.config import (
+    ALMANAC_API_URL,
+    DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+    DEFAULT_SEARCH_LIMIT,
+)
 from uagents.crypto import Identity
 from uagents.dispatch import JsonStr, dispatcher
 from uagents.envelope import Envelope
@@ -99,12 +113,14 @@ class Context:
                     return protocol_digest
         return None
 
-    def get_agents_by_protocol(self, protocol_digest: str) -> list:
-        if not isinstance(protocol_digest, str) or not protocol_digest.startswith(
-            "proto:"
-        ):
+    def get_agents_by_protocol(
+        self, protocol_digest: str, limit: Optional[int] = None
+    ) -> List[str]:
+        if not isinstance(
+            protocol_digest, str
+        ) or not protocol_digest.startswith("proto:"):
             self.logger.error(f"Invalid protocol digest: {protocol_digest}")
-            return []
+            raise ValueError("Invalid protocol digest")
         response = requests.post(
             url=ALMANAC_API_URL + "search",
             json={"text": protocol_digest[6:]},
@@ -112,7 +128,12 @@ class Context:
         )
         if response.status_code == 200:
             data = response.json()
-            return [agent["address"] for agent in data if agent["status"] == "local"]
+            agents = [
+                agent["address"]
+                for agent in data
+                if agent["status"] == "local"
+            ]
+            return agents[:limit]
         return []
 
     async def send(
@@ -130,28 +151,34 @@ class Context:
             timeout=timeout,
         )
 
-    async def broadcast(
+    async def experimental_broadcast(
         self,
-        destination: str,
+        destination_protocol: str,
         message: Model,
+        limit: Optional[int] = DEFAULT_SEARCH_LIMIT,
         timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ):
-        agents = self.get_agents_by_protocol(destination)
+        agents = self.get_agents_by_protocol(destination_protocol, limit=limit)
         if not agents:
-            self.logger.error(f"No active agents found for: {destination}")
+            self.logger.error(
+                f"No active agents found for: {destination_protocol}"
+            )
             return
         schema_digest = Model.build_schema_digest(message)
-        for address in agents:
-            try:
-                await self.send_raw(
+        futures = await asyncio.gather(
+            *[
+                self.send_raw(
                     address,
                     message.json(),
                     schema_digest,
                     message_type=type(message),
                     timeout=timeout,
                 )
-            except asyncio.exceptions.CancelledError:
-                self.logger.error(f"Error sending message to {address}")
+                for address in agents
+            ]
+        )
+        self.logger.debug(f"Sent {len(futures)} messages")
+
 
     async def send_raw(
         self,
