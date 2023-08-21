@@ -4,10 +4,16 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "python/**"
+      - ".github/**"
 
   pull_request:
     branches:
       - main
+    paths:
+      - "python/**"
+      - ".github/**"
 
 jobs:
   tests:
@@ -15,6 +21,7 @@ jobs:
     defaults:
       run:
         shell: bash
+        working-directory: ./python
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -57,6 +64,10 @@ jobs:
 
   linting:
     name: Lint & Formatting
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./python
     runs-on: ubuntu-latest
     strategy:
       matrix:

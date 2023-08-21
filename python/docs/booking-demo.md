@@ -32,7 +32,7 @@ restaurant = Agent(
 
 fund_agent_if_low(restaurant.wallet.address())
 ```
-The protocols `query_proto` and `book_proto` are built from message handlers in the same way as agents. See [query protocol](https://github.com/fetchai/uAgents/blob/master/examples/09-booking-protocol-demo/protocols/query.py) and [book protocol](https://github.com/fetchai/uAgents/blob/master/examples/09-booking-protocol-demo/protocols/book.py) for the details and logic behind these protocols, but for now we will simply import them. You will need to add these files inside a `protocols` folder in the same directory you are running your agent. See [agent protocols](agent-protocols.md) for more information.
+The protocols `query_proto` and `book_proto` are built from message handlers in the same way as agents. See [query protocol](https://github.com/fetchai/uAgents/blob/main/python/examples/09-booking-protocol-demo/protocols/query.py) and [book protocol](https://github.com/fetchai/uAgents/blob/main/python/examples/09-booking-protocol-demo/protocols/book.py) for the details and logic behind these protocols, but for now we will simply import them. You will need to add these files inside a `protocols` folder in the same directory you are running your agent. See [agent protocols](agent-protocols.md) for more information.
 Next we build the restaurant agent from these protocols and set the table availability information.
 
 ```python
@@ -175,5 +175,5 @@ You should see this printed on the user terminal:
 <span data-ty>Table reservation was successful</span>
 </div>
 
-See the full example scripts at [restaurant](https://github.com/fetchai/uAgents/blob/master/examples/09-booking-protocol-demo/restaurant.py) and 
-[user](https://github.com/fetchai/uAgents/blob/master/examples/09-booking-protocol-demo/user.py).
+See the full example scripts at [restaurant](https://github.com/fetchai/uAgents/blob/main/python/examples/09-booking-protocol-demo/restaurant.py) and 
+[user](https://github.com/fetchai/uAgents/blob/main/python/examples/09-booking-protocol-demo/user.py).
