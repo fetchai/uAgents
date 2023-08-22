@@ -8,5 +8,6 @@ disable=missing-module-docstring,
         too-many-instance-attributes,
         duplicate-code,
         too-many-arguments,
-        logging-fstring-interpolation
+        logging-fstring-interpolation,
+        broad-exception-caught
 
