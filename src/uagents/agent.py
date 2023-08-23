@@ -30,8 +30,9 @@ from uagents.network import (
 from uagents.mailbox import MailboxClient
 from uagents.config import (
     REGISTRATION_FEE,
-    MIN_REGISTRATION_TIME,
+    REGISTRATION_UPDATE_INTERVAL_SECONDS,
     LEDGER_PREFIX,
+    REGISTRATION_RETRY_INTERVAL_SECONDS,
     parse_endpoint_config,
     parse_agentverse_config,
     get_logger,
@@ -481,22 +482,16 @@ class Agent(Sink):
 
         """
 
-        await self.register()
-        # schedule the next registration
+        time_until_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
+        try:
+            await self.register()
+        except Exception as ex:
+            self._logger.exception(f"Failed to register on almanac contract: {ex}")
+            time_until_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
+        # schedule the next registration update
         self._loop.create_task(
-            _delay(self._registration_loop(), self._schedule_registration())
+            _delay(self._registration_loop(), time_until_next_registration)
         )
-
-    def _schedule_registration(self):
-        """
-        Get the scheduled registration expiry for the agent.
-
-        Returns:
-            Expiry: The scheduled registration expiry.
-
-        """
-
-        return self._almanac_contract.get_expiry(self.address)
 
     def on_interval(
         self,

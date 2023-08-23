@@ -24,7 +24,7 @@ from uagents.config import (
     CONTRACT_ALMANAC,
     CONTRACT_NAME_SERVICE,
     AGENT_NETWORK,
-    BLOCK_INTERVAL,
+    AVERAGE_BLOCK_INTERVAL,
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
     get_logger,
@@ -132,7 +132,7 @@ class AlmanacContract(LedgerContract):
             return False
         return True
 
-    def get_expiry(self, address: str):
+    def get_expiry(self, address: str) -> int:
         """
         Get the expiry height of an agent's registration.
 

@@ -105,7 +105,7 @@ Check if an agent is registered in the Almanac contract.
 #### get`_`expiry
 
 ```python
-def get_expiry(address: str)
+def get_expiry(address: str) -> int
 ```
 
 Get the expiry height of an agent's registration.
