@@ -1,0 +1,13 @@
+[tool.poetry]
+name = "mobility-integrations"
+version = "0.1.0"
+description = "A template for creating mobility integrations"
+authors = ["Laxmikant Tripathi <laxmikant.tripathi6@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+uagents = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
