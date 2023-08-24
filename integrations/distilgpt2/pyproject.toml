@@ -1,13 +1,10 @@
 [tool.poetry]
 name = "distilgpt2-integrations"
 version = "0.1.0"
-description = "A starter template for creating a distilgpt2 integrations examples"
-authors = ["Fetch.AI Limited"]
+description = "Integrating DistilGPT-2 into UAgent Ecosystem"
+authors = ["Gaurav Kumar"]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
-google-search-results = "^2.4.2"
-langchain = "^0.0.149"
-openai = "^0.27.4"
 uagents = "*"
 requests = "^2.31.0"
