@@ -1,7 +1,6 @@
 # uAgents: AI Agent Framework
 [![Official Website](https://img.shields.io/badge/Official%20Website-fetch.ai-blue?style=flat&logo=world&logoColor=white)](https://fetch.ai) [![Unit Tests](https://img.shields.io/github/actions/workflow/status/Fetchai/uAgents/ci.yml?label=unit%20tests)](https://github.com/Fetchai/uAgents/actions/workflows/ci.yml) [![GitHub Repo stars](https://img.shields.io/github/stars/Fetchai/uAgents?style=social)](https://github.com/Fetchai/uAgents/stargazers) [![Twitter Follow](https://img.shields.io/twitter/follow/fetch_ai?style=social)](https://twitter.com/fetch_ai)
 
-
 uAgents is a library developed by Fetch.ai that allows for creating autonomous AI agents in Python. With simple and expressive decorators, you can have an agent that performs various tasks on a schedule or takes action on various events.
 
 ## 🚀 Features
@@ -80,6 +79,10 @@ Please see the [official documentation](https://docs.fetch.ai/) for full setup i
 ## 🌱 Examples
 
 The [`examples`](https://github.com/fetchai/uAgents/tree/main/examples) folder contains several examples of how to create and run various types of agents.
+=======
+## Python Library
+
+Go to the [`python`](https://github.com/fetchai/uAgents/tree/main/python) folder for details on the Python uAgents library.
 
 ## ✨ Contributing
 
@@ -95,10 +98,10 @@ We use [GitHub Issues](https://github.com/fetchai/uAgents/issues) for tracking r
 
 ## 🛡 Disclaimer
 
-This project, μAgent, is provided "as-is" without any warranty, express or implied. By using this software, you agree to assume all risks associated with its use, including but not limited to unexpected behavior, data loss, or any other issues that may arise.
-
-The developers and contributors of this project do not accept any responsibility or liability for any losses, damages, or other consequences that may occur as a result of using this
+This project, μAgent, is provided "as-is" without any warranty, express or implied. By using this software, you agree to assume all risks associated with its use, including but not limited to unexpected behavior, data loss, or any other issues that may arise. The developers and contributors of this project do not accept any responsibility or liability for any losses, damages, or other consequences that may occur as a result of using this
 
 ## License
 
 The uAgents project is licensed under [Apache License 2.0](https://github.com/fetchai/uAgents/blob/main/LICENSE).
+=======
+The μAgents project is licensed under [Apache License 2.0](https://github.com/fetchai/uAgents/blob/main/LICENSE).
