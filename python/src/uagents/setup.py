@@ -1,3 +1,5 @@
+"""Agent's Setup."""
+
 import requests
 from cosmpy.crypto.address import Address
 
@@ -9,6 +11,15 @@ LOGGER = get_logger("setup")
 
 
 def fund_agent_if_low(wallet_address: str):
+    """
+    Checks the agent's wallet balance and adds funds if it's below the registration fee.
+
+    Args:
+        wallet_address (str): The wallet address of the agent.
+
+    Returns:
+        None
+    """
     ledger = get_ledger()
     faucet = get_faucet()
 
@@ -22,6 +33,16 @@ def fund_agent_if_low(wallet_address: str):
 
 
 def register_agent_with_mailbox(agent: Agent, email: str):
+    """
+    Registers the agent on a mailbox server using the provided email.
+
+    Args:
+        agent (Agent): The agent object to be registered.
+        email (str): The email address associated with the agent.
+
+    Returns:
+        None
+    """
     mailbox = agent.mailbox
     register_url = f"{mailbox['http_prefix']}://{mailbox['base_url']}/v1/auth/register"
     resp = requests.post(
