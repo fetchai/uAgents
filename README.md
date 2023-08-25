@@ -79,7 +79,7 @@ Please see the [official documentation](https://docs.fetch.ai/) for full setup i
 ## 🌱 Examples
 
 The [`examples`](https://github.com/fetchai/uAgents/tree/main/examples) folder contains several examples of how to create and run various types of agents.
-=======
+
 ## Python Library
 
 Go to the [`python`](https://github.com/fetchai/uAgents/tree/main/python) folder for details on the Python uAgents library.
@@ -103,5 +103,3 @@ This project, μAgent, is provided "as-is" without any warranty, express or impl
 ## License
 
 The uAgents project is licensed under [Apache License 2.0](https://github.com/fetchai/uAgents/blob/main/LICENSE).
-=======
-The μAgents project is licensed under [Apache License 2.0](https://github.com/fetchai/uAgents/blob/main/LICENSE).
