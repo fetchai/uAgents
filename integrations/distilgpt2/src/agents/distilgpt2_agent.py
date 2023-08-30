@@ -6,9 +6,9 @@ import os
 import requests
 import json
 
-# Get the HUGGIN_FACE_ACCESS_TOKEN from environment variable or default to a placeholder string if not found.
-HUGGIN_FACE_ACCESS_TOKEN = os.getenv(
-    "HUGGIN_FACE_ACCESS_TOKEN", "HUGGIN FACE secret phrase :)")
+# Get the HUGGING_FACE_ACCESS_TOKEN from environment variable or default to a placeholder string if not found.
+HUGGING_FACE_ACCESS_TOKEN = os.getenv(
+    "HUGGING_FACE_ACCESS_TOKEN", "HUGGING FACE secret phrase :)")
 
 # Define configurations used for HTTP requests to Hugging Face
 DISTILGPT2_URL = "https://api-inference.huggingface.co/models/distilgpt2"
@@ -16,13 +16,13 @@ DISTILGPT2_URL = "https://api-inference.huggingface.co/models/distilgpt2"
 # Define headers for HTTP request, including content type and authorization details
 HEADERS = {
     "Content-Type": "application/json",
-    "Authorization": f"Bearer {HUGGIN_FACE_ACCESS_TOKEN}"
+    "Authorization": f"Bearer {HUGGING_FACE_ACCESS_TOKEN}"
 }
 
 # Create an agent with predefined properties
 agent = Agent(
     name="distilgpt2_agent",
-    seed=HUGGIN_FACE_ACCESS_TOKEN,
+    seed=HUGGING_FACE_ACCESS_TOKEN,
     port=8001,
     endpoint=["http://127.0.0.1:8001/submit"],
 )
@@ -44,15 +44,12 @@ async def get_completion(ctx: Context, sender: str, completion_text: str):
         response = requests.post(
             DISTILGPT2_URL, headers=HEADERS, json=data)
         if response.status_code != 200:
-            # ctx.logger.error(response.json())
             await ctx.send(sender, Error(error=f"Error: {response.json().get('error')}"))
             return
         message = response.json()[0]
     except Exception as ex:
         await ctx.send(sender, Error(error=f"Sorry, I wasn't able to answer your request this time. Feel free to try again. Error detail: {ex}"))
         return
-
-    # ctx.logger.info(f"Sending response back to user: {message}")
 
     # Send the response back to the sender
     await ctx.send(sender, Data.parse_obj(message))
@@ -62,7 +59,7 @@ async def get_completion(ctx: Context, sender: str, completion_text: str):
 distilgpt2_agent = Protocol("Request")
 
 
-@distilgpt2_agent.on_message(model=Request)
+@distilgpt2_agent.on_message(model=Request, replies={Data, Error})
 async def handle_request(ctx: Context, sender: str, request: Request):
     # Log the request details
     ctx.logger.info(

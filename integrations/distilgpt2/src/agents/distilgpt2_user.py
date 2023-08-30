@@ -40,7 +40,7 @@ distilgpt2_user = Protocol("Request")
 # Define a function that sends a message to the AI model agent every 360 seconds
 
 
-@distilgpt2_user.on_interval(360)
+@distilgpt2_user.on_interval(360, messages=Request)
 async def auto_complete(ctx: Context):
     ctx.logger.info(f"Asking AI model agent to complete this: {COMPLETE_THIS}")
     await ctx.send(AI_MODEL_AGENT_ADDRESS, Request(text=COMPLETE_THIS))
