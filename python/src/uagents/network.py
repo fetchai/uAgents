@@ -24,7 +24,7 @@ from uagents.config import (
     CONTRACT_ALMANAC,
     CONTRACT_NAME_SERVICE,
     AGENT_NETWORK,
-    BLOCK_INTERVAL,
+    AVERAGE_BLOCK_INTERVAL,
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
     get_logger,
@@ -131,19 +131,19 @@ class AlmanacContract(LedgerContract):
             return False
         return True
 
-    def get_expiry(self, address: str):
+    def get_expiry(self, address: str) -> int:
         query_msg = {"query_records": {"agent_address": address}}
         response = self.query(query_msg)
 
         if not response["record"]:
             contract_state = self.query({"query_contract_state": {}})
             expiry = contract_state.get("state").get("expiry_height")
-            return expiry * BLOCK_INTERVAL
+            return expiry * AVERAGE_BLOCK_INTERVAL
 
         expiry = response.get("record")[0].get("expiry")
         height = response.get("height")
 
-        return (expiry - height) * BLOCK_INTERVAL
+        return (expiry - height) * AVERAGE_BLOCK_INTERVAL
 
     def get_endpoints(self, address: str):
         query_msg = {"query_records": {"agent_address": address}}

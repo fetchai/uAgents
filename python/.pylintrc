@@ -12,4 +12,5 @@ disable=missing-module-docstring,
         import-outside-toplevel,
         too-many-statements,
         too-many-locals
+        broad-exception-caught
 
