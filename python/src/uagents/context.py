@@ -242,11 +242,18 @@ class Context:
         env.encode_payload(json_message)
         env.sign(self._identity)
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                endpoint, headers={"content-type": "application/json"}, data=env.json()
-            ) as resp:
-                success = resp.status == 200
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    endpoint,
+                    headers={"content-type": "application/json"},
+                    data=env.json(),
+                ) as resp:
+                    success = resp.status == 200
+        except aiohttp.ClientConnectorError as ex:
+            self._logger.exception(f"Failed to connect to {endpoint}: {ex}")
+        except Exception as ex:
+            self._logger.exception(f"Failed to send message to {destination}: {ex}")
 
         if not success:
             self._logger.exception(
