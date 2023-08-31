@@ -20,7 +20,7 @@ Get started with uAgents by installing it for Python 3.8, 3.9, 3.10, or 3.11:
 ### Running a Demo
 
 #### Creating an Agent 
-Build your first μAgent using the following script:
+Build your first uAgent using the following script:
 
     from uagents import Agent, Context 
     alice = Agent(name="alice", seed="alice recovery phrase")
