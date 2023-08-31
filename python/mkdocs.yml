@@ -25,6 +25,17 @@ nav:
       - Endpoint weighting: almanac-endpoint.md
     - Exchange protocol: 'protocol.md'
   #  - Marketplace contract:
+  - API:
+    - Agent: 'api/uagents/agent.md'
+    - Context: 'api/uagents/context.md'
+    - Envelope: 'api/uagents/envelope.md'
+    - Network and Contracts: 'api/uagents/network.md'
+    - Protocol: 'api/uagents/protocol.md'
+    - Envelope query: 'api/uagents/query.md'
+    - Endpoint resolver: 'api/uagents/resolver.md'
+    - Agent setup: 'api/uagents/setup.md'
+    - Storage:
+      - Storage functionality: 'api/uagents/storage/__init__.md'
 
 theme:
   name: material

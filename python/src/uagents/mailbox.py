@@ -84,17 +84,26 @@ class MailboxClient:
     async def process_deletion_queue(self):
         async with aiohttp.ClientSession() as session:
             while True:
-                env_payload = await self._envelopes_to_delete.get()
-                env_url = f"{self.http_prefix}://{self.base_url}/v1/mailbox/{env_payload['uuid']}"
-                self._logger.debug(f"Deleting message: {env_payload}")
-                async with session.delete(
-                    env_url,
-                    headers={"Authorization": f"token {self._access_token}"},
-                ) as resp:
-                    if resp.status != 200:
-                        self._logger.exception(
-                            f"Failed to delete envelope from inbox: {(await resp.text())}"
-                        )
+                try:
+                    env = await self._envelopes_to_delete.get()
+                    env_url = (
+                        f"{self.http_prefix}://{self.base_url}/v1/mailbox/{env['uuid']}"
+                    )
+                    self._logger.debug(f"Deleting message: {env}")
+                    async with session.delete(
+                        env_url,
+                        headers={"Authorization": f"token {self._access_token}"},
+                    ) as resp:
+                        if resp.status != 200:
+                            self._logger.exception(
+                                f"Failed to delete envelope from inbox: {(await resp.text())}"
+                            )
+                except ClientConnectorError as ex:
+                    self._logger.warning(f"Failed to connect to mailbox server: {ex}")
+                except Exception as ex:
+                    self._logger.exception(
+                        f"Got exception while processing deletion queue: {ex}"
+                    )
 
     async def _poll_server(self):
         async with aiohttp.ClientSession() as session:
@@ -133,10 +142,12 @@ class MailboxClient:
                         await self._handle_envelope(msg["payload"])
 
         except websockets.exceptions.ConnectionClosedError:
-            pass
+            self._logger.warning("Mailbox connection closed")
+            self._access_token = None
 
         except ConnectionRefusedError:
-            pass
+            self._logger.warning("Mailbox connection refused")
+            self._access_token = None
 
     async def _get_access_token(self):
         async with aiohttp.ClientSession() as session:
