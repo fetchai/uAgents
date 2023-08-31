@@ -42,10 +42,12 @@ async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
     while True:
         try:
             await func(ctx)
-        except OSError:
-            ctx.logger.exception("OS Error in interval handler")
-        except RuntimeError:
-            ctx.logger.exception("Runtime Error in interval handler")
+        except OSError as ex:
+            ctx.logger.exception(f"OS Error in interval handler: {ex}")
+        except RuntimeError as ex:
+            ctx.logger.exception(f"Runtime Error in interval handler: {ex}")
+        except Exception as ex:
+            ctx.logger.exception(f"Exception in interval handler: {ex}")
 
         await asyncio.sleep(period)
 
@@ -397,6 +399,7 @@ class Agent(Sink):
                 self._logger.exception(f"Exception in startup handler: {ex}")
 
     async def _shutdown(self):
+        print("shutting down")
         for handler in self._on_shutdown:
             try:
                 await handler(self._ctx)
