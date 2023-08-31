@@ -4,6 +4,7 @@ import asyncio
 import functools
 from typing import Dict, List, Optional, Set, Union, Type, Tuple, Any, Coroutine
 import uuid
+from pydantic import ValidationError
 import requests
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
@@ -51,10 +52,12 @@ async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
     while True:
         try:
             await func(ctx)
-        except OSError:
-            ctx.logger.exception("OS Error in interval handler")
-        except RuntimeError:
-            ctx.logger.exception("Runtime Error in interval handler")
+        except OSError as ex:
+            ctx.logger.exception(f"OS Error in interval handler: {ex}")
+        except RuntimeError as ex:
+            ctx.logger.exception(f"Runtime Error in interval handler: {ex}")
+        except Exception as ex:
+            ctx.logger.exception(f"Exception in interval handler: {ex}")
 
         await asyncio.sleep(period)
 
@@ -697,7 +700,14 @@ class Agent(Sink):
         """
         await self._registration_loop()
         for handler in self._on_startup:
-            await handler(self._ctx)
+            try:
+                await handler(self._ctx)
+            except OSError as ex:
+                self._logger.exception(f"OS Error in startup handler: {ex}")
+            except RuntimeError as ex:
+                self._logger.exception(f"Runtime Error in startup handler: {ex}")
+            except Exception as ex:
+                self._logger.exception(f"Exception in startup handler: {ex}")
 
     async def _shutdown(self):
         """
@@ -705,7 +715,14 @@ class Agent(Sink):
 
         """
         for handler in self._on_shutdown:
-            await handler(self._ctx)
+            try:
+                await handler(self._ctx)
+            except OSError as ex:
+                self._logger.exception(f"OS Error in shutdown handler: {ex}")
+            except RuntimeError as ex:
+                self._logger.exception(f"Runtime Error in shutdown handler: {ex}")
+            except Exception as ex:
+                self._logger.exception(f"Exception in shutdown handler: {ex}")
 
     def setup(self):
         """
@@ -767,7 +784,11 @@ class Agent(Sink):
                 continue
 
             # parse the received message
-            recovered = model_class.parse_raw(message)
+            try:
+                recovered = model_class.parse_raw(message)
+            except ValidationError as ex:
+                self._logger.warning(f"Unable to parse message: {ex}")
+                continue
 
             context = Context(
                 self._identity.address,
@@ -806,7 +827,14 @@ class Agent(Sink):
                     continue
 
             if handler is not None:
-                await handler(context, sender, recovered)
+                try:
+                    await handler(context, sender, recovered)
+                except OSError as ex:
+                    self._logger.exception(f"OS Error in message handler: {ex}")
+                except RuntimeError as ex:
+                    self._logger.exception(f"Runtime Error in message handler: {ex}")
+                except Exception as ex:
+                    self._logger.exception(f"Exception in message handler: {ex}")
 
 
 class Bureau:
