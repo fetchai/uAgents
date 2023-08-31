@@ -1,3 +1,5 @@
+"""Query Envelopes."""
+
 import uuid
 from time import time
 from typing import Optional
@@ -21,6 +23,19 @@ async def query(
     resolver: Optional[Resolver] = None,
     timeout: Optional[int] = 30,
 ) -> Optional[Envelope]:
+    """
+    Query a remote agent with a message and retrieve the response envelope.
+
+    Args:
+        destination (str): The destination address of the remote agent.
+        message (Model): The message to send.
+        resolver (Optional[Resolver], optional): The resolver to use for endpoint resolution.
+        Defaults to GlobalResolver.
+        timeout (Optional[int], optional): The timeout for the query in seconds. Defaults to 30.
+
+    Returns:
+        Optional[Envelope]: The response envelope if successful, otherwise None.
+    """
     if resolver is None:
         resolver = GlobalResolver()
 
@@ -69,6 +84,17 @@ async def query(
 
 
 def enclose_response(message: Model, sender: str, session: str) -> str:
+    """
+    Enclose a response message within an envelope.
+
+    Args:
+        message (Model): The response message to enclose.
+        sender (str): The sender's address.
+        session (str): The session identifier.
+
+    Returns:
+        str: The JSON representation of the response envelope.
+    """
     schema_digest = Model.build_schema_digest(message)
     return enclose_response_raw(message.json(), schema_digest, sender, session)
 
@@ -76,6 +102,18 @@ def enclose_response(message: Model, sender: str, session: str) -> str:
 def enclose_response_raw(
     json_message: JsonStr, schema_digest: str, sender: str, session: str
 ) -> str:
+    """
+    Enclose a raw response message within an envelope.
+
+    Args:
+        json_message (JsonStr): The JSON-formatted response message to enclose.
+        schema_digest (str): The schema digest of the message.
+        sender (str): The sender's address.
+        session (str): The session identifier.
+
+    Returns:
+        str: The JSON representation of the response envelope.
+    """
     response_env = Envelope(
         version=1,
         sender=sender,

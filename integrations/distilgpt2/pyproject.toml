@@ -1,0 +1,10 @@
+[tool.poetry]
+name = "distilgpt2-integrations"
+version = "0.1.0"
+description = "Integrating DistilGPT-2 into UAgent Ecosystem"
+authors = ["Gaurav Kumar"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+uagents = "*"
+requests = "^2.31.0"
