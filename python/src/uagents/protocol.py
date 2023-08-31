@@ -1,3 +1,5 @@
+"""Exchange Protocol"""
+
 import copy
 import functools
 import hashlib
@@ -14,6 +16,13 @@ OPENAPI_VERSION = "3.0.2"
 
 class Protocol:
     def __init__(self, name: Optional[str] = None, version: Optional[str] = None):
+        """
+        Initialize a Protocol instance.
+
+        Args:
+            name (Optional[str], optional): The name of the protocol. Defaults to None.
+            version (Optional[str], optional): The version of the protocol. Defaults to None.
+        """
         self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
         self._interval_messages: Set[str] = set()
         self._signed_message_handlers: Dict[str, MessageCallback] = {}
@@ -33,42 +42,105 @@ class Protocol:
 
     @property
     def intervals(self):
+        """
+        Property to access the interval handlers.
+
+        Returns:
+            List[Tuple[IntervalCallback, float]]: List of interval handlers and their periods.
+        """
         return self._interval_handlers
 
     @property
     def models(self):
+        """
+        Property to access the registered models.
+
+        Returns:
+            Dict[str, Type[Model]]: Dictionary of registered models with schema digests as keys.
+        """
         return self._models
 
     @property
     def replies(self):
+        """
+        Property to access the registered replies.
+
+        Returns:
+            Dict[str, Dict[str, Type[Model]]]: Dictionary of registered replies with request
+            schema digests as keys.
+        """
         return self._replies
 
     @property
     def interval_messages(self):
+        """
+        Property to access the interval message digests.
+
+        Returns:
+            Set[str]: Set of message digests associated with interval messages.
+        """
         return self._interval_messages
 
     @property
     def signed_message_handlers(self):
+        """
+        Property to access the signed message handlers.
+
+        Returns:
+            Dict[str, MessageCallback]: Dictionary of signed message handlers with message schema
+            digests as keys.
+        """
         return self._signed_message_handlers
 
     @property
     def unsigned_message_handlers(self):
+        """
+        Property to access the unsigned message handlers.
+
+        Returns:
+            Dict[str, MessageCallback]: Dictionary of unsigned message handlers with message schema
+            digests as keys.
+        """
         return self._unsigned_message_handlers
 
     @property
     def name(self):
+        """
+        Property to access the protocol name.
+
+        Returns:
+            str: The protocol name.
+        """
         return self._name
 
     @property
     def version(self):
+        """
+        Property to access the protocol version.
+
+        Returns:
+            str: The protocol version.
+        """
         return self._version
 
     @property
     def canonical_name(self):
+        """
+        Property to access the canonical name of the protocol.
+
+        Returns:
+            str: The canonical name of the protocol.
+        """
         return self._canonical_name
 
     @property
     def digest(self):
+        """
+        Property to access the digest of the protocol's manifest.
+
+        Returns:
+            str: The digest of the protocol's manifest.
+        """
         return self.manifest()["metadata"]["digest"]
 
     def on_interval(
@@ -76,6 +148,18 @@ class Protocol:
         period: float,
         messages: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
     ):
+        """
+        Decorator to register an interval handler for the protocol.
+
+        Args:
+            period (float): The interval period in seconds.
+            messages (Optional[Union[Type[Model], Set[Type[Model]]]], optional): The associated
+            message types. Defaults to None.
+
+        Returns:
+            Callable: The decorator to register the interval handler.
+        """
+
         def decorator_on_interval(func: IntervalCallback):
             @functools.wraps(func)
             def handler(*args, **kwargs):
@@ -93,6 +177,14 @@ class Protocol:
         func: IntervalCallback,
         messages: Optional[Union[Type[Model], Set[Type[Model]]]],
     ):
+        """
+        Add an interval handler to the protocol.
+
+        Args:
+            period (float): The interval period in seconds.
+            func (IntervalCallback): The interval handler function.
+            messages (Optional[Union[Type[Model], Set[Type[Model]]]]): The associated message types.
+        """
         # store the interval handler for later
         self._interval_handlers.append((func, period))
 
@@ -109,6 +201,17 @@ class Protocol:
         model: Type[Model],
         replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
     ):
+        """
+        Decorator to register a query handler for the protocol.
+
+        Args:
+            model (Type[Model]): The message model type.
+            replies (Optional[Union[Type[Model], Set[Type[Model]]]], optional): The associated
+            reply types. Defaults to None.
+
+        Returns:
+            Callable: The decorator to register the query handler.
+        """
         return self.on_message(model, replies, allow_unverified=True)
 
     def on_message(
@@ -117,6 +220,20 @@ class Protocol:
         replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
         allow_unverified: Optional[bool] = False,
     ):
+        """
+        Decorator to register a message handler for the protocol.
+
+        Args:
+            model (Type[Model]): The message model type.
+            replies (Optional[Union[Type[Model], Set[Type[Model]]]], optional): The associated
+            reply types. Defaults to None.
+            allow_unverified (Optional[bool], optional): Whether to allow unverified messages.
+            Defaults to False.
+
+        Returns:
+            Callable: The decorator to register the message handler.
+        """
+
         def decorator_on_message(func: MessageCallback):
             @functools.wraps(func)
             def handler(*args, **kwargs):
@@ -135,6 +252,16 @@ class Protocol:
         replies: Optional[Union[Type[Model], Set[Type[Model]]]],
         allow_unverified: Optional[bool] = False,
     ):
+        """
+        Add a message handler to the protocol.
+
+        Args:
+            model (Type[Model]): The message model type.
+            func (MessageCallback): The message handler function.
+            replies (Optional[Union[Type[Model], Set[Type[Model]]]]): The associated reply types.
+            allow_unverified (Optional[bool], optional): Whether to allow unverified messages.
+            Defaults to False.
+        """
         model_digest = Model.build_schema_digest(model)
 
         # update the model database
@@ -151,6 +278,12 @@ class Protocol:
             }
 
     def manifest(self) -> Dict[str, Any]:
+        """
+        Generate the protocol's manifest.
+
+        Returns:
+            Dict[str, Any]: The protocol's manifest.
+        """
         metadata = {
             "name": self._name,
             "version": self._version,
@@ -206,6 +339,15 @@ class Protocol:
 
     @staticmethod
     def compute_digest(manifest: Dict[str, Any]) -> str:
+        """
+        Compute the digest of a given manifest.
+
+        Args:
+            manifest (Dict[str, Any]): The manifest to compute the digest for.
+
+        Returns:
+            str: The computed digest.
+        """
         cleaned_manifest = copy.deepcopy(manifest)
         if "metadata" in cleaned_manifest:
             del cleaned_manifest["metadata"]
