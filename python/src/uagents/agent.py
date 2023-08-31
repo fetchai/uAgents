@@ -399,7 +399,6 @@ class Agent(Sink):
                 self._logger.exception(f"Exception in startup handler: {ex}")
 
     async def _shutdown(self):
-        print("shutting down")
         for handler in self._on_shutdown:
             try:
                 await handler(self._ctx)
