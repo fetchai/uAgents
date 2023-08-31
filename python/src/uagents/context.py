@@ -250,12 +250,11 @@ class Context:
                     data=env.json(),
                 ) as resp:
                     success = resp.status == 200
+                if not success:
+                    self._logger.exception(
+                        f"Unable to send envelope to {destination_address} @ {endpoint}"
+                    )
         except aiohttp.ClientConnectorError as ex:
             self._logger.exception(f"Failed to connect to {endpoint}: {ex}")
         except Exception as ex:
             self._logger.exception(f"Failed to send message to {destination}: {ex}")
-
-        if not success:
-            self._logger.exception(
-                f"Unable to send envelope to {destination_address} @ {endpoint}"
-            )

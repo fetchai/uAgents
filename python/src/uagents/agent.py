@@ -393,6 +393,8 @@ class Agent(Sink):
                 self._logger.exception(f"OS Error in startup handler: {ex}")
             except RuntimeError as ex:
                 self._logger.exception(f"Runtime Error in startup handler: {ex}")
+            except Exception as ex:
+                self._logger.exception(f"Exception in startup handler: {ex}")
 
     async def _shutdown(self):
         for handler in self._on_shutdown:
@@ -402,6 +404,8 @@ class Agent(Sink):
                 self._logger.exception(f"OS Error in shutdown handler: {ex}")
             except RuntimeError as ex:
                 self._logger.exception(f"Runtime Error in shutdown handler: {ex}")
+            except Exception as ex:
+                self._logger.exception(f"Exception in shutdown handler: {ex}")
 
     def setup(self):
         # register the internal agent protocol
@@ -496,6 +500,8 @@ class Agent(Sink):
                     self._logger.exception(f"OS Error in message handler: {ex}")
                 except RuntimeError as ex:
                     self._logger.exception(f"Runtime Error in message handler: {ex}")
+                except Exception as ex:
+                    self._logger.exception(f"Exception in message handler: {ex}")
 
 
 class Bureau:
