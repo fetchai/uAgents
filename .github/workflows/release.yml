@@ -1,4 +1,4 @@
-name: Check and realese cosmpy
+name: Check and release uAgents
 # runs release script on updated main branch
 # script checks for current package version and the latest tag on github
 # if package version is newer it builds, publishes to PyPI, tags and makes a release page on github
