@@ -1,0 +1,34 @@
+name: Check and release uAgents
+# runs release script on updated main branch
+# script checks for current package version and the latest tag on github
+# if package version is newer it builds, publishes to PyPI, tags and makes a release page on github
+# secrets PYPI_USERNAME and PYPI_PASSWORD are required!
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+
+jobs:
+  build:
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./python
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release')
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+          python-version: '3.9'
+    - name: Run release script
+      env:
+        PYPI_USERNAME: __token__
+        PYPI_PASSWORD: ${{secrets.FETCHBOT_PYPI_TOKEN}}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # required to make a release page
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        pip install tomli packaging poetry
+        git config --global user.email "ci-bot@fetch.ai"
+        git config --global user.name "CI BOT"
+        python3 ./scripts/do_release.py
