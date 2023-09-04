@@ -16,6 +16,8 @@ from uagents.envelope import Envelope
 
 
 class MailboxClient:
+    """Client for interacting with the Agentverse mailbox server."""
+
     def __init__(self, agent, logger: Optional[logging.Logger] = None):
         self._agent = agent
         self._access_token: Optional[str] = None
@@ -25,21 +27,45 @@ class MailboxClient:
 
     @property
     def base_url(self):
+        """
+        Property to access the base url of the mailbox server.
+
+        Returns: The base url of the mailbox server.
+
+        """
         return self._agent.mailbox["base_url"]
 
     @property
     def api_key(self):
+        """
+        Property to access the api key of the mailbox server.
+
+        Returns: The api key of the mailbox server.
+        """
         return self._agent.mailbox["api_key"]
 
     @property
     def protocol(self):
+        """
+        Property to access the protocol of the mailbox server.
+
+        Returns: The protocol of the mailbox server {ws, wss, http, https}.
+        """
         return self._agent.mailbox["protocol"]
 
     @property
     def http_prefix(self):
+        """
+        Property to access the http prefix of the mailbox server.
+
+        Returns: The http prefix of the mailbox server {http, https}.
+        """
         return self._agent.mailbox["http_prefix"]
 
     async def run(self):
+        """
+        Runs the mailbox client. Acquires an access token if needed and then starts a polling loop.
+        """
         self._logger.info(f"Connecting to mailbox server at {self.base_url}")
         while True:
             try:
@@ -54,6 +80,10 @@ class MailboxClient:
                 self._logger.exception("Failed to connect to mailbox server")
 
     async def _handle_envelope(self, payload: dict):
+        """
+        Handles an envelope received from the mailbox server.
+        Dispatches the incoming messages and adds the envelope to the deletion queue.
+        """
         try:
             env = Envelope.parse_obj(payload["envelope"])
         except pydantic.ValidationError:
@@ -82,6 +112,9 @@ class MailboxClient:
         await self._envelopes_to_delete.put(payload)
 
     async def process_deletion_queue(self):
+        """
+        Processes the deletion queue. Deletes envelopes from the mailbox server.
+        """
         async with aiohttp.ClientSession() as session:
             while True:
                 try:
@@ -106,6 +139,9 @@ class MailboxClient:
                     )
 
     async def _poll_server(self):
+        """
+        Polls the mailbox server for envelopes and handles them.
+        """
         async with aiohttp.ClientSession() as session:
             # check the inbox for envelopes and handle them
             mailbox_url = f"{self.http_prefix}://{self.base_url}/v1/mailbox"
@@ -129,6 +165,9 @@ class MailboxClient:
                     )
 
     async def _open_websocket_connection(self):
+        """
+        Opens a websocket connection to the mailbox server and handles incoming envelopes.
+        """
         try:
             async with connect(
                 f"{self.protocol}://{self.base_url}/v1/events?token={self._access_token}"
@@ -150,6 +189,9 @@ class MailboxClient:
             self._access_token = None
 
     async def _get_access_token(self):
+        """
+        Gets an access token from the mailbox server.
+        """
         async with aiohttp.ClientSession() as session:
             # get challenge
             challenge_url = f"{self.http_prefix}://{self.base_url}/v1/auth/challenge"

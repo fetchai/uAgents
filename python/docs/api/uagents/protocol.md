@@ -12,6 +12,11 @@ Exchange Protocol
 class Protocol()
 ```
 
+The Protocol class encapsulates a particular set of functionalities for an agent.
+It typically relates to the exchange of messages between agents for executing some task.
+It includes the message (model) types it supports, the allowed replies, and the
+interval message handlers that define the logic of the protocol.
+
 <a id="src.uagents.protocol.Protocol.__init__"></a>
 
 #### `__`init`__`
@@ -70,8 +75,8 @@ Property to access the registered replies.
 
 **Returns**:
 
-  Dict[str, Dict[str, Type[Model]]]: Dictionary of registered replies with request
-  schema digests as keys.
+  Dict[str, Dict[str, Type[Model]]]: Dictionary mapping message schema digests to their
+  allowed replies.
 
 <a id="src.uagents.protocol.Protocol.interval_messages"></a>
 
@@ -86,7 +91,7 @@ Property to access the interval message digests.
 
 **Returns**:
 
-- `Set[str]` - Set of message digests associated with interval messages.
+- `Set[str]` - Set of message digests that may be sent by interval handlers.
 
 <a id="src.uagents.protocol.Protocol.signed_message_handlers"></a>
 
@@ -101,8 +106,7 @@ Property to access the signed message handlers.
 
 **Returns**:
 
-  Dict[str, MessageCallback]: Dictionary of signed message handlers with message schema
-  digests as keys.
+  Dict[str, MessageCallback]: Dictionary mapping message schema digests to their handlers.
 
 <a id="src.uagents.protocol.Protocol.unsigned_message_handlers"></a>
 
@@ -117,8 +121,7 @@ Property to access the unsigned message handlers.
 
 **Returns**:
 
-  Dict[str, MessageCallback]: Dictionary of unsigned message handlers with message schema
-  digests as keys.
+  Dict[str, MessageCallback]: Dictionary mapping message schema digests to their handlers.
 
 <a id="src.uagents.protocol.Protocol.name"></a>
 
@@ -159,7 +162,7 @@ Property to access the protocol version.
 def canonical_name()
 ```
 
-Property to access the canonical name of the protocol.
+Property to access the canonical name of the protocol ('name:version').
 
 **Returns**:
 
@@ -258,7 +261,8 @@ Decorator to register a message handler for the protocol.
 def manifest() -> Dict[str, Any]
 ```
 
-Generate the protocol's manifest.
+Generate the protocol's manifest, a long-form machine readable description of the
+protocol details and interface.
 
 **Returns**:
 

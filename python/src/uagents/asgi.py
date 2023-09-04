@@ -19,6 +19,9 @@ HOST = "0.0.0.0"
 
 
 async def _read_asgi_body(receive):
+    """
+    Read the entire body of an ASGI message.
+    """
     body = b""
     more_body = True
 
@@ -31,6 +34,10 @@ async def _read_asgi_body(receive):
 
 
 class ASGIServer:
+    """
+    ASGI server for receiving incoming envelopes.
+    """
+
     def __init__(
         self,
         port: int,
@@ -38,6 +45,15 @@ class ASGIServer:
         queries: Dict[str, asyncio.Future],
         logger: Optional[Logger] = None,
     ):
+        """
+        Initialize the ASGI server.
+
+        Args:
+            port (int): The port to listen on.
+            loop (asyncio.AbstractEventLoop): The event loop to use.
+            queries (Dict[str, asyncio.Future]): The dictionary of queries to resolve.
+            logger (Optional[Logger]): The logger to use.
+        """
         self._port = int(port)
         self._loop = loop
         self._queries = queries
@@ -46,9 +62,17 @@ class ASGIServer:
 
     @property
     def server(self):
+        """
+        Property to access the underlying uvicorn server.
+
+        Returns: The server.
+        """
         return self._server
 
     async def serve(self):
+        """
+        Start the server.
+        """
         config = uvicorn.Config(self, host=HOST, port=self._port, log_level="warning")
         self._server = uvicorn.Server(config)
         self._logger.info(
@@ -57,6 +81,10 @@ class ASGIServer:
         await self._server.serve()
 
     async def __call__(self, scope, receive, send):
+        """
+        Handle an incoming ASGI message, dispatching the envelope to the appropriate handler,
+        and waiting for any queries to be resolved.
+        """
         if scope["type"] == "lifespan":
             return  # lifespan events not implemented
 

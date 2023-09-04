@@ -76,12 +76,12 @@ async def _delay(coroutine: Coroutine, delay_seconds: float):
 
 async def _handle_error(ctx: Context, destination: str, msg: ErrorMessage):
     """
-    Handle an error message by sending it to the specified destination.
+    Send an error message to the specified destination.
 
     Args:
         ctx (Context): The context for the agent.
         destination (str): The destination address to send the error message to.
-        msg (ErrorMessage): The error message to handle.
+        msg (ErrorMessage): The error message to send.
     """
     await ctx.send(destination, msg)
 
@@ -92,38 +92,52 @@ class Agent(Sink):
 
     Attributes:
         _name (str): The name of the agent.
-        _port (int): The port on which the agent runs.
+        _port (int): The port on which the agent's server runs.
         _background_tasks (Set[asyncio.Task]): Set of background tasks associated with the agent.
         _resolver (Resolver): The resolver for agent communication.
         _loop (asyncio.AbstractEventLoop): The asyncio event loop used by the agent.
         _logger: The logger instance for logging agent activities.
-        _endpoints (List[dict]): List of communication endpoints.
+        _endpoints (List[dict]): List of endpoints at which the agent is reachable.
         _use_mailbox (bool): Indicates if the agent uses a mailbox for communication.
         _agentverse (dict): Agentverse configuration settings.
-        _mailbox_client (MailboxClient): Client for interacting with the mailbox.
-        _ledger: The ledger for recording agent transactions.
-        _almanac_contract: The almanac contract for agent metadata.
+        _mailbox_client (MailboxClient): The client for interacting with the agentverse mailbox.
+        _ledger: The client for interacting with the blockchain ledger.
+        _almanac_contract: The almanac contract for registering agent addresses to endpoints.
         _storage: Key-value store for agent data storage.
         _interval_handlers (List[Tuple[IntervalCallback, float]]): List of interval
         handlers and their periods.
-        _interval_messages (Set[str]): Set of interval message names.
+        _interval_messages (Set[str]): Set of message digests that may be sent by interval tasks.
         _signed_message_handlers (Dict[str, MessageCallback]): Handlers for signed messages.
         _unsigned_message_handlers (Dict[str, MessageCallback]): Handlers for
         unsigned messages.
-        _models (Dict[str, Type[Model]]): Dictionary of supported data models.
-        _replies (Dict[str, Set[Type[Model]]]): Dictionary of reply data models.
-        _queries (Dict[str, asyncio.Future]): Dictionary of active queries.
+        _models (Dict[str, Type[Model]]): Dictionary mapping supported message digests to messages.
+        _replies (Dict[str, Set[Type[Model]]]): Dictionary of allowed reply digests for each type
+        of incoming message.
+        _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their response
+        Futures.
         _dispatcher: The dispatcher for message handling.
         _message_queue: Asynchronous queue for incoming messages.
         _on_startup (List[Callable]): List of functions to run on agent startup.
         _on_shutdown (List[Callable]): List of functions to run on agent shutdown.
         _version (str): The version of the agent.
-        _protocol (Protocol): The internal agent protocol.
-        protocols (Dict[str, Protocol]): Dictionary of supported protocols.
+        _protocol (Protocol): The internal agent protocol consisting of all interval and message
+        handlers assigned with agent decorators.
+        protocols (Dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
+        corresponding protocols.
         _ctx (Context): The context for agent interactions.
 
-    Methods:
-        __init__: Initialize the Agent instance.
+    Properties:
+        name (str): The name of the agent.
+        address (str): The address of the agent used for communication.
+        wallet (LocalWallet): The agent's wallet for transacting on the ledger.
+        storage (KeyValueStore): The key-value store for storage operations.
+        mailbox (Dict[str, str]): The mailbox configuration for the agent (deprecated and replaced
+        by agentverse).
+        agentverse (Dict[str, str]): The agentverse configuration for the agent.
+        mailbox_client (MailboxClient): The client for interacting with the agentverse mailbox.
+        protocols (Dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
+        corresponding protocols.
+
     """
 
     def __init__(
@@ -142,7 +156,7 @@ class Agent(Sink):
 
         Args:
             name (Optional[str]): The name of the agent.
-            port (Optional[int]): The port on which the agent will run.
+            port (Optional[int]): The port on which the agent's server will run.
             seed (Optional[str]): The seed for generating keys.
             endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration.
             agentverse (Optional[Union[str, Dict[str, str]]]): The agentverse configuration.
@@ -276,10 +290,10 @@ class Agent(Sink):
     @property
     def address(self) -> str:
         """
-        Get the address of the agent's identity.
+        Get the address of the agent used for communication.
 
         Returns:
-            str: The address of the agent's identity.
+            str: The agent's address.
         """
         return self._identity.address
 
@@ -306,7 +320,7 @@ class Agent(Sink):
     @property
     def mailbox(self) -> Dict[str, str]:
         """
-        Get the mailbox configuration of the agent.
+        Get the mailbox configuration of the agent (deprecated and replaced by agentverse).
 
         Returns:
             Dict[str, str]: The mailbox configuration.
@@ -336,7 +350,7 @@ class Agent(Sink):
     @mailbox.setter
     def mailbox(self, config: Union[str, Dict[str, str]]):
         """
-        Set the mailbox configuration for the agent.
+        Set the mailbox configuration for the agent (deprecated and replaced by agentverse).
 
         Args:
             config (Union[str, Dict[str, str]]): The new mailbox configuration.
@@ -503,14 +517,14 @@ class Agent(Sink):
         messages: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
     ):
         """
-        Set up an interval event with a callback.
+        Decorator to register an interval handler for the provided period.
 
         Args:
             period (float): The interval period.
             messages (Optional[Union[Type[Model], Set[Type[Model]]]]): Optional message types.
 
         Returns:
-            Callable: The callback function for the interval event.
+            Callable: The decorator function for registering interval handlers.
 
         """
 
@@ -529,7 +543,7 @@ class Agent(Sink):
             replies (Optional[Union[Model, Set[Model]]]): Optional reply models.
 
         Returns:
-            Callable: The callback function for the query event.
+            Callable: The decorator function for registering query handlers.
 
         """
 
@@ -542,7 +556,7 @@ class Agent(Sink):
         allow_unverified: Optional[bool] = False,
     ):
         """
-        Set up a message event with a callback.
+        Decorator to register an message handler for the provided message model.
 
         Args:
             model (Type[Model]): The message model.
@@ -550,7 +564,7 @@ class Agent(Sink):
             allow_unverified (Optional[bool]): Allow unverified messages.
 
         Returns:
-            Callable: The callback function for the message event.
+            Callable: The decorator function for registering message handlers.
 
         """
 
@@ -656,7 +670,7 @@ class Agent(Sink):
 
     def publish_manifest(self, manifest: Dict[str, Any]):
         """
-        Publish a protocol manifest to the Almanac.
+        Publish a protocol manifest to the Almanac service.
 
         Args:
             manifest (Dict[str, Any]): The protocol manifest.
@@ -682,11 +696,11 @@ class Agent(Sink):
         self, sender, schema_digest: str, message: JsonStr, session: uuid.UUID
     ):
         """
-        Handle an incoming message asynchronously.
+        Handle an incoming message.
 
         Args:
             sender: The sender of the message.
-            schema_digest (str): The schema digest of the message.
+            schema_digest (str): The digest of the message schema.
             message (JsonStr): The message content in JSON format.
             session (uuid.UUID): The session UUID.
 
@@ -695,7 +709,7 @@ class Agent(Sink):
 
     async def _startup(self):
         """
-        Perform startup actions asynchronously.
+        Perform startup actions.
 
         """
         await self._registration_loop()
@@ -711,7 +725,7 @@ class Agent(Sink):
 
     async def _shutdown(self):
         """
-        Perform shutdown actions asynchronously.
+        Perform shutdown actions.
 
         """
         for handler in self._on_shutdown:
@@ -726,8 +740,7 @@ class Agent(Sink):
 
     def setup(self):
         """
-        Set up the agent.
-
+        Include the internal agent protocol, run startup tasks, and start background tasks.
         """
         # register the internal agent protocol
         self.include(self._protocol)
@@ -771,7 +784,7 @@ class Agent(Sink):
 
     async def _process_message_queue(self):
         """
-        Process the message queue asynchronously.
+        Process the message queue.
 
         """
         while True:
@@ -850,13 +863,15 @@ class Bureau:
 
     Attributes:
         _loop (asyncio.AbstractEventLoop): The event loop.
-        _agents (List[Agent]): A list of Agent instances within the bureau.
-        _endpoints (List[Dict[str, Any]]): A list of endpoint dictionaries for the agents.
-        _port (int): The port number for the server.
-        _queries (Dict[str, asyncio.Future]): A dictionary of query identifiers to asyncio futures.
+        _agents (List[Agent]): The list of agents contained in the bureau.
+        _endpoints (List[Dict[str, Any]]): The endpoint configuration for the bureau.
+        _port (int): The port on which the bureau's server runs.
+        _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their
+        response Futures.
         _logger (Logger): The logger instance.
         _server (ASGIServer): The ASGI server instance for handling requests.
-        _use_mailbox (bool): A flag indicating whether mailbox functionality is enabled.
+        _use_mailbox (bool): A flag indicating whether mailbox functionality is enabled for any
+        of the agents.
 
     """
 
@@ -869,9 +884,9 @@ class Bureau:
         Initialize a Bureau instance.
 
         Args:
-            port (Optional[int]): The port number for the server.
-            endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): Configuration
-            for agent endpoints.
+            port (Optional[int]): The port on which the bureau's server will run.
+            endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration
+            for the bureau.
         """
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
         self._agents: List[Agent] = []
@@ -887,7 +902,7 @@ class Bureau:
         Add an agent to the bureau.
 
         Args:
-            agent (Agent): The agent instance to be added.
+            agent (Agent): The agent to be added.
 
         """
         agent.update_loop(self._loop)

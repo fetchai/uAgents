@@ -15,6 +15,14 @@ OPENAPI_VERSION = "3.0.2"
 
 
 class Protocol:
+    """
+    The Protocol class encapsulates a particular set of functionalities for an agent.
+    It typically relates to the exchange of messages between agents for executing some task.
+    It includes the message (model) types it supports, the allowed replies, and the
+    interval message handlers that define the logic of the protocol.
+
+    """
+
     def __init__(self, name: Optional[str] = None, version: Optional[str] = None):
         """
         Initialize a Protocol instance.
@@ -66,8 +74,8 @@ class Protocol:
         Property to access the registered replies.
 
         Returns:
-            Dict[str, Dict[str, Type[Model]]]: Dictionary of registered replies with request
-            schema digests as keys.
+            Dict[str, Dict[str, Type[Model]]]: Dictionary mapping message schema digests to their
+            allowed replies.
         """
         return self._replies
 
@@ -77,7 +85,7 @@ class Protocol:
         Property to access the interval message digests.
 
         Returns:
-            Set[str]: Set of message digests associated with interval messages.
+            Set[str]: Set of message digests that may be sent by interval handlers.
         """
         return self._interval_messages
 
@@ -87,8 +95,7 @@ class Protocol:
         Property to access the signed message handlers.
 
         Returns:
-            Dict[str, MessageCallback]: Dictionary of signed message handlers with message schema
-            digests as keys.
+            Dict[str, MessageCallback]: Dictionary mapping message schema digests to their handlers.
         """
         return self._signed_message_handlers
 
@@ -98,8 +105,7 @@ class Protocol:
         Property to access the unsigned message handlers.
 
         Returns:
-            Dict[str, MessageCallback]: Dictionary of unsigned message handlers with message schema
-            digests as keys.
+            Dict[str, MessageCallback]: Dictionary mapping message schema digests to their handlers.
         """
         return self._unsigned_message_handlers
 
@@ -126,7 +132,7 @@ class Protocol:
     @property
     def canonical_name(self):
         """
-        Property to access the canonical name of the protocol.
+        Property to access the canonical name of the protocol ('name:version').
 
         Returns:
             str: The canonical name of the protocol.
@@ -279,7 +285,8 @@ class Protocol:
 
     def manifest(self) -> Dict[str, Any]:
         """
-        Generate the protocol's manifest.
+        Generate the protocol's manifest, a long-form machine readable description of the
+        protocol details and interface.
 
         Returns:
             Dict[str, Any]: The protocol's manifest.

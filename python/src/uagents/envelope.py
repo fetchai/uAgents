@@ -19,10 +19,12 @@ class Envelope(BaseModel):
         version (int): The envelope version.
         sender (str): The sender's address.
         target (str): The target's address.
-        session (UUID4): The session UUID.
-        schema_digest (str): The schema digest (alias for protocol).
-        protocol_digest (Optional[str]): The protocol digest (optional).
-        payload (Optional[str]): The payload data (optional).
+        session (UUID4): The session UUID that persists for back-and-forth
+        dialogues between agents.
+        schema_digest (str): The schema digest for the enclosed message (alias for protocol).
+        protocol_digest (Optional[str]): The digest of the protocol associated with the message
+        (optional).
+        payload (Optional[str]): The encoded message payload of the envelope (optional).
         expires (Optional[int]): The expiration timestamp (optional).
         nonce (Optional[int]): The nonce value (optional).
         signature (Optional[str]): The envelope signature (optional).
