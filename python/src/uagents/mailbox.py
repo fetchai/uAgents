@@ -66,7 +66,6 @@ class MailboxClient:
         """
         Runs the mailbox client. Acquires an access token if needed and then starts a polling loop.
         """
-
         self._logger.info(f"Connecting to mailbox server at {self.base_url}")
         while True:
             try:
@@ -84,7 +83,6 @@ class MailboxClient:
         """
         Handles an envelope received from the mailbox server.
         Dispatches the incoming messages and adds the envelope to the deletion queue.
-
         """
         try:
             env = Envelope.parse_obj(payload["envelope"])
