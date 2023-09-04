@@ -19,10 +19,12 @@ Represents an envelope for message communication between agents.
 - `version` _int_ - The envelope version.
 - `sender` _str_ - The sender's address.
 - `target` _str_ - The target's address.
-- `session` _UUID4_ - The session UUID.
-- `schema_digest` _str_ - The schema digest (alias for protocol).
-- `protocol_digest` _Optional[str]_ - The protocol digest (optional).
-- `payload` _Optional[str]_ - The payload data (optional).
+- `session` _UUID4_ - The session UUID that persists for back-and-forth
+  dialogues between agents.
+- `schema_digest` _str_ - The schema digest for the enclosed message (alias for protocol).
+- `protocol_digest` _Optional[str]_ - The digest of the protocol associated with the message
+  (optional).
+- `payload` _Optional[str]_ - The encoded message payload of the envelope (optional).
 - `expires` _Optional[int]_ - The expiration timestamp (optional).
 - `nonce` _Optional[int]_ - The nonce value (optional).
 - `signature` _Optional[str]_ - The envelope signature (optional).

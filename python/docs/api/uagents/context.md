@@ -33,25 +33,31 @@ Represents the context in which messages are handled and processed.
 **Attributes**:
 
 - `storage` _KeyValueStore_ - The key-value store for storage operations.
-- `wallet` _LocalWallet_ - The local wallet instance for managing identities.
-- `ledger` _LedgerClient_ - The ledger client for interacting with distributed ledgers.
-- `_name` _Optional[str]_ - The optional name associated with the context.
-- `_address` _str_ - The address of the context.
-- `_resolver` _Resolver_ - The resolver for name-to-address resolution.
-- `_identity` _Identity_ - The identity associated with the context.
-- `_queries` _Dict[str, asyncio.Future]_ - Dictionary of query names and their asyncio Futures.
-- `_session` _Optional[uuid.UUID]_ - The optional session UUID.
-- `_replies` _Optional[Dict[str, Set[Type[Model]]]]_ - The optional dictionary of reply models.
-- `_interval_messages` _Optional[Set[str]]_ - The optional set of interval messages.
-- `_message_received` _Optional[MsgDigest]_ - The optional message digest received.
-- `_protocols` _Optional[Dict[str, Protocol]]_ - The optional dictionary of protocols.
+- `wallet` _LocalWallet_ - The agent's wallet for transacting on the ledger.
+- `ledger` _LedgerClient_ - The client for interacting with the blockchain ledger.
+- `_name` _Optional[str]_ - The name of the agent.
+- `_address` _str_ - The address of the agent.
+- `_resolver` _Resolver_ - The resolver for address-to-endpoint resolution.
+- `_identity` _Identity_ - The agent's identity.
+- `_queries` _Dict[str, asyncio.Future]_ - Dictionary mapping query senders to their
+  response Futures.
+- `_session` _Optional[uuid.UUID]_ - The session UUID.
+- `_replies` _Optional[Dict[str, Set[Type[Model]]]]_ - Dictionary of allowed reply digests
+  for each type of incoming message.
+- `_interval_messages` _Optional[Set[str]]_ - Set of message digests that may be sent by
+  interval tasks.
+- `_message_received` _Optional[MsgDigest]_ - The message digest received.
+- `_protocols` _Optional[Dict[str, Protocol]]_ - Dictionary mapping all supported protocol
+  digests to their corresponding protocols.
 - `_logger` _Optional[logging.Logger]_ - The optional logger instance.
   
   Properties:
-- `name` _str_ - The name associated with the context, or a truncated address if name is None.
-- `address` _str_ - The address of the context.
+- `name` _str_ - The name of the agent.
+- `address` _str_ - The address of the agent.
 - `logger` _logging.Logger_ - The logger instance.
-- `protocols` _Optional[Dict[str, Protocol]]_ - The dictionary of protocols.
+- `protocols` _Optional[Dict[str, Protocol]]_ - Dictionary mapping all supported protocol
+  digests to their corresponding protocols.
+- `session` _uuid.UUID_ - The session UUID.
   
 
 **Methods**:
@@ -59,6 +65,10 @@ Represents the context in which messages are handled and processed.
 - `get_message_protocol(message_schema_digest)` - Get the protocol associated
   with a message schema digest.
   send(destination, message, timeout): Send a message to a destination.
+  send_raw(destination, json_message, schema_digest, message_type, timeout): Send a message
+  with the provided schema digest to a destination.
+  experimental_broadcast(destination_protocol, message, limit, timeout): Broadcast a message
+  to agents with a specific protocol.
 
 <a id="src.uagents.context.Context.__init__"></a>
 
@@ -92,7 +102,8 @@ Initialize the Context instance.
 - `identity` _Identity_ - The identity associated with the context.
 - `wallet` _LocalWallet_ - The local wallet instance for managing identities.
 - `ledger` _LedgerClient_ - The ledger client for interacting with distributed ledgers.
-- `queries` _Dict[str, asyncio.Future]_ - Dictionary of query names and their Futures.
+- `queries` _Dict[str, asyncio.Future]_ - Dictionary mapping query senders to their response
+  Futures.
 - `session` _Optional[uuid.UUID]_ - The optional session UUID.
 - `replies` _Optional[Dict[str, Set[Type[Model]]]]_ - Optional dictionary of reply models.
 - `interval_messages` _Optional[Set[str]]_ - The optional set of interval messages.

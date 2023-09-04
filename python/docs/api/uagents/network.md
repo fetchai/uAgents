@@ -72,15 +72,6 @@ This class provides methods to interact with the Almanac contract, including
 checking if an agent is registered, retrieving the expiry height of an agent's
 registration, and getting the endpoints associated with an agent's registration.
 
-**Arguments**:
-
-  ledger contract (LedgerContract): An instance of the LedgeContract class.
-  
-
-**Attributes**:
-
-  ledger contract (LedgerContract): An instance of the LedgeContract class.
-
 <a id="src.uagents.network.AlmanacContract.is_registered"></a>
 
 #### is`_`registered
@@ -186,7 +177,7 @@ Register an agent with the Almanac contract.
 def get_sequence(address: str) -> int
 ```
 
-Get the agent's sequence number.
+Get the agent's sequence number for Almanac registration.
 
 **Arguments**:
 
@@ -224,15 +215,6 @@ A class representing the NameService contract for managing domain names and owne
 This class provides methods to interact with the NameService contract, including
 checking name availability, checking ownership, querying domain public status,
 obtaining registration transaction details, and registering a name within a domain.
-
-**Arguments**:
-
-  ledger contract (LedgerContract): An instance of the LedgeContract class.
-  
-
-**Attributes**:
-
-  ledger contract (LedgerContract): An instance of the LedgeContract class.
 
 <a id="src.uagents.network.NameServiceContract.is_name_available"></a>
 
