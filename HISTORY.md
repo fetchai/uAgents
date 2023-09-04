@@ -1,6 +1,21 @@
 # Release History
 
 
+## 0.6.0
+
+New features:
+- Better exception handling across the project
+- Added extensive API documentation
+- Almanac registration is now performed before startup tasks
+- [Experimental] Broadcast to all agents supporting protocol
+- Refactor: all contract interactions moved to `uagents.network`
+
+Integrations:
+- [Fetch] Holiday (flights, destinations, activities) 
+- [Contributed] Mobility: EV charging station and mapping agents
+- [Contributed] DistilGPT-2
+
+
 ## 0.5.1
 
 Updates:
