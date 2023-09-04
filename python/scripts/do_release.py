@@ -84,7 +84,8 @@ class ReleaseTool:
     def make_release(self, current_version: Version, release_history: str) -> None:
         """Make release on Github."""
         subprocess.check_call(
-            f"""gh release create v{current_version} --title "v{current_version}" --notes "{release_history}" """,
+            f"""gh release create v{current_version} --title "v{current_version}"
+              --notes "{release_history}" """,
             shell=True,
         )
 
@@ -95,7 +96,8 @@ class ReleaseTool:
     def upload_packages(self):
         """Upload packages to PYPI."""
         result = subprocess.run(
-            f"poetry publish --skip-existing --username {self._credentials.pypi_username} --password {self._credentials.pypi_password} --verbose",
+            f"""poetry publish --skip-existing --username {self._credentials.pypi_username}
+             --password {self._credentials.pypi_password} --verbose""",
             check=True,
             shell=True,
             stdout=sys.stdout,
