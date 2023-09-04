@@ -67,30 +67,40 @@ class Context:
 
     Attributes:
         storage (KeyValueStore): The key-value store for storage operations.
-        wallet (LocalWallet): The local wallet instance for managing identities.
-        ledger (LedgerClient): The ledger client for interacting with distributed ledgers.
-        _name (Optional[str]): The optional name associated with the context.
-        _address (str): The address of the context.
-        _resolver (Resolver): The resolver for name-to-address resolution.
-        _identity (Identity): The identity associated with the context.
-        _queries (Dict[str, asyncio.Future]): Dictionary of query names and their asyncio Futures.
-        _session (Optional[uuid.UUID]): The optional session UUID.
-        _replies (Optional[Dict[str, Set[Type[Model]]]]): The optional dictionary of reply models.
-        _interval_messages (Optional[Set[str]]): The optional set of interval messages.
-        _message_received (Optional[MsgDigest]): The optional message digest received.
-        _protocols (Optional[Dict[str, Protocol]]): The optional dictionary of protocols.
+        wallet (LocalWallet): The agent's wallet for transacting on the ledger.
+        ledger (LedgerClient): The client for interacting with the blockchain ledger.
+        _name (Optional[str]): The name of the agent.
+        _address (str): The address of the agent.
+        _resolver (Resolver): The resolver for address-to-endpoint resolution.
+        _identity (Identity): The agent's identity.
+        _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their
+        response Futures.
+        _session (Optional[uuid.UUID]): The session UUID.
+        _replies (Optional[Dict[str, Set[Type[Model]]]]): Dictionary of allowed reply digests
+        for each type of incoming message.
+        _interval_messages (Optional[Set[str]]): Set of message digests that may be sent by
+        interval tasks.
+        _message_received (Optional[MsgDigest]): The message digest received.
+        _protocols (Optional[Dict[str, Protocol]]): Dictionary mapping all supported protocol
+        digests to their corresponding protocols.
         _logger (Optional[logging.Logger]): The optional logger instance.
 
     Properties:
-        name (str): The name associated with the context, or a truncated address if name is None.
-        address (str): The address of the context.
+        name (str): The name of the agent.
+        address (str): The address of the agent.
         logger (logging.Logger): The logger instance.
-        protocols (Optional[Dict[str, Protocol]]): The dictionary of protocols.
+        protocols (Optional[Dict[str, Protocol]]): Dictionary mapping all supported protocol
+        digests to their corresponding protocols.
+        session (uuid.UUID): The session UUID.
 
     Methods:
         get_message_protocol(message_schema_digest): Get the protocol associated
         with a message schema digest.
         send(destination, message, timeout): Send a message to a destination.
+        send_raw(destination, json_message, schema_digest, message_type, timeout): Send a message
+        with the provided schema digest to a destination.
+        experimental_broadcast(destination_protocol, message, limit, timeout): Broadcast a message
+        to agents with a specific protocol.
 
     """
 
@@ -122,7 +132,8 @@ class Context:
             identity (Identity): The identity associated with the context.
             wallet (LocalWallet): The local wallet instance for managing identities.
             ledger (LedgerClient): The ledger client for interacting with distributed ledgers.
-            queries (Dict[str, asyncio.Future]): Dictionary of query names and their Futures.
+            queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their response
+            Futures.
             session (Optional[uuid.UUID]): The optional session UUID.
             replies (Optional[Dict[str, Set[Type[Model]]]]): Optional dictionary of reply models.
             interval_messages (Optional[Set[str]]): The optional set of interval messages.
