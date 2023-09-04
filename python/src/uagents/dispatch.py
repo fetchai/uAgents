@@ -6,6 +6,10 @@ JsonStr = str
 
 
 class Sink(ABC):
+    """
+    Abstract base class for sinks that handle messages.
+    """
+
     @abstractmethod
     async def handle_message(
         self, sender: str, schema_digest: str, message: JsonStr, session: uuid.UUID
@@ -14,6 +18,10 @@ class Sink(ABC):
 
 
 class Dispatcher:
+    """
+    Dispatches messages to sinks.
+    """
+
     def __init__(self):
         self._sinks: Dict[str, Set[Sink]] = {}
 
