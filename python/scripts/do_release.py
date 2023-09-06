@@ -1,11 +1,9 @@
 """Release automation script."""
 
 import os
-import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 import tomli
 from packaging.version import Version
@@ -28,6 +26,55 @@ class EnvCredentials:
         return os.environ.get("PYPI_PASSWORD") or ""
 
 
+def get_the_latest_release_version() -> Version:
+    """Get release version from gihtub tags."""
+    text = subprocess.check_output("git ls-remote --tags origin", shell=True, text=True)
+    tags = [i.split("\t")[1].strip() for i in text.splitlines()]
+    tags = [i for i in tags if i.startswith("refs/tags/v") and not i.endswith("^{}")]
+    versions = [i.replace("refs/tags/v", "") for i in tags]
+    return Version(versions[-1])
+
+
+def get_current_version() -> Version:
+    """Get current code version."""
+    text = (ROOT / "pyproject.toml").read_text()
+    version = tomli.loads(text)["tool"]["poetry"]["version"]
+    return Version(version)
+
+
+def do_we_need_to_release() -> bool:
+    """Check is code version is newer than on github."""
+    current_version = get_current_version()
+    released_version = get_the_latest_release_version()
+    return current_version > released_version
+
+
+def make_tag(current_version: Version) -> None:
+    """Make git tag."""
+    subprocess.check_call(
+        f"git tag v{current_version} -m 'Release {current_version}'", shell=True
+    )
+
+
+def push_tag(current_version) -> None:
+    """Push tag to github."""
+    subprocess.check_call(f"git push origin v{current_version}", shell=True)
+
+
+def make_release(current_version: Version) -> None:
+    """Make release on Github."""
+    subprocess.check_call(
+        f"""gh release create v{current_version} --title "v{current_version}"
+        --generate-notes --latest --verify-tag """,
+        shell=True,
+    )
+
+
+def build_packages():
+    """Build packages."""
+    subprocess.check_call("poetry build", shell=True)
+
+
 class ReleaseTool:
     """Release helper tool."""
 
@@ -35,69 +82,11 @@ class ReleaseTool:
         """Init release tool instance."""
         self._credentials = credentials
 
-    def get_the_latest_release_version(self) -> Version:
-        """Get release version from gihtub tags."""
-        text = subprocess.check_output(
-            "git ls-remote --tags origin", shell=True, text=True
-        )
-        tags = [i.split("\t")[1].strip() for i in text.splitlines()]
-        tags = [
-            i for i in tags if i.startswith("refs/tags/v") and not i.endswith("^{}")
-        ]
-        versions = [i.replace("refs/tags/v", "") for i in tags]
-        return Version(versions[-1])
-
-    def get_current_version(self) -> Version:
-        """Get current code version."""
-        text = (ROOT / "pyproject.toml").read_text()
-        version = tomli.loads(text)["tool"]["poetry"]["version"]
-        return Version(version)
-
-    def do_we_need_to_release(self) -> bool:
-        """Check is code version is newer than on github."""
-        current_version = self.get_current_version()
-        released_version = self.get_the_latest_release_version()
-        return current_version > released_version
-
-    def parse_history(self) -> Tuple[List, Dict]:
-        """Parse HISTORY.md."""
-        text = (ROOT / "HISTORY.md").read_text()
-        versions = [Version(i) for i in re.findall("## ([^ \n]+)", text)]
-        history = {
-            Version(i[0]): i[2]
-            for i in re.findall(
-                r"^## ([^ ]+)\n?([^\n]+\n)?\n([^#]+)", text, re.DOTALL + re.M
-            )
-        }
-        return versions, history
-
-    def make_tag(self, current_version: Version) -> None:
-        """Make git tag."""
-        subprocess.check_call(
-            f"git tag v{current_version} -m 'Release {current_version}'", shell=True
-        )
-
-    def push_tag(self, current_version) -> None:
-        """Push tag to github."""
-        subprocess.check_call(f"git push origin v{current_version}", shell=True)
-
-    def make_release(self, current_version: Version, release_history: str) -> None:
-        """Make release on Github."""
-        subprocess.check_call(
-            f"""gh release create v{current_version} --title "v{current_version}"
-              --notes "{release_history}" """,
-            shell=True,
-        )
-
-    def build_packages(self):
-        """Build packages."""
-        subprocess.check_call("poetry build", shell=True)
-
     def upload_packages(self):
         """Upload packages to PYPI."""
         result = subprocess.run(
-            f"""poetry publish --skip-existing --username {self._credentials.pypi_username}
-             --password {self._credentials.pypi_password} --verbose""",
+            f"poetry publish --skip-existing --username {self._credentials.pypi_username} "
+            f"--password {self._credentials.pypi_password} --verbose",
             check=True,
             shell=True,
             stdout=sys.stdout,
@@ -108,30 +97,20 @@ class ReleaseTool:
 
     def main(self):
         """Run release process."""
-        current_version = self.get_current_version()
-        latest_release_version = self.get_the_latest_release_version()
+        current_version = get_current_version()
+        latest_release_version = get_the_latest_release_version()
 
         print("Current version:", current_version)
         print("Latest release version:", latest_release_version)
 
         if current_version > latest_release_version:
-            print("Current version is newer. good to go")
+            print("Current version is newer. Good to go.")
         else:
-            print("Current version is not newer. exit")
+            print("Current version is not newer. Exiting.")
             return
-
-        _, histories = self.parse_history()
-        if current_version not in histories:
-            print("No history provided for release. exit")
-            return
-
-        print("\nRelease history:")
-        print("-------------------")
-        print(histories[current_version])
-        print("-------------------")
 
         print("\nBuilding packages")
-        self.build_packages()
+        build_packages()
         print("Packages built")
 
         print("\nUpload packages")
@@ -139,15 +118,15 @@ class ReleaseTool:
         print("Packages uploaded")
 
         print("\nMake tag")
-        self.make_tag(current_version)
+        make_tag(current_version)
         print("Tag made")
 
         print("\nPush tag")
-        self.push_tag(current_version)
+        push_tag(current_version)
         print("Tag pushed")
 
         print("\nMake release")
-        self.make_release(current_version, release_history=histories[current_version])
+        make_release(current_version)
         print("Release made." "")
 
         print("\nDONE")
