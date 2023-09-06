@@ -107,12 +107,6 @@ class AlmanacContract(LedgerContract):
     checking if an agent is registered, retrieving the expiry height of an agent's
     registration, and getting the endpoints associated with an agent's registration.
 
-    Args:
-        ledger contract (LedgerContract): An instance of the LedgeContract class.
-
-    Attributes:
-        ledger contract (LedgerContract): An instance of the LedgeContract class.
-
     """
 
     def is_registered(self, address: str) -> bool:
@@ -241,7 +235,7 @@ class AlmanacContract(LedgerContract):
 
     def get_sequence(self, address: str) -> int:
         """
-        Get the agent's sequence number.
+        Get the agent's sequence number for Almanac registration.
 
         Args:
             address (str): The agent's address.
@@ -276,12 +270,6 @@ class NameServiceContract(LedgerContract):
     checking name availability, checking ownership, querying domain public status,
     obtaining registration transaction details, and registering a name within a domain.
 
-    Args:
-        ledger contract (LedgerContract): An instance of the LedgeContract class.
-
-    Attributes:
-        ledger contract (LedgerContract): An instance of the LedgeContract class.
-
     """
 
     def is_name_available(self, name: str, domain: str):
@@ -313,7 +301,7 @@ class NameServiceContract(LedgerContract):
         query_msg = {
             "permissions": {
                 "domain": f"{name}.{domain}",
-                "owner": {"address": {"address": wallet_address}},
+                "owner": wallet_address,
             }
         }
         permission = self.query(query_msg)["permissions"]

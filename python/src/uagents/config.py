@@ -38,6 +38,12 @@ DEFAULT_SEARCH_LIMIT = 100
 def parse_endpoint_config(
     endpoint: Optional[Union[str, List[str], Dict[str, dict]]]
 ) -> List[Dict[str, Any]]:
+    """
+    Parse the user-provided endpoint configuration.
+
+    Returns:
+        List[Dict[str, Any]]: The parsed endpoint configuration.
+    """
     if isinstance(endpoint, dict):
         endpoints = [
             {"url": val[0], "weight": val[1].get("weight") or 1}
@@ -55,6 +61,12 @@ def parse_endpoint_config(
 def parse_agentverse_config(
     config: Optional[Union[str, Dict[str, str]]] = None,
 ) -> Dict[str, str]:
+    """
+    Parse the user-provided agentverse configutation.
+
+    Returns:
+        Dict[str, str]: The parsed agentverse configuration.
+    """
     api_key = None
     base_url = AGENTVERSE_URL
     protocol = None
@@ -84,6 +96,7 @@ def parse_agentverse_config(
 
 
 def get_logger(logger_name):
+    """Get a logger with the given name using uvicorn's default formatter."""
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.INFO)
     log_handler = logging.StreamHandler(sys.stdout)

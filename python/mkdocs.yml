@@ -29,13 +29,19 @@ nav:
     - Agent: 'api/uagents/agent.md'
     - Context: 'api/uagents/context.md'
     - Envelope: 'api/uagents/envelope.md'
-    - Network and Contracts: 'api/uagents/network.md'
+    - Network and contracts: 'api/uagents/network.md'
     - Protocol: 'api/uagents/protocol.md'
+    - Envelope: 'api/uagents/envelope.md'
+    - Message models: 'api/uagents/models.md'
+    - Dispatcher: 'api/uagents/dispatch.md'
+    - Server: 'api/uagents/asgi.md'
+    - Mailbox client: 'api/uagents/mailbox.md'
     - Envelope query: 'api/uagents/query.md'
     - Endpoint resolver: 'api/uagents/resolver.md'
     - Agent setup: 'api/uagents/setup.md'
-    - Storage:
-      - Storage functionality: 'api/uagents/storage/__init__.md'
+    - Agent configuration: 'api/uagents/config.md'
+    - Cryptographic identity: 'api/uagents/crypto/__init__.md'
+    - Storage: 'api/uagents/storage/__init__.md'
 
 theme:
   name: material
