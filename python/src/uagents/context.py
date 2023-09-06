@@ -149,7 +149,7 @@ class Context:
         self._resolver = resolve
         self._identity = identity
         self._queries = queries
-        self._session = session or uuid.uuid4()
+        self._session = session or None
         self._replies = replies
         self._interval_messages = interval_messages
         self._message_received = message_received
@@ -392,7 +392,7 @@ class Context:
             version=1,
             sender=self.address,
             target=destination_address,
-            session=self._session,
+            session=self._session or uuid.uuid4(),
             schema_digest=schema_digest,
             protocol_digest=self.get_message_protocol(schema_digest),
             expires=expires,
