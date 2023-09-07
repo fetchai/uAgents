@@ -13,7 +13,7 @@ class BookTableResponse(Model):
     success: bool
 
 
-book_proto = Protocol()
+book_proto = Protocol(name="RestaurantBookingProtocolExample", version="0.1.0")
 
 
 @book_proto.on_message(model=BookTableRequest, replies=BookTableResponse)
