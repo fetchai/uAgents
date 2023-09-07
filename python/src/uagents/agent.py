@@ -791,6 +791,12 @@ class Agent(Sink):
             # get an element from the queue
             schema_digest, sender, message, session = await self._message_queue.get()
 
+            # lookup the model definition
+            model_class: Model = self._models.get(schema_digest)
+            if model_class is None:
+                self.logger.warning(f"Received message with unrecognized schema digest: {schema_digest}")
+                continue
+
             context = Context(
                 self._identity.address,
                 self._name,
@@ -809,12 +815,6 @@ class Agent(Sink):
                 protocols=self.protocols,
                 logger=self._logger,
             )
-
-            # lookup the model definition
-            model_class: Model = self._models.get(schema_digest)
-            if model_class is None:
-                self.logger.warning(f"Received message with unrecognized schema digest: {schema_digest}")
-                continue
 
             # parse the received message
             try:
