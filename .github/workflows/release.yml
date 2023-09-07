@@ -1,8 +1,9 @@
-name: Check and release uAgents
-# runs release script on updated main branch
-# script checks for current package version and the latest tag on github
-# if package version is newer it builds, publishes to PyPI, tags and makes a release page on github
-# secrets PYPI_USERNAME and PYPI_PASSWORD are required!
+# This workflow is triggered when a PR is merged whose source branch's name starts with "release" and whose target branch is "main".
+# It checks for the current package version (in pyproject.toml) and the latest tag on GitHub.
+# If package version is more recent, it builds the project, uploads to PYPI, creates a Tag and makes a release on GitHub.
+# Secrets PYPI_USERNAME and PYPI_PASSWORD are required!
+
+name: Check and release
 on:
   pull_request:
     branches: [main]
@@ -10,25 +11,33 @@ on:
 
 jobs:
   build:
-    defaults:
-      run:
-        shell: bash
-        working-directory: ./python
     if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release')
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-python@v4
+
+    - name: Checkout Repo
+      uses: actions/checkout@v3
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
       with:
-          python-version: '3.9'
+          python-version: '3.11'
+
+    - name: Install Poetry
+      run: |
+        export POETRY_HOME=/opt/poetry
+        python3 -m venv $POETRY_HOME
+        $POETRY_HOME/bin/pip install poetry==1.4.0
+        $POETRY_HOME/bin/poetry --version
+
     - name: Run release script
       env:
         PYPI_USERNAME: __token__
         PYPI_PASSWORD: ${{secrets.FETCHBOT_PYPI_TOKEN}}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # required to make a release page
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GH_TOKEN: ${{ github.token }}
       run: |
-        pip install tomli packaging poetry
+        pip install tomli packaging
         git config --global user.email "ci-bot@fetch.ai"
         git config --global user.name "CI BOT"
         python3 ./scripts/do_release.py
