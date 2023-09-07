@@ -11,6 +11,11 @@ on:
 
 jobs:
   build:
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./python
+
     if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release')
     runs-on: ubuntu-latest
     steps:
