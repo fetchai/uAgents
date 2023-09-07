@@ -1,9 +1,10 @@
 """Endpoint Resolver."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
+from typing import Dict, List, Optional, Tuple
 import random
 
+from uagents.config import DEFAULT_MAX_ENDPOINTS
 from uagents.network import get_almanac_contract, get_name_service_contract
 
 
@@ -68,7 +69,7 @@ def is_agent_address(address):
 class Resolver(ABC):
     @abstractmethod
     # pylint: disable=unnecessary-pass
-    async def resolve(self, destination: str) -> Optional[str]:
+    async def resolve(self, destination: str) -> Tuple[Optional[str], Optional[List[str]]]:
         """
         Resolve the destination to an endpoint.
 
@@ -106,7 +107,7 @@ class GlobalResolver(Resolver):
 
 
 class AlmanacResolver(Resolver):
-    async def resolve(self, destination: str) -> Optional[str]:
+    async def resolve(self, destination: str, max_endpoints: Optional[int] = DEFAULT_MAX_ENDPOINTS) -> Optional[List[str]]:
         """
         Resolve the destination using the Almanac contract.
 
@@ -126,7 +127,7 @@ class AlmanacResolver(Resolver):
             if len(endpoint_list) > 0:
                 endpoints = [val.get("url") for val in endpoint_list]
                 weights = [val.get("weight") for val in endpoint_list]
-                return destination, random.choices(endpoints, weights=weights)[0]
+                return destination, random.choices(endpoints, weights=weights, k=max_endpoints)
 
         return None, None
 

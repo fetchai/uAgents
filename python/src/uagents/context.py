@@ -333,7 +333,7 @@ class Context:
         Send a raw message to the specified destination.
 
         Args:
-            destination (str): The destination address to send the message to.
+            destination (str): The destination name or address to send the message to.
             json_message (JsonStr): The JSON-encoded message to be sent.
             schema_digest (str): The schema digest of the message.
             message_type (Optional[Type[Model]]): The optional type of the message being sent.
@@ -363,25 +363,25 @@ class Context:
                 )
                 return
 
+        # Resolve the destination address and endpoint ('destination' can be a name or address)
+        destination_address, endpoints = await self._resolver.resolve(destination)
+        if endpoints is None:
+            self._logger.exception(
+                f"Unable to resolve destination endpoint for address {destination}"
+            )
+            return
+
         # Handle local dispatch of messages
-        if dispatcher.contains(destination):
+        if dispatcher.contains(destination_address):
             await dispatcher.dispatch(
-                self.address, destination, schema_digest, json_message, self._session
+                self.address, destination_address, schema_digest, json_message, self._session
             )
             return
 
         # Handle queries waiting for a response
-        if destination in self._queries:
-            self._queries[destination].set_result((json_message, schema_digest))
-            del self._queries[destination]
-            return
-
-        # Resolve the endpoint
-        destination_address, endpoint = await self._resolver.resolve(destination)
-        if endpoint is None:
-            self._logger.exception(
-                f"Unable to resolve destination endpoint for address {destination}"
-            )
+        if destination_address in self._queries:
+            self._queries[destination_address].set_result((json_message, schema_digest))
+            del self._queries[destination_address]
             return
 
         # Calculate when the envelope expires
