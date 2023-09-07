@@ -27,7 +27,7 @@ class TotalQueries(Model):
     total_queries: int
 
 
-query_proto = Protocol(name="RestaurantQueryProtocol", version="0.1.0")
+query_proto = Protocol(name="RestaurantQueryProtocolExample", version="0.1.0")
 
 
 @query_proto.on_message(model=QueryTableRequest, replies=QueryTableResponse)
