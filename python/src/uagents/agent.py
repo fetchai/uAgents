@@ -791,18 +791,6 @@ class Agent(Sink):
             # get an element from the queue
             schema_digest, sender, message, session = await self._message_queue.get()
 
-            # lookup the model definition
-            model_class: Model = self._models.get(schema_digest)
-            if model_class is None:
-                continue
-
-            # parse the received message
-            try:
-                recovered = model_class.parse_raw(message)
-            except ValidationError as ex:
-                self._logger.warning(f"Unable to parse message: {ex}")
-                continue
-
             context = Context(
                 self._identity.address,
                 self._name,
@@ -821,6 +809,33 @@ class Agent(Sink):
                 protocols=self.protocols,
                 logger=self._logger,
             )
+
+            # lookup the model definition
+            model_class: Model = self._models.get(schema_digest)
+            if model_class is None:
+                await _handle_error(
+                    context,
+                    sender,
+                    ErrorMessage(
+                        error="I do not know how to handle messages with schema digest: "
+                        + schema_digest
+                    ),
+                )
+                continue
+
+            # parse the received message
+            try:
+                recovered = model_class.parse_raw(message)
+            except ValidationError as ex:
+                self._logger.warning(f"Unable to parse message: {ex}")
+                await _handle_error(
+                    context,
+                    sender,
+                    ErrorMessage(
+                        error=f"Message does not conform to expected schema: {ex}"
+                    ),
+                )
+                continue
 
             # attempt to find the handler
             handler: MessageCallback = self._unsigned_message_handlers.get(
