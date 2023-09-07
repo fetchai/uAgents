@@ -813,14 +813,7 @@ class Agent(Sink):
             # lookup the model definition
             model_class: Model = self._models.get(schema_digest)
             if model_class is None:
-                await _handle_error(
-                    context,
-                    sender,
-                    ErrorMessage(
-                        error="I do not know how to handle messages with schema digest: "
-                        + schema_digest
-                    ),
-                )
+                self.logger.warning(f"Received message with unrecognized schema digest: {schema_digest}")
                 continue
 
             # parse the received message
