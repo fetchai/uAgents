@@ -14,7 +14,8 @@ uAgents is a library developed by Fetch.ai that allows for creating autonomous A
 ### Installation
 Get started with uAgents by installing it for Python 3.8, 3.9, 3.10, or 3.11:
 
-    poetry install 
+    cd python
+    poetry install
     poetry shell
 
 ### Running a Demo
