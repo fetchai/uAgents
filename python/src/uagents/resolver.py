@@ -35,7 +35,7 @@ def get_agent_address(name: str) -> str:
         name (str): The name to query.
 
     Returns:
-        str: The associated agent address.
+        Optional[str]: The associated agent address if found.
     """
     query_msg = {"domain_record": {"domain": f"{name}"}}
     result = get_name_service_contract().query(query_msg)
@@ -43,8 +43,7 @@ def get_agent_address(name: str) -> str:
         registered_address = result["record"]["records"][0]["agent_address"]["records"]
         if len(registered_address) > 0:
             return registered_address[0]["address"]
-        return 0
-    return 1
+    return None
 
 
 def is_agent_address(address):
@@ -69,53 +68,52 @@ def is_agent_address(address):
 class Resolver(ABC):
     @abstractmethod
     # pylint: disable=unnecessary-pass
-    async def resolve(self, destination: str) -> Tuple[Optional[str], Optional[List[str]]]:
+    async def resolve(self, destination: str) -> Tuple[Optional[str], List[str]]:
         """
-        Resolve the destination to an endpoint.
+        Resolve the destination to an address and endpoint.
 
         Args:
-            destination (str): The destination to resolve.
+            destination (str): The destination name or address to resolve.
 
         Returns:
-            Optional[str]: The resolved endpoint or None.
+            Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
         """
         pass
 
 
 class GlobalResolver(Resolver):
-    async def resolve(self, destination: str) -> Optional[str]:
+    def __init__(self):
+        """Initialize the GlobalResolver."""
+        self._almanc_resolver = AlmanacResolver()
+        self._name_service_resolver = NameServiceResolver()
+
+    async def resolve(self, destination: str) -> Tuple[Optional[str], List[str]]:
         """
-        Resolve the destination using a combination of Almanac and NameService resolvers.
+        Resolve the destination using the appropriate resolver.
 
         Args:
-            destination (str): The destination to resolve.
+            destination (str): The destination name or address to resolve.
 
         Returns:
-            Optional[str]: The resolved endpoint or None.
+            Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
         """
-        almanac_resolver = AlmanacResolver()
-        name_service_resolver = NameServiceResolver()
-        address = (
-            destination
-            if is_agent_address(destination)
-            else await name_service_resolver.resolve(destination)
-        )
-
-        if is_agent_address(address):
-            return await almanac_resolver.resolve(address)
-        return None, None
+        if is_agent_address(destination):
+            return await self._almanc_resolver.resolve(destination)
+        return await self._name_service_resolver.resolve(destination)
 
 
 class AlmanacResolver(Resolver):
-    async def resolve(self, destination: str, max_endpoints: Optional[int] = DEFAULT_MAX_ENDPOINTS) -> Optional[List[str]]:
+    async def resolve(
+        self, destination: str, max_endpoints: Optional[int] = DEFAULT_MAX_ENDPOINTS
+    ) -> Tuple[Optional[str], List[str]]:
         """
         Resolve the destination using the Almanac contract.
 
         Args:
-            destination (str): The destination to resolve.
+            destination (str): The destination address to resolve.
 
         Returns:
-            Optional[str]: The resolved endpoint or None.
+            Tuple[str, List[str]]: The address and resolved endpoints.
         """
         result = query_record(destination, "service")
         if result is not None:
@@ -127,27 +125,36 @@ class AlmanacResolver(Resolver):
             if len(endpoint_list) > 0:
                 endpoints = [val.get("url") for val in endpoint_list]
                 weights = [val.get("weight") for val in endpoint_list]
-                return destination, random.choices(endpoints, weights=weights, k=max_endpoints)
+                return destination, random.choices(
+                    endpoints, weights=weights, k=max_endpoints
+                )
 
-        return None, None
+        return None, []
 
 
 class NameServiceResolver(Resolver):
-    async def resolve(self, destination: str) -> Optional[str]:
+    def __init__(self):
+        """Initialize the NameServiceResolver."""
+        self._almanac_resolver = AlmanacResolver()
+
+    async def resolve(self, destination: str) -> Tuple[Optional[str], List[str]]:
         """
         Resolve the destination using the NameService contract.
 
         Args:
-            destination (str): The destination to resolve.
+            destination (str): The destination name to resolve.
 
         Returns:
-            Optional[str]: The resolved endpoint or None.
+            Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
         """
-        return get_agent_address(destination)
+        address = get_agent_address(destination)
+        if address is not None:
+            return await self._almanac_resolver.resolve(address)
+        return None, []
 
 
 class RulesBasedResolver(Resolver):
-    def __init__(self, rules: Dict[str, str]):
+    def __init__(self, rules: Dict[str, str]) -> Tuple[Optional[str], List[str]]:
         """
         Initialize the RulesBasedResolver with the provided rules.
 
@@ -164,6 +171,9 @@ class RulesBasedResolver(Resolver):
             destination (str): The destination to resolve.
 
         Returns:
-            Optional[str]: The resolved endpoint or None.
+            Tuple[str, List[str]]: The address and resolved endpoints.
         """
-        return self._rules.get(destination)
+        endpoints = self._rules.get(destination)
+        if isinstance(endpoints, str):
+            endpoints = [endpoints]
+        return destination, endpoints
