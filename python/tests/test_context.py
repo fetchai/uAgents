@@ -1,24 +1,18 @@
+# pylint: disable=protected-access
 import asyncio
+import json
 import unittest
-from unittest.mock import MagicMock, patch
 
 from aioresponses import aioresponses
-
-from uagents import Agent, Bureau
+from uagents import Agent
 from uagents.context import (
-    Context,
     MsgDigest,
     MsgStatus,
-    KeyValueStore,
-    Resolver,
     Identity,
-    LocalWallet,
-    LedgerClient,
     Model,
 )
 from uagents.dispatch import dispatcher
 from uagents.resolver import RulesBasedResolver
-import json
 
 
 class Incoming(Model):
