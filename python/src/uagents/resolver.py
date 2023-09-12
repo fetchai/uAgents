@@ -176,4 +176,6 @@ class RulesBasedResolver(Resolver):
         endpoints = self._rules.get(destination)
         if isinstance(endpoints, str):
             endpoints = [endpoints]
+        elif endpoints is None:
+            endpoints = []
         return destination, endpoints

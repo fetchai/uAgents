@@ -33,6 +33,9 @@ class Dispatcher:
     def unregister(self, address: str, sink: Sink):
         destinations = self._sinks.get(address, set())
         destinations.discard(sink)
+        if len(destinations) == 0:
+            del self._sinks[address]
+            return
         self._sinks[address] = destinations
 
     def contains(self, address: str) -> bool:

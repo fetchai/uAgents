@@ -94,7 +94,7 @@ class Context:
         _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their
         response Futures.
         _session (Optional[uuid.UUID]): The session UUID.
-        _replies (Optional[Dict[str, Set[Type[Model]]]]): Dictionary of allowed reply digests
+        _replies (Optional[Dict[str, Dict[str, Type[Model]]]]): Dictionary of allowed reply digests
         for each type of incoming message.
         _interval_messages (Optional[Set[str]]): Set of message digests that may be sent by
         interval tasks.
@@ -133,7 +133,7 @@ class Context:
         ledger: LedgerClient,
         queries: Dict[str, asyncio.Future],
         session: Optional[uuid.UUID] = None,
-        replies: Optional[Dict[str, Set[Type[Model]]]] = None,
+        replies: Optional[Dict[str, Dict[str, Type[Model]]]] = None,
         interval_messages: Optional[Set[str]] = None,
         message_received: Optional[MsgDigest] = None,
         protocols: Optional[Dict[str, Protocol]] = None,
@@ -153,7 +153,8 @@ class Context:
             queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their response
             Futures.
             session (Optional[uuid.UUID]): The optional session UUID.
-            replies (Optional[Dict[str, Set[Type[Model]]]]): Optional dictionary of reply models.
+            replies (Optional[Dict[str, Dict[str, Type[Model]]]]): Dictionary of allowed replies
+            for each type of incoming message.
             interval_messages (Optional[Set[str]]): The optional set of interval messages.
             message_received (Optional[MsgDigest]): The optional message digest received.
             protocols (Optional[Dict[str, Protocol]]): The optional dictionary of protocols.
@@ -397,24 +398,11 @@ class Context:
                     endpoint="",
                 )
 
-        # Resolve the destination address and endpoint ('destination' can be a name or address)
-        destination_address, endpoints = await self._resolver.resolve(destination)
-        if len(endpoints) == 0:
-            self._logger.exception(
-                f"Unable to resolve destination endpoint for address {destination}"
-            )
-            return MsgStatus(
-                delivered=False,
-                detail="Unable to resolve destination endpoint",
-                destination=destination,
-                endpoint="",
-            )
-
         # Handle local dispatch of messages
-        if dispatcher.contains(destination_address):
+        if dispatcher.contains(destination):
             await dispatcher.dispatch(
                 self.address,
-                destination_address,
+                destination,
                 schema_digest,
                 json_message,
                 self._session,
@@ -427,12 +415,25 @@ class Context:
             )
 
         # Handle queries waiting for a response
-        if destination_address in self._queries:
-            self._queries[destination_address].set_result((json_message, schema_digest))
-            del self._queries[destination_address]
+        if destination in self._queries:
+            self._queries[destination].set_result((json_message, schema_digest))
+            del self._queries[destination]
             return MsgStatus(
                 delivered=True,
                 detail="Sync message resolved",
+                destination=destination,
+                endpoint="",
+            )
+
+        # Resolve the destination address and endpoint ('destination' can be a name or address)
+        destination_address, endpoints = await self._resolver.resolve(destination)
+        if len(endpoints) == 0:
+            self._logger.exception(
+                f"Unable to resolve destination endpoint for address {destination}"
+            )
+            return MsgStatus(
+                delivered=False,
+                detail="Unable to resolve destination endpoint",
                 destination=destination,
                 endpoint="",
             )
@@ -457,7 +458,7 @@ class Context:
             try:
                 async with aiohttp.ClientSession() as session:
                     async with session.post(
-                        endpoints[0],
+                        endpoint,
                         headers={"content-type": "application/json"},
                         data=env.json(),
                     ) as resp:

@@ -111,7 +111,7 @@ class Agent(Sink):
         _unsigned_message_handlers (Dict[str, MessageCallback]): Handlers for
         unsigned messages.
         _models (Dict[str, Type[Model]]): Dictionary mapping supported message digests to messages.
-        _replies (Dict[str, Set[Type[Model]]]): Dictionary of allowed reply digests for each type
+        _replies (Dict[str, Dict[str, Type[Model]]]): Dictionary of allowed replies for each type
         of incoming message.
         _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their response
         Futures.
@@ -212,7 +212,7 @@ class Agent(Sink):
         self._signed_message_handlers: Dict[str, MessageCallback] = {}
         self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
         self._models: Dict[str, Type[Model]] = {}
-        self._replies: Dict[str, Set[Type[Model]]] = {}
+        self._replies: Dict[str, Dict[str, Type[Model]]] = {}
         self._queries: Dict[str, asyncio.Future] = {}
         self._dispatcher = dispatcher
         self._message_queue = asyncio.Queue()
