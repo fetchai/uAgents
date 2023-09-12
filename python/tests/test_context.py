@@ -1,6 +1,5 @@
 # pylint: disable=protected-access
 import asyncio
-import json
 import unittest
 
 from aioresponses import aioresponses
@@ -187,12 +186,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
         # Mock the HTTP POST request with a status code and response content
         mocked_responses.post(endpoints[0], status=404)
-        mocked_responses.post(
-            endpoints[1],
-            status=200,
-            body=json.dumps({"response_key": "response_value"}),
-            headers={"content-type": "application/json"},
-        )
+        mocked_responses.post(endpoints[1], status=200)
 
         # Perform the actual operation
         result = await self.context.send(clyde.address, msg)
