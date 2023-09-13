@@ -181,7 +181,36 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, exp_msg_status)
 
     @aioresponses()
-    async def test_send_external_dispatch_multiple_endpoints_success(
+    async def test_send_external_dispatch_multiple_endpoints_first_success(
+        self, mocked_responses
+    ):
+        endpoints.append("http://localhost:8001")
+
+        # Mock the HTTP POST request with a status code and response content
+        mocked_responses.post(endpoints[0], status=200)
+        mocked_responses.post(endpoints[1], status=404)
+
+        # Perform the actual operation
+        result = await self.context.send(clyde.address, msg)
+
+        # Define the expected message status
+        exp_msg_status = MsgStatus(
+            delivered=True,
+            detail="Message successfully delivered via HTTP",
+            destination=clyde.address,
+            endpoint=endpoints[0],
+        )
+
+        # Assertions
+        self.assertEqual(result, exp_msg_status)
+
+        # Ensure that only one request was sent
+        mocked_responses.assert_called_once()
+
+        endpoints.pop()
+
+    @aioresponses()
+    async def test_send_external_dispatch_multiple_endpoints_second_success(
         self, mocked_responses
     ):
         endpoints.append("http://localhost:8001")
