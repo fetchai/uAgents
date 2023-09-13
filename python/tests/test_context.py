@@ -114,7 +114,8 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, exp_msg_status)
 
     async def test_send_resolve_sync_query(self):
-        self.context._queries[clyde.address] = asyncio.Future()
+        future = asyncio.Future()
+        self.context._queries[clyde.address] = future
         result = await self.context.send(clyde.address, msg)
         exp_msg_status = MsgStatus(
             delivered=True,
@@ -123,6 +124,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             endpoint="",
         )
 
+        self.assertEqual(future.result(), (msg.json(), msg_digest))
         self.assertEqual(result, exp_msg_status)
         self.assertEqual(
             len(self.context._queries), 0, "Query not removed from context"
