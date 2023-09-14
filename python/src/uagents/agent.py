@@ -451,12 +451,6 @@ class Agent(Sink):
         if necessary.
 
         """
-        if self._endpoints is None:
-            self._logger.warning(
-                "I have no endpoint and cannot receive external messages"
-            )
-            return
-
         # register if not yet registered or registration is about to expire
         # or anything has changed from the last registration
         if (
@@ -499,7 +493,6 @@ class Agent(Sink):
         registration.
 
         """
-
         time_until_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
         try:
             await self.register()
@@ -712,7 +705,8 @@ class Agent(Sink):
         Perform startup actions.
 
         """
-        await self._registration_loop()
+        if self._endpoints is not None:
+            await self._registration_loop()
         for handler in self._on_startup:
             try:
                 await handler(self._ctx)
@@ -794,13 +788,9 @@ class Agent(Sink):
             # lookup the model definition
             model_class: Model = self._models.get(schema_digest)
             if model_class is None:
-                continue
-
-            # parse the received message
-            try:
-                recovered = model_class.parse_raw(message)
-            except ValidationError as ex:
-                self._logger.warning(f"Unable to parse message: {ex}")
+                self._logger.warning(
+                    f"Received message with unrecognized schema digest: {schema_digest}"
+                )
                 continue
 
             context = Context(
@@ -821,6 +811,20 @@ class Agent(Sink):
                 protocols=self.protocols,
                 logger=self._logger,
             )
+
+            # parse the received message
+            try:
+                recovered = model_class.parse_raw(message)
+            except ValidationError as ex:
+                self._logger.warning(f"Unable to parse message: {ex}")
+                await _handle_error(
+                    context,
+                    sender,
+                    ErrorMessage(
+                        error=f"Message does not conform to expected schema: {ex}"
+                    ),
+                )
+                continue
 
             # attempt to find the handler
             handler: MessageCallback = self._unsigned_message_handlers.get(

@@ -1,8 +1,9 @@
 ## Development setup
 
-The easiest way to get set up for development is to install Python (`3.8`, `3.9`, or `3.10`) and [poetry](https://pypi.org/project/poetry/), and then run the following from the top-level project directory:
+The easiest way to get set up for development is to install Python (`3.8`, `3.9`, `3.10`, or `3.11`) and [poetry](https://pypi.org/project/poetry/), and then run the following from the top-level project directory:
 
 ```bash
+  cd python
   poetry install
   poetry shell
 ```

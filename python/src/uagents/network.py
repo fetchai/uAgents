@@ -301,7 +301,7 @@ class NameServiceContract(LedgerContract):
         query_msg = {
             "permissions": {
                 "domain": f"{name}.{domain}",
-                "owner": {"address": {"address": wallet_address}},
+                "owner": wallet_address,
             }
         }
         permission = self.query(query_msg)["permissions"]
