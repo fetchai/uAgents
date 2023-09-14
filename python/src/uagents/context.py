@@ -471,14 +471,17 @@ class Context:
                             endpoint=endpoint,
                         )
                     self._logger.warning(
-                        f"Unable to send envelope to {destination_address} @ {endpoint}"
+                        f"Failed to send message to {destination_address} @ {endpoint}: "
+                        + (await resp.text())
                     )
             except aiohttp.ClientConnectorError as ex:
                 self._logger.warning(f"Failed to connect to {endpoint}: {ex}")
             except Exception as ex:
-                self._logger.warning(f"Failed to send message to {destination}: {ex}")
+                self._logger.warning(
+                    f"Failed to send message to {destination} @ {endpoint}: {ex}"
+                )
 
-        self._logger.exception(f"Failed to deliver message to {destination_address}")
+        self._logger.exception(f"Failed to deliver message to {destination}")
 
         return MsgStatus(
             delivered=False,

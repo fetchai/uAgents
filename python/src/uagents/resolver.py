@@ -82,10 +82,18 @@ class Resolver(ABC):
 
 
 class GlobalResolver(Resolver):
-    def __init__(self):
-        """Initialize the GlobalResolver."""
-        self._almanc_resolver = AlmanacResolver()
-        self._name_service_resolver = NameServiceResolver()
+    def __init__(self, max_endpoints: Optional[int] = None):
+        """
+        Initialize the GlobalResolver.
+
+        Args:
+            max_endpoints (Optional[int]): The maximum number of endpoints to return.
+        """
+        self._max_endpoints = max_endpoints or DEFAULT_MAX_ENDPOINTS
+        self._almanc_resolver = AlmanacResolver(max_endpoints=self._max_endpoints)
+        self._name_service_resolver = NameServiceResolver(
+            max_endpoints=self._max_endpoints
+        )
 
     async def resolve(self, destination: str) -> Tuple[Optional[str], List[str]]:
         """
@@ -103,9 +111,16 @@ class GlobalResolver(Resolver):
 
 
 class AlmanacResolver(Resolver):
-    async def resolve(
-        self, destination: str, max_endpoints: Optional[int] = DEFAULT_MAX_ENDPOINTS
-    ) -> Tuple[Optional[str], List[str]]:
+    def __init__(self, max_endpoints: Optional[int] = None):
+        """
+        Initialize the AlmanacResolver.
+
+        Args:
+            max_endpoints (Optional[int]): The maximum number of endpoints to return.
+        """
+        self._max_endpoints = max_endpoints or DEFAULT_MAX_ENDPOINTS
+
+    async def resolve(self, destination: str) -> Tuple[Optional[str], List[str]]:
         """
         Resolve the destination using the Almanac contract.
 
@@ -126,16 +141,24 @@ class AlmanacResolver(Resolver):
                 endpoints = [val.get("url") for val in endpoint_list]
                 weights = [val.get("weight") for val in endpoint_list]
                 return destination, random.choices(
-                    endpoints, weights=weights, k=max_endpoints
+                    endpoints,
+                    weights=weights,
+                    k=min(self._max_endpoints, len(endpoints)),
                 )
 
         return None, []
 
 
 class NameServiceResolver(Resolver):
-    def __init__(self):
-        """Initialize the NameServiceResolver."""
-        self._almanac_resolver = AlmanacResolver()
+    def __init__(self, max_endpoints: Optional[int] = None):
+        """
+        Initialize the NameServiceResolver.
+
+        Args:
+            max_endpoints (Optional[int]): The maximum number of endpoints to return.
+        """
+        self._max_endpoints = max_endpoints or DEFAULT_MAX_ENDPOINTS
+        self._almanac_resolver = AlmanacResolver(max_endpoints=self._max_endpoints)
 
     async def resolve(self, destination: str) -> Tuple[Optional[str], List[str]]:
         """
@@ -154,14 +177,18 @@ class NameServiceResolver(Resolver):
 
 
 class RulesBasedResolver(Resolver):
-    def __init__(self, rules: Dict[str, str]) -> Tuple[Optional[str], List[str]]:
+    def __init__(
+        self, rules: Dict[str, str], max_endpoints: Optional[int] = None
+    ) -> Tuple[Optional[str], List[str]]:
         """
         Initialize the RulesBasedResolver with the provided rules.
 
         Args:
             rules (Dict[str, str]): A dictionary of rules mapping destinations to endpoints.
+            max_endpoints (Optional[int]): The maximum number of endpoints to return.
         """
         self._rules = rules
+        self._max_endpoints = max_endpoints or DEFAULT_MAX_ENDPOINTS
 
     async def resolve(self, destination: str) -> Optional[str]:
         """
@@ -178,4 +205,8 @@ class RulesBasedResolver(Resolver):
             endpoints = [endpoints]
         elif endpoints is None:
             endpoints = []
+        if len(endpoints) > self._max_endpoints:
+            endpoints = random.choices(
+                endpoints, k=min(self._max_endpoints, len(endpoints))
+            )
         return destination, endpoints
