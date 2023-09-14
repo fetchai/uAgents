@@ -149,6 +149,7 @@ class Agent(Sink):
         agentverse: Optional[Union[str, Dict[str, str]]] = None,
         mailbox: Optional[Union[str, Dict[str, str]]] = None,
         resolve: Optional[Resolver] = None,
+        max_resolver_endpoints: Optional[int] = None,
         version: Optional[str] = None,
     ):
         """
@@ -162,12 +163,17 @@ class Agent(Sink):
             agentverse (Optional[Union[str, Dict[str, str]]]): The agentverse configuration.
             mailbox (Optional[Union[str, Dict[str, str]]]): The mailbox configuration.
             resolve (Optional[Resolver]): The resolver to use for agent communication.
+            max_resolver_endpoints (Optional[int]): The maximum number of endpoints to resolve.
             version (Optional[str]): The version of the agent.
         """
         self._name = name
         self._port = port if port is not None else 8000
         self._background_tasks: Set[asyncio.Task] = set()
-        self._resolver = resolve if resolve is not None else GlobalResolver()
+        self._resolver = (
+            resolve
+            if resolve is not None
+            else GlobalResolver(max_endpoints=max_resolver_endpoints)
+        )
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
 
         self._initialize_wallet_and_identity(seed, name)
