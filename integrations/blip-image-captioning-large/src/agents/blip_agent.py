@@ -1,6 +1,6 @@
 # Import all necessary modules and resources from various libraries
 from uagents import Agent, Context, Protocol
-from messages.basic import UARequest, UAResponse, Error
+from messages.basic import CaptionRequest, CaptionResponse, Error
 from uagents.setup import fund_agent_if_low
 import os
 import requests
@@ -38,6 +38,7 @@ async def get_image_caption(ctx: Context, sender: str, imagedata: str):
         imagedata = imagedata.encode("ascii")
         # Converting the image data from base64 to bytes
         imageBytes = base64.b64decode(imagedata)
+
         # Sending POST request to BLIP_URL with image bytes
         response = requests.post(BLIP_URL, headers=HEADERS, data=imageBytes)
 
@@ -49,7 +50,7 @@ async def get_image_caption(ctx: Context, sender: str, imagedata: str):
         # Parse the first message (image caption) from the response
         message = response.json()[0]
         # Send the parsed response back to the sender/user
-        await ctx.send(sender, UAResponse.parse_obj(message))
+        await ctx.send(sender, CaptionResponse.parse_obj(message))
         return
 
     # If an unknown exception occurs, send a generic error message to the sender/user
@@ -61,8 +62,8 @@ async def get_image_caption(ctx: Context, sender: str, imagedata: str):
 blip_agent = Protocol("Request")
 
 
-@blip_agent.on_message(model=UARequest, replies={UAResponse, Error})
-async def handle_request(ctx: Context, sender: str, request: UARequest):
+@blip_agent.on_message(model=CaptionRequest, replies={CaptionResponse, Error})
+async def handle_request(ctx: Context, sender: str, request: CaptionRequest):
     # Log the request details
     ctx.logger.info(f"Got request from  {sender}")
 

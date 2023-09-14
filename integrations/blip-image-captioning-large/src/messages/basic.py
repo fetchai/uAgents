@@ -1,7 +1,7 @@
 from uagents import Model
 
 
-class UARequest(Model):
+class CaptionRequest(Model):
     image_data: str
 
 
@@ -9,5 +9,5 @@ class Error(Model):
     error: str
 
 
-class UAResponse(Model):
+class CaptionResponse(Model):
     generated_text: str
