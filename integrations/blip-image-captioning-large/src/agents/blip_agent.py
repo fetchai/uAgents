@@ -58,8 +58,8 @@ async def get_image_caption(ctx: Context, sender: str, imagedata: str):
         await ctx.send(sender, Error(error=f"Sorry, I wasn't able to complete your request this time. Error detail: {ex}"))
         return
 
-# Create an instance of Protocol with a label "Request"
-blip_agent = Protocol("Request")
+# Create an instance of Protocol with a label "BlipImageCaptioning"
+blip_agent = Protocol(name="BlipImageCaptioning", version="0.1.0")
 
 
 @blip_agent.on_message(model=CaptionRequest, replies={CaptionResponse, Error})
@@ -71,8 +71,8 @@ async def handle_request(ctx: Context, sender: str, request: CaptionRequest):
     await get_image_caption(ctx, sender, request.image_data)
 
 
-# Include the protocol with the agent
-agent.include(blip_agent)
+# Include the protocol with the agent, publish_manifest will make the protocol details available on Agentverse.
+agent.include(blip_agent, publish_manifest=True)
 
 # Define the main entry point of the application
 if __name__ == "__main__":

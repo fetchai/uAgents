@@ -28,8 +28,8 @@ async def initialize_storage(ctx: Context):
     ctx.storage.set("captionCreated", False)
 
 
-# Define a protocol for the user agent
-blip_user = Protocol("Request")
+# Create an instance of Protocol with a label "BlipImageCaptioningUser"
+blip_user = Protocol(name="BlipImageCaptioningUser", version="0.1.0")
 
 
 # This is an asynchronous function that is set to run at intervals of 30 sec.
@@ -62,8 +62,8 @@ async def handle_data(ctx: Context, sender: str, caption: CaptionResponse):
 async def handle_error(ctx: Context, sender: str, error: Error):
     ctx.logger.info(f"Got error from uagent: {error}")
 
-# Include the request protocol in the user definition
-user.include(blip_user)
+# Include the protocol with the agent, publish_manifest will make the protocol details available on Agentverse.
+user.include(blip_user, publish_manifest=True)
 
 # Initiate the image captioning task
 if __name__ == "__main__":
