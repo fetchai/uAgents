@@ -6,6 +6,7 @@ import asyncio
 import logging
 import uuid
 from dataclasses import dataclass
+from enum import Enum
 from time import time
 from typing import (
     Dict,
@@ -44,6 +45,14 @@ MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
 EventCallback = Callable[["Context"], Awaitable[None]]
 
 
+class DeliveryStatus(str, Enum):
+    """Delivery status of a message."""
+
+    SENT = "sent"
+    DELIVERED = "delivered"
+    FAILED = "failed"
+
+
 @dataclass
 class MsgDigest:
     """
@@ -64,13 +73,13 @@ class MsgStatus:
     Represents the status of a sent message.
 
     Attributes:
-        delivered (bool): The delivery status of the message.
+        status (str): The delivery status of the message {'sent', 'delivered', 'failed'}.
         detail (str): The details of the message delivery.
         destination (str): The destination address of the message.
         endpoint (str): The endpoint the message was sent to.
     """
 
-    delivered: bool
+    status: DeliveryStatus
     detail: str
     destination: str
     endpoint: str
@@ -380,7 +389,7 @@ class Context:
                         f"is not a valid reply to {received.message}"
                     )
                     return MsgStatus(
-                        delivered=False,
+                        status=DeliveryStatus.FAILED,
                         detail="Invalid reply",
                         destination=destination,
                         endpoint="",
@@ -392,7 +401,7 @@ class Context:
                     f"Outgoing message {message_type} is not a valid interval message"
                 )
                 return MsgStatus(
-                    delivered=False,
+                    status=DeliveryStatus.FAILED,
                     detail="Invalid interval message",
                     destination=destination,
                     endpoint="",
@@ -408,7 +417,7 @@ class Context:
                 self._session,
             )
             return MsgStatus(
-                delivered=True,
+                status=DeliveryStatus.DELIVERED,
                 detail="Message dispatched locally",
                 destination=destination,
                 endpoint="",
@@ -419,7 +428,7 @@ class Context:
             self._queries[destination].set_result((json_message, schema_digest))
             del self._queries[destination]
             return MsgStatus(
-                delivered=True,
+                status=DeliveryStatus.DELIVERED,
                 detail="Sync message resolved",
                 destination=destination,
                 endpoint="",
@@ -432,7 +441,7 @@ class Context:
                 f"Unable to resolve destination endpoint for address {destination}"
             )
             return MsgStatus(
-                delivered=False,
+                status=DeliveryStatus.FAILED,
                 detail="Unable to resolve destination endpoint",
                 destination=destination,
                 endpoint="",
@@ -465,7 +474,7 @@ class Context:
                         success = resp.status == 200
                     if success:
                         return MsgStatus(
-                            delivered=True,
+                            status=DeliveryStatus.DELIVERED,
                             detail="Message successfully delivered via HTTP",
                             destination=destination,
                             endpoint=endpoint,
@@ -484,7 +493,7 @@ class Context:
         self._logger.exception(f"Failed to deliver message to {destination}")
 
         return MsgStatus(
-            delivered=False,
+            status=DeliveryStatus.FAILED,
             detail="Message delivery failed",
             destination=destination,
             endpoint="",
