@@ -6,6 +6,7 @@ from typing import Dict, Optional
 
 import pydantic
 import uvicorn
+from requests.structures import CaseInsensitiveDict
 
 from uagents.config import get_logger
 from uagents.crypto import is_user_address
@@ -105,7 +106,7 @@ class ASGIServer:
             )
             return
 
-        headers = dict(scope.get("headers", {}))
+        headers = CaseInsensitiveDict(scope.get("headers", {}))
         if b"application/json" not in headers[b"content-type"]:
             await send(
                 {
