@@ -81,7 +81,9 @@ class ASGIServer:
         )
         await self._server.serve()
 
-    async def __call__(self, scope, receive, send):
+    async def __call__(
+        self, scope, receive, send
+    ):  #  pylint: disable=too-many-branches
         """
         Handle an incoming ASGI message, dispatching the envelope to the appropriate handler,
         and waiting for any queries to be resolved.
@@ -107,6 +109,43 @@ class ASGIServer:
             return
 
         headers = CaseInsensitiveDict(scope.get("headers", {}))
+
+        if b"content-type" not in headers:
+            # if connecting from browser, return a 200 OK
+            if b"user-agent" in headers:
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 200,
+                        "headers": [
+                            [b"content-type", b"application/json"],
+                        ],
+                    }
+                )
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": b'{"status": "OK - Agent is running"}',
+                    }
+                )
+            else:  # otherwise, return a 400 Bad Request
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 400,
+                        "headers": [
+                            [b"content-type", b"application/json"],
+                        ],
+                    }
+                )
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": b'{"error": "missing header: content-type"}',
+                    }
+                )
+            return
+
         if b"application/json" not in headers[b"content-type"]:
             await send(
                 {
@@ -118,7 +157,10 @@ class ASGIServer:
                 }
             )
             await send(
-                {"type": "http.response.body", "body": b'{"error": "invalid format"}'}
+                {
+                    "type": "http.response.body",
+                    "body": b'{"error": "invalid content-type"}',
+                }
             )
             return
 
@@ -139,7 +181,10 @@ class ASGIServer:
                 }
             )
             await send(
-                {"type": "http.response.body", "body": b'{"error": "invalid format"}'}
+                {
+                    "type": "http.response.body",
+                    "body": b'{"error": "contents do not match envelope schema"}',
+                }
             )
             return
 
@@ -163,7 +208,7 @@ class ASGIServer:
             await send(
                 {
                     "type": "http.response.body",
-                    "body": b'{"error": "unable to verify payload"}',
+                    "body": b'{"error": "signature verification failed"}',
                 }
             )
             return
