@@ -111,7 +111,7 @@ class Agent(Sink):
         _unsigned_message_handlers (Dict[str, MessageCallback]): Handlers for
         unsigned messages.
         _models (Dict[str, Type[Model]]): Dictionary mapping supported message digests to messages.
-        _replies (Dict[str, Set[Type[Model]]]): Dictionary of allowed reply digests for each type
+        _replies (Dict[str, Dict[str, Type[Model]]]): Dictionary of allowed replies for each type
         of incoming message.
         _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their response
         Futures.
@@ -149,6 +149,7 @@ class Agent(Sink):
         agentverse: Optional[Union[str, Dict[str, str]]] = None,
         mailbox: Optional[Union[str, Dict[str, str]]] = None,
         resolve: Optional[Resolver] = None,
+        max_resolver_endpoints: Optional[int] = None,
         version: Optional[str] = None,
     ):
         """
@@ -162,12 +163,17 @@ class Agent(Sink):
             agentverse (Optional[Union[str, Dict[str, str]]]): The agentverse configuration.
             mailbox (Optional[Union[str, Dict[str, str]]]): The mailbox configuration.
             resolve (Optional[Resolver]): The resolver to use for agent communication.
+            max_resolver_endpoints (Optional[int]): The maximum number of endpoints to resolve.
             version (Optional[str]): The version of the agent.
         """
         self._name = name
         self._port = port if port is not None else 8000
         self._background_tasks: Set[asyncio.Task] = set()
-        self._resolver = resolve if resolve is not None else GlobalResolver()
+        self._resolver = (
+            resolve
+            if resolve is not None
+            else GlobalResolver(max_endpoints=max_resolver_endpoints)
+        )
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
 
         self._initialize_wallet_and_identity(seed, name)
@@ -212,7 +218,7 @@ class Agent(Sink):
         self._signed_message_handlers: Dict[str, MessageCallback] = {}
         self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
         self._models: Dict[str, Type[Model]] = {}
-        self._replies: Dict[str, Set[Type[Model]]] = {}
+        self._replies: Dict[str, Dict[str, Type[Model]]] = {}
         self._queries: Dict[str, asyncio.Future] = {}
         self._dispatcher = dispatcher
         self._message_queue = asyncio.Queue()
