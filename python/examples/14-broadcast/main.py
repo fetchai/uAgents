@@ -13,11 +13,11 @@ fund_agent_if_low(bob.wallet.address())
 fund_agent_if_low(charles.wallet.address())
 
 
-class Request(Model):
+class BroadcastExampleRequest(Model):
     pass
 
 
-class Response(Model):
+class BroadcastExampleResponse(Model):
     text: str
 
 
@@ -25,9 +25,9 @@ class Response(Model):
 proto = Protocol(name="proto", version="1.0")
 
 
-@proto.on_message(model=Request, replies=Response)
-async def handle_request(ctx: Context, sender: str, _msg: Request):
-    await ctx.send(sender, Response(text=f"Hello from {ctx.name}"))
+@proto.on_message(model=BroadcastExampleRequest, replies=BroadcastExampleResponse)
+async def handle_request(ctx: Context, sender: str, _msg: BroadcastExampleRequest):
+    await ctx.send(sender, BroadcastExampleResponse(text=f"Hello from {ctx.name}"))
 
 
 # include protocol
@@ -40,11 +40,11 @@ bob.include(proto)
 # let charles send the message to all agents supporting the protocol
 @charles.on_interval(period=5)
 async def say_hello(ctx: Context):
-    await ctx.experimental_broadcast(proto.digest, message=Request())
+    await ctx.experimental_broadcast(proto.digest, message=BroadcastExampleRequest())
 
 
-@charles.on_message(model=Response)
-async def handle_response(ctx: Context, sender: str, msg: Response):
+@charles.on_message(model=BroadcastExampleResponse)
+async def handle_response(ctx: Context, sender: str, msg: BroadcastExampleResponse):
     ctx.logger.info(f"Received response from {sender}: {msg.text}")
 
 
