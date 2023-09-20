@@ -2,7 +2,7 @@
 import functools
 from enum import Enum
 from typing import Optional, Set, Type, Union
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pydantic import Field
 from src.uagents import Model
@@ -78,14 +78,15 @@ class Dialogue:
     - is meant to simplify the handling of individual messages
     """
 
-    def __init__(self, dialogue_id: UUID, rules: dict[Model, list[Model]]) -> None:
-        self._id = dialogue_id  # id of the dialogue
-        self._rules = rules
-        # which messages are allowed (handled model, list of replies)
+    def __init__(
+        self,
+        rules: dict[Type[Model], list[Type[Model]]],
+        dialogue_id: Optional[UUID] = None,
+    ) -> None:
+        self._id = dialogue_id or uuid4()  # id of the dialogue
+        self._rules = self._build_rules(rules)  # which messages are allowed
+        self._states: dict[str, Type[Model]] = {}  # list of states
         self._models: dict[str, Type[Model]] = {}
-        # self._models = [
-        #     Model.build_schema_digest(model) for model in self._rules.keys()
-        # ]  # list of handled models
         self._signed_message_handlers: dict[str, MessageCallback] = {}
         self._unsigned_message_handlers: dict[str, MessageCallback] = {}
         self._replies: dict[str, dict[str, Type[Model]]] = {}
@@ -135,6 +136,37 @@ class Dialogue:
             Dict[str, MessageCallback]: Dictionary mapping message schema digests to their handlers.
         """
         return self._unsigned_message_handlers
+
+    def _get_messages_by_session(self, session_id: UUID):
+        return [msg for msg in self._messages if msg[0] == session_id]
+
+    def _build_rules(self, rules: dict[Model, list[Model]]) -> dict[str, list[str]]:
+        """
+        Build the rules for the dialogue.
+
+        Args:
+            rules (dict[Model, list[Model]]): Rules for the dialogue.
+
+        Returns:
+            dict[str, list[str]]: Rules for the dialogue.
+        """
+        return [
+            {
+                Model.build_schema_digest(key): [
+                    Model.build_schema_digest(v) for v in values
+                ]
+            }
+            for key, values in rules.items()
+        ]
+
+    def _is_valid_message(self, session_id: UUID, msg: DialogueMessage) -> bool:
+        # get last message from session stack
+        messages = self._get_messages_by_session(session_id)
+        if not messages:
+            return False
+        last_msg = messages[-1][1]
+        # check if message is allowed
+        return True  # TODO
 
     def on_message(
         self,

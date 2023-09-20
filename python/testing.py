@@ -1,5 +1,4 @@
 """Testing platform"""
-import uuid
 from src.uagents import Agent, Bureau, Context, Model
 from src.uagents.setup import fund_agent_if_low
 from src.uagents.contrib.dialogues import dialogue
@@ -10,6 +9,10 @@ agent2 = Agent(name="test2", seed="9876543210000000001")
 
 fund_agent_if_low(agent1.wallet.address())
 fund_agent_if_low(agent2.wallet.address())
+
+
+class DialogueStarter(Model):
+    pass
 
 
 class ResourceQuery(Model):
@@ -33,17 +36,15 @@ class ResourceReservationConfirmation(Model):
 
 
 RULES = {
+    DialogueStarter: [ResourceQuery],
     ResourceQuery: [ResourceAvailability],
     ResourceAvailability: [ResourceReservation, ResourceRejection],
     ResourceReservation: [ResourceReservationConfirmation],
     ResourceRejection: [],
     ResourceReservationConfirmation: [],
-}  # all models need to be in the .keys()
+}
 
-simple_dialogue = dialogue.Dialogue(
-    dialogue_id=uuid.uuid4(),
-    rules=RULES,
-)
+simple_dialogue = dialogue.Dialogue(rules=RULES)
 
 # --------------
 
