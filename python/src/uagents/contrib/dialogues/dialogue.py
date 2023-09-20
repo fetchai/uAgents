@@ -1,11 +1,12 @@
-"""Dialogue protocol."""
+"""Dialogue class aka. blueprint for protocols"""
+import functools
 from enum import Enum
+from typing import Optional, Set, Type, Union
 from uuid import UUID
 
 from pydantic import Field
-
-from uagents import Model, Protocol, Context, Agent
-
+from src.uagents import Model
+from src.uagents.context import MessageCallback
 
 NOTES = """
 - A dialogue is a sequence of messages
@@ -18,11 +19,6 @@ NOTES = """
 
 Q: where to store the messages? Separate from ctx.storage?
 Q: how to handle the lifetime of the dialogues? Block or time based?
-
-OPL:
-- Currently the layer of abstraction is not clear. A dialogue should either be
-  use-case specific or protocol specific. Right now, it is a mix of both.
-  -> Performatives should be configurable
 """
 
 
@@ -68,23 +64,9 @@ class DialogueLabel(Model):
 
 # The actual message that will be sent to the other agent
 # May need some more fields
-class DialogueStarter(Model):
-    pass
-
-
 class DialogueWrapper(Model):
     dialogue_label: DialogueLabel
     dialogue_message: DialogueMessage
-
-
-dialogue_protocol = Protocol(name="dialogue", version="0.1")
-
-
-@dialogue_protocol.on_message(DialogueWrapper, DialogueWrapper)
-async def handle_dialogue_message(
-    ctx: Context, sender: str, msg: DialogueWrapper
-) -> None:
-    pass
 
 
 class Dialogue:
@@ -97,15 +79,67 @@ class Dialogue:
     - is meant to simplify the handling of individual messages
     """
 
-    def __init__(self, dialogue_id: UUID) -> None:
-        self.id = dialogue_id  # session id of the dialogue
-        # one dialogue id can have multiple session ids
-        self.sessions = list[UUID]
-        self.label = DialogueLabel(dialogue_reference=dialogue_id)
-        self.rules = dict[Model, list[Model]]
+    def __init__(self, dialogue_id: UUID, rules: dict[Model, list[Model]]) -> None:
+        self._id = dialogue_id  # id of the dialogue
+        self._rules = rules
         # which messages are allowed (handled model, list of replies)
-        self.messages = list[(str, DialogueMessage)]  # message storage
-        self.lifetime = 0
+        self.models = list(rules.keys())  # list of handled models
+        self._sessions: list[(DialogueLabel, UUID)] = []
+        # one dialogue id can have multiple session ids
+        self._messages: list[(str, DialogueMessage)] = []  # message storage
+        self._lifetime = 0
+
+    @property
+    def id(self) -> UUID:
+        """
+        Property to access the id of the dialogue.
+
+        :return: UUID: id of the dialogue
+        """
+        return self._id
+
+    @property
+    def rules(self) -> dict[Model, list[Model]]:
+        return self._rules
+
+    def on_message(
+        self,
+        model: Type[Model],
+        replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
+        allow_unverified: Optional[bool] = False,
+    ):
+        def decorator_on_message(func: MessageCallback):
+            @functools.wraps(func)
+            def handler(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            self._add_message_handler(model, func, replies, allow_unverified)
+
+            return handler
+
+        return decorator_on_message
+
+    def _add_message_handler(
+        self,
+        model: Type[Model],
+        func: MessageCallback,
+        replies: Optional[Union[Type[Model], Set[Type[Model]]]],
+        allow_unverified: Optional[bool] = False,
+    ):
+        model_digest = Model.build_schema_digest(model)
+
+        # # update the model database
+        # self._models[model_digest] = model
+        # if allow_unverified:
+        #     self._unsigned_message_handlers[model_digest] = func
+        # else:
+        #     self._signed_message_handlers[model_digest] = func
+        # if replies is not None:
+        #     if not isinstance(replies, set):
+        #         replies = {replies}
+        #     self._replies[model_digest] = {
+        #         Model.build_schema_digest(reply): reply for reply in replies
+        #     }
 
     def _create_msg_handler(self, msg: DialogueMessage) -> None:
         # check internal state
@@ -117,54 +151,10 @@ class Dialogue:
         pass
 
     def setup(self):
-        for r in self.rules:
-            self._create_msg_handler(r)
         # add states
         # add message handlers
         pass
 
-
-class PaymentDialogue(Dialogue):
-    def __init__(self, dialogue_id: UUID) -> None:
-        super().__init__(dialogue_id)
-        self.rules = {
-            DialogueStarter: [DialogueMessage],
-            DialogueMessage: [DialogueMessage],
-        }
-
-    @classmethod
-    def create(cls, dialogue_id: UUID) -> "PaymentDialogue":
-        dialogue = cls(dialogue_id)
-        dialogue.setup()
-        return dialogue
-
-
-payment = PaymentDialogue()
-
-
-@payment.create(model=x, state=n, replies=y)
-async def handle_payment(ctx: Context, sender: str, msg: DialogueMessage) -> None:
-    pass
-
-
-# ------
-test_dialogue = Dialogue(UUID(1234))
-
-
-# reuse decorators from Protocol?
-@test_dialogue.on_state()
-@test_dialogue.on_message(state=n, model=x, replies=y)
-
-
-# attach functions to states separately?
-async def function1():
-    pass
-
-
-test_dialogue.add_state("state1", function1, Model)
-
-# attach dialogue to agent just like Protocol?
-agent.include(test_dialogue)
 
 NOTES2 = """
 - msg has a session id

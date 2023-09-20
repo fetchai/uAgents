@@ -1,21 +1,20 @@
 # Example state
 ```mermaid
----
-title: Dialogue states
----
-stateDiagram-v2
-    state if_state <<choice>>
-    [*] --> Init
-    Finish --> [*]
+sequenceDiagram
 
-    Init --> loop
-    state loop {
-        Message --> if_state
-        if_state --> Accept
-        if_state --> Decline
-    }
-    Accept --> Finish
-    Decline --> Finish
+participant A
+participant B
+
+A ->> B: ResourceQuery
+B -->> B: checking resources
+B ->> A: ResourceAvailability
+alt commit
+    A ->> B: ResourceReservation
+    B -->> B: make reservation
+    B ->> A: ResourceReservationConfirmation
+else reject
+    A ->> B: ResourceRejection
+end
 ```
 
 # Protocol like implementation
