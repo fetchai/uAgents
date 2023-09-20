@@ -414,7 +414,7 @@ class Context:
                 destination,
                 schema_digest,
                 json_message,
-                self._session,
+                self._session or uuid.uuid4(),
             )
             return MsgStatus(
                 status=DeliveryStatus.DELIVERED,

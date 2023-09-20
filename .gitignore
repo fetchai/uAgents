@@ -4,3 +4,4 @@ __pycache__
 *.json
 dist/
 *.sqlite3
+.DS_Store
