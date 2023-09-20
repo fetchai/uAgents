@@ -193,33 +193,33 @@ start with:
 
 
 # message needed to synchronize the dialogue partners
-# class DialogueStatus(Model):
-#     status: str
+class DialogueStatus(Model):
+    status: str
 
 
-# agent = Agent()
-# agent.on_message(DialogueStatus, DialogueStatus)
+agent = Agent()
+agent.on_message(DialogueStatus, DialogueStatus)
 
 
-# x = Protocol(name="dialogue", version="0.1")
-# x.on_message(DialogueStatus, DialogueStatus)
+x = Protocol(name="dialogue", version="0.1")
+x.on_message(DialogueStatus, DialogueStatus)
 
 
-# @dialogue_protocol.on_message(DialogueStatus, DialogueStatus, "INIT")
-# async def bla1(ctx: Context, sender: str, msg: DialogueStatus) -> None:
-#     pass
+@dialogue_protocol.on_message(DialogueStatus, DialogueStatus, "INIT")
+async def bla1(ctx: Context, sender: str, msg: DialogueStatus) -> None:
+    pass
 
 
-# @dialogue_protocol.on_message(DialogueStatus, DialogueStatus, "MESSAGE")
-# async def bla2(ctx: Context, sender: str, msg: DialogueStatus) -> None:
-#     pass
+@dialogue_protocol.on_message(DialogueStatus, DialogueStatus, "MESSAGE")
+async def bla2(ctx: Context, sender: str, msg: DialogueStatus) -> None:
+    pass
 
 
-# @dialogue_protocol.on_message(DialogueStatus, DialogueStatus, "ACCEPT")
-# async def bla3(ctx: Context, sender: str, msg: DialogueStatus) -> None:
-#     pass
+@dialogue_protocol.on_message(DialogueStatus, DialogueStatus, "ACCEPT")
+async def bla3(ctx: Context, sender: str, msg: DialogueStatus) -> None:
+    pass
 
 
-# @dialogue_protocol.on_message(DialogueStatus, DialogueStatus, "FINISH")
-# async def bla4(ctx: Context, sender: str, msg: DialogueStatus) -> None:
-#     pass
+@dialogue_protocol.on_message(DialogueStatus, DialogueStatus, "FINISH")
+async def bla4(ctx: Context, sender: str, msg: DialogueStatus) -> None:
+    pass

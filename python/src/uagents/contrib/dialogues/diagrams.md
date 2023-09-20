@@ -58,3 +58,6 @@ Specific logic needed, 5-9 messages and at least the same amount of interactions
 -> This would mean that we either:
 - create a wrapper for dialogue messages where we implicitly sent over additional information each time a message is transferred, or
 - bake the session ID in as a parameter in every normal message (which would be None if no dialogue is used)
+
+# Findings
+- session id was not generated in local communication: `context.py:417` -> `self._session or uuid.uuid4()`
