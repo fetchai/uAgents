@@ -19,6 +19,29 @@ NOTES = """
 
 Q: where to store the messages? Separate from ctx.storage?
 Q: how to handle the lifetime of the dialogues? Block or time based?
+
+- msg has a session id
+- we can use this session id to identify the dialogue
+- one dialogue id can have multiple messages and ids
+
+- less interest in generic solution
+- we focus on set of structures -> to come up with client abstractions
+- time log confirmation dialogue
+- see dialogue as a blueprint for protocols
+
+- dialogue stores only the rules
+- you would still need to define the states and message handlers
+
+- try to simplify the handling of individual messages
+- single model for state (across whole flow or dialogue)
+- dialogue would be a layer on top of  protocols and messages
+
+- dialogue object has custom set of decorators (to build on the learnings)
+
+start with:
+- simple dialogue with simple rules
+- query -> response -> accept/decline -> finish
+- success, failure, timeout, retry
 """
 
 
@@ -104,7 +127,13 @@ class Dialogue:
         return self._id
 
     @property
-    def rules(self) -> dict[Model, list[Model]]:
+    def rules(self) -> dict[str, list[str]]:
+        """
+        Property to access the rules of the dialogue.
+
+        Returns:
+            dict[str, list[str]]: Dictionary of rules with schema digests as keys.
+        """
         return self._rules
 
     @property
@@ -113,12 +142,12 @@ class Dialogue:
         Property to access the registered models.
 
         Returns:
-            Dict[str, Type[Model]]: Dictionary of registered models with schema digests as keys.
+            dict[str, Type[Model]]: Dictionary of registered models with schema digests as keys.
         """
         return self._models
 
     @property
-    def signed_message_handlers(self):
+    def signed_message_handlers(self) -> dict[str, MessageCallback]:
         """
         Property to access the signed message handlers.
 
@@ -128,7 +157,7 @@ class Dialogue:
         return self._signed_message_handlers
 
     @property
-    def unsigned_message_handlers(self):
+    def unsigned_message_handlers(self) -> dict[str, MessageCallback]:
         """
         Property to access the unsigned message handlers.
 
@@ -159,13 +188,16 @@ class Dialogue:
             for key, values in rules.items()
         ]
 
-    def _is_valid_message(self, session_id: UUID, msg: DialogueMessage) -> bool:
+    def _is_valid_message(self, session_id: UUID, msg: type[Model]) -> bool:
         # get last message from session stack
         messages = self._get_messages_by_session(session_id)
         if not messages:
             return False
         last_msg = messages[-1][1]
+        allowed_msgs = self._rules.get(Model.build_schema_digest(last_msg), [])
         # check if message is allowed
+        if msg not in allowed_msgs:
+            return False
         return True  # TODO
 
     def on_message(
@@ -209,32 +241,6 @@ class Dialogue:
             self._replies[model_digest] = {
                 Model.build_schema_digest(reply): reply for reply in replies
             }
-
-
-NOTES2 = """
-- msg has a session id
-- we can use this session id to identify the dialogue
-- one dialogue id can have multiple messages and ids
-
-- less interest in generic solution
-- we focus on set of structures -> to come up with client abstractions
-- time log confirmation dialogue
-- see dialogue as a blueprint for protocols
-
-- dialogue stores only the rules
-- you would still need to define the states and message handlers
-
-- try to simplify the handling of individual messages
-- single model for state (across whole flow or dialogue)
-- dialogue would be a layer on top of  protocols and messages
-
-- dialogue object has custom set of decorators (to build on the learnings)
-
-start with:
-- simple dialogue with simple rules
-- query -> response -> accept/decline -> finish
-- success, failure, timeout, retry
-"""
 
 
 # message needed to synchronize the dialogue partners
