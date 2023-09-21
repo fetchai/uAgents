@@ -1,12 +1,10 @@
 """Dialogue class aka. blueprint for protocols"""
-import functools
 from enum import Enum
-from typing import Optional, Set, Type, Union
+from typing import Optional, Type
 from uuid import UUID, uuid4
 
 from pydantic import Field
-from src.uagents import Model
-from src.uagents.context import MessageCallback
+from src.uagents import Model, Protocol
 
 NOTES = """
 - A dialogue is a sequence of messages
@@ -92,7 +90,7 @@ class DialogueWrapper(Model):
     dialogue_message: DialogueMessage
 
 
-class Dialogue:
+class Dialogue(Protocol):
     """
     - This should be the local representation of the dialogue.
     - Each participant will have its own instance of this class per dialogue.
@@ -103,19 +101,25 @@ class Dialogue:
 
     def __init__(
         self,
-        rules: dict[Type[Model], list[Type[Model]]],
+        name: Optional[str] = None,
+        version: Optional[str] = None,
+        rules: dict[Type[Model], list[Type[Model]]] = None,
         dialogue_id: Optional[UUID] = None,
+        starter: Optional[Type[Model]] = None,
+        ender: Optional[type[Model] | set[type[Model]]] = None,
     ) -> None:
         self._id = dialogue_id or uuid4()  # id of the dialogue
         self._rules = self._build_rules(rules)  # which messages are allowed
+        self._starter = Model.build_schema_digest(
+            starter
+        )  # first message of the dialogue
+        self._ender = Model.build_schema_digest(ender)  # last message of the dialogue
         self._states: dict[str, Type[Model]] = {}  # list of states
-        self._models: dict[str, Type[Model]] = {}
-        self._signed_message_handlers: dict[str, MessageCallback] = {}
-        self._unsigned_message_handlers: dict[str, MessageCallback] = {}
-        self._replies: dict[str, dict[str, Type[Model]]] = {}
         self._sessions: dict[DialogueLabel, list[UUID]] = {}  # session storage
         self._messages: list[(str, DialogueMessage)] = []  # message storage
         self._lifetime = 0
+        super().__init__(name=name, version=version)
+        self._is_dialogue = True
 
     @property
     def id(self) -> UUID:
@@ -137,34 +141,8 @@ class Dialogue:
         return self._rules
 
     @property
-    def models(self) -> dict[str, Type[Model]]:
-        """
-        Property to access the registered models.
-
-        Returns:
-            dict[str, Type[Model]]: Dictionary of registered models with schema digests as keys.
-        """
-        return self._models
-
-    @property
-    def signed_message_handlers(self) -> dict[str, MessageCallback]:
-        """
-        Property to access the signed message handlers.
-
-        Returns:
-            Dict[str, MessageCallback]: Dictionary mapping message schema digests to their handlers.
-        """
-        return self._signed_message_handlers
-
-    @property
-    def unsigned_message_handlers(self) -> dict[str, MessageCallback]:
-        """
-        Property to access the unsigned message handlers.
-
-        Returns:
-            Dict[str, MessageCallback]: Dictionary mapping message schema digests to their handlers.
-        """
-        return self._unsigned_message_handlers
+    def is_dialogue(self) -> bool:
+        return self._is_dialogue
 
     def _get_messages_by_session(self, session_id: UUID):
         return [msg for msg in self._messages if msg[0] == session_id]
@@ -199,78 +177,3 @@ class Dialogue:
         if msg not in allowed_msgs:
             return False
         return True  # TODO
-
-    def on_message(
-        self,
-        model: Type[Model],
-        replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
-        allow_unverified: Optional[bool] = False,
-    ):
-        # model_digest = Model.build_schema_digest(model)
-        # assert model_digest in self._models, f"Model {model} not found"
-
-        def decorator_on_message(func: MessageCallback):
-            @functools.wraps(func)
-            def handler(*args, **kwargs):
-                return func(*args, **kwargs)
-
-            self._add_message_handler(model, func, replies, allow_unverified)
-
-            return handler
-
-        return decorator_on_message
-
-    def _add_message_handler(
-        self,
-        model: Type[Model],
-        func: MessageCallback,
-        replies: Optional[Union[Type[Model], Set[Type[Model]]]],
-        allow_unverified: Optional[bool] = False,
-    ):
-        model_digest = Model.build_schema_digest(model)
-
-        # update the model database
-        self._models[model_digest] = model
-        if allow_unverified:
-            self._unsigned_message_handlers[model_digest] = func
-        else:
-            self._signed_message_handlers[model_digest] = func
-        if replies is not None:
-            if not isinstance(replies, set):
-                replies = {replies}
-            self._replies[model_digest] = {
-                Model.build_schema_digest(reply): reply for reply in replies
-            }
-
-
-# message needed to synchronize the dialogue partners
-# class DialogueStatus(Model):
-#     status: str
-
-
-# agent = Agent()
-# agent.on_message(DialogueStatus, DialogueStatus)
-
-
-# x = Protocol(name="dialogue", version="0.1")
-# x.on_message(DialogueStatus, DialogueStatus)
-
-
-# @dialogue_protocol.on_message(DialogueStatus, DialogueStatus, "INIT")
-# async def bla1(ctx: Context, sender: str, msg: DialogueStatus) -> None:
-#     pass
-
-
-# @dialogue_protocol.on_message(DialogueStatus, DialogueStatus, "MESSAGE")
-# async def bla2(ctx: Context, sender: str, msg: DialogueStatus) -> None:
-#     pass
-
-
-# @dialogue_protocol.on_message(DialogueStatus, DialogueStatus, "ACCEPT")
-# async def bla3(ctx: Context, sender: str, msg: DialogueStatus) -> None:
-#     pass
-
-
-# @dialogue_protocol.on_message(DialogueStatus, DialogueStatus, "FINISH")
-# async def bla4(ctx: Context, sender: str, msg: DialogueStatus) -> None:
-#     pass

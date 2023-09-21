@@ -41,6 +41,7 @@ class Protocol:
         self._version = version or "0.1.0"
         self._canonical_name = f"{self._name}:{self._version}"
         self._digest = ""
+        self._is_dialogue = False
 
         self.spec = APISpec(
             title=self._name,
