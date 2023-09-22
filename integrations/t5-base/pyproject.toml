@@ -1,0 +1,10 @@
+[tool.poetry]
+name = "t5-base-uagent-integration"
+version = "0.0.1"
+description = "t5 base integration with fetch.ai uagent"
+authors = ["Prajna"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+uagents = "*"
+requests = "^2.31.0"

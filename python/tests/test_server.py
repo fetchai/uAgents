@@ -297,7 +297,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                 call(
                     {
                         "type": "http.response.body",
-                        "body": b'{"error": "invalid format"}',
+                        "body": b'{"error": "invalid content-type"}',
                     }
                 ),
             ]
@@ -329,7 +329,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                 call(
                     {
                         "type": "http.response.body",
-                        "body": b'{"error": "invalid format"}',
+                        "body": b'{"error": "contents do not match envelope schema"}',
                     }
                 ),
             ]
@@ -370,7 +370,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                 call(
                     {
                         "type": "http.response.body",
-                        "body": b'{"error": "unable to verify payload"}',
+                        "body": b'{"error": "signature verification failed"}',
                     }
                 ),
             ]
@@ -412,7 +412,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                 call(
                     {
                         "type": "http.response.body",
-                        "body": b'{"error": "unable to verify payload"}',
+                        "body": b'{"error": "signature verification failed"}',
                     }
                 ),
             ]
@@ -455,6 +455,64 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                     {
                         "type": "http.response.body",
                         "body": b'{"error": "unable to route envelope"}',
+                    }
+                ),
+            ]
+        )
+
+    async def test_request_fail_missing_header(self):
+        mock_send = AsyncMock()
+        await self.agent._server(
+            scope={
+                "type": "http",
+                "path": "/submit",
+                "headers": {},
+            },
+            receive=None,
+            send=mock_send,
+        )
+        mock_send.assert_has_calls(
+            [
+                call(
+                    {
+                        "type": "http.response.start",
+                        "status": 400,
+                        "headers": [[b"content-type", b"application/json"]],
+                    }
+                ),
+                call(
+                    {
+                        "type": "http.response.body",
+                        "body": b'{"error": "missing header: content-type"}',
+                    }
+                ),
+            ]
+        )
+
+    async def test_request_from_browser(self):
+        mock_send = AsyncMock()
+        await self.agent._server(
+            scope={
+                "type": "http",
+                "path": "/submit",
+                "headers": {b"User-Agent": b"Mozilla/5.0"},
+            },
+            receive=None,
+            send=mock_send,
+        )
+        mock_send.assert_has_calls(
+            [
+                call(
+                    {
+                        "type": "http.response.start",
+                        "status": 200,
+                        "headers": [[b"content-type", b"application/json"]],
+                    }
+                ),
+                call(
+                    {
+                        "type": "http.response.body",
+                        "body": b'{"status": "OK - Agent is running"}',
                     }
                 ),
             ]
