@@ -838,6 +838,33 @@ class Agent(Sink):
             )
             if handler is None:
                 if not is_user_address(sender):
+                    # this is where I would put the logic for session handling
+                    # we parse incoming messages before forwarding to the function
+                    # assumed at this point:
+                    #   - agent-agent communication (on_message),
+                    #   - model is expected (in general, so a handler is registered)
+                    #   - we have access to the context + session id
+                    #   - schema_digest, sender, message, session are available
+                    # steps:
+                    #   - check if a session id is already in context
+
+                    for protocol in self.protocols.values():
+                        if protocol.is_dialogue:
+                            if protocol.is_starter(schema_digest):
+                                print("dialogue started")
+                                protocol.add_session(
+                                    session, sender, self.address, message
+                                )
+                            elif protocol.is_ender(schema_digest):
+                                print("dialogue ended")
+                                protocol.cleanup_session(session)
+                                # session cleanup
+                            else:
+                                # pick up the dialogue
+                                print("dialogue picked up")
+                                pass
+                            # protocol.update_state(schema_digest)
+
                     handler = self._signed_message_handlers.get(schema_digest)
                 elif schema_digest in self._signed_message_handlers:
                     await _handle_error(

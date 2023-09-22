@@ -52,7 +52,7 @@ async def handle_resource_query(
     sender: str,
     _msg: ResourceQuery,
 ):
-    ctx.logger.info(f"starting dialogue, session: {ctx.session}")
+    ctx.logger.info(f"dialogue started by {sender[-6:]}, session: {ctx.session}")
     await ctx.send(sender, ResourceAvailability(qty=1))
 
 
@@ -93,41 +93,26 @@ async def handle_resource_reservation_confirmation(
     ctx: Context, sender: str, msg: ResourceReservationConfirmation
 ):
     ctx.logger.info(f"dialogue finished, cleanup of session: {ctx.session}")
+    print("---")
 
 
 agent1.include(simple_dialogue)
-print()
+agent2.include(simple_dialogue)
 
-# --------------
-
-
-# class MessageRequest(Model):
-#     pass
+counter = 0
 
 
-# class MessageResponse(Model):
-#     text: str
+@agent1.on_interval(10)
+async def handle_interval(ctx: Context):
+    global counter
+    if counter == 0:
+        counter += 1
+        return
+    await ctx.send(agent2.address, ResourceQuery())
 
 
-# @agent1.on_interval(5)
-# async def send_message(ctx: Context):
-#     ctx.logger.info(f"starting session (on_interval): {ctx.session}")
-#     await ctx.send(agent2.address, MessageRequest())
-
-
-# @agent2.on_message(MessageRequest)
-# async def handle_message(ctx: Context, sender: str, _msg: MessageRequest):
-#     ctx.logger.info(f"received session (on_message): {ctx.session}")
-#     await ctx.send(sender, MessageResponse(text="hello"))
-
-
-# @agent1.on_message(MessageResponse)
-# async def handle_response(ctx: Context, sender: str, msg: MessageResponse):
-#     ctx.logger.info(f"received session (on_message): {ctx.session}")
-#     ctx.logger.info(f"Received response from {sender}: {msg.text}")
-
-
-bureau = Bureau(port=8080, endpoint="http://localhost:8080/submit")
-bureau.add(agent1)
-bureau.add(agent2)
-bureau.run()
+if __name__ == "__main__":
+    bureau = Bureau(port=8080, endpoint="http://localhost:8080/submit")
+    bureau.add(agent1)
+    bureau.add(agent2)
+    bureau.run()

@@ -6,6 +6,9 @@ from uuid import UUID, uuid4
 from pydantic import Field
 from src.uagents import Model, Protocol
 
+JsonStr = str
+SenderStr = str
+
 NOTES = """
 - A dialogue is a sequence of messages
 - Each dialogue has a unique identifier
@@ -74,7 +77,7 @@ class DialogueMessage(Model):
 
 # To give the dialogue a context and to enable dialogue comparison
 class DialogueLabel(Model):
-    dialogue_reference: UUID = Field(description="Id of the dialogue")
+    session_id: UUID = Field(description="Id of the dialogue")
     dialogue_starter: str = Field(
         description="Address of the agent that started the dialogue"
     )
@@ -113,10 +116,13 @@ class Dialogue(Protocol):
         self._starter = Model.build_schema_digest(
             starter
         )  # first message of the dialogue
-        self._ender = Model.build_schema_digest(ender)  # last message of the dialogue
-        self._states: dict[str, Type[Model]] = {}  # list of states
-        self._sessions: dict[DialogueLabel, list[UUID]] = {}  # session storage
-        self._messages: list[(str, DialogueMessage)] = []  # message storage
+        self._ender = set(
+            Model.build_schema_digest(e) for e in ender
+        )  # last message of the dialogue
+        self._current_state: str = None  # current state of the dialogue (as digest)
+        self._sessions: dict[
+            DialogueLabel, list[(SenderStr, JsonStr)]
+        ] = {}  # session + message storage
         self._lifetime = 0
         super().__init__(name=name, version=version)
         self._is_dialogue = True
@@ -142,10 +148,19 @@ class Dialogue(Protocol):
 
     @property
     def is_dialogue(self) -> bool:
+        """
+        Property to access the is_dialogue flag of the dialogue.
+
+        Returns:
+            bool: True if the protocol is a dialogue, False otherwise.
+        """
         return self._is_dialogue
 
-    def _get_messages_by_session(self, session_id: UUID):
-        return [msg for msg in self._messages if msg[0] == session_id]
+    def is_starter(self, digest: str) -> bool:
+        return self._starter == digest
+
+    def is_ender(self, digest: str) -> bool:
+        return digest in self._ender
 
     def _build_rules(self, rules: dict[Model, list[Model]]) -> dict[str, list[str]]:
         """
@@ -166,6 +181,23 @@ class Dialogue(Protocol):
             for key, values in rules.items()
         ]
 
+    def update_state(self, digest: str) -> None:
+        self._current_state = digest
+
+    def add_session(self, session_id, sender, receiver, message) -> None:
+        self._sessions[session_id] = []
+        self._sessions[session_id].append((sender, receiver, message))
+
+    def cleanup_session(self, session_id) -> None:
+        self._sessions.pop(session_id)
+
+    def add_message(self, session_id, sender, receiver, message) -> None:
+        return
+        session = self._sessions.get(session_id)
+
+    def _get_messages_by_session(self, session_id: UUID):
+        return [msg for msg in self._messages if msg[0] == session_id]
+
     def _is_valid_message(self, session_id: UUID, msg: type[Model]) -> bool:
         # get last message from session stack
         messages = self._get_messages_by_session(session_id)
@@ -176,4 +208,4 @@ class Dialogue(Protocol):
         # check if message is allowed
         if msg not in allowed_msgs:
             return False
-        return True  # TODO
+        return True

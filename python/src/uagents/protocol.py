@@ -150,6 +150,16 @@ class Protocol:
         """
         return self.manifest()["metadata"]["digest"]
 
+    @property
+    def is_dialogue(self) -> bool:
+        """
+        Property to access the is_dialogue flag of the dialogue.
+
+        Returns:
+            bool: True if the protocol is a dialogue, False otherwise.
+        """
+        return self._is_dialogue
+
     def on_interval(
         self,
         period: float,
