@@ -850,6 +850,7 @@ class Agent(Sink):
 
                     for protocol in self.protocols.values():
                         if hasattr(protocol, "rules"):
+                            # check if matching dialogue
                             protocol.update_state(schema_digest)
                             # at the moment this update_state limits us to one
                             # instance of a dialogue per protocol at all times

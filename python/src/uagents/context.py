@@ -374,6 +374,8 @@ class Context:
         Returns:
             MsgStatus: The delivery status of the message.
         """
+        # TODO: add self._protocols: Dialogue reference
+
         # Check if this message is a reply
         if (
             self._message_received is not None
@@ -407,6 +409,8 @@ class Context:
                     endpoint="",
                 )
 
+        current_session = self._session or uuid.uuid4()
+
         # Handle local dispatch of messages
         if dispatcher.contains(destination):
             await dispatcher.dispatch(
@@ -414,7 +418,7 @@ class Context:
                 destination,
                 schema_digest,
                 json_message,
-                self._session or uuid.uuid4(),
+                current_session,
             )
             return MsgStatus(
                 status=DeliveryStatus.DELIVERED,
@@ -455,7 +459,7 @@ class Context:
             version=1,
             sender=self.address,
             target=destination_address,
-            session=self._session or uuid.uuid4(),
+            session=current_session,
             schema_digest=schema_digest,
             protocol_digest=self.get_message_protocol(schema_digest),
             expires=expires,
