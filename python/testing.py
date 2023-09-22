@@ -40,6 +40,8 @@ RULES = {
 }
 
 simple_dialogue = dialogue.Dialogue(
+    name="simple_dialogue",
+    version="0.1",
     rules=RULES,
     starter=ResourceQuery,
     ender={ResourceRejection, ResourceReservationConfirmation},

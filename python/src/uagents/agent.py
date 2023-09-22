@@ -848,19 +848,8 @@ class Agent(Sink):
                     # steps:
                     #   - check if a session id is already in context
 
-                    tmp = """
-                    schema_digest
-                    'model:b66a97468b28a8a675016a145a252952ef0f0e86e0724f8aa41beee8b6a12894'
-                    message
-                    '{"qty": 1}'
-                    sender
-                    'agent1qgp7urkvx24a2gs8e7496fajzy78h4887vz7va4h7klzf7azzhthsz7zymu'
-                    session
-                    UUID('19251055-8fa7-4e00-b5c8-b46b33d30fc6')
-                    """
-
                     for protocol in self.protocols.values():
-                        if hasattr(protocol, "is_dialogue"):
+                        if hasattr(protocol, "rules"):
                             protocol.update_state(schema_digest)
                             # at the moment this update_state limits us to one
                             # instance of a dialogue per protocol at all times

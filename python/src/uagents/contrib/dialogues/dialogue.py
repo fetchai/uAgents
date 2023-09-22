@@ -4,7 +4,7 @@ from typing import Optional, Type
 from uuid import UUID, uuid4
 
 from pydantic import Field
-from src.uagents import Model, Protocol
+from uagents import Model, Protocol
 
 JsonStr = str
 SenderStr = str
@@ -126,7 +126,6 @@ class Dialogue(Protocol):
         ] = {}  # session + message storage
         self._lifetime = 0
         super().__init__(name=name, version=version)
-        self._is_dialogue = True
 
     @property
     def id(self) -> UUID:
@@ -146,16 +145,6 @@ class Dialogue(Protocol):
             dict[str, list[str]]: Dictionary of rules with schema digests as keys.
         """
         return self._rules
-
-    @property
-    def is_dialogue(self) -> bool:
-        """
-        Property to access the is_dialogue flag of the dialogue.
-
-        Returns:
-            bool: True if the protocol is a dialogue, False otherwise.
-        """
-        return self._is_dialogue
 
     def is_starter(self, digest: str) -> bool:
         return self._starter == digest
