@@ -41,7 +41,6 @@ class Protocol:
         self._version = version or "0.1.0"
         self._canonical_name = f"{self._name}:{self._version}"
         self._digest = ""
-        self._is_dialogue = False
 
         self.spec = APISpec(
             title=self._name,
@@ -149,16 +148,6 @@ class Protocol:
             str: The digest of the protocol's manifest.
         """
         return self.manifest()["metadata"]["digest"]
-
-    @property
-    def is_dialogue(self) -> bool:
-        """
-        Property to access the is_dialogue flag of the dialogue.
-
-        Returns:
-            bool: True if the protocol is a dialogue, False otherwise.
-        """
-        return self._is_dialogue
 
     def on_interval(
         self,

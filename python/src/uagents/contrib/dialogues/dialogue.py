@@ -8,6 +8,7 @@ from src.uagents import Model, Protocol
 
 JsonStr = str
 SenderStr = str
+ReceiverStr = str
 
 NOTES = """
 - A dialogue is a sequence of messages
@@ -121,7 +122,7 @@ class Dialogue(Protocol):
         )  # last message of the dialogue
         self._current_state: str = None  # current state of the dialogue (as digest)
         self._sessions: dict[
-            DialogueLabel, list[(SenderStr, JsonStr)]
+            UUID, list[(SenderStr, ReceiverStr, JsonStr)]
         ] = {}  # session + message storage
         self._lifetime = 0
         super().__init__(name=name, version=version)
@@ -192,20 +193,22 @@ class Dialogue(Protocol):
         self._sessions.pop(session_id)
 
     def add_message(self, session_id, sender, receiver, message) -> None:
-        return
-        session = self._sessions.get(session_id)
+        self._sessions[session_id].append((sender, receiver, message))
 
-    def _get_messages_by_session(self, session_id: UUID):
-        return [msg for msg in self._messages if msg[0] == session_id]
+    def get_session(self, session_id) -> list[(SenderStr, ReceiverStr, JsonStr)]:
+        return self._sessions.get(session_id)
 
-    def _is_valid_message(self, session_id: UUID, msg: type[Model]) -> bool:
-        # get last message from session stack
-        messages = self._get_messages_by_session(session_id)
-        if not messages:
-            return False
-        last_msg = messages[-1][1]
-        allowed_msgs = self._rules.get(Model.build_schema_digest(last_msg), [])
-        # check if message is allowed
-        if msg not in allowed_msgs:
-            return False
-        return True
+    # def _get_messages_by_session(self, session_id: UUID):
+    #     return [msg for msg in self._messages if msg[0] == session_id]
+
+    # def _is_valid_message(self, session_id: UUID, msg: type[Model]) -> bool:
+    #     # get last message from session stack
+    #     messages = self._get_messages_by_session(session_id)
+    #     if not messages:
+    #         return False
+    #     last_msg = messages[-1][1]
+    #     allowed_msgs = self._rules.get(Model.build_schema_digest(last_msg), [])
+    #     # check if message is allowed
+    #     if msg not in allowed_msgs:
+    #         return False
+    #     return True

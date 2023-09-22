@@ -52,7 +52,7 @@ async def handle_resource_query(
     sender: str,
     _msg: ResourceQuery,
 ):
-    ctx.logger.info(f"dialogue started by {sender[-6:]}, session: {ctx.session}")
+    ctx.logger.info(f"Resource query received by {sender[-6:]}, session: {ctx.session}")
     await ctx.send(sender, ResourceAvailability(qty=1))
 
 
@@ -62,7 +62,7 @@ async def handle_resource_query(
 async def handle_resource_availability(
     ctx: Context, sender: str, msg: ResourceAvailability
 ):
-    ctx.logger.info(f"sending response, session: {ctx.session}")
+    ctx.logger.info(f"Received availability, try reservation, session: {ctx.session}")
     if msg.qty == 0:
         await ctx.send(sender, ResourceRejection())
     await ctx.send(sender, ResourceReservation(qty=1))
@@ -75,7 +75,7 @@ async def handle_resource_availability(
 async def handle_resource_reservation(
     ctx: Context, sender: str, msg: ResourceReservation
 ):
-    ctx.logger.info(f"received reservation, session: {ctx.session}")
+    ctx.logger.info(f"Received reservation, session: {ctx.session}")
     await ctx.send(sender, ResourceReservationConfirmation())
 
 
@@ -85,14 +85,14 @@ async def handle_resource_rejection(
     _sender: str,
     msg: ResourceRejection,
 ):
-    ctx.logger.info(f"rejected offer, cleanup of session: {ctx.session}")
+    ctx.logger.info(f"rejected offer, session: {ctx.session}")
 
 
 @simple_dialogue.on_message(ResourceReservationConfirmation)
 async def handle_resource_reservation_confirmation(
     ctx: Context, sender: str, msg: ResourceReservationConfirmation
 ):
-    ctx.logger.info(f"dialogue finished, cleanup of session: {ctx.session}")
+    ctx.logger.info(f"Confirm reservation, session: {ctx.session}")
     print("---")
 
 

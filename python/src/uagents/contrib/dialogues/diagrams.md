@@ -1,4 +1,3 @@
-# Example state
 ```mermaid
 sequenceDiagram
 
