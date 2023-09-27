@@ -19,7 +19,7 @@ cleaner = Agent(
     },
 )
 
-fund_agent_if_low(cleaner.wallet.address())
+fund_agent_if_low(cleaner)
 
 
 # build the cleaning service agent from the cleaning protocol

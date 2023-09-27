@@ -6,7 +6,7 @@ class Message(Model):
     message: str
 
 
-RECIPIENT_ADDRESS = "agent1q2kxet3vh0scsf0sm7y2erzz33cve6tv5uk63x64upw5g68kr0chkv7hw50"
+RECIPIENT_ADDRESS = "test-agent://agent1q2kxet3vh0scsf0sm7y2erzz33cve6tv5uk63x64upw5g68kr0chkv7hw50"
 
 alice = Agent(
     name="alice",
@@ -15,7 +15,7 @@ alice = Agent(
     endpoint=["http://127.0.0.1:8000/submit"],
 )
 
-fund_agent_if_low(alice.wallet.address())
+fund_agent_if_low(alice)
 
 
 @alice.on_interval(period=2.0)

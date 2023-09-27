@@ -19,7 +19,7 @@ user = Agent(
     },
 )
 
-fund_agent_if_low(user.wallet.address())
+fund_agent_if_low(user)
 
 table_query = QueryTableRequest(
     guests=3,

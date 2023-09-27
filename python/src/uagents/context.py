@@ -374,6 +374,10 @@ class Context:
         Returns:
             MsgStatus: The delivery status of the message.
         """
+
+        # Destination without ledger prefix
+        raw_destination = destination[-65:]
+
         # Check if this message is a reply
         if (
             self._message_received is not None
@@ -391,7 +395,7 @@ class Context:
                     return MsgStatus(
                         status=DeliveryStatus.FAILED,
                         detail="Invalid reply",
-                        destination=destination,
+                        destination=raw_destination,
                         endpoint="",
                     )
         # Check if this message is a valid interval message
@@ -403,15 +407,15 @@ class Context:
                 return MsgStatus(
                     status=DeliveryStatus.FAILED,
                     detail="Invalid interval message",
-                    destination=destination,
+                    destination=raw_destination,
                     endpoint="",
                 )
 
         # Handle local dispatch of messages
-        if dispatcher.contains(destination):
+        if dispatcher.contains(raw_destination):
             await dispatcher.dispatch(
-                self.address,
-                destination,
+                self._identity.address,
+                raw_destination,
                 schema_digest,
                 json_message,
                 self._session,
@@ -419,18 +423,18 @@ class Context:
             return MsgStatus(
                 status=DeliveryStatus.DELIVERED,
                 detail="Message dispatched locally",
-                destination=destination,
+                destination=raw_destination,
                 endpoint="",
             )
 
         # Handle queries waiting for a response
-        if destination in self._queries:
-            self._queries[destination].set_result((json_message, schema_digest))
-            del self._queries[destination]
+        if raw_destination in self._queries:
+            self._queries[raw_destination].set_result((json_message, schema_digest))
+            del self._queries[raw_destination]
             return MsgStatus(
                 status=DeliveryStatus.DELIVERED,
                 detail="Sync message resolved",
-                destination=destination,
+                destination=raw_destination,
                 endpoint="",
             )
 
@@ -453,7 +457,7 @@ class Context:
         # Handle external dispatch of messages
         env = Envelope(
             version=1,
-            sender=self.address,
+            sender=self._identity.address,
             target=destination_address,
             session=self._session or uuid.uuid4(),
             schema_digest=schema_digest,

@@ -19,8 +19,8 @@ DENOM = "atestfet"
 alice = Agent(name="alice", seed="alice secret phrase")
 bob = Agent(name="bob", seed="bob secret phrase")
 
-fund_agent_if_low(alice.wallet.address())
-fund_agent_if_low(bob.wallet.address())
+fund_agent_if_low(alice)
+fund_agent_if_low(bob)
 
 
 @alice.on_interval(period=10.0)
@@ -36,7 +36,7 @@ async def request_funds(ctx: Context):
 @alice.on_message(model=TransactionInfo)
 async def confirm_transaction(ctx: Context, sender: str, msg: TransactionInfo):
     ctx.logger.info(f"Received transaction info from {sender}: {msg}")
-    tx_resp = await wait_for_tx_to_complete(msg.tx_hash)
+    tx_resp = await wait_for_tx_to_complete(msg.tx_hash, alice._ledger)
 
     coin_received = tx_resp.events["coin_received"]
     if (

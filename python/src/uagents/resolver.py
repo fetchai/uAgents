@@ -7,8 +7,10 @@ import random
 from uagents.config import DEFAULT_MAX_ENDPOINTS
 from uagents.network import get_almanac_contract, get_name_service_contract
 
+_testnet_prefixe = "test-agent://"
+_mainnet_prefix = "agent://"
 
-def query_record(agent_address: str, service: str) -> dict:
+def query_record(agent_address: str, service: str, test: bool) -> dict:
     """
     Query a record from the Almanac contract.
 
@@ -19,7 +21,7 @@ def query_record(agent_address: str, service: str) -> dict:
     Returns:
         dict: The query result.
     """
-    contract = get_almanac_contract()
+    contract = get_almanac_contract(test)
     query_msg = {
         "query_record": {"agent_address": agent_address, "record_type": service}
     }
@@ -46,7 +48,7 @@ def get_agent_address(name: str) -> str:
     return None
 
 
-def is_agent_address(address):
+def is_agent_address(address) -> tuple:
     """
     Check if the provided address is a valid agent address.
 
@@ -59,10 +61,14 @@ def is_agent_address(address):
     if not isinstance(address, str):
         return False
 
-    prefix = "agent"
+    prefixes = [_testnet_prefixe , _mainnet_prefix, ""]
     expected_length = 65
 
-    return address.startswith(prefix) and len(address) == expected_length
+    for prefix in prefixes:
+        if address.startswith(prefix) and len(address) == expected_length + len(prefix):
+            return (True, prefix)
+
+    return (False, None)
 
 
 class Resolver(ABC):
@@ -105,8 +111,9 @@ class GlobalResolver(Resolver):
         Returns:
             Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
         """
-        if is_agent_address(destination):
-            return await self._almanc_resolver.resolve(destination)
+        is_address, prefix = is_agent_address(destination)
+        if is_address:
+            return await self._almanc_resolver.resolve(destination[len(prefix):], not prefix == _mainnet_prefix)
         return await self._name_service_resolver.resolve(destination)
 
 
@@ -120,7 +127,7 @@ class AlmanacResolver(Resolver):
         """
         self._max_endpoints = max_endpoints or DEFAULT_MAX_ENDPOINTS
 
-    async def resolve(self, destination: str) -> Tuple[Optional[str], List[str]]:
+    async def resolve(self, destination: str, test: bool) -> Tuple[Optional[str], List[str]]:
         """
         Resolve the destination using the Almanac contract.
 
@@ -130,7 +137,7 @@ class AlmanacResolver(Resolver):
         Returns:
             Tuple[str, List[str]]: The address and resolved endpoints.
         """
-        result = query_record(destination, "service")
+        result = query_record(destination, "service", test)
         if result is not None:
             record = result.get("record") or {}
             endpoint_list = (

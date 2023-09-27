@@ -13,9 +13,7 @@ alice = Agent(
     endpoint=["http://localhost:8000/submit"],
 )
 
-
-fund_agent_if_low(alice.wallet.address())
-
+fund_agent_if_low(alice)
 
 @alice.on_interval(period=5)
 async def alice_interval_handler(ctx: Context):

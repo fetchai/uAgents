@@ -29,7 +29,7 @@ alice = Agent(
     endpoint=[f"{http_tunnel.public_url}/submit"],
 )
 
-fund_agent_if_low(alice.wallet.address())
+fund_agent_if_low(alice)
 
 
 @alice.on_message(model=Message)

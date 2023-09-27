@@ -16,7 +16,7 @@ bob = Agent(
     endpoint=["http://127.0.0.1:8001/submit"],
 )
 
-fund_agent_if_low(bob.wallet.address())
+fund_agent_if_low(bob)
 
 ALICE_ADDRESS = "agent1qv2l7qzcd2g2rcv2p93tqflrcaq5dk7c2xc7fcnfq3s37zgkhxjmq5mfyvz"
 

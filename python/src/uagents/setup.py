@@ -9,8 +9,7 @@ from uagents.network import get_ledger, get_faucet
 
 LOGGER = get_logger("setup")
 
-
-def fund_agent_if_low(wallet_address: str):
+def fund_agent_if_low(agent: Agent):
     """
     Checks the agent's wallet balance and adds funds if it's below the registration fee.
 
@@ -20,16 +19,23 @@ def fund_agent_if_low(wallet_address: str):
     Returns:
         None
     """
-    ledger = get_ledger()
+    ledger = get_ledger(agent._test)
     faucet = get_faucet()
 
-    agent_balance = ledger.query_bank_balance(Address(wallet_address))
+    agent_balance = ledger.query_bank_balance(Address(agent.wallet.address()))
+
+    if not agent._test:
+        LOGGER.warning(f"Faucet only available for testnet, please add FET tokens to your wallet {agent.wallet.address()}")
+        LOGGER.info(f"Current FET balance: {agent_balance}")
+        return
 
     if agent_balance < REGISTRATION_FEE:
-        # Add tokens to agent's wallet
-        LOGGER.info("Adding funds to agent...")
-        faucet.get_wealth(wallet_address)
-        LOGGER.info("Adding funds to agent...complete")
+        try:
+            LOGGER.info("Adding funds to agent...")
+            faucet.get_wealth(agent.wallet.address())
+            LOGGER.info("Adding funds to agent...complete")
+        except Exception as e:
+            LOGGER.error(f"Failed to add funds to agent: {str(e)}")
 
 
 def register_agent_with_mailbox(agent: Agent, email: str):

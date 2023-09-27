@@ -143,6 +143,7 @@ class Agent(Sink):
     def __init__(
         self,
         name: Optional[str] = None,
+        test: Optional[bool] = True,
         port: Optional[int] = None,
         seed: Optional[str] = None,
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
@@ -167,6 +168,7 @@ class Agent(Sink):
             version (Optional[str]): The version of the agent.
         """
         self._name = name
+        self._test = test
         self._port = port if port is not None else 8000
         self._background_tasks: Set[asyncio.Task] = set()
         self._resolver = (
@@ -210,9 +212,9 @@ class Agent(Sink):
         else:
             self._mailbox_client = None
 
-        self._ledger = get_ledger()
-        self._almanac_contract = get_almanac_contract()
-        self._storage = KeyValueStore(self.address[0:16])
+        self._ledger = get_ledger(self._test)
+        self._almanac_contract = get_almanac_contract(self._test)
+        self._storage = KeyValueStore(self._identity.address[0:16])
         self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
         self._interval_messages: Set[str] = set()
         self._signed_message_handlers: Dict[str, MessageCallback] = {}
@@ -233,7 +235,7 @@ class Agent(Sink):
         self.protocols: Dict[str, Protocol] = {}
 
         self._ctx = Context(
-            self._identity.address,
+            self.address,
             self._name,
             self._storage,
             self._resolver,
@@ -248,7 +250,7 @@ class Agent(Sink):
         )
 
         # register with the dispatcher
-        self._dispatcher.register(self.address, self)
+        self._dispatcher.register(self._identity.address, self)
 
         if not self._use_mailbox:
             self._server = ASGIServer(
@@ -281,7 +283,7 @@ class Agent(Sink):
                 prefix=LEDGER_PREFIX,
             )
         if name is None:
-            self._name = self.address[0:16]
+            self._name = self._identity.address[0:16]
 
     @property
     def name(self) -> str:
@@ -301,7 +303,8 @@ class Agent(Sink):
         Returns:
             str: The agent's address.
         """
-        return self._identity.address
+        prefix = "test-agent://" if self._test else "agent://"
+        return prefix + self._identity.address
 
     @property
     def wallet(self) -> LocalWallet:
@@ -413,7 +416,7 @@ class Agent(Sink):
         assert self._almanac_contract.address is not None
         return self._identity.sign_registration(
             str(self._almanac_contract.address),
-            self._almanac_contract.get_sequence(self.address),
+            self._almanac_contract.get_sequence(self._identity.address),
         )
 
     def update_endpoints(self, endpoints: List[Dict[str, Any]]):
@@ -460,12 +463,12 @@ class Agent(Sink):
         # register if not yet registered or registration is about to expire
         # or anything has changed from the last registration
         if (
-            not self._almanac_contract.is_registered(self.address)
-            or self._almanac_contract.get_expiry(self.address)
+            not self._almanac_contract.is_registered(self._identity.address)
+            or self._almanac_contract.get_expiry(self._identity.address)
             < REGISTRATION_UPDATE_INTERVAL_SECONDS
-            or self._endpoints != self._almanac_contract.get_endpoints(self.address)
+            or self._endpoints != self._almanac_contract.get_endpoints(self._identity.address)
             or list(self.protocols.keys())
-            != self._almanac_contract.get_protocols(self.address)
+            != self._almanac_contract.get_protocols(self._identity.address)
         ):
             agent_balance = self._ledger.query_bank_balance(
                 Address(self.wallet.address())
@@ -482,7 +485,7 @@ class Agent(Sink):
             await self._almanac_contract.register(
                 self._ledger,
                 self.wallet,
-                self.address,
+                self._identity.address,
                 list(self.protocols.keys()),
                 self._endpoints,
                 signature,
@@ -800,7 +803,7 @@ class Agent(Sink):
                 continue
 
             context = Context(
-                self._identity.address,
+                self.address,
                 self._name,
                 self._storage,
                 self._resolver,
