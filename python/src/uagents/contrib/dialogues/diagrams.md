@@ -13,6 +13,7 @@ alt commit
     B ->> A: ResourceReservationConfirmation
 else reject
     A ->> B: ResourceRejection
+    B -->> A: ResourceRejectionConfirmation
 end
 ```
 

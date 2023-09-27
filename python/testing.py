@@ -30,7 +30,7 @@ class ResourceReservation(Model):
 class ResourceReservationConfirmation(Model):
     pass
 
-
+# predefine structure and enable passing specific messages into the structure
 RULES = {
     ResourceQuery: [ResourceAvailability],
     ResourceAvailability: [ResourceReservation, ResourceRejection],
@@ -39,16 +39,23 @@ RULES = {
     ResourceReservationConfirmation: [],
 }
 
-simple_dialogue = dialogue.Dialogue(
-    name="simple_dialogue",
+simple_dialogue1 = dialogue.Dialogue(
+    name="simple_dialogue1",
     version="0.1",
     rules=RULES,
     starter=ResourceQuery,
     ender={ResourceRejection, ResourceReservationConfirmation},
 )
 
+simple_dialogue2 = dialogue.Dialogue(
+    name="simple_dialogue2",
+    version="0.1",
+    rules=RULES,
+    starter=ResourceQuery,
+    ender={ResourceRejection, ResourceReservationConfirmation},
+)
 
-@simple_dialogue.on_message(ResourceQuery, ResourceAvailability)
+@simple_dialogue1.on_message(ResourceQuery, ResourceAvailability)
 async def handle_resource_query(
     ctx: Context,
     sender: str,
@@ -58,7 +65,7 @@ async def handle_resource_query(
     await ctx.send(sender, ResourceAvailability(qty=1))
 
 
-@simple_dialogue.on_message(
+@simple_dialogue1.on_message(
     ResourceAvailability, {ResourceReservation, ResourceRejection}
 )
 async def handle_resource_availability(
@@ -70,7 +77,7 @@ async def handle_resource_availability(
     await ctx.send(sender, ResourceReservation(qty=1))
 
 
-@simple_dialogue.on_message(
+@simple_dialogue1.on_message(
     ResourceReservation,
     ResourceReservationConfirmation,
 )
@@ -81,7 +88,7 @@ async def handle_resource_reservation(
     await ctx.send(sender, ResourceReservationConfirmation())
 
 
-@simple_dialogue.on_message(ResourceRejection)
+@simple_dialogue1.on_message(ResourceRejection)
 async def handle_resource_rejection(
     ctx: Context,
     _sender: str,
@@ -90,7 +97,56 @@ async def handle_resource_rejection(
     ctx.logger.info(f"rejected offer, session: {ctx.session}")
 
 
-@simple_dialogue.on_message(ResourceReservationConfirmation)
+@simple_dialogue1.on_message(ResourceReservationConfirmation)
+async def handle_resource_reservation_confirmation(
+    ctx: Context, sender: str, msg: ResourceReservationConfirmation
+):
+    ctx.logger.info(f"Confirm reservation, session: {ctx.session}")
+    print("---")
+
+@simple_dialogue2.on_message(ResourceQuery, ResourceAvailability)
+async def handle_resource_query(
+    ctx: Context,
+    sender: str,
+    _msg: ResourceQuery,
+):
+    ctx.logger.info(f"Resource query received by {sender[-6:]}, session: {ctx.session}")
+    await ctx.send(sender, ResourceAvailability(qty=1))
+
+
+@simple_dialogue2.on_message(
+    ResourceAvailability, {ResourceReservation, ResourceRejection}
+)
+async def handle_resource_availability(
+    ctx: Context, sender: str, msg: ResourceAvailability
+):
+    ctx.logger.info(f"Received availability, try reservation, session: {ctx.session}")
+    if msg.qty == 0:
+        await ctx.send(sender, ResourceRejection())
+    await ctx.send(sender, ResourceReservation(qty=1))
+
+
+@simple_dialogue2.on_message(
+    ResourceReservation,
+    ResourceReservationConfirmation,
+)
+async def handle_resource_reservation(
+    ctx: Context, sender: str, msg: ResourceReservation
+):
+    ctx.logger.info(f"Received reservation, session: {ctx.session}")
+    await ctx.send(sender, ResourceReservationConfirmation())
+
+
+@simple_dialogue2.on_message(ResourceRejection)
+async def handle_resource_rejection(
+    ctx: Context,
+    _sender: str,
+    msg: ResourceRejection,
+):
+    ctx.logger.info(f"offer was rejected, session: {ctx.session}")
+
+
+@simple_dialogue2.on_message(ResourceReservationConfirmation)
 async def handle_resource_reservation_confirmation(
     ctx: Context, sender: str, msg: ResourceReservationConfirmation
 ):
@@ -98,8 +154,8 @@ async def handle_resource_reservation_confirmation(
     print("---")
 
 
-agent1.include(simple_dialogue)
-agent2.include(simple_dialogue)
+agent1.include(simple_dialogue1)
+agent2.include(simple_dialogue2)
 
 counter = 0
 
@@ -107,13 +163,15 @@ counter = 0
 @agent1.on_interval(10)
 async def handle_interval(ctx: Context):
     global counter
-    if counter == 0:
-        counter += 1
-        return
-    await ctx.send(agent2.address, ResourceQuery())
-
+    print(f"counter: {counter}")
+    if counter == 1:
+        await ctx.send(agent2.address, ResourceQuery())
+    if counter == 2:
+        await ctx.send(agent2.address, ResourceRejection())
+    counter += 1
 
 if __name__ == "__main__":
+    # TODO: do withouth bureau to have separate states
     bureau = Bureau(port=8080, endpoint="http://localhost:8080/submit")
     bureau.add(agent1)
     bureau.add(agent2)

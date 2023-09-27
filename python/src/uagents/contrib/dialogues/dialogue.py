@@ -113,14 +113,16 @@ class Dialogue(Protocol):
         ender: Optional[type[Model] | set[type[Model]]] = None,
     ) -> None:
         self._id = dialogue_id or uuid4()  # id of the dialogue
-        self._rules = self._build_rules(rules)  # which messages are allowed
+        self._rules = self._build_rules(rules)  # DAG of dialogue represented by message digests
         self._starter = Model.build_schema_digest(
             starter
         )  # first message of the dialogue
         self._ender = set(
             Model.build_schema_digest(e) for e in ender
         )  # last message of the dialogue
-        self._current_state: str = None  # current state of the dialogue (as digest)
+        self._states: dict[
+            UUID, str
+        ] = {}  # current state of the dialogue (as digest) per session; include msgstatus?
         self._sessions: dict[
             UUID, list[(SenderStr, ReceiverStr, JsonStr)]
         ] = {}  # session + message storage
@@ -146,6 +148,13 @@ class Dialogue(Protocol):
         """
         return self._rules
 
+    # @property
+    def state(self, session_id: UUID) -> str:
+        if session_id in self._states:
+            return self._states[session_id]
+        else:
+            return ""
+
     def is_starter(self, digest: str) -> bool:
         return self._starter == digest
 
@@ -162,21 +171,21 @@ class Dialogue(Protocol):
         Returns:
             dict[str, list[str]]: Rules for the dialogue.
         """
-        return [
-            {
+        return {
                 Model.build_schema_digest(key): [
                     Model.build_schema_digest(v) for v in values
                 ]
+                for key, values in rules.items()
             }
-            for key, values in rules.items()
-        ]
 
-    def update_state(self, digest: str) -> None:
-        self._current_state = digest
+    def update_state(self, digest: str, session_id) -> None:
+        self._states[session_id] = digest
+        if session_id not in self._sessions:
+            self.add_session(session_id)
 
-    def add_session(self, session_id, sender, receiver, message) -> None:
+    def add_session(self, session_id) -> None:
         self._sessions[session_id] = []
-        self._sessions[session_id].append((sender, receiver, message))
+        # self._sessions[session_id].append((sender, receiver, message))
 
     def cleanup_session(self, session_id) -> None:
         self._sessions.pop(session_id)
@@ -190,14 +199,20 @@ class Dialogue(Protocol):
     # def _get_messages_by_session(self, session_id: UUID):
     #     return [msg for msg in self._messages if msg[0] == session_id]
 
-    # def _is_valid_message(self, session_id: UUID, msg: type[Model]) -> bool:
-    #     # get last message from session stack
-    #     messages = self._get_messages_by_session(session_id)
-    #     if not messages:
-    #         return False
-    #     last_msg = messages[-1][1]
-    #     allowed_msgs = self._rules.get(Model.build_schema_digest(last_msg), [])
-    #     # check if message is allowed
-    #     if msg not in allowed_msgs:
-    #         return False
-    #     return True
+    def is_valid_message(self, session_id: UUID, msg_digest: str) -> bool:
+        # get last message from session stack
+        # messages = self._get_messages_by_session(session_id)
+        # if not messages:
+        #     return False
+        # last_msg = messages[-1][1]
+        print(f"target: {self.models[msg_digest]}")
+
+        # if this session is not existing locally, only starter message is accepted
+        if session_id not in self._sessions:
+            return self.is_starter(msg_digest)
+        # get allowed messages for current state of session
+        allowed_msgs = self._rules.get(self.state(session_id), [])
+        for m in allowed_msgs:
+            print(f"allowed: {self.models[m]}")
+        # check if message is allowed
+        return msg_digest in allowed_msgs

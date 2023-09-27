@@ -9,6 +9,7 @@ import requests
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
+from uagents.contrib.dialogues import dialogue
 
 from uagents.asgi import ASGIServer
 from uagents.context import (
@@ -663,6 +664,8 @@ class Agent(Sink):
 
         if protocol.digest is not None:
             self.protocols[protocol.digest] = protocol
+            if self._ctx is not None:
+                self._ctx.update_protocols(protocol, protocol.digest)
 
         if publish_manifest:
             self.publish_manifest(protocol.manifest())
@@ -848,28 +851,46 @@ class Agent(Sink):
                     # steps:
                     #   - check if a session id is already in context
 
+                    # TODO check if this message is part of a Dialogue, if not skip dialogue logic
+
+                    is_valid = True
                     for protocol in self.protocols.values():
                         if hasattr(protocol, "rules"):
-                            # check if matching dialogue
-                            protocol.update_state(schema_digest)
-                            # at the moment this update_state limits us to one
-                            # instance of a dialogue per protocol at all times
+
+                            # print(f"is dialogue instance: {isinstance(protocol, dialogue.Dialogue)}")
+                            state = protocol.state(session)
+                            self._ctx.logger.info(f"current state: {protocol.models[state] if state != '' else 'n/a'}")
+                            self._ctx.logger.info(f"messsage allowed: {protocol.is_valid_message(session, schema_digest)}")
+
+                            if not protocol.is_valid_message(session, schema_digest):
+                                is_valid = False
+                                await _handle_error(
+                                    context,
+                                    sender,
+                                    ErrorMessage(
+                                        error="Unexpected message in dialogue"
+                                    )
+                                )
+                                break
+
                             if protocol.is_starter(schema_digest):
-                                print("dialogue started")
-                                protocol.add_session(
+                                self._ctx.logger.info("dialogue started")
+                                protocol.add_session(session)
+                                protocol.add_message(
                                     session, sender, self.address, message
                                 )
                             elif protocol.is_ender(schema_digest):
-                                print("dialogue ended, cleaning up session")
+                                self._ctx.logger.info("dialogue ended, cleaning up session")
                                 context.dialogue = protocol.get_session(session)
                                 protocol.cleanup_session(session)
                             else:
-                                print("dialogue picked up")
+                                self._ctx.logger.info("dialogue picked up")
                                 context.dialogue = protocol.get_session(session)
                                 protocol.add_message(
                                     session, sender, self.address, message
                                 )
-
+                    if not is_valid:
+                        continue
                     handler = self._signed_message_handlers.get(schema_digest)
                 elif schema_digest in self._signed_message_handlers:
                     await _handle_error(
