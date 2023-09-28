@@ -83,7 +83,9 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
         query_address = get_agent_address(agent.name + "." + domain)
 
         self.assertEqual(
-            query_address == agent.address[-65:], True, "Service contract registration failed"
+            query_address == agent.address[-65:],
+            True,
+            "Service contract registration failed",
         )
 
 

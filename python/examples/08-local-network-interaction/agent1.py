@@ -17,7 +17,7 @@ bob = Agent(
 )
 
 fund_agent_if_low(bob)
-print(bob.address)
+
 
 @bob.on_message(model=Message)
 async def message_handler(ctx: Context, sender: str, msg: Message):

@@ -8,7 +8,7 @@ from uvicorn.logging import DefaultFormatter
 logging.basicConfig(level=logging.INFO)
 
 
-#class AgentNetwork(Enum):
+# class AgentNetwork(Enum):
 #    FETCHAI_TESTNET = 1
 #    FETCHAI_MAINNET = 2
 
@@ -16,7 +16,9 @@ AGENT_PREFIX = "agent"
 LEDGER_PREFIX = "fetch"
 USER_PREFIX = "user"
 CONTRACT_ALMANAC = "fetch1tjagw8g8nn4cwuw00cf0m5tl4l6wfw9c0ue507fhx9e3yrsck8zs0l3q4w"
-TESTNET_CONTRACT_ALMANAC = "fetch1tjagw8g8nn4cwuw00cf0m5tl4l6wfw9c0ue507fhx9e3yrsck8zs0l3q4w"
+TESTNET_CONTRACT_ALMANAC = (
+    "fetch1tjagw8g8nn4cwuw00cf0m5tl4l6wfw9c0ue507fhx9e3yrsck8zs0l3q4w"
+)
 CONTRACT_NAME_SERVICE = (
     "fetch1mxz8kn3l5ksaftx8a9pj9a6prpzk2uhxnqdkwuqvuh37tw80xu6qges77l"
 )
@@ -25,7 +27,7 @@ REGISTRATION_DENOM = "atestfet"
 REGISTRATION_UPDATE_INTERVAL_SECONDS = 3600
 REGISTRATION_RETRY_INTERVAL_SECONDS = 60
 AVERAGE_BLOCK_INTERVAL = 5.7
-#AGENT_NETWORK = AgentNetwork.FETCHAI_TESTNET
+# AGENT_NETWORK = AgentNetwork.FETCHAI_TESTNET
 
 AGENTVERSE_URL = "https://agentverse.ai"
 ALMANAC_API_URL = AGENTVERSE_URL + "/v1/almanac/"

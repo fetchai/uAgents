@@ -35,7 +35,10 @@ logger = get_logger("network")
 
 _faucet_api = FaucetApi(NetworkConfig.fetchai_stable_testnet())
 _testnet_ledger = LedgerClient(NetworkConfig.fetchai_stable_testnet())
-_ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
+_ledger = LedgerClient(
+    NetworkConfig.fetchai_stable_testnet()
+)  # LedgerClient(NetworkConfig.fetchai_mainnet())
+
 
 def get_ledger(test: bool) -> LedgerClient:
     """
@@ -45,7 +48,7 @@ def get_ledger(test: bool) -> LedgerClient:
         LedgerClient: The Ledger client instance.
     """
     if test:
-        return _testnet_ledger 
+        return _testnet_ledger
     return _ledger
 
 
@@ -247,7 +250,9 @@ class AlmanacContract(LedgerContract):
 
 
 _almanac_contract = AlmanacContract(None, _ledger, CONTRACT_ALMANAC)
-_testnet_almanac_contract = AlmanacContract(None, _testnet_ledger, TESTNET_CONTRACT_ALMANAC)
+_testnet_almanac_contract = AlmanacContract(
+    None, _testnet_ledger, TESTNET_CONTRACT_ALMANAC
+)
 
 
 def get_almanac_contract(test: bool) -> AlmanacContract:
@@ -378,7 +383,9 @@ class NameServiceContract(LedgerContract):
         logger.info("Registering name...")
         chain_id = ledger.query_chain_id()
 
-        if not get_almanac_contract(chain_id == "dorado-1").is_registered(agent_address):
+        if not get_almanac_contract(chain_id == "dorado-1").is_registered(
+            agent_address
+        ):
             logger.warning(
                 f"Agent {name} needs to be registered in almanac contract to register its name"
             )
@@ -406,7 +413,9 @@ class NameServiceContract(LedgerContract):
         logger.info("Registering name...complete")
 
 
-_name_service_contract = NameServiceContract(None, _testnet_ledger, CONTRACT_NAME_SERVICE)
+_name_service_contract = NameServiceContract(
+    None, _testnet_ledger, CONTRACT_NAME_SERVICE
+)
 
 
 def get_name_service_contract() -> NameServiceContract:

@@ -10,6 +10,7 @@ from uagents.network import get_almanac_contract, get_name_service_contract
 _testnet_prefixe = "test-agent://"
 _mainnet_prefix = "agent://"
 
+
 def query_record(agent_address: str, service: str, test: bool) -> dict:
     """
     Query a record from the Almanac contract.
@@ -61,7 +62,7 @@ def is_agent_address(address) -> tuple:
     if not isinstance(address, str):
         return False
 
-    prefixes = [_testnet_prefixe , _mainnet_prefix, ""]
+    prefixes = [_testnet_prefixe, _mainnet_prefix, ""]
     expected_length = 65
 
     for prefix in prefixes:
@@ -113,8 +114,12 @@ class GlobalResolver(Resolver):
         """
         is_address, prefix = is_agent_address(destination)
         if is_address:
-            return await self._almanc_resolver.resolve(destination[len(prefix):], not prefix == _mainnet_prefix)
-        return await self._name_service_resolver.resolve(destination, not prefix == _mainnet_prefix)
+            return await self._almanc_resolver.resolve(
+                destination[len(prefix) :], not prefix == _mainnet_prefix
+            )
+        return await self._name_service_resolver.resolve(
+            destination, not prefix == _mainnet_prefix
+        )
 
 
 class AlmanacResolver(Resolver):
@@ -127,7 +132,9 @@ class AlmanacResolver(Resolver):
         """
         self._max_endpoints = max_endpoints or DEFAULT_MAX_ENDPOINTS
 
-    async def resolve(self, destination: str, test: bool) -> Tuple[Optional[str], List[str]]:
+    async def resolve(
+        self, destination: str, test: bool
+    ) -> Tuple[Optional[str], List[str]]:
         """
         Resolve the destination using the Almanac contract.
 
@@ -167,7 +174,9 @@ class NameServiceResolver(Resolver):
         self._max_endpoints = max_endpoints or DEFAULT_MAX_ENDPOINTS
         self._almanac_resolver = AlmanacResolver(max_endpoints=self._max_endpoints)
 
-    async def resolve(self, destination: str, test: bool) -> Tuple[Optional[str], List[str]]:
+    async def resolve(
+        self, destination: str, test: bool
+    ) -> Tuple[Optional[str], List[str]]:
         """
         Resolve the destination using the NameService contract.
 

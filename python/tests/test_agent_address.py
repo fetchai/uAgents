@@ -5,6 +5,7 @@ from uagents.crypto import Identity
 
 test_prefix = "test-agent://"
 
+
 class TestAgentAdress(unittest.TestCase):
     def test_agent_from_seed(self):
         alice = Agent(name="alice", seed="alice recovery password")
@@ -19,7 +20,9 @@ class TestAgentAdress(unittest.TestCase):
             "Alice's address does not match",
         )
         self.assertEqual(
-            bob.address == test_prefix + bob_target_address, True, "Bobs's address does not match"
+            bob.address == test_prefix + bob_target_address,
+            True,
+            "Bobs's address does not match",
         )
 
     def test_agent_generate(self):

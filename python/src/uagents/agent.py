@@ -466,7 +466,8 @@ class Agent(Sink):
             not self._almanac_contract.is_registered(self._identity.address)
             or self._almanac_contract.get_expiry(self._identity.address)
             < REGISTRATION_UPDATE_INTERVAL_SECONDS
-            or self._endpoints != self._almanac_contract.get_endpoints(self._identity.address)
+            or self._endpoints
+            != self._almanac_contract.get_endpoints(self._identity.address)
             or list(self.protocols.keys())
             != self._almanac_contract.get_protocols(self._identity.address)
         ):
