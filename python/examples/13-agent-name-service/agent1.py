@@ -4,6 +4,8 @@ from uagents.network import get_ledger, get_faucet, get_name_service_contract
 from uagents.setup import fund_agent_if_low
 from uagents import Agent, Context, Model
 
+from uagents.config import REGISTRATION_FEE
+
 
 # NOTE: Run agent1.py before running agent2.py
 
@@ -19,21 +21,25 @@ bob = Agent(
     endpoint=["http://localhost:8001/submit"],
 )
 
+fund_agent_if_low(bob)
 
 my_wallet = LocalWallet.from_unsafe_seed("registration test wallet")
 name_service_contract = get_name_service_contract()
 DOMAIN = "agent"
 
 faucet = get_faucet()
-faucet.get_wealth(my_wallet)
+agent_balance = bob._ledger.query_bank_balance(my_wallet)
 
-fund_agent_if_low(bob)
+if agent_balance < REGISTRATION_FEE:
+    print("Adding funds to wallet...")
+    faucet.get_wealth(my_wallet)
+    print("Adding funds to wallet...complete")
 
 
 @bob.on_event("startup")
 async def register_agent_name(ctx: Context):
     await name_service_contract.register(
-        bob._ledger, my_wallet, ctx.address, ctx.name, DOMAIN
+        bob._ledger, my_wallet, ctx.address[-65:], ctx.name, DOMAIN
     )
 
 

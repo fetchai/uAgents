@@ -32,8 +32,8 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         message = Message(message="hello")
         env = Envelope(
             version=1,
-            sender=self.bob.address,
-            target=self.agent.address,
+            sender=self.bob.address[-65:],
+            target=self.agent.address[-65:],
             session=uuid.uuid4(),
             protocol=Model.build_schema_digest(message),
         )
@@ -77,7 +77,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         env = Envelope(
             version=1,
             sender=user,
-            target=self.agent.address,
+            target=self.agent.address[-65:],
             session=session,
             protocol=Model.build_schema_digest(message),
         )
@@ -121,7 +121,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         env = Envelope(
             version=1,
             sender=user,
-            target=self.agent.address,
+            target=self.agent.address[-65:],
             session=session,
             protocol=Model.build_schema_digest(message),
         )
@@ -146,7 +146,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                 ),
                 asyncio.create_task(self.mock_process_sync_message(user, reply)),
             )
-        response = enclose_response(reply, self.agent.address, session)
+        response = enclose_response(reply, self.agent.address[-65:], session)
         mock_send.assert_has_calls(
             [
                 call(
@@ -171,8 +171,8 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         session = uuid.uuid4()
         env = Envelope(
             version=1,
-            sender=self.bob.address,
-            target=self.agent.address,
+            sender=self.bob.address[-65:],
+            target=self.agent.address[-65:],
             session=session,
             protocol=Model.build_schema_digest(message),
         )
@@ -197,10 +197,10 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                     )
                 ),
                 asyncio.create_task(
-                    self.mock_process_sync_message(self.bob.address, reply)
+                    self.mock_process_sync_message(self.bob.address[-65:], reply)
                 ),
             )
-        response = enclose_response(reply, self.agent.address, session)
+        response = enclose_response(reply, self.agent.address[-65:], session)
         mock_send.assert_has_calls(
             [
                 call(
@@ -223,8 +223,8 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         message = Message(message="hello")
         env = Envelope(
             version=1,
-            sender=self.bob.address,
-            target=self.agent.address,
+            sender=self.bob.address[-65:],
+            target=self.agent.address[-65:],
             session=uuid.uuid4(),
             protocol=Model.build_schema_digest(message),
         )
@@ -265,8 +265,8 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         message = Message(message="hello")
         env = Envelope(
             version=1,
-            sender=self.bob.address,
-            target=self.agent.address,
+            sender=self.bob.address[-65:],
+            target=self.agent.address[-65:],
             session=uuid.uuid4(),
             protocol=Model.build_schema_digest(message),
         )
@@ -339,8 +339,8 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         message = Message(message="hello")
         env = Envelope(
             version=1,
-            sender=self.bob.address,
-            target=self.agent.address,
+            sender=self.bob.address[-65:],
+            target=self.agent.address[-65:],
             session=uuid.uuid4(),
             protocol=Model.build_schema_digest(message),
         )
@@ -380,8 +380,8 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         message = Message(message="hello")
         env = Envelope(
             version=1,
-            sender=self.bob.address,
-            target=self.agent.address,
+            sender=self.bob.address[-65:],
+            target=self.agent.address[-65:],
             session=uuid.uuid4(),
             protocol=Model.build_schema_digest(message),
         )
@@ -422,7 +422,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         message = Message(message="hello")
         env = Envelope(
             version=1,
-            sender=self.bob.address,
+            sender=self.bob.address[-65:],
             target=generate_user_address(),
             session=uuid.uuid4(),
             protocol=Model.build_schema_digest(message),

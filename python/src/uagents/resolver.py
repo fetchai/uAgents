@@ -114,7 +114,7 @@ class GlobalResolver(Resolver):
         is_address, prefix = is_agent_address(destination)
         if is_address:
             return await self._almanc_resolver.resolve(destination[len(prefix):], not prefix == _mainnet_prefix)
-        return await self._name_service_resolver.resolve(destination)
+        return await self._name_service_resolver.resolve(destination, not prefix == _mainnet_prefix)
 
 
 class AlmanacResolver(Resolver):
@@ -167,7 +167,7 @@ class NameServiceResolver(Resolver):
         self._max_endpoints = max_endpoints or DEFAULT_MAX_ENDPOINTS
         self._almanac_resolver = AlmanacResolver(max_endpoints=self._max_endpoints)
 
-    async def resolve(self, destination: str) -> Tuple[Optional[str], List[str]]:
+    async def resolve(self, destination: str, test: bool) -> Tuple[Optional[str], List[str]]:
         """
         Resolve the destination using the NameService contract.
 
@@ -179,7 +179,7 @@ class NameServiceResolver(Resolver):
         """
         address = get_agent_address(destination)
         if address is not None:
-            return await self._almanac_resolver.resolve(address)
+            return await self._almanac_resolver.resolve(address, test)
         return None, []
 
 
