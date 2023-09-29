@@ -4,11 +4,10 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple
 import random
 
-from uagents.config import DEFAULT_MAX_ENDPOINTS
+from uagents.config import DEFAULT_MAX_ENDPOINTS, TESTNET_PREFIX, MAINNET_PREFIX
 from uagents.network import get_almanac_contract, get_name_service_contract
 
-TESTNET_PREFIX = "test-agent://"
-MAINNET_PREFIX = "agent://"
+# pylint: disable=arguments-differ
 
 
 def query_record(agent_address: str, service: str, test: bool) -> dict:

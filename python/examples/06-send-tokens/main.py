@@ -38,7 +38,7 @@ async def request_funds(ctx: Context):
 @alice.on_message(model=TransactionInfo)
 async def confirm_transaction(ctx: Context, sender: str, msg: TransactionInfo):
     ctx.logger.info(f"Received transaction info from {sender}: {msg}")
-    tx_resp = await wait_for_tx_to_complete(msg.tx_hash, alice._ledger)
+    tx_resp = await wait_for_tx_to_complete(msg.tx_hash, ctx.ledger)
 
     coin_received = tx_resp.events["coin_received"]
     if (
