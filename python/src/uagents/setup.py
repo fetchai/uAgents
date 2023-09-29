@@ -10,6 +10,7 @@ from uagents.network import get_ledger, get_faucet
 LOGGER = get_logger("setup")
 
 
+# pylint: disable=protected-access
 def fund_agent_if_low(agent: Agent):
     """
     Checks the agent's wallet balance and adds funds if it's below the registration fee.
@@ -27,7 +28,8 @@ def fund_agent_if_low(agent: Agent):
 
     if not agent._test:
         LOGGER.warning(
-            f"Faucet only available for testnet, please add FET tokens to your wallet {agent.wallet.address()}"
+            "Faucet only available for testnet, please add FET tokens to your wallet "
+            f"{agent.wallet.address()}"
         )
         LOGGER.info(f"Current FET balance: {agent_balance}")
         return
@@ -37,8 +39,8 @@ def fund_agent_if_low(agent: Agent):
             LOGGER.info("Adding funds to agent...")
             faucet.get_wealth(agent.wallet.address())
             LOGGER.info("Adding funds to agent...complete")
-        except Exception as e:
-            LOGGER.error(f"Failed to add funds to agent: {str(e)}")
+        except Exception as ex:
+            LOGGER.error(f"Failed to add funds to agent: {str(ex)}")
 
 
 def register_agent_with_mailbox(agent: Agent, email: str):

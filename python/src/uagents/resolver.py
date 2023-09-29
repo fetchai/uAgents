@@ -7,8 +7,8 @@ import random
 from uagents.config import DEFAULT_MAX_ENDPOINTS
 from uagents.network import get_almanac_contract, get_name_service_contract
 
-_testnet_prefixe = "test-agent://"
-_mainnet_prefix = "agent://"
+TESTNET_PREFIX = "test-agent://"
+MAINNET_PREFIX = "agent://"
 
 
 def query_record(agent_address: str, service: str, test: bool) -> dict:
@@ -62,7 +62,7 @@ def is_agent_address(address) -> tuple:
     if not isinstance(address, str):
         return False
 
-    prefixes = [_testnet_prefixe, _mainnet_prefix, ""]
+    prefixes = [TESTNET_PREFIX, MAINNET_PREFIX, ""]
     expected_length = 65
 
     for prefix in prefixes:
@@ -115,10 +115,10 @@ class GlobalResolver(Resolver):
         is_address, prefix = is_agent_address(destination)
         if is_address:
             return await self._almanc_resolver.resolve(
-                destination[len(prefix) :], not prefix == _mainnet_prefix
+                destination[len(prefix) :], not prefix == MAINNET_PREFIX
             )
         return await self._name_service_resolver.resolve(
-            destination, not prefix == _mainnet_prefix
+            destination, not prefix == MAINNET_PREFIX
         )
 
 

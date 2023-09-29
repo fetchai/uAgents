@@ -2,6 +2,8 @@ from uagents import Agent, Bureau, Context, Model
 from uagents.network import wait_for_tx_to_complete
 from uagents.setup import fund_agent_if_low
 
+# pylint: disable=protected-access
+
 
 class PaymentRequest(Model):
     wallet_address: str

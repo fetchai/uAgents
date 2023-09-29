@@ -1,6 +1,6 @@
 from cosmpy.aerial.wallet import LocalWallet
 
-from uagents.network import get_ledger, get_faucet, get_name_service_contract
+from uagents.network import get_faucet, get_name_service_contract
 from uagents.setup import fund_agent_if_low
 from uagents import Agent, Context, Model
 
@@ -8,6 +8,8 @@ from uagents.config import REGISTRATION_FEE
 
 
 # NOTE: Run agent1.py before running agent2.py
+
+# pylint: disable=protected-access
 
 
 class Message(Model):
@@ -28,9 +30,9 @@ name_service_contract = get_name_service_contract()
 DOMAIN = "agent"
 
 faucet = get_faucet()
-agent_balance = bob._ledger.query_bank_balance(my_wallet)
+AGENT_BALANCE = bob._ledger.query_bank_balance(my_wallet)
 
-if agent_balance < REGISTRATION_FEE:
+if AGENT_BALANCE < REGISTRATION_FEE:
     print("Adding funds to wallet...")
     faucet.get_wealth(my_wallet)
     print("Adding funds to wallet...complete")
