@@ -9,6 +9,7 @@ import requests
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
+from cosmpy.aerial.client import LedgerClient
 
 from uagents.asgi import ASGIServer
 from uagents.context import (
@@ -317,6 +318,16 @@ class Agent(Sink):
         return self._wallet
 
     @property
+    def ledger(self) -> LedgerClient:
+        """
+        Get the ledger of the agent.
+
+        Returns:
+            LedgerClient: The agent's ledger
+        """
+        return self._ledger
+
+    @property
     def storage(self) -> KeyValueStore:
         """
         Get the key-value store used by the agent for data storage.
@@ -355,6 +366,17 @@ class Agent(Sink):
             MailboxClient: The mailbox client instance.
         """
         return self._mailbox_client
+
+    @property
+    def balance(self) -> int:
+        """
+        Get the balance of the agent.
+
+        Returns:
+            int: Bank balance.
+        """
+
+        return self.ledger.query_bank_balance(Address(self.wallet.address()))
 
     @mailbox.setter
     def mailbox(self, config: Union[str, Dict[str, str]]):
@@ -471,7 +493,7 @@ class Agent(Sink):
             or list(self.protocols.keys())
             != self._almanac_contract.get_protocols(self._identity.address)
         ):
-            agent_balance = self._ledger.query_bank_balance(
+            agent_balance = self.ledger.query_bank_balance(
                 Address(self.wallet.address())
             )
 
@@ -484,7 +506,7 @@ class Agent(Sink):
             self._logger.info("Registering on almanac contract...")
             signature = self.sign_registration()
             await self._almanac_contract.register(
-                self._ledger,
+                self.ledger,
                 self.wallet,
                 self._identity.address,
                 list(self.protocols.keys()),
