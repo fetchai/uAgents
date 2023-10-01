@@ -1,7 +1,6 @@
 import asyncio
 from asyncio import Queue
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
-from uagents import Agent, Context, Protocol, Model
+from uagents import Agent, Context, Protocol
 from messages.basic import TelegramRequest, TelegramResponse, Error
 from uagents.setup import fund_agent_if_low
 
@@ -30,19 +29,13 @@ async def process_queue(bot):
             await bot.send_message(chat_id=chat_id, text=text)
         await asyncio.sleep(5)
 
-
-async def start_callback(update, context):
-    await message_queue.put((update.effective_chat.id, "Hello from agent"))
-
 # Declaration of a message event handler for handling TelegramRequests and send respective response.
 
 
 @telegram_agent_protocol.on_message(model=TelegramRequest, replies={TelegramResponse, Error})
 async def handle_request(ctx: Context, sender: str, request: TelegramRequest):
     ctx.logger.info(f"Got request from {sender}: {request.text}")
-    print("trying to send")
-    await message_queue.put((request.chat_id, "Your message here"))
-    print("sent")
+    await message_queue.put((request.chat_id, request.text))
 
 # Include protocol to the agent
 telegram_agent.include(telegram_agent_protocol)

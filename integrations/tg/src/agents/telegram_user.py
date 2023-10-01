@@ -2,7 +2,7 @@ from uagents import Agent, Context, Protocol  # Import necessary modules
 from messages.basic import TelegramRequest, TelegramResponse, Error
 from uagents.setup import fund_agent_if_low
 
-INPUT_TEXT = "Stocks rallied and the British pound gained."
+INPUT_TEXT = "This is a test message for telegram sent by fetch agent."
 AI_MODEL_AGENT_ADDRESS = "agent1qdesxanj9s5l9xk4f6nsqqp2k93l7un859s0q3mrcwftxpe60xjg5crcf38"
 
 user_agent = Agent(
@@ -22,14 +22,14 @@ async def text_classification(ctx: Context):
     await ctx.send(AI_MODEL_AGENT_ADDRESS, TelegramRequest(text=INPUT_TEXT, chat_id=2032178797))
 
 
-# @user_agent_protocol.on_message(model=UAResponse)
-# async def handle_data(ctx: Context, sender: str, data: UAResponse):
-#     ctx.logger.info(f"Got response from AI model agent: {data.response}")
+@user_agent_protocol.on_message(model=TelegramResponse)
+async def handle_data(ctx: Context, sender: str, data: TelegramResponse):
+    ctx.logger.info(f"Got response from AI model agent: {data.text}")
 
 
-# @user_agent_protocol.on_message(model=Error)
-# async def handle_error(ctx: Context, sender: str, error: Error):
-#     ctx.logger.info(f"Got error from AI model agent: {error}")
+@user_agent_protocol.on_message(model=Error)
+async def handle_error(ctx: Context, sender: str, error: Error):
+    ctx.logger.info(f"Got error from AI model agent: {error.error}")
 
 user_agent.include(user_agent_protocol)
 

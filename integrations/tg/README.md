@@ -1,6 +1,6 @@
 # Telegram Agent
 
-The Telegram Agent is a Python agent that serves as an intermediary between other agents in your system and a Telegram bot for sending and receiving messages.
+The Telegram Agent is a Python agent that serves as an intermediary between other agents in your system and a Telegram bot for sending messages.
 
 ## Prerequisites
 
