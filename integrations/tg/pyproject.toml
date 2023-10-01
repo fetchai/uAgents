@@ -7,3 +7,4 @@ authors = ["Alexander Ekzarov"]
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
 uagents = "*"
+python-telegram-bot = "^13.0"
