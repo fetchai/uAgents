@@ -7,7 +7,7 @@ from agents.telegram_agent import process_queue, telegram_agent
 from agents.telegram_user import user_agent
 
 # Telegram bot token
-TELEGRAM_BOT_TOKEN = "6581889120:AAFZNdv4vGaRK9TDHflu_Ubr_T49svLmiB0"
+TELEGRAM_BOT_TOKEN = "YOUR_TOKEN_HERE"
 
 if __name__ == "__main__":
     bureau = Bureau(endpoint="http://127.0.0.1:8000/submit", port=8000)
