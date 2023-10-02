@@ -28,7 +28,7 @@ fund_agent_if_low(bob)
 @alice.on_interval(period=10.0)
 async def request_funds(ctx: Context):
     await ctx.send(
-        bob.address,
+        bob.network_address,
         PaymentRequest(
             wallet_address=str(ctx.wallet.address()), amount=AMOUNT, denom=DENOM
         ),
@@ -58,7 +58,7 @@ async def send_payment(ctx: Context, sender: str, msg: PaymentRequest):
     )
 
     # send the tx hash so alice can confirm
-    await ctx.send(alice.address, TransactionInfo(tx_hash=transaction.tx_hash))
+    await ctx.send(alice.network_address, TransactionInfo(tx_hash=transaction.tx_hash))
 
 
 bureau = Bureau()

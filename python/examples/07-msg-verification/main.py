@@ -24,7 +24,7 @@ async def send_message(ctx: Context):
     msg = "Hello there bob."
     digest = encode(msg)
     await ctx.send(
-        bob.address,
+        bob.network_address,
         Message(message=msg, digest=digest.hex(), signature=alice.sign_digest(digest)),
     )
 
@@ -53,7 +53,7 @@ async def bob_rx_message(ctx: Context, sender: str, msg: Message):
 
     # send the response
     await ctx.send(
-        alice.address,
+        alice.network_address,
         Message(message=msg, digest=digest.hex(), signature=bob.sign_digest(digest)),
     )
 

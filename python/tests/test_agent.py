@@ -30,7 +30,7 @@ class TestAgent(unittest.TestCase):
         self.assertIsNotNone(self.agent._wallet)
         self.assertIsNotNone(self.agent._identity)
         self.assertIsNotNone(self.agent._server)
-        self.assertTrue(self.agent._dispatcher.contains(self.agent.address[-65:]))
+        self.assertTrue(self.agent._dispatcher.contains(self.agent.address))
         self.assertTrue(isinstance(self.agent._resolver, GlobalResolver))
 
     def test_agent_on_interval(self):

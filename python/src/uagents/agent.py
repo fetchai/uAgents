@@ -35,6 +35,8 @@ from uagents.config import (
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     LEDGER_PREFIX,
     REGISTRATION_RETRY_INTERVAL_SECONDS,
+    TESTNET_PREFIX,
+    MAINNET_PREFIX,
     parse_endpoint_config,
     parse_agentverse_config,
     get_logger,
@@ -215,7 +217,7 @@ class Agent(Sink):
 
         self._ledger = get_ledger(self._test)
         self._almanac_contract = get_almanac_contract(self._test)
-        self._storage = KeyValueStore(self._identity.address[0:16])
+        self._storage = KeyValueStore(self.address[0:16])
         self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
         self._interval_messages: Set[str] = set()
         self._signed_message_handlers: Dict[str, MessageCallback] = {}
@@ -236,7 +238,8 @@ class Agent(Sink):
         self.protocols: Dict[str, Protocol] = {}
 
         self._ctx = Context(
-            self.address,
+            self._identity.address,
+            self.network_address,
             self._name,
             self._storage,
             self._resolver,
@@ -251,7 +254,7 @@ class Agent(Sink):
         )
 
         # register with the dispatcher
-        self._dispatcher.register(self._identity.address, self)
+        self._dispatcher.register(self.address, self)
 
         if not self._use_mailbox:
             self._server = ASGIServer(
@@ -284,7 +287,7 @@ class Agent(Sink):
                 prefix=LEDGER_PREFIX,
             )
         if name is None:
-            self._name = self._identity.address[0:16]
+            self._name = self.address[0:16]
 
     @property
     def name(self) -> str:
@@ -304,7 +307,17 @@ class Agent(Sink):
         Returns:
             str: The agent's address.
         """
-        prefix = "test-agent://" if self._test else "agent://"
+        return self._identity.address
+
+    @property
+    def network_address(self) -> str:
+        """
+        Get the address of the agent used for communication including the network prefix.
+
+        Returns:
+            str: The agent's address and network prefix.
+        """
+        prefix = TESTNET_PREFIX if self._test else MAINNET_PREFIX
         return prefix + self._identity.address
 
     @property
@@ -438,7 +451,7 @@ class Agent(Sink):
         assert self._almanac_contract.address is not None
         return self._identity.sign_registration(
             str(self._almanac_contract.address),
-            self._almanac_contract.get_sequence(self._identity.address),
+            self._almanac_contract.get_sequence(self.address),
         )
 
     def update_endpoints(self, endpoints: List[Dict[str, Any]]):
@@ -485,13 +498,12 @@ class Agent(Sink):
         # register if not yet registered or registration is about to expire
         # or anything has changed from the last registration
         if (
-            not self._almanac_contract.is_registered(self._identity.address)
-            or self._almanac_contract.get_expiry(self._identity.address)
+            not self._almanac_contract.is_registered(self.address)
+            or self._almanac_contract.get_expiry(self.address)
             < REGISTRATION_UPDATE_INTERVAL_SECONDS
-            or self._endpoints
-            != self._almanac_contract.get_endpoints(self._identity.address)
+            or self._endpoints != self._almanac_contract.get_endpoints(self.address)
             or list(self.protocols.keys())
-            != self._almanac_contract.get_protocols(self._identity.address)
+            != self._almanac_contract.get_protocols(self.address)
         ):
             agent_balance = self.ledger.query_bank_balance(
                 Address(self.wallet.address())
@@ -508,7 +520,7 @@ class Agent(Sink):
             await self._almanac_contract.register(
                 self.ledger,
                 self.wallet,
-                self._identity.address,
+                self.address,
                 list(self.protocols.keys()),
                 self._endpoints,
                 signature,
@@ -826,7 +838,8 @@ class Agent(Sink):
                 continue
 
             context = Context(
-                self.address,
+                self._identity.address,
+                self.network_address,
                 self._name,
                 self._storage,
                 self._resolver,

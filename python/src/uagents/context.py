@@ -134,6 +134,7 @@ class Context:
     def __init__(
         self,
         address: str,
+        network_address: str,
         name: Optional[str],
         storage: KeyValueStore,
         resolve: Resolver,
@@ -174,6 +175,7 @@ class Context:
         self.ledger = ledger
         self._name = name
         self._address = str(address)
+        self._network_address = str(network_address)
         self._resolver = resolve
         self._identity = identity
         self._queries = queries
@@ -205,6 +207,16 @@ class Context:
             str: The address of the context.
         """
         return self._address
+
+    @property
+    def network_address(self) -> str:
+        """
+        Get the address of the agent used for communication including the network prefix.
+
+        Returns:
+            str: The agent's address and network prefix.
+        """
+        return self._network_address
 
     @property
     def logger(self) -> logging.Logger:
@@ -414,7 +426,7 @@ class Context:
         # Handle local dispatch of messages
         if dispatcher.contains(raw_destination):
             await dispatcher.dispatch(
-                self._identity.address,
+                self.address,
                 raw_destination,
                 schema_digest,
                 json_message,
@@ -457,7 +469,7 @@ class Context:
         # Handle external dispatch of messages
         env = Envelope(
             version=1,
-            sender=self._identity.address,
+            sender=self.address,
             target=destination_address,
             session=self._session or uuid.uuid4(),
             schema_digest=schema_digest,

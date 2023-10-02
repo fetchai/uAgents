@@ -23,7 +23,7 @@ class TestVerify(unittest.TestCase):
         signature = alice.sign_digest(encoded_msg)
 
         # Message signature can be verified using alice address
-        result = Identity.verify_digest(alice.address[-65:], encoded_msg, signature)
+        result = Identity.verify_digest(alice.address, encoded_msg, signature)
 
         self.assertEqual(result, True, "Verification failed")
 

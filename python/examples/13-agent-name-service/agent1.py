@@ -39,7 +39,7 @@ if WALLET_BALANCE < REGISTRATION_FEE:
 @bob.on_event("startup")
 async def register_agent_name(ctx: Context):
     await name_service_contract.register(
-        bob.ledger, my_wallet, ctx.address[-65:], ctx.name, DOMAIN
+        bob.ledger, my_wallet, ctx.address, ctx.name, DOMAIN
     )
 
 
