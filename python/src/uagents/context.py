@@ -29,6 +29,8 @@ from uagents.config import (
     ALMANAC_API_URL,
     DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     DEFAULT_SEARCH_LIMIT,
+    TESTNET_PREFIX,
+    MAINNET_PREFIX,
 )
 from uagents.crypto import Identity
 from uagents.dispatch import JsonStr, dispatcher
@@ -37,12 +39,36 @@ from uagents.models import ErrorMessage, Model
 from uagents.resolver import Resolver
 from uagents.storage import KeyValueStore
 
+
 if TYPE_CHECKING:
     from uagents.protocol import Protocol
 
 IntervalCallback = Callable[["Context"], Awaitable[None]]
 MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
 EventCallback = Callable[["Context"], Awaitable[None]]
+
+
+def extract_agent_address(destination: str) -> str:
+    """
+    Extract the agent address from the provided destination.
+
+    Args:
+        destination (str): The destination address to check and extract.
+
+    Returns:
+        str: The extracted agent address if valid, or None if not valid.
+    """
+
+    prefixes = [TESTNET_PREFIX, MAINNET_PREFIX, ""]
+    expected_length = 65
+
+    for prefix in prefixes:
+        if destination.startswith(prefix) and len(destination) == expected_length + len(
+            prefix
+        ):
+            return destination[len(prefix) :]
+
+    return None
 
 
 class DeliveryStatus(str, Enum):
@@ -387,9 +413,6 @@ class Context:
             MsgStatus: The delivery status of the message.
         """
 
-        # Destination without ledger prefix
-        raw_destination = destination[-65:]
-
         # Check if this message is a reply
         if (
             self._message_received is not None
@@ -407,7 +430,7 @@ class Context:
                     return MsgStatus(
                         status=DeliveryStatus.FAILED,
                         detail="Invalid reply",
-                        destination=raw_destination,
+                        destination=destination,
                         endpoint="",
                     )
         # Check if this message is a valid interval message
@@ -419,36 +442,42 @@ class Context:
                 return MsgStatus(
                     status=DeliveryStatus.FAILED,
                     detail="Invalid interval message",
-                    destination=raw_destination,
+                    destination=destination,
                     endpoint="",
                 )
 
-        # Handle local dispatch of messages
-        if dispatcher.contains(raw_destination):
-            await dispatcher.dispatch(
-                self.address,
-                raw_destination,
-                schema_digest,
-                json_message,
-                self._session,
-            )
-            return MsgStatus(
-                status=DeliveryStatus.DELIVERED,
-                detail="Message dispatched locally",
-                destination=raw_destination,
-                endpoint="",
-            )
+        # Destination without ledger prefix
+        destination_address = extract_agent_address(destination)
 
-        # Handle queries waiting for a response
-        if raw_destination in self._queries:
-            self._queries[raw_destination].set_result((json_message, schema_digest))
-            del self._queries[raw_destination]
-            return MsgStatus(
-                status=DeliveryStatus.DELIVERED,
-                detail="Sync message resolved",
-                destination=raw_destination,
-                endpoint="",
-            )
+        if destination_address is not None:
+            # Handle local dispatch of messages
+            if dispatcher.contains(destination_address):
+                await dispatcher.dispatch(
+                    self.address,
+                    destination_address,
+                    schema_digest,
+                    json_message,
+                    self._session,
+                )
+                return MsgStatus(
+                    status=DeliveryStatus.DELIVERED,
+                    detail="Message dispatched locally",
+                    destination=destination_address,
+                    endpoint="",
+                )
+
+            # Handle queries waiting for a response
+            if destination_address in self._queries:
+                self._queries[destination_address].set_result(
+                    (json_message, schema_digest)
+                )
+                del self._queries[destination_address]
+                return MsgStatus(
+                    status=DeliveryStatus.DELIVERED,
+                    detail="Sync message resolved",
+                    destination=destination_address,
+                    endpoint="",
+                )
 
         # Resolve the destination address and endpoint ('destination' can be a name or address)
         destination_address, endpoints = await self._resolver.resolve(destination)

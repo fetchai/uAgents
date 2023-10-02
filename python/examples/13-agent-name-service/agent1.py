@@ -1,6 +1,6 @@
 from cosmpy.aerial.wallet import LocalWallet
 
-from uagents.network import get_faucet, get_name_service_contract, _testnet_ledger
+from uagents.network import get_faucet, get_ledger, get_name_service_contract
 from uagents.setup import fund_agent_if_low
 from uagents import Agent, Context, Model
 
@@ -28,7 +28,8 @@ name_service_contract = get_name_service_contract()
 DOMAIN = "agent"
 
 faucet = get_faucet()
-WALLET_BALANCE = _testnet_ledger.query_bank_balance(my_wallet)
+ledger = get_ledger(True)
+WALLET_BALANCE = ledger.query_bank_balance(my_wallet)
 
 if WALLET_BALANCE < REGISTRATION_FEE:
     print("Adding funds to wallet...")
