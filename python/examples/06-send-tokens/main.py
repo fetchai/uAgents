@@ -2,8 +2,6 @@ from uagents import Agent, Bureau, Context, Model
 from uagents.network import wait_for_tx_to_complete
 from uagents.setup import fund_agent_if_low
 
-# pylint: disable=protected-access
-
 
 class PaymentRequest(Model):
     wallet_address: str
@@ -28,7 +26,7 @@ fund_agent_if_low(bob)
 @alice.on_interval(period=10.0)
 async def request_funds(ctx: Context):
     await ctx.send(
-        bob.network_address,
+        bob.identifier,
         PaymentRequest(
             wallet_address=str(ctx.wallet.address()), amount=AMOUNT, denom=DENOM
         ),
@@ -58,7 +56,7 @@ async def send_payment(ctx: Context, sender: str, msg: PaymentRequest):
     )
 
     # send the tx hash so alice can confirm
-    await ctx.send(alice.network_address, TransactionInfo(tx_hash=transaction.tx_hash))
+    await ctx.send(alice.identifier, TransactionInfo(tx_hash=transaction.tx_hash))
 
 
 bureau = Bureau()

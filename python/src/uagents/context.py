@@ -134,7 +134,7 @@ class Context:
     def __init__(
         self,
         address: str,
-        network_address: str,
+        identifier: str,
         name: Optional[str],
         storage: KeyValueStore,
         resolve: Resolver,
@@ -175,7 +175,7 @@ class Context:
         self.ledger = ledger
         self._name = name
         self._address = str(address)
-        self._network_address = str(network_address)
+        self._identifier = str(identifier)
         self._resolver = resolve
         self._identity = identity
         self._queries = queries
@@ -209,14 +209,14 @@ class Context:
         return self._address
 
     @property
-    def network_address(self) -> str:
+    def identifier(self) -> str:
         """
         Get the address of the agent used for communication including the network prefix.
 
         Returns:
             str: The agent's address and network prefix.
         """
-        return self._network_address
+        return self._identifier
 
     @property
     def logger(self) -> logging.Logger:

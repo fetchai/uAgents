@@ -239,7 +239,7 @@ class Agent(Sink):
 
         self._ctx = Context(
             self._identity.address,
-            self.network_address,
+            self.identifier,
             self._name,
             self._storage,
             self._resolver,
@@ -310,7 +310,7 @@ class Agent(Sink):
         return self._identity.address
 
     @property
-    def network_address(self) -> str:
+    def identifier(self) -> str:
         """
         Get the address of the agent used for communication including the network prefix.
 
@@ -505,11 +505,7 @@ class Agent(Sink):
             or list(self.protocols.keys())
             != self._almanac_contract.get_protocols(self.address)
         ):
-            agent_balance = self.ledger.query_bank_balance(
-                Address(self.wallet.address())
-            )
-
-            if agent_balance < REGISTRATION_FEE:
+            if self.balance < REGISTRATION_FEE:
                 self._logger.warning(
                     f"I do not have enough funds to register on Almanac contract\
                         \nFund using wallet address: {self.wallet.address()}"
@@ -839,7 +835,7 @@ class Agent(Sink):
 
             context = Context(
                 self._identity.address,
-                self.network_address,
+                self.identifier,
                 self._name,
                 self._storage,
                 self._resolver,
