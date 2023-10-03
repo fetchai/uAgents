@@ -33,8 +33,8 @@ class TestAgentAdress(unittest.TestCase):
             "agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
             "some-prefix://agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
             "other-prefix://agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
-            "some-prefix://agent_name/agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
-            "some-prefix://some_agent_name/agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
+            "prefix://name/agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
+            "agent_name/agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
         ]
 
         for val in valid_addresses:
@@ -49,12 +49,12 @@ class TestAgentAdress(unittest.TestCase):
             "other1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
             "some-prefix:agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
             "other-prefix://agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skes",
-            "some-prefix://agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess/agent_name",
+            "some-prefix://agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess/name",
             "some-prefix::agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
         ]
 
         for val in invalid_addresses:
-            self.assertEqual(extract_agent_address(val) == None, True)
+            self.assertEqual(extract_agent_address(val) is None, True)
 
 
 if __name__ == "__main__":
