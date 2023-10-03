@@ -1,6 +1,13 @@
 from uagents import Agent, Context
 
 agent = Agent(name="alice")
+a = "agent1blahblahblah"
+b = "some-prefix://agent1blahblahblah"
+c = "some-prefix://some_agent_name/agent1blahblahblah"
+
+print(a.split("://")[-1].split("/")[-1])
+print(b.split("://")[-1].split("/")[-1])
+print(c.split("://")[-1].split("/")[-1])
 
 
 @agent.on_event("startup")

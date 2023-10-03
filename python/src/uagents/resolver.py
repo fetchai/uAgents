@@ -4,10 +4,35 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple
 import random
 
-from uagents.config import DEFAULT_MAX_ENDPOINTS, TESTNET_PREFIX, MAINNET_PREFIX
+from uagents.config import (
+    DEFAULT_MAX_ENDPOINTS,
+    TESTNET_PREFIX,
+    MAINNET_PREFIX,
+    AGENT_PREFIX,
+)
 from uagents.network import get_almanac_contract, get_name_service_contract
 
 # pylint: disable=arguments-differ
+
+
+def extract_agent_address(destination: str) -> str:
+    """
+    Extract the agent address from the provided destination.
+
+    Args:
+        destination (str): The destination address to check and extract.
+
+    Returns:
+        str: The extracted agent address if valid, or None if not valid.
+    """
+
+    address = destination.split("://")[-1].split("/")[-1]
+    expected_length = 65
+
+    if len(address) == expected_length and address.startswith(AGENT_PREFIX):
+        return address
+
+    return None
 
 
 def query_record(agent_address: str, service: str, test: bool) -> dict:

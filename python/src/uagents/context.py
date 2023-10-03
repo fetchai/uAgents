@@ -29,14 +29,12 @@ from uagents.config import (
     ALMANAC_API_URL,
     DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     DEFAULT_SEARCH_LIMIT,
-    TESTNET_PREFIX,
-    MAINNET_PREFIX,
 )
 from uagents.crypto import Identity
 from uagents.dispatch import JsonStr, dispatcher
 from uagents.envelope import Envelope
 from uagents.models import ErrorMessage, Model
-from uagents.resolver import Resolver
+from uagents.resolver import Resolver, extract_agent_address
 from uagents.storage import KeyValueStore
 
 
@@ -46,29 +44,6 @@ if TYPE_CHECKING:
 IntervalCallback = Callable[["Context"], Awaitable[None]]
 MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
 EventCallback = Callable[["Context"], Awaitable[None]]
-
-
-def extract_agent_address(destination: str) -> str:
-    """
-    Extract the agent address from the provided destination.
-
-    Args:
-        destination (str): The destination address to check and extract.
-
-    Returns:
-        str: The extracted agent address if valid, or None if not valid.
-    """
-
-    prefixes = [TESTNET_PREFIX, MAINNET_PREFIX, ""]
-    expected_length = 65
-
-    for prefix in prefixes:
-        if destination.startswith(prefix) and len(destination) == expected_length + len(
-            prefix
-        ):
-            return destination[len(prefix) :]
-
-    return None
 
 
 class DeliveryStatus(str, Enum):
@@ -434,17 +409,20 @@ class Context:
                         endpoint="",
                     )
         # Check if this message is a valid interval message
-        if self._message_received is None and self._interval_messages:
-            if schema_digest not in self._interval_messages:
-                self._logger.exception(
-                    f"Outgoing message {message_type} is not a valid interval message"
-                )
-                return MsgStatus(
-                    status=DeliveryStatus.FAILED,
-                    detail="Invalid interval message",
-                    destination=destination,
-                    endpoint="",
-                )
+        if (
+            self._message_received is None
+            and self._interval_messages
+            and schema_digest not in self._interval_messages
+        ):
+            self._logger.exception(
+                f"Outgoing message {message_type} is not a valid interval message"
+            )
+            return MsgStatus(
+                status=DeliveryStatus.FAILED,
+                detail="Invalid interval message",
+                destination=destination,
+                endpoint="",
+            )
 
         # Destination without ledger prefix
         destination_address = extract_agent_address(destination)
