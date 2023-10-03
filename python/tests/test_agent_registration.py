@@ -11,7 +11,7 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
     async def test_almanac_registration(self):
         agent = Agent(endpoint=["http://localhost:8000/submit"])
 
-        fund_agent_if_low(agent)
+        fund_agent_if_low(agent.wallet.address())
 
         await agent.register()
 
@@ -48,7 +48,7 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
 
         domain = "agent"
 
-        fund_agent_if_low(agent)
+        fund_agent_if_low(agent.wallet.address())
 
         await agent.register()
 

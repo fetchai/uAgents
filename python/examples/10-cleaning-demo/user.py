@@ -23,7 +23,7 @@ user = Agent(
     },
 )
 
-fund_agent_if_low(user)
+fund_agent_if_low(user.wallet.address())
 
 request = ServiceRequest(
     user=user.name,

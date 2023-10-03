@@ -21,14 +21,14 @@ bob = Agent(
     endpoint=["http://localhost:8001/submit"],
 )
 
-fund_agent_if_low(bob)
+fund_agent_if_low(bob.wallet.address())
 
 my_wallet = LocalWallet.from_unsafe_seed("registration test wallet")
 name_service_contract = get_name_service_contract()
 DOMAIN = "agent"
 
 faucet = get_faucet()
-ledger = get_ledger(True)
+ledger = get_ledger(test=True)
 WALLET_BALANCE = ledger.query_bank_balance(my_wallet)
 
 if WALLET_BALANCE < REGISTRATION_FEE:

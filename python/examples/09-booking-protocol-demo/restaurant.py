@@ -15,7 +15,7 @@ restaurant = Agent(
     },
 )
 
-fund_agent_if_low(restaurant)
+fund_agent_if_low(restaurant.wallet.address())
 
 # build the restaurant agent from stock protocols and publish their details
 restaurant.include(query_proto, publish_manifest=True)

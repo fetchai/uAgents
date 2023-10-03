@@ -22,7 +22,7 @@ agent = Agent(
     mailbox=f"{API_KEY}@wss://agentverse.ai",
 )
 
-fund_agent_if_low(agent)
+fund_agent_if_low(agent.wallet.address())
 
 
 @agent.on_message(model=Message, replies={Message})

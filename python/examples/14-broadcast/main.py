@@ -8,9 +8,9 @@ alice = Agent(name="alice", seed="alice recovery phrase")
 bob = Agent(name="bob", seed="bob recovery phrase")
 charles = Agent(name="charles", seed="charles recovery phrase")
 
-fund_agent_if_low(alice)
-fund_agent_if_low(bob)
-fund_agent_if_low(charles)
+fund_agent_if_low(alice.wallet.address())
+fund_agent_if_low(bob.wallet.address())
+fund_agent_if_low(charles.wallet.address())
 
 
 class BroadcastExampleRequest(Model):
