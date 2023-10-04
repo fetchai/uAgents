@@ -4,8 +4,6 @@ from uagents.network import get_name_service_contract
 from uagents.setup import fund_agent_if_low
 from uagents import Agent, Context, Model
 
-from uagents.config import REGISTRATION_FEE
-
 
 # NOTE: Run agent1.py before running agent2.py
 
