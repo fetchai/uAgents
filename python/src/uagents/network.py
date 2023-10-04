@@ -327,7 +327,12 @@ class NameServiceContract(LedgerContract):
         return res["is_public"]
 
     def get_registration_tx(
-        self, name: str, wallet_address: str, agent_address: str, domain: str, test: bool
+        self,
+        name: str,
+        wallet_address: str,
+        agent_address: str,
+        domain: str,
+        test: bool,
     ):
         """
         Get the registration transaction for registering a name within a domain.
@@ -358,9 +363,7 @@ class NameServiceContract(LedgerContract):
         contract = TESTNET_CONTRACT_NAME_SERVICE if test else CONTRACT_NAME_SERVICE
         transaction = Transaction()
         transaction.add_message(
-            create_cosmwasm_execute_msg(
-                wallet_address, contract, registration_msg
-            )
+            create_cosmwasm_execute_msg(wallet_address, contract, registration_msg)
         )
 
         return transaction
@@ -401,7 +404,11 @@ class NameServiceContract(LedgerContract):
             return
 
         transaction = self.get_registration_tx(
-            name, str(wallet.address()), agent_address, domain, chain_id == "dorado-1",
+            name,
+            str(wallet.address()),
+            agent_address,
+            domain,
+            chain_id == "dorado-1",
         )
 
         if transaction is None:
@@ -416,9 +423,7 @@ class NameServiceContract(LedgerContract):
         logger.info("Registering name...complete")
 
 
-_name_service_contract = NameServiceContract(
-    None, _ledger, CONTRACT_NAME_SERVICE
-)
+_name_service_contract = NameServiceContract(None, _ledger, CONTRACT_NAME_SERVICE)
 _testnet_name_service_contract = NameServiceContract(
     None, _testnet_ledger, TESTNET_CONTRACT_NAME_SERVICE
 )

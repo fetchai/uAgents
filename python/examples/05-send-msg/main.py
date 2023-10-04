@@ -12,7 +12,7 @@ bob = Agent(name="bob", seed="bob recovery phrase")
 @alice.on_interval(period=2.0)
 async def send_message(ctx: Context):
     msg = f"Hello there {bob.name} my name is {alice.name}."
-    await ctx.send(bob.identifier, Message(text=msg))
+    await ctx.send(bob.address, Message(text=msg))
 
 
 @bob.on_message(model=Message)
