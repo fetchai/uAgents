@@ -23,6 +23,7 @@ from uagents.config import (
     CONTRACT_ALMANAC,
     TESTNET_CONTRACT_ALMANAC,
     CONTRACT_NAME_SERVICE,
+    TESTNET_CONTRACT_NAME_SERVICE,
     AVERAGE_BLOCK_INTERVAL,
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
@@ -326,7 +327,7 @@ class NameServiceContract(LedgerContract):
         return res["is_public"]
 
     def get_registration_tx(
-        self, name: str, wallet_address: str, agent_address: str, domain: str
+        self, name: str, wallet_address: str, agent_address: str, domain: str, test: bool
     ):
         """
         Get the registration transaction for registering a name within a domain.
@@ -336,6 +337,7 @@ class NameServiceContract(LedgerContract):
             wallet_address (str): The wallet address initiating the registration.
             agent_address (str): The address of the agent.
             domain (str): The domain in which the name is registered.
+            test (bool): The agent type
 
         Returns:
             Optional[Transaction]: The registration transaction, or None if the name is not
@@ -353,10 +355,11 @@ class NameServiceContract(LedgerContract):
             }
         }
 
+        contract = TESTNET_CONTRACT_NAME_SERVICE if test else CONTRACT_NAME_SERVICE
         transaction = Transaction()
         transaction.add_message(
             create_cosmwasm_execute_msg(
-                wallet_address, CONTRACT_NAME_SERVICE, registration_msg
+                wallet_address, contract, registration_msg
             )
         )
 
@@ -398,7 +401,7 @@ class NameServiceContract(LedgerContract):
             return
 
         transaction = self.get_registration_tx(
-            name, str(wallet.address()), agent_address, domain
+            name, str(wallet.address()), agent_address, domain, chain_id == "dorado-1",
         )
 
         if transaction is None:
@@ -414,15 +417,20 @@ class NameServiceContract(LedgerContract):
 
 
 _name_service_contract = NameServiceContract(
-    None, _testnet_ledger, CONTRACT_NAME_SERVICE
+    None, _ledger, CONTRACT_NAME_SERVICE
+)
+_testnet_name_service_contract = NameServiceContract(
+    None, _testnet_ledger, TESTNET_CONTRACT_NAME_SERVICE
 )
 
 
-def get_name_service_contract() -> NameServiceContract:
+def get_name_service_contract(test: bool) -> NameServiceContract:
     """
     Get the NameServiceContract instance.
 
     Returns:
         NameServiceContract: The NameServiceContract instance.
     """
+    if test:
+        return _testnet_name_service_contract
     return _name_service_contract

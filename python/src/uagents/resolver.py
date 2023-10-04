@@ -54,7 +54,7 @@ def query_record(agent_address: str, service: str, test: bool) -> dict:
     return result
 
 
-def get_agent_address(name: str) -> str:
+def get_agent_address(name: str, test: bool) -> str:
     """
     Get the agent address associated with the provided name from the name service contract.
 
@@ -65,7 +65,7 @@ def get_agent_address(name: str) -> str:
         Optional[str]: The associated agent address if found.
     """
     query_msg = {"domain_record": {"domain": f"{name}"}}
-    result = get_name_service_contract().query(query_msg)
+    result = get_name_service_contract(test).query(query_msg)
     if result["record"] is not None:
         registered_address = result["record"]["records"][0]["agent_address"]["records"]
         if len(registered_address) > 0:
@@ -210,7 +210,7 @@ class NameServiceResolver(Resolver):
         Returns:
             Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
         """
-        address = get_agent_address(destination)
+        address = get_agent_address(destination, test)
         if address is not None:
             return await self._almanac_resolver.resolve(address, test)
         return None, []
