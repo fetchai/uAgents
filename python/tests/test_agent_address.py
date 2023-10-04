@@ -52,7 +52,7 @@ class TestAgentAdress(unittest.TestCase):
             "p://other1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
             "prefix://myagent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skes",
             "other-prefix://address1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skes",
-            "some-prefix://name/alice1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess/name",
+            "prefix://name/alice1qfl32tdwlyjatc7f9t6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess/name",
             "some-prefix://bobqfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
         ]
 
