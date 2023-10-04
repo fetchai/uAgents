@@ -4,10 +4,11 @@ from src.uagents.setup import fund_agent_if_low
 from src.uagents.contrib.dialogues import dialogue
 
 agent1 = Agent(name="test1", seed="9876543210000000000")
+# agent1._logger.setLevel("DEBUG")
+fund_agent_if_low(agent1.wallet.address())
 
 agent2 = Agent(name="test2", seed="9876543210000000001")
-
-fund_agent_if_low(agent1.wallet.address())
+# agent2._logger.setLevel("DEBUG")
 fund_agent_if_low(agent2.wallet.address())
 
 
@@ -29,6 +30,7 @@ class ResourceReservation(Model):
 
 class ResourceReservationConfirmation(Model):
     pass
+
 
 # predefine structure and enable passing specific messages into the structure
 RULES = {
@@ -54,6 +56,7 @@ simple_dialogue2 = dialogue.Dialogue(
     starter=ResourceQuery,
     ender={ResourceRejection, ResourceReservationConfirmation},
 )
+
 
 @simple_dialogue1.on_message(ResourceQuery, ResourceAvailability)
 async def handle_resource_query(
@@ -104,8 +107,9 @@ async def handle_resource_reservation_confirmation(
     ctx.logger.info(f"Confirm reservation, session: {ctx.session}")
     print("---")
 
+
 @simple_dialogue2.on_message(ResourceQuery, ResourceAvailability)
-async def handle_resource_query(
+async def handle_resource_query2(
     ctx: Context,
     sender: str,
     _msg: ResourceQuery,
@@ -117,7 +121,7 @@ async def handle_resource_query(
 @simple_dialogue2.on_message(
     ResourceAvailability, {ResourceReservation, ResourceRejection}
 )
-async def handle_resource_availability(
+async def handle_resource_availability2(
     ctx: Context, sender: str, msg: ResourceAvailability
 ):
     ctx.logger.info(f"Received availability, try reservation, session: {ctx.session}")
@@ -130,7 +134,7 @@ async def handle_resource_availability(
     ResourceReservation,
     ResourceReservationConfirmation,
 )
-async def handle_resource_reservation(
+async def handle_resource_reservation2(
     ctx: Context, sender: str, msg: ResourceReservation
 ):
     ctx.logger.info(f"Received reservation, session: {ctx.session}")
@@ -138,7 +142,7 @@ async def handle_resource_reservation(
 
 
 @simple_dialogue2.on_message(ResourceRejection)
-async def handle_resource_rejection(
+async def handle_resource_rejection2(
     ctx: Context,
     _sender: str,
     msg: ResourceRejection,
@@ -147,7 +151,7 @@ async def handle_resource_rejection(
 
 
 @simple_dialogue2.on_message(ResourceReservationConfirmation)
-async def handle_resource_reservation_confirmation(
+async def handle_resource_reservation_confirmation2(
     ctx: Context, sender: str, msg: ResourceReservationConfirmation
 ):
     ctx.logger.info(f"Confirm reservation, session: {ctx.session}")
@@ -160,18 +164,18 @@ agent2.include(simple_dialogue2)
 counter = 0
 
 
-@agent1.on_interval(10)
+@agent1.on_interval(5)
 async def handle_interval(ctx: Context):
     global counter
-    print(f"counter: {counter}")
     if counter == 1:
         await ctx.send(agent2.address, ResourceQuery())
     if counter == 2:
         await ctx.send(agent2.address, ResourceRejection())
     counter += 1
 
+
 if __name__ == "__main__":
-    # TODO: do withouth bureau to have separate states
+    # TODO: do without bureau to have separate states
     bureau = Bureau(port=8080, endpoint="http://localhost:8080/submit")
     bureau.add(agent1)
     bureau.add(agent2)

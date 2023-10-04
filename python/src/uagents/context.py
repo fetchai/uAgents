@@ -121,7 +121,7 @@ class Context:
         session (uuid.UUID): The session UUID.
 
     Methods:
-        get_message_protocol(message_schema_digest): Get the protocol associated
+        get_message_protocol(message_schema_digest): Get the protocol digest associated
         with a message schema digest.
         send(destination, message, timeout): Send a message to a destination.
         send_raw(destination, json_message, schema_digest, message_type, timeout): Send a message
@@ -238,7 +238,7 @@ class Context:
 
     def get_message_protocol(self, message_schema_digest) -> Optional[str]:
         """
-        Get the protocol_digest associated with a given message schema digest.
+        Get the protocol digest associated with a given message schema digest.
 
         Args:
             message_schema_digest (str): The schema digest of the message.
@@ -248,14 +248,14 @@ class Context:
             or None if not found.
         """
         for protocol_digest, protocol in self._protocols.items():
-            # temp changed from replies to models. Safe?
-            for reply_models in protocol.models.keys():
-                if message_schema_digest in reply_models:
+            for model in protocol.models.keys():
+                if message_schema_digest == model:
                     return protocol_digest
         return None
 
+    # I currently don't see a use case for this method. What is it for?
     def update_protocols(self, protocol: Protocol, protocol_digest: str):
-       self._protocols[protocol.digest] = protocol
+        self._protocols[protocol.digest] = protocol
 
     def get_agents_by_protocol(
         self, protocol_digest: str, limit: Optional[int] = None
@@ -379,7 +379,6 @@ class Context:
             MsgStatus: The delivery status of the message.
         """
 
-
         # Check if this message is a reply
         if (
             self._message_received is not None
@@ -421,8 +420,8 @@ class Context:
             current_protocol = self.protocols[current_protocol_digest]
             if hasattr(current_protocol, "rules"):
                 current_protocol.update_state(schema_digest, current_session)
-                self.logger.info(
-                    f"update state to: {current_protocol.models[schema_digest]}"
+                self.logger.debug(
+                    f"update state to: {current_protocol.models[schema_digest].__name__}"
                 )
 
         # Handle local dispatch of messages
@@ -475,7 +474,7 @@ class Context:
             target=destination_address,
             session=current_session,
             schema_digest=schema_digest,
-            protocol_digest=self.get_message_protocol(schema_digest),
+            protocol_digest=current_protocol_digest,
             expires=expires,
         )
         env.encode_payload(json_message)
