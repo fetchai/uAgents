@@ -1,7 +1,8 @@
 """Testing platform"""
 from src.uagents import Agent, Bureau, Context, Model
-from src.uagents.setup import fund_agent_if_low
 from src.uagents.contrib.dialogues import dialogue
+from src.uagents.models import ErrorMessage
+from src.uagents.setup import fund_agent_if_low
 
 agent1 = Agent(name="test1", seed="9876543210000000000")
 # agent1._logger.setLevel("DEBUG")
@@ -10,6 +11,16 @@ fund_agent_if_low(agent1.wallet.address())
 agent2 = Agent(name="test2", seed="9876543210000000001")
 # agent2._logger.setLevel("DEBUG")
 fund_agent_if_low(agent2.wallet.address())
+
+
+@agent1.on_message(ErrorMessage)
+async def handle_error1(ctx: Context, sender: str, msg: ErrorMessage):
+    ctx.logger.error(f"Error received from {sender}: {msg.error}")
+
+
+@agent2.on_message(ErrorMessage)
+async def handle_error2(ctx: Context, sender: str, msg: ErrorMessage):
+    ctx.logger.error(f"Error received from {sender}: {msg.error}")
 
 
 class ResourceQuery(Model):
