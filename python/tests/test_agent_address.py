@@ -38,8 +38,14 @@ class TestAgentAdress(unittest.TestCase):
 
         for val in valid_addresses:
             prefix, address = split_destination(val)
-            self.assertEqual(is_valid_address(address),True,)
-            self.assertEqual(is_valid_prefix(prefix),True,)
+            self.assertEqual(
+                is_valid_address(address),
+                True,
+            )
+            self.assertEqual(
+                is_valid_prefix(prefix),
+                True,
+            )
 
     def test_extract_invalid_address(self):
         invalid_addresses = [
