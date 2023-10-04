@@ -74,7 +74,7 @@ async def _delay(coroutine: Coroutine, delay_seconds: float):
     await coroutine
 
 
-async def _handle_error(ctx: Context, destination: str, msg: ErrorMessage):
+async def _send_error_message(ctx: Context, destination: str, msg: ErrorMessage):
     """
     Send an error message to the specified destination.
 
@@ -254,6 +254,11 @@ class Agent(Sink):
             self._server = ASGIServer(
                 self._port, self._loop, self._queries, logger=self._logger
             )
+
+        # define default error message handler
+        @self.on_message(ErrorMessage, allow_unverified=True)
+        async def _handle_error_message(ctx: Context, sender: str, msg: ErrorMessage):
+            ctx.logger.warning(f"Received error message from {sender}: {msg.error}")
 
     def _initialize_wallet_and_identity(self, seed, name):
         """
@@ -823,7 +828,7 @@ class Agent(Sink):
                 recovered = model_class.parse_raw(message)
             except ValidationError as ex:
                 self._logger.warning(f"Unable to parse message: {ex}")
-                await _handle_error(
+                await _send_error_message(
                     context,
                     sender,
                     ErrorMessage(
@@ -840,7 +845,7 @@ class Agent(Sink):
                 if not is_user_address(sender):
                     handler = self._signed_message_handlers.get(schema_digest)
                 elif schema_digest in self._signed_message_handlers:
-                    await _handle_error(
+                    await _send_error_message(
                         context,
                         sender,
                         ErrorMessage(
