@@ -15,12 +15,12 @@ fund_agent_if_low(agent2.wallet.address())
 
 @agent1.on_message(ErrorMessage)
 async def handle_error1(ctx: Context, sender: str, msg: ErrorMessage):
-    ctx.logger.error(f"Error received from {sender}: {msg.error}")
+    ctx.logger.error(f"Error received from {sender[-6:]}: {msg.error}")
 
 
 @agent2.on_message(ErrorMessage)
 async def handle_error2(ctx: Context, sender: str, msg: ErrorMessage):
-    ctx.logger.error(f"Error received from {sender}: {msg.error}")
+    ctx.logger.error(f"Error received from {sender[-6:]}: {msg.error}")
 
 
 class ResourceQuery(Model):

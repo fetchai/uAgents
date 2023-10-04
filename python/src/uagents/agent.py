@@ -9,7 +9,6 @@ import requests
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
-from uagents.contrib.dialogues import dialogue
 
 from uagents.asgi import ASGIServer
 from uagents.context import (
