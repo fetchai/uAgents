@@ -12,27 +12,55 @@ from uagents.config import (
 )
 from uagents.network import get_almanac_contract, get_name_service_contract
 
-# pylint: disable=arguments-differ
 
-
-def extract_agent_address(destination: str) -> str:
+def is_valid_address(address: str) -> bool:
     """
-    Extract the agent address from the provided destination.
+    Check if the given string is a valid address.
 
     Args:
-        destination (str): The destination address to check and extract.
+        address (str): The address to be checked.
 
     Returns:
-        str: The extracted agent address if valid, or None if not valid.
+        bool: True if the address is valid; False otherwise.
+    """
+    return len(address) == 65 and address.startswith(AGENT_PREFIX)
+
+
+def is_valid_prefix(prefix: str) -> bool:
+    """
+    Check if the given string is a valid prefix.
+
+    Args:
+        prefix (str): The prefix to be checked.
+
+    Returns:
+        bool: True if the prefix is valid; False otherwise.
+    """
+    valid_prefixes = [TESTNET_PREFIX, MAINNET_PREFIX, ""]
+    return prefix in valid_prefixes
+
+
+def split_destination(destination: str) -> tuple:
+    """
+    Split a destination string into prefix and remainder.
+
+    If the destination contains "://", it splits the prefix and remainder based on that.
+    If not, it assumes an empty prefix and returns the entire destination as the remainder.
+
+    Args:
+        destination (str): The destination string to be split.
+
+    Returns:
+        tuple: A tuple containing the prefix and remainder as strings.
     """
 
-    address = destination.split("://")[-1].split("/")[-1]
-    expected_length = 65
+    if "://" in destination:
+        prefix, remainder = destination.split("://", 1)
+        remainder = remainder.split("/", 1)[-1]
+    else:
+        return "", destination
 
-    if len(address) == expected_length and address.startswith(AGENT_PREFIX):
-        return address
-
-    return None
+    return prefix, remainder
 
 
 def query_record(agent_address: str, service: str, test: bool) -> dict:
@@ -71,29 +99,6 @@ def get_agent_address(name: str, test: bool) -> str:
         if len(registered_address) > 0:
             return registered_address[0]["address"]
     return None
-
-
-def is_agent_address(address) -> tuple:
-    """
-    Check if the provided address is a valid agent address.
-
-    Args:
-        address: The address to check.
-
-    Returns:
-        bool: True if the address is a valid agent address, False otherwise.
-    """
-    if not isinstance(address, str):
-        return False
-
-    prefixes = [TESTNET_PREFIX, MAINNET_PREFIX, ""]
-    expected_length = 65
-
-    for prefix in prefixes:
-        if address.startswith(prefix) and len(address) == expected_length + len(prefix):
-            return (True, prefix)
-
-    return (False, None)
 
 
 class Resolver(ABC):
@@ -136,14 +141,18 @@ class GlobalResolver(Resolver):
         Returns:
             Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
         """
-        is_address, prefix = is_agent_address(destination)
-        if is_address:
-            return await self._almanc_resolver.resolve(
-                destination[len(prefix) :], not prefix == MAINNET_PREFIX
+
+        prefix, remainder = split_destination(destination)
+
+        if is_valid_prefix(prefix):
+            resolver = (
+                self._almanc_resolver
+                if is_valid_address(remainder)
+                else self._name_service_resolver
             )
-        return await self._name_service_resolver.resolve(
-            destination, not prefix == MAINNET_PREFIX
-        )
+            return await resolver.resolve(destination)
+
+        return None, []
 
 
 class AlmanacResolver(Resolver):
@@ -156,9 +165,7 @@ class AlmanacResolver(Resolver):
         """
         self._max_endpoints = max_endpoints or DEFAULT_MAX_ENDPOINTS
 
-    async def resolve(
-        self, destination: str, test: bool
-    ) -> Tuple[Optional[str], List[str]]:
+    async def resolve(self, destination: str) -> Tuple[Optional[str], List[str]]:
         """
         Resolve the destination using the Almanac contract.
 
@@ -168,7 +175,9 @@ class AlmanacResolver(Resolver):
         Returns:
             Tuple[str, List[str]]: The address and resolved endpoints.
         """
-        result = query_record(destination, "service", test)
+        prefix, address = split_destination(destination)
+        is_testnet = prefix != MAINNET_PREFIX
+        result = query_record(address, "service", is_testnet)
         if result is not None:
             record = result.get("record") or {}
             endpoint_list = (
@@ -178,7 +187,7 @@ class AlmanacResolver(Resolver):
             if len(endpoint_list) > 0:
                 endpoints = [val.get("url") for val in endpoint_list]
                 weights = [val.get("weight") for val in endpoint_list]
-                return destination, random.choices(
+                return address, random.choices(
                     endpoints,
                     weights=weights,
                     k=min(self._max_endpoints, len(endpoints)),
@@ -198,9 +207,7 @@ class NameServiceResolver(Resolver):
         self._max_endpoints = max_endpoints or DEFAULT_MAX_ENDPOINTS
         self._almanac_resolver = AlmanacResolver(max_endpoints=self._max_endpoints)
 
-    async def resolve(
-        self, destination: str, test: bool
-    ) -> Tuple[Optional[str], List[str]]:
+    async def resolve(self, destination: str) -> Tuple[Optional[str], List[str]]:
         """
         Resolve the destination using the NameService contract.
 
@@ -210,9 +217,11 @@ class NameServiceResolver(Resolver):
         Returns:
             Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
         """
-        address = get_agent_address(destination, test)
+        prefix, name = split_destination(destination)
+        is_testnet = prefix != MAINNET_PREFIX
+        address = get_agent_address(name, is_testnet)
         if address is not None:
-            return await self._almanac_resolver.resolve(address, test)
+            return await self._almanac_resolver.resolve(address)
         return None, []
 
 

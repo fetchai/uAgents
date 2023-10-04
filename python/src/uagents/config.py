@@ -12,8 +12,8 @@ logging.basicConfig(level=logging.INFO)
 AGENT_PREFIX = "agent"
 LEDGER_PREFIX = "fetch"
 USER_PREFIX = "user"
-TESTNET_PREFIX = "test-agent://"
-MAINNET_PREFIX = "agent://"
+TESTNET_PREFIX = "test-agent"
+MAINNET_PREFIX = "agent"
 
 CONTRACT_ALMANAC = "fetch1tjagw8g8nn4cwuw00cf0m5tl4l6wfw9c0ue507fhx9e3yrsck8zs0l3q4w"
 TESTNET_CONTRACT_ALMANAC = (

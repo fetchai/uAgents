@@ -2,7 +2,7 @@ import unittest
 
 from uagents import Agent
 from uagents.crypto import Identity
-from uagents.resolver import extract_agent_address
+from uagents.resolver import split_destination, is_valid_address, is_valid_prefix
 
 
 class TestAgentAdress(unittest.TestCase):
@@ -31,30 +31,29 @@ class TestAgentAdress(unittest.TestCase):
     def test_extract_valid_address(self):
         valid_addresses = [
             "agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
-            "some-prefix://agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
-            "other-prefix://agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
-            "prefix://name/agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
-            "agent_name/agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
+            "test-agent://agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
+            "agent://agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
+            "test-agent://name/agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
         ]
 
         for val in valid_addresses:
-            self.assertEqual(
-                extract_agent_address(val)
-                == "agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
-                True,
-            )
+            prefix, address = split_destination(val)
+            self.assertEqual(is_valid_address(address),True,)
+            self.assertEqual(is_valid_prefix(prefix),True,)
 
     def test_extract_invalid_address(self):
         invalid_addresses = [
-            "other1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
-            "some-prefix:agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
-            "other-prefix://agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skes",
-            "some-prefix://agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess/name",
-            "some-prefix::agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
+            "p://other1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
+            "prefix://myagent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skes",
+            "other-prefix://address1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skes",
+            "some-prefix://name/alice1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess/name",
+            "some-prefix://bobqfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
         ]
 
         for val in invalid_addresses:
-            self.assertEqual(extract_agent_address(val) is None, True)
+            prefix, address = split_destination(val)
+            self.assertEqual(is_valid_address(address), False)
+            self.assertEqual(is_valid_prefix(prefix), False)
 
 
 if __name__ == "__main__":
