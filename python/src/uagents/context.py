@@ -236,6 +236,16 @@ class Context:
         """
         return self._session
 
+    @session.setter
+    def session(self, session: uuid.UUID) -> None:
+        """
+        Set the session UUID associated with the context.
+
+        Args:
+            session (uuid.UUID): The session UUID.
+        """
+        self._session = session
+
     def get_message_protocol(self, message_schema_digest) -> Optional[str]:
         """
         Get the protocol digest associated with a given message schema digest.

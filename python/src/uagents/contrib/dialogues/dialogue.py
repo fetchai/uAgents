@@ -221,3 +221,15 @@ class Dialogue(Protocol):
             return self.is_starter(msg_digest)
         allowed_msgs = self._rules.get(self.get_current_state(session_id), [])
         return msg_digest in allowed_msgs
+
+    def is_included(self, msg_digest: str) -> bool:
+        """
+        Check if a message is included in the dialogue.
+
+        Args:
+            msg_digest (str): The digest of the message to check.
+
+        Returns:
+            bool: True if the message is included, False otherwise.
+        """
+        return msg_digest in self._rules

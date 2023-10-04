@@ -841,7 +841,6 @@ class Agent(Sink):
             )
             if handler is None:
                 if not is_user_address(sender):
-                    # this is where I would put the logic for session handling
                     # we parse incoming messages before forwarding to the function
                     # assumed at this point:
                     #   - agent-agent communication (on_message),
@@ -851,10 +850,10 @@ class Agent(Sink):
                     # steps:
                     #   - check if a session id is already in context
 
-                    # TODO check if this message is part of a Dialogue, if not skip dialogue logic
-
                     for protocol in context.protocols.values():
-                        if hasattr(protocol, "rules"):
+                        if hasattr(protocol, "rules") and protocol.is_included(
+                            schema_digest
+                        ):
                             state = protocol.get_current_state(session)
                             context.logger.debug(
                                 f"current state: {protocol.models[state].__name__ if state else 'n/a'}"
@@ -863,6 +862,7 @@ class Agent(Sink):
                             context.logger.debug(f"messsage allowed: {is_valid}")
 
                             if not is_valid:
+                                context.session = None
                                 await _handle_error(
                                     context,
                                     sender,
