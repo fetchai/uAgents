@@ -34,7 +34,7 @@ from uagents.crypto import Identity
 from uagents.dispatch import JsonStr, dispatcher
 from uagents.envelope import Envelope
 from uagents.models import ErrorMessage, Model
-from uagents.resolver import Resolver, split_destination
+from uagents.resolver import Resolver, parse_identifier
 from uagents.storage import KeyValueStore
 
 
@@ -424,10 +424,10 @@ class Context:
                 endpoint="",
             )
 
-        # Destination without ledger prefix
-        _, destination_address = split_destination(destination)
+        # Extract address from destination agent identifier if present
+        _, _, destination_address = parse_identifier(destination)
 
-        if destination_address is not None:
+        if destination_address:
             # Handle local dispatch of messages
             if dispatcher.contains(destination_address):
                 await dispatcher.dispatch(

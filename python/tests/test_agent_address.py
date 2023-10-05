@@ -2,7 +2,7 @@ import unittest
 
 from uagents import Agent
 from uagents.crypto import Identity
-from uagents.resolver import split_destination, is_valid_address, is_valid_prefix
+from uagents.resolver import parse_identifier, is_valid_address, is_valid_prefix
 
 
 class TestAgentAdress(unittest.TestCase):
@@ -34,18 +34,40 @@ class TestAgentAdress(unittest.TestCase):
             "test-agent://agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
             "agent://agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
             "test-agent://name/agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
+            "name/agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
         ]
 
         for val in valid_addresses:
-            prefix, address = split_destination(val)
+            prefix, name, address = parse_identifier(val)
             self.assertEqual(
                 is_valid_address(address),
                 True,
             )
+            self.assertIn(name, {"name", ""})
             self.assertEqual(
                 is_valid_prefix(prefix),
                 True,
             )
+
+    def test_extract_valid_name(self):
+        valid_names = [
+            "name.domain",
+            "test-agent://name.domain",
+            "agent://name.domain",
+            "agent://name.domain/agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
+            "name.domain/agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
+        ]
+        for val in valid_names:
+            prefix, name, address = parse_identifier(val)
+            self.assertEqual(name, "name.domain")
+            self.assertIn(
+                address,
+                {
+                    "agent1qfl32tdwlyjatc7f9tjng6sm9y7yzapy6awx4h9rrwenputzmnv5g6skess",
+                    "",
+                },
+            )
+            self.assertEqual(is_valid_prefix(prefix), True)
 
     def test_extract_invalid_address(self):
         invalid_addresses = [
@@ -57,7 +79,7 @@ class TestAgentAdress(unittest.TestCase):
         ]
 
         for val in invalid_addresses:
-            prefix, address = split_destination(val)
+            prefix, _, address = parse_identifier(val)
             self.assertEqual(is_valid_address(address), False)
             self.assertEqual(is_valid_prefix(prefix), False)
 

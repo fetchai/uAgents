@@ -20,9 +20,9 @@ from cosmpy.aerial.tx import Transaction
 from cosmpy.aerial.wallet import LocalWallet
 
 from uagents.config import (
-    CONTRACT_ALMANAC,
+    MAINNET_CONTRACT_ALMANAC,
     TESTNET_CONTRACT_ALMANAC,
-    CONTRACT_NAME_SERVICE,
+    MAINNET_CONTRACT_NAME_SERVICE,
     TESTNET_CONTRACT_NAME_SERVICE,
     AVERAGE_BLOCK_INTERVAL,
     REGISTRATION_FEE,
@@ -36,21 +36,22 @@ logger = get_logger("network")
 
 _faucet_api = FaucetApi(NetworkConfig.fetchai_stable_testnet())
 _testnet_ledger = LedgerClient(NetworkConfig.fetchai_stable_testnet())
-_ledger = LedgerClient(
-    NetworkConfig.fetchai_stable_testnet()
-)  # LedgerClient(NetworkConfig.fetchai_mainnet())
+_mainnet_ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
 
 
-def get_ledger(test: bool) -> LedgerClient:
+def get_ledger(test: bool = True) -> LedgerClient:
     """
     Get the Ledger client.
+
+    Args:
+        test (bool): Whether to use the testnet or mainnet. Defaults to True.
 
     Returns:
         LedgerClient: The Ledger client instance.
     """
     if test:
         return _testnet_ledger
-    return _ledger
+    return _mainnet_ledger
 
 
 def get_faucet() -> FaucetApi:
@@ -74,10 +75,10 @@ async def wait_for_tx_to_complete(
 
     Args:
         tx_hash (str): The hash of the transaction to monitor.
-        timeout (Optional[timedelta], optional): The maximum time to wait for
+        ledger (LedgerClient): The Ledger client to poll.
+        timeout (Optional[timedelta], optional): The maximum time to wait.
         the transaction to complete. Defaults to None.
         poll_period (Optional[timedelta], optional): The time interval to poll
-        the Ledger for the transaction status. Defaults to None.
 
     Returns:
         TxResponse: The response object containing the transaction details.
@@ -250,22 +251,27 @@ class AlmanacContract(LedgerContract):
         return sequence
 
 
-_almanac_contract = AlmanacContract(None, _ledger, CONTRACT_ALMANAC)
+_mainnet_almanac_contract = AlmanacContract(
+    None, _mainnet_ledger, MAINNET_CONTRACT_ALMANAC
+)
 _testnet_almanac_contract = AlmanacContract(
     None, _testnet_ledger, TESTNET_CONTRACT_ALMANAC
 )
 
 
-def get_almanac_contract(test: bool) -> AlmanacContract:
+def get_almanac_contract(test: bool = True) -> AlmanacContract:
     """
     Get the AlmanacContract instance.
+
+    Args:
+        test (bool): Whether to use the testnet or mainnet. Defaults to True.
 
     Returns:
         AlmanacContract: The AlmanacContract instance.
     """
     if test:
         return _testnet_almanac_contract
-    return _almanac_contract
+    return _mainnet_almanac_contract
 
 
 class NameServiceContract(LedgerContract):
@@ -360,7 +366,9 @@ class NameServiceContract(LedgerContract):
             }
         }
 
-        contract = TESTNET_CONTRACT_NAME_SERVICE if test else CONTRACT_NAME_SERVICE
+        contract = (
+            TESTNET_CONTRACT_NAME_SERVICE if test else MAINNET_CONTRACT_NAME_SERVICE
+        )
         transaction = Transaction()
         transaction.add_message(
             create_cosmwasm_execute_msg(wallet_address, contract, registration_msg)
@@ -423,19 +431,24 @@ class NameServiceContract(LedgerContract):
         logger.info("Registering name...complete")
 
 
-_name_service_contract = NameServiceContract(None, _ledger, CONTRACT_NAME_SERVICE)
+_mainnet_name_service_contract = NameServiceContract(
+    None, _mainnet_ledger, MAINNET_CONTRACT_NAME_SERVICE
+)
 _testnet_name_service_contract = NameServiceContract(
     None, _testnet_ledger, TESTNET_CONTRACT_NAME_SERVICE
 )
 
 
-def get_name_service_contract(test: bool) -> NameServiceContract:
+def get_name_service_contract(test: bool = True) -> NameServiceContract:
     """
     Get the NameServiceContract instance.
+
+    Args:
+        test (bool): Whether to use the testnet or mainnet. Defaults to True.
 
     Returns:
         NameServiceContract: The NameServiceContract instance.
     """
     if test:
         return _testnet_name_service_contract
-    return _name_service_contract
+    return _mainnet_name_service_contract

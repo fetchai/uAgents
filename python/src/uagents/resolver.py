@@ -40,27 +40,33 @@ def is_valid_prefix(prefix: str) -> bool:
     return prefix in valid_prefixes
 
 
-def split_destination(destination: str) -> tuple:
+def parse_identifier(identifier: str) -> Tuple[str, str, str]:
     """
-    Split a destination string into prefix and remainder.
-
-    If the destination contains "://", it splits the prefix and remainder based on that.
-    If not, it assumes an empty prefix and returns the entire destination as the remainder.
+    Parse an agent identifier string into prefix, name, and address.
 
     Args:
-        destination (str): The destination string to be split.
+        identifier (str): The identifier string to be parsed.
 
     Returns:
-        tuple: A tuple containing the prefix and remainder as strings.
+        Tuple[str, str, str]: A tuple containing the prefix, name, and address as strings.
     """
 
-    if "://" in destination:
-        prefix, remainder = destination.split("://", 1)
-        remainder = remainder.split("/", 1)[-1]
-    else:
-        return "", destination
+    prefix = ""
+    name = ""
+    address = ""
 
-    return prefix, remainder
+    if "://" in identifier:
+        prefix, identifier = identifier.split("://", 1)
+
+    if "/" in identifier:
+        name, identifier = identifier.split("/", 1)
+
+    if is_valid_address(identifier):
+        address = identifier
+    else:
+        name = identifier
+
+    return prefix, name, address
 
 
 def query_record(agent_address: str, service: str, test: bool) -> dict:
@@ -88,6 +94,7 @@ def get_agent_address(name: str, test: bool) -> str:
 
     Args:
         name (str): The name to query.
+        test (bool): Whether to use the testnet or mainnet contract.
 
     Returns:
         Optional[str]: The associated agent address if found.
@@ -142,14 +149,10 @@ class GlobalResolver(Resolver):
             Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
         """
 
-        prefix, remainder = split_destination(destination)
+        prefix, _, address = parse_identifier(destination)
 
         if is_valid_prefix(prefix):
-            resolver = (
-                self._almanc_resolver
-                if is_valid_address(remainder)
-                else self._name_service_resolver
-            )
+            resolver = self._almanc_resolver if address else self._name_service_resolver
             return await resolver.resolve(destination)
 
         return None, []
@@ -175,7 +178,7 @@ class AlmanacResolver(Resolver):
         Returns:
             Tuple[str, List[str]]: The address and resolved endpoints.
         """
-        prefix, address = split_destination(destination)
+        prefix, _, address = parse_identifier(destination)
         is_testnet = prefix != MAINNET_PREFIX
         result = query_record(address, "service", is_testnet)
         if result is not None:
@@ -217,9 +220,9 @@ class NameServiceResolver(Resolver):
         Returns:
             Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
         """
-        prefix, name = split_destination(destination)
-        is_testnet = prefix != MAINNET_PREFIX
-        address = get_agent_address(name, is_testnet)
+        prefix, name, _ = parse_identifier(destination)
+        use_testnet = prefix != MAINNET_PREFIX
+        address = get_agent_address(name, use_testnet)
         if address is not None:
             return await self._almanac_resolver.resolve(address)
         return None, []
@@ -239,7 +242,7 @@ class RulesBasedResolver(Resolver):
         self._rules = rules
         self._max_endpoints = max_endpoints or DEFAULT_MAX_ENDPOINTS
 
-    async def resolve(self, destination: str) -> Optional[str]:
+    async def resolve(self, destination: str) -> Tuple[Optional[str], List[str]]:
         """
         Resolve the destination using the provided rules.
 
