@@ -29,6 +29,7 @@ class ResourceRequestDialogue(dialogue.Dialogue):
         name: str | None = None,
         version: str | None = None,
         dialogue_id: UUID | None = None,
+        agent_address: str | None = None,
     ) -> None:
         rules = {
             ResourceQuery: [ResourceAvailability],
@@ -39,4 +40,6 @@ class ResourceRequestDialogue(dialogue.Dialogue):
         }  # predefine structure and enable passing specific messages into it
         starter = ResourceQuery
         ender = {ResourceRejection, ResourceReservationConfirmation}
-        super().__init__(name, version, rules, dialogue_id, starter, ender)
+        super().__init__(
+            name, version, rules, dialogue_id, starter, ender, agent_address
+        )

@@ -26,11 +26,13 @@ async def handle_error2(ctx: Context, sender: str, msg: ErrorMessage):
 simple_dialogue1 = de.ResourceRequestDialogue(
     name="simple_dialogue1",
     version="0.1",
+    agent_address=agent1.address,
 )
 
 simple_dialogue2 = de.ResourceRequestDialogue(
     name="simple_dialogue2",
     version="0.1",
+    agent_address=agent2.address,
 )
 
 

@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 from pydantic import Field
 from uagents import Model, Protocol
+from uagents.storage import KeyValueStore
 
 JsonStr = str
 SenderStr = str
@@ -111,6 +112,7 @@ class Dialogue(Protocol):
         dialogue_id: Optional[UUID] = None,
         starter: Optional[Type[Model]] = None,
         ender: Optional[type[Model] | set[type[Model]]] = None,
+        agent_address: Optional[str] = "",
     ) -> None:
         self._id = dialogue_id or uuid4()  # id of the dialogue
         self._rules = self._build_rules(
@@ -129,6 +131,7 @@ class Dialogue(Protocol):
             UUID, list[(SenderStr, ReceiverStr, JsonStr)]
         ] = {}  # session + message storage
         self._lifetime = 0
+        self._storage = KeyValueStore(f"{agent_address[0:16]}_dialogues")
         super().__init__(name=name, version=version)
 
     @property
@@ -202,7 +205,7 @@ class Dialogue(Protocol):
     # It would be added automatically when adding a message
     def add_session(self, session_id: UUID) -> None:
         self._sessions[session_id] = []
-        # self._sessions[session_id].append((sender, receiver, message))
+        # self._storage.set(str(session_id), [])
 
     def cleanup_session(self, session_id: UUID) -> None:
         """Remove a session from the dialogue instance."""
@@ -211,6 +214,13 @@ class Dialogue(Protocol):
     def add_message(self, session_id: UUID, sender, receiver, message) -> None:
         """Add a message to a session within the dialogue instance."""
         self._sessions[session_id].append((sender, receiver, message))
+        storage_id = str(session_id)
+        # self._storage.set(storage_id, "bla")
+        if not self._storage.has(storage_id):
+            self._storage.set(storage_id, [])
+        msgs: list = self._storage.get(storage_id)
+        msgs.append((sender, receiver, message))
+        self._storage.set(storage_id, msgs)
 
     def get_session(self, session_id) -> list[(SenderStr, ReceiverStr, JsonStr)]:
         """
