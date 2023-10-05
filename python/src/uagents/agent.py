@@ -664,7 +664,7 @@ class Agent(Sink):
         if protocol.digest is not None:
             self.protocols[protocol.digest] = protocol
             if self._ctx is not None:
-                self._ctx.update_protocols(protocol, protocol.digest)
+                self._ctx.update_protocols(protocol)
 
         if publish_manifest:
             self.publish_manifest(protocol.manifest())

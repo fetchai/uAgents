@@ -263,8 +263,13 @@ class Context:
                     return protocol_digest
         return None
 
-    # I currently don't see a use case for this method. What is it for?
-    def update_protocols(self, protocol: Protocol, protocol_digest: str):
+    def update_protocols(self, protocol: Protocol):
+        """
+        Register a protocol with the context.
+
+        Args:
+            protocol (Protocol): The protocol to register.
+        """
         self._protocols[protocol.digest] = protocol
 
     def get_agents_by_protocol(
