@@ -874,21 +874,22 @@ class Agent(Sink):
                             if protocol.is_starter(schema_digest):
                                 self._ctx.logger.debug("dialogue started")
                                 protocol.add_session(session)
-                                protocol.add_message(
-                                    session, sender, self.address, message
-                                )
                             elif protocol.is_ender(schema_digest):
                                 self._ctx.logger.debug(
                                     "dialogue ended, cleaning up session"
                                 )
-                                context.dialogue = protocol.get_session(session)
-                                protocol.cleanup_session(session)
+                                # protocol.cleanup_session(session)
                             else:
                                 self._ctx.logger.debug("dialogue picked up")
-                                context.dialogue = protocol.get_session(session)
-                                protocol.add_message(
-                                    session, sender, self.address, message
-                                )
+
+                            context.dialogue = protocol.get_session(session)
+                            protocol.add_message(
+                                session,
+                                self._models[schema_digest].__name__,
+                                sender,
+                                self.address,
+                                message,
+                            )
                     handler = self._signed_message_handlers.get(schema_digest)
                 elif schema_digest in self._signed_message_handlers:
                     await _handle_error(

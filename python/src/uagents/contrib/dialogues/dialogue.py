@@ -211,11 +211,25 @@ class Dialogue(Protocol):
         self._sessions.pop(session_id)
         self._remove_session_from_storage(session_id)
 
-    def add_message(self, session_id: UUID, sender, receiver, message) -> None:
+    def add_message(
+        self,
+        session_id: UUID,
+        message: str,
+        sender: SenderStr,
+        receiver: ReceiverStr,
+        content: JsonStr,
+    ) -> None:
         """Add a message to a session within the dialogue instance."""
         if session_id not in self._sessions:
             self.add_session(session_id)
-        self._sessions[session_id].append((sender, receiver, message))
+        self._sessions[session_id].append(
+            {
+                "message": message,
+                "sender": sender,
+                "receiver": receiver,
+                "content": content,
+            }
+        )
         self._update_session_in_storage(session_id)
 
     def get_session(self, session_id) -> list[(SenderStr, ReceiverStr, JsonStr)]:

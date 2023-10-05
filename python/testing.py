@@ -4,12 +4,12 @@ from src.uagents.models import ErrorMessage
 from src.uagents.setup import fund_agent_if_low
 import dialogue_example as de
 
-agent1 = Agent(name="test1", seed="9876543210000000000")
-# agent1._logger.setLevel("DEBUG")
+agent1 = Agent(name="agent1", seed="9876543210000000000")
+agent1._logger.setLevel("DEBUG")
 fund_agent_if_low(agent1.wallet.address())
 
-agent2 = Agent(name="test2", seed="9876543210000000001")
-# agent2._logger.setLevel("DEBUG")
+agent2 = Agent(name="agent2", seed="9876543210000000001")
+agent2._logger.setLevel("DEBUG")
 fund_agent_if_low(agent2.wallet.address())
 
 
@@ -156,5 +156,7 @@ if __name__ == "__main__":
     # TODO: do without bureau to have separate states
     bureau = Bureau(port=8080, endpoint="http://localhost:8080/submit")
     bureau.add(agent1)
+    print("Agent 1:", agent1.address)
     bureau.add(agent2)
+    print("Agent 2:", agent2.address)
     bureau.run()
