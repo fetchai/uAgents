@@ -137,7 +137,7 @@ class Dialogue(Protocol):
         self._storage.clear()  # TODO: remove after testing
 
     @property
-    def id(self) -> UUID:
+    def dialogue_id(self) -> UUID:
         """
         Property to access the id of the dialogue.
 
@@ -201,9 +201,10 @@ class Dialogue(Protocol):
         """
         self._states[session_id] = digest
         if session_id not in self._sessions:
-            self.add_session(session_id)
+            self._add_session(session_id)
 
-    def add_session(self, session_id: UUID) -> None:
+    def _add_session(self, session_id: UUID) -> None:
+        """Create a new session in the dialogue instance."""
         self._sessions[session_id] = []
 
     def cleanup_session(self, session_id: UUID) -> None:
@@ -221,7 +222,7 @@ class Dialogue(Protocol):
     ) -> None:
         """Add a message to a session within the dialogue instance."""
         if session_id not in self._sessions:
-            self.add_session(session_id)
+            self._add_session(session_id)
         self._sessions[session_id].append(
             {
                 "message": message,
@@ -237,7 +238,6 @@ class Dialogue(Protocol):
         Return a session from the dialogue instance.
 
         This includes all messages that were sent and received for the session.
-        TODO: currently only received messages
         """
         return self._sessions.get(session_id)
 

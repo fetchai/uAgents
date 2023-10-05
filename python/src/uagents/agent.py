@@ -873,7 +873,6 @@ class Agent(Sink):
 
                             if protocol.is_starter(schema_digest):
                                 self._ctx.logger.debug("dialogue started")
-                                protocol.add_session(session)
                             elif protocol.is_ender(schema_digest):
                                 self._ctx.logger.debug(
                                     "dialogue ended, cleaning up session"
