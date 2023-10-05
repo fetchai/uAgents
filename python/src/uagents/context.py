@@ -429,6 +429,12 @@ class Context:
         if current_protocol_digest is not None:
             current_protocol = self.protocols[current_protocol_digest]
             if hasattr(current_protocol, "rules"):
+                current_protocol.add_message(
+                    session_id=self.session,
+                    sender=self.address,
+                    receiver=destination,
+                    message=json_message,
+                )
                 current_protocol.update_state(schema_digest, current_session)
                 self.logger.debug(
                     f"update state to: {current_protocol.models[schema_digest].__name__}"

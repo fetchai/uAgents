@@ -106,7 +106,7 @@ class Dialogue(Protocol):
 
     def __init__(
         self,
-        name: Optional[str] = None,
+        name: str,  # mandatory, due to storage naming
         version: Optional[str] = None,
         rules: dict[Type[Model], list[Type[Model]]] = None,
         dialogue_id: Optional[UUID] = None,
@@ -133,6 +133,8 @@ class Dialogue(Protocol):
         self._lifetime = 0
         self._storage = KeyValueStore(f"{agent_address[0:16]}_dialogues")
         super().__init__(name=name, version=version)
+
+        self._storage.clear()  # TODO: remove after testing
 
     @property
     def id(self) -> UUID:
@@ -201,26 +203,20 @@ class Dialogue(Protocol):
         if session_id not in self._sessions:
             self.add_session(session_id)
 
-    # why add the session explicitly?
-    # It would be added automatically when adding a message
     def add_session(self, session_id: UUID) -> None:
         self._sessions[session_id] = []
-        # self._storage.set(str(session_id), [])
 
     def cleanup_session(self, session_id: UUID) -> None:
         """Remove a session from the dialogue instance."""
         self._sessions.pop(session_id)
+        self._remove_session_from_storage(session_id)
 
     def add_message(self, session_id: UUID, sender, receiver, message) -> None:
         """Add a message to a session within the dialogue instance."""
+        if session_id not in self._sessions:
+            self.add_session(session_id)
         self._sessions[session_id].append((sender, receiver, message))
-        storage_id = str(session_id)
-        # self._storage.set(storage_id, "bla")
-        if not self._storage.has(storage_id):
-            self._storage.set(storage_id, [])
-        msgs: list = self._storage.get(storage_id)
-        msgs.append((sender, receiver, message))
-        self._storage.set(storage_id, msgs)
+        self._update_session_in_storage(session_id)
 
     def get_session(self, session_id) -> list[(SenderStr, ReceiverStr, JsonStr)]:
         """
@@ -258,3 +254,15 @@ class Dialogue(Protocol):
             bool: True if the message is included, False otherwise.
         """
         return msg_digest in self._rules
+
+    def _update_session_in_storage(self, session_id: UUID) -> None:
+        """Update a session in the storage."""
+        cache: dict = self._storage.get(self.name) or {}
+        cache[str(session_id)] = self._sessions[session_id]
+        self._storage.set(self.name, cache)
+
+    def _remove_session_from_storage(self, session_id: UUID) -> None:
+        """Remove a session from the storage."""
+        cache: dict = self._storage.get(self.name)
+        cache.pop(str(session_id))
+        self._storage.set(self.name, cache)
