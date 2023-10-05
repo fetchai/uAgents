@@ -124,9 +124,7 @@ class Dialogue(Protocol):
         )  # last message of the dialogue
         self._states: dict[
             UUID, str
-        ] = (
-            {}
-        )  # current state of the dialogue (as digest) per session; include msgstatus?
+        ] = {}  # current state of the dialogue (as digest) per session
         self._sessions: dict[
             UUID, list[(SenderStr, ReceiverStr, JsonStr)]
         ] = {}  # session + message storage
@@ -153,12 +151,21 @@ class Dialogue(Protocol):
         return self._rules
 
     def get_current_state(self, session_id: UUID) -> str:
+        """Get the current state of the dialogue for a given session."""
         return self._states[session_id] if session_id in self._states else ""
 
     def is_starter(self, digest: str) -> bool:
+        """
+        Return True if the digest is the starting message of the dialogue.
+        False otherwise.
+        """
         return self._starter == digest
 
     def is_ender(self, digest: str) -> bool:
+        """
+        Return True if the digest is the last message of the dialogue.
+        False otherwise.
+        """
         return digest in self._ender
 
     def _build_rules(self, rules: dict[Model, list[Model]]) -> dict[str, list[str]]:
@@ -178,7 +185,15 @@ class Dialogue(Protocol):
             for key, values in rules.items()
         }
 
-    def update_state(self, digest: str, session_id) -> None:
+    def update_state(self, digest: str, session_id: UUID) -> None:
+        """
+        Update the state of a dialogue session and create a new session
+        if it does not exist.
+
+        Args:
+            digest (str): The digest of the message to update the state with.
+            session_id (UUID): The ID of the session to update the state for.
+        """
         self._states[session_id] = digest
         if session_id not in self._sessions:
             self.add_session(session_id)
