@@ -1,8 +1,8 @@
 """Testing platform"""
-from src.uagents import Agent, Bureau, Context, Model
-from src.uagents.contrib.dialogues import dialogue
+from src.uagents import Agent, Bureau, Context
 from src.uagents.models import ErrorMessage
 from src.uagents.setup import fund_agent_if_low
+import dialogue_example as de
 
 agent1 = Agent(name="test1", seed="9876543210000000000")
 # agent1._logger.setLevel("DEBUG")
@@ -23,147 +23,112 @@ async def handle_error2(ctx: Context, sender: str, msg: ErrorMessage):
     ctx.logger.error(f"Error received from {sender[-6:]}: {msg.error}")
 
 
-class ResourceQuery(Model):
-    pass
-
-
-class ResourceAvailability(Model):
-    qty: int
-
-
-class ResourceRejection(Model):
-    pass
-
-
-class ResourceReservation(Model):
-    qty: int
-
-
-class ResourceReservationConfirmation(Model):
-    pass
-
-
-# predefine structure and enable passing specific messages into the structure
-RULES = {
-    ResourceQuery: [ResourceAvailability],
-    ResourceAvailability: [ResourceReservation, ResourceRejection],
-    ResourceReservation: [ResourceReservationConfirmation],
-    ResourceRejection: [],
-    ResourceReservationConfirmation: [],
-}
-
-simple_dialogue1 = dialogue.Dialogue(
+simple_dialogue1 = de.ResourceRequestDialogue(
     name="simple_dialogue1",
     version="0.1",
-    rules=RULES,
-    starter=ResourceQuery,
-    ender={ResourceRejection, ResourceReservationConfirmation},
 )
 
-simple_dialogue2 = dialogue.Dialogue(
+simple_dialogue2 = de.ResourceRequestDialogue(
     name="simple_dialogue2",
     version="0.1",
-    rules=RULES,
-    starter=ResourceQuery,
-    ender={ResourceRejection, ResourceReservationConfirmation},
 )
 
 
-@simple_dialogue1.on_message(ResourceQuery, ResourceAvailability)
+@simple_dialogue1.on_message(de.ResourceQuery, de.ResourceAvailability)
 async def handle_resource_query(
     ctx: Context,
     sender: str,
-    _msg: ResourceQuery,
+    _msg: de.ResourceQuery,
 ):
     ctx.logger.info(f"Resource query received by {sender[-6:]}, session: {ctx.session}")
-    await ctx.send(sender, ResourceAvailability(qty=1))
+    await ctx.send(sender, de.ResourceAvailability(qty=1))
 
 
 @simple_dialogue1.on_message(
-    ResourceAvailability, {ResourceReservation, ResourceRejection}
+    de.ResourceAvailability, {de.ResourceReservation, de.ResourceRejection}
 )
 async def handle_resource_availability(
-    ctx: Context, sender: str, msg: ResourceAvailability
+    ctx: Context, sender: str, msg: de.ResourceAvailability
 ):
     ctx.logger.info(f"Received availability, try reservation, session: {ctx.session}")
     if msg.qty == 0:
-        await ctx.send(sender, ResourceRejection())
-    await ctx.send(sender, ResourceReservation(qty=1))
+        await ctx.send(sender, de.ResourceRejection())
+    await ctx.send(sender, de.ResourceReservation(qty=1))
 
 
 @simple_dialogue1.on_message(
-    ResourceReservation,
-    ResourceReservationConfirmation,
+    de.ResourceReservation,
+    de.ResourceReservationConfirmation,
 )
 async def handle_resource_reservation(
-    ctx: Context, sender: str, msg: ResourceReservation
+    ctx: Context, sender: str, _msg: de.ResourceReservation
 ):
     ctx.logger.info(f"Received reservation, session: {ctx.session}")
-    await ctx.send(sender, ResourceReservationConfirmation())
+    await ctx.send(sender, de.ResourceReservationConfirmation())
 
 
-@simple_dialogue1.on_message(ResourceRejection)
+@simple_dialogue1.on_message(de.ResourceRejection)
 async def handle_resource_rejection(
     ctx: Context,
     _sender: str,
-    msg: ResourceRejection,
+    _msg: de.ResourceRejection,
 ):
     ctx.logger.info(f"rejected offer, session: {ctx.session}")
 
 
-@simple_dialogue1.on_message(ResourceReservationConfirmation)
+@simple_dialogue1.on_message(de.ResourceReservationConfirmation)
 async def handle_resource_reservation_confirmation(
-    ctx: Context, sender: str, msg: ResourceReservationConfirmation
+    ctx: Context, _sender: str, _msg: de.ResourceReservationConfirmation
 ):
     ctx.logger.info(f"Confirm reservation, session: {ctx.session}")
     print("---")
 
 
-@simple_dialogue2.on_message(ResourceQuery, ResourceAvailability)
+@simple_dialogue2.on_message(de.ResourceQuery, de.ResourceAvailability)
 async def handle_resource_query2(
     ctx: Context,
     sender: str,
-    _msg: ResourceQuery,
+    _msg: de.ResourceQuery,
 ):
     ctx.logger.info(f"Resource query received by {sender[-6:]}, session: {ctx.session}")
-    await ctx.send(sender, ResourceAvailability(qty=1))
+    await ctx.send(sender, de.ResourceAvailability(qty=1))
 
 
 @simple_dialogue2.on_message(
-    ResourceAvailability, {ResourceReservation, ResourceRejection}
+    de.ResourceAvailability, {de.ResourceReservation, de.ResourceRejection}
 )
 async def handle_resource_availability2(
-    ctx: Context, sender: str, msg: ResourceAvailability
+    ctx: Context, sender: str, msg: de.ResourceAvailability
 ):
     ctx.logger.info(f"Received availability, try reservation, session: {ctx.session}")
     if msg.qty == 0:
-        await ctx.send(sender, ResourceRejection())
-    await ctx.send(sender, ResourceReservation(qty=1))
+        await ctx.send(sender, de.ResourceRejection())
+    await ctx.send(sender, de.ResourceReservation(qty=1))
 
 
 @simple_dialogue2.on_message(
-    ResourceReservation,
-    ResourceReservationConfirmation,
+    de.ResourceReservation,
+    de.ResourceReservationConfirmation,
 )
 async def handle_resource_reservation2(
-    ctx: Context, sender: str, msg: ResourceReservation
+    ctx: Context, sender: str, _msg: de.ResourceReservation
 ):
     ctx.logger.info(f"Received reservation, session: {ctx.session}")
-    await ctx.send(sender, ResourceReservationConfirmation())
+    await ctx.send(sender, de.ResourceReservationConfirmation())
 
 
-@simple_dialogue2.on_message(ResourceRejection)
+@simple_dialogue2.on_message(de.ResourceRejection)
 async def handle_resource_rejection2(
     ctx: Context,
     _sender: str,
-    msg: ResourceRejection,
+    _msg: de.ResourceRejection,
 ):
     ctx.logger.info(f"offer was rejected, session: {ctx.session}")
 
 
-@simple_dialogue2.on_message(ResourceReservationConfirmation)
+@simple_dialogue2.on_message(de.ResourceReservationConfirmation)
 async def handle_resource_reservation_confirmation2(
-    ctx: Context, sender: str, msg: ResourceReservationConfirmation
+    ctx: Context, _sender: str, _msg: de.ResourceReservationConfirmation
 ):
     ctx.logger.info(f"Confirm reservation, session: {ctx.session}")
     print("---")
@@ -179,9 +144,9 @@ counter = 0
 async def handle_interval(ctx: Context):
     global counter
     if counter == 1:
-        await ctx.send(agent2.address, ResourceQuery())
+        await ctx.send(agent2.address, de.ResourceQuery())
     if counter == 2:
-        await ctx.send(agent2.address, ResourceRejection())
+        await ctx.send(agent2.address, de.ResourceRejection())
     counter += 1
 
 
