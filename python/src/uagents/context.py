@@ -263,7 +263,7 @@ class Context:
                     return protocol_digest
         return None
 
-    def update_protocols(self, protocol: Protocol):
+    def update_protocols(self, protocol: Protocol) -> None:
         """
         Register a protocol with the context.
 

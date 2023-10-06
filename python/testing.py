@@ -24,13 +24,11 @@ async def handle_error2(ctx: Context, sender: str, msg: ErrorMessage):
 
 
 simple_dialogue1 = de.ResourceRequestDialogue(
-    name="ResourceRequestDialogue",
     version="0.1",
     agent_address=agent1.address,
 )
 
 simple_dialogue2 = de.ResourceRequestDialogue(
-    name="ResourceRequestDialogue",
     version="0.1",
     agent_address=agent2.address,
 )
@@ -55,6 +53,7 @@ async def handle_resource_availability(
     ctx.logger.info(f"Received availability, try reservation, session: {ctx.session}")
     if msg.qty == 0:
         await ctx.send(sender, de.ResourceRejection())
+        return
     await ctx.send(sender, de.ResourceReservation(qty=1))
 
 
@@ -105,6 +104,7 @@ async def handle_resource_availability2(
     ctx.logger.info(f"Received availability, try reservation, session: {ctx.session}")
     if msg.qty == 0:
         await ctx.send(sender, de.ResourceRejection())
+        return
     await ctx.send(sender, de.ResourceReservation(qty=1))
 
 

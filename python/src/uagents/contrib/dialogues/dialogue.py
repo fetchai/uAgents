@@ -1,4 +1,6 @@
 """Dialogue class aka. blueprint for protocols"""
+import graphlib
+from datetime import datetime
 from enum import Enum
 from typing import Optional, Type
 from uuid import UUID, uuid4
@@ -110,20 +112,14 @@ class Dialogue(Protocol):
         version: Optional[str] = None,
         rules: dict[Type[Model], list[Type[Model]]] = None,
         dialogue_id: Optional[UUID] = None,
-        starter: Optional[Type[Model]] = None,
-        ender: Optional[type[Model] | set[type[Model]]] = None,
         agent_address: Optional[str] = "",
     ) -> None:
         self._id = dialogue_id or uuid4()  # id of the dialogue
         self._rules = self._build_rules(
             rules
         )  # DAG of dialogue represented by message digests
-        self._starter = Model.build_schema_digest(
-            starter
-        )  # first message of the dialogue
-        self._ender = set(
-            Model.build_schema_digest(e) for e in ender
-        )  # last message of the dialogue
+        self._starter = self._build_starter()  # first message of the dialogue
+        self._ender = self._build_ender()  # last message(s) of the dialogue
         self._states: dict[
             UUID, str
         ] = {}  # current state of the dialogue (as digest) per session
@@ -190,6 +186,15 @@ class Dialogue(Protocol):
             for key, values in rules.items()
         }
 
+    def _build_starter(self) -> str:
+        """Build the starting message of the dialogue."""
+        graph = graphlib.TopologicalSorter(self._rules)
+        return list(graph.static_order())[-1]
+
+    def _build_ender(self) -> set[str]:
+        """Build the last message(s) of the dialogue."""
+        return set(model for model in self._rules if not self._rules[model])
+
     def update_state(self, digest: str, session_id: UUID) -> None:
         """
         Update the state of a dialogue session and create a new session
@@ -229,6 +234,8 @@ class Dialogue(Protocol):
                 "sender": sender,
                 "receiver": receiver,
                 "content": content,
+                "timestamp": datetime.timestamp(datetime.now()),
+                "timeout": self._lifetime,
             }
         )
         self._update_session_in_storage(session_id)

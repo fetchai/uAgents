@@ -867,7 +867,7 @@ class Agent(Sink):
 
                             if not is_valid:
                                 context.session = None
-                                await _handle_error(
+                                await _send_error_message(
                                     context,
                                     sender,
                                     ErrorMessage(
