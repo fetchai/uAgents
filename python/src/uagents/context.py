@@ -494,22 +494,6 @@ class Context:
                 current_protocol.update_state(schema_digest, current_session)
                 self.logger.debug(f"update state to: {message_name}")
 
-        # Handle local dispatch of messages
-        if dispatcher.contains(destination):
-            await dispatcher.dispatch(
-                self.address,
-                destination,
-                schema_digest,
-                json_message,
-                current_session,
-            )
-            return MsgStatus(
-                status=DeliveryStatus.DELIVERED,
-                detail="Message dispatched locally",
-                destination=destination,
-                endpoint="",
-            )
-
         # Resolve the destination address and endpoint ('destination' can be a name or address)
         destination_address, endpoints = await self._resolver.resolve(destination)
         if len(endpoints) == 0:
