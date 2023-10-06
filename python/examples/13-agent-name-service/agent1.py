@@ -1,6 +1,6 @@
 from cosmpy.aerial.wallet import LocalWallet
 
-from uagents.network import get_ledger, get_name_service_contract
+from uagents.network import get_name_service_contract
 from uagents.setup import fund_agent_if_low
 from uagents import Agent, Context, Model
 
@@ -19,10 +19,11 @@ bob = Agent(
     endpoint=["http://localhost:8001/submit"],
 )
 
-ledger = get_ledger()
+
 my_wallet = LocalWallet.from_unsafe_seed("registration test wallet")
-name_service_contract = get_name_service_contract()
+name_service_contract = get_name_service_contract(test=True)
 DOMAIN = "agent"
+
 
 for wallet in [my_wallet, bob.wallet]:
     fund_agent_if_low(wallet.address())
@@ -31,7 +32,7 @@ for wallet in [my_wallet, bob.wallet]:
 @bob.on_event("startup")
 async def register_agent_name(ctx: Context):
     await name_service_contract.register(
-        ledger, my_wallet, ctx.address, ctx.name, DOMAIN
+        bob.ledger, my_wallet, ctx.address, ctx.name, DOMAIN
     )
 
 
