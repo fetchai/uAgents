@@ -128,10 +128,12 @@ class Agent(Sink):
         protocols (Dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
         corresponding protocols.
         _ctx (Context): The context for agent interactions.
+        _test (bool): True if the agent will register and transact on the testnet.
 
     Properties:
         name (str): The name of the agent.
         address (str): The address of the agent used for communication.
+        identifier (str): The Agent Identifier, including network prefix and address.
         wallet (LocalWallet): The agent's wallet for transacting on the ledger.
         storage (KeyValueStore): The key-value store for storage operations.
         mailbox (Dict[str, str]): The mailbox configuration for the agent (deprecated and replaced
@@ -146,7 +148,6 @@ class Agent(Sink):
     def __init__(
         self,
         name: Optional[str] = None,
-        test: Optional[bool] = True,
         port: Optional[int] = None,
         seed: Optional[str] = None,
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
@@ -155,6 +156,7 @@ class Agent(Sink):
         resolve: Optional[Resolver] = None,
         max_resolver_endpoints: Optional[int] = None,
         version: Optional[str] = None,
+        test: Optional[bool] = True,
     ):
         """
         Initialize an Agent instance.
@@ -171,7 +173,6 @@ class Agent(Sink):
             version (Optional[str]): The version of the agent.
         """
         self._name = name
-        self._test = test
         self._port = port if port is not None else 8000
         self._background_tasks: Set[asyncio.Task] = set()
         self._resolver = (
@@ -215,8 +216,8 @@ class Agent(Sink):
         else:
             self._mailbox_client = None
 
-        self._ledger = get_ledger(self._test)
-        self._almanac_contract = get_almanac_contract(self._test)
+        self._ledger = get_ledger(test)
+        self._almanac_contract = get_almanac_contract(test)
         self._storage = KeyValueStore(self.address[0:16])
         self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
         self._interval_messages: Set[str] = set()
@@ -229,6 +230,7 @@ class Agent(Sink):
         self._message_queue = asyncio.Queue()
         self._on_startup = []
         self._on_shutdown = []
+        self._test = test
         self._version = version or "0.1.0"
 
         # initialize the internal agent protocol
@@ -317,10 +319,10 @@ class Agent(Sink):
     @property
     def identifier(self) -> str:
         """
-        Get the address of the agent used for communication including the network prefix.
+        Get the Agent Identifier, including network prefix and address.
 
         Returns:
-            str: The agent's address and network prefix.
+            str: The agent's identifier.
         """
         prefix = TESTNET_PREFIX if self._test else MAINNET_PREFIX
         return prefix + self._identity.address
