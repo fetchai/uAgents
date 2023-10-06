@@ -9,6 +9,7 @@ import requests
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
+from cosmpy.aerial.client import LedgerClient
 
 from uagents.asgi import ASGIServer
 from uagents.context import (
@@ -34,6 +35,8 @@ from uagents.config import (
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     LEDGER_PREFIX,
     REGISTRATION_RETRY_INTERVAL_SECONDS,
+    TESTNET_PREFIX,
+    MAINNET_PREFIX,
     parse_endpoint_config,
     parse_agentverse_config,
     get_logger,
@@ -125,10 +128,12 @@ class Agent(Sink):
         protocols (Dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
         corresponding protocols.
         _ctx (Context): The context for agent interactions.
+        _test (bool): True if the agent will register and transact on the testnet.
 
     Properties:
         name (str): The name of the agent.
         address (str): The address of the agent used for communication.
+        identifier (str): The Agent Identifier, including network prefix and address.
         wallet (LocalWallet): The agent's wallet for transacting on the ledger.
         storage (KeyValueStore): The key-value store for storage operations.
         mailbox (Dict[str, str]): The mailbox configuration for the agent (deprecated and replaced
@@ -151,6 +156,7 @@ class Agent(Sink):
         resolve: Optional[Resolver] = None,
         max_resolver_endpoints: Optional[int] = None,
         version: Optional[str] = None,
+        test: Optional[bool] = True,
     ):
         """
         Initialize an Agent instance.
@@ -210,8 +216,8 @@ class Agent(Sink):
         else:
             self._mailbox_client = None
 
-        self._ledger = get_ledger()
-        self._almanac_contract = get_almanac_contract()
+        self._ledger = get_ledger(test)
+        self._almanac_contract = get_almanac_contract(test)
         self._storage = KeyValueStore(self.address[0:16])
         self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
         self._interval_messages: Set[str] = set()
@@ -224,6 +230,7 @@ class Agent(Sink):
         self._message_queue = asyncio.Queue()
         self._on_startup = []
         self._on_shutdown = []
+        self._test = test
         self._version = version or "0.1.0"
 
         # initialize the internal agent protocol
@@ -234,6 +241,7 @@ class Agent(Sink):
 
         self._ctx = Context(
             self._identity.address,
+            self.identifier,
             self._name,
             self._storage,
             self._resolver,
@@ -309,6 +317,17 @@ class Agent(Sink):
         return self._identity.address
 
     @property
+    def identifier(self) -> str:
+        """
+        Get the Agent Identifier, including network prefix and address.
+
+        Returns:
+            str: The agent's identifier.
+        """
+        prefix = TESTNET_PREFIX if self._test else MAINNET_PREFIX
+        return prefix + self._identity.address
+
+    @property
     def wallet(self) -> LocalWallet:
         """
         Get the wallet of the agent.
@@ -317,6 +336,16 @@ class Agent(Sink):
             LocalWallet: The agent's wallet.
         """
         return self._wallet
+
+    @property
+    def ledger(self) -> LedgerClient:
+        """
+        Get the ledger of the agent.
+
+        Returns:
+            LedgerClient: The agent's ledger
+        """
+        return self._ledger
 
     @property
     def storage(self) -> KeyValueStore:
@@ -357,6 +386,17 @@ class Agent(Sink):
             MailboxClient: The mailbox client instance.
         """
         return self._mailbox_client
+
+    @property
+    def balance(self) -> int:
+        """
+        Get the balance of the agent.
+
+        Returns:
+            int: Bank balance.
+        """
+
+        return self.ledger.query_bank_balance(Address(self.wallet.address()))
 
     @mailbox.setter
     def mailbox(self, config: Union[str, Dict[str, str]]):
@@ -472,11 +512,7 @@ class Agent(Sink):
             or list(self.protocols.keys())
             != self._almanac_contract.get_protocols(self.address)
         ):
-            agent_balance = self._ledger.query_bank_balance(
-                Address(self.wallet.address())
-            )
-
-            if agent_balance < REGISTRATION_FEE:
+            if self.balance < REGISTRATION_FEE:
                 self._logger.warning(
                     f"I do not have enough funds to register on Almanac contract\
                         \nFund using wallet address: {self.wallet.address()}"
@@ -485,7 +521,7 @@ class Agent(Sink):
             self._logger.info("Registering on almanac contract...")
             signature = self.sign_registration()
             await self._almanac_contract.register(
-                self._ledger,
+                self.ledger,
                 self.wallet,
                 self.address,
                 list(self.protocols.keys()),
@@ -806,6 +842,7 @@ class Agent(Sink):
 
             context = Context(
                 self._identity.address,
+                self.identifier,
                 self._name,
                 self._storage,
                 self._resolver,

@@ -4,11 +4,72 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple
 import random
 
-from uagents.config import DEFAULT_MAX_ENDPOINTS
+from uagents.config import (
+    DEFAULT_MAX_ENDPOINTS,
+    TESTNET_PREFIX,
+    MAINNET_PREFIX,
+    AGENT_PREFIX,
+)
 from uagents.network import get_almanac_contract, get_name_service_contract
 
 
-def query_record(agent_address: str, service: str) -> dict:
+def is_valid_address(address: str) -> bool:
+    """
+    Check if the given string is a valid address.
+
+    Args:
+        address (str): The address to be checked.
+
+    Returns:
+        bool: True if the address is valid; False otherwise.
+    """
+    return len(address) == 65 and address.startswith(AGENT_PREFIX)
+
+
+def is_valid_prefix(prefix: str) -> bool:
+    """
+    Check if the given string is a valid prefix.
+
+    Args:
+        prefix (str): The prefix to be checked.
+
+    Returns:
+        bool: True if the prefix is valid; False otherwise.
+    """
+    valid_prefixes = [TESTNET_PREFIX, MAINNET_PREFIX, ""]
+    return prefix in valid_prefixes
+
+
+def parse_identifier(identifier: str) -> Tuple[str, str, str]:
+    """
+    Parse an agent identifier string into prefix, name, and address.
+
+    Args:
+        identifier (str): The identifier string to be parsed.
+
+    Returns:
+        Tuple[str, str, str]: A tuple containing the prefix, name, and address as strings.
+    """
+
+    prefix = ""
+    name = ""
+    address = ""
+
+    if "://" in identifier:
+        prefix, identifier = identifier.split("://", 1)
+
+    if "/" in identifier:
+        name, identifier = identifier.split("/", 1)
+
+    if is_valid_address(identifier):
+        address = identifier
+    else:
+        name = identifier
+
+    return prefix, name, address
+
+
+def query_record(agent_address: str, service: str, test: bool) -> dict:
     """
     Query a record from the Almanac contract.
 
@@ -19,7 +80,7 @@ def query_record(agent_address: str, service: str) -> dict:
     Returns:
         dict: The query result.
     """
-    contract = get_almanac_contract()
+    contract = get_almanac_contract(test)
     query_msg = {
         "query_record": {"agent_address": agent_address, "record_type": service}
     }
@@ -27,42 +88,24 @@ def query_record(agent_address: str, service: str) -> dict:
     return result
 
 
-def get_agent_address(name: str) -> str:
+def get_agent_address(name: str, test: bool) -> str:
     """
     Get the agent address associated with the provided name from the name service contract.
 
     Args:
         name (str): The name to query.
+        test (bool): Whether to use the testnet or mainnet contract.
 
     Returns:
         Optional[str]: The associated agent address if found.
     """
     query_msg = {"domain_record": {"domain": f"{name}"}}
-    result = get_name_service_contract().query(query_msg)
+    result = get_name_service_contract(test).query(query_msg)
     if result["record"] is not None:
         registered_address = result["record"]["records"][0]["agent_address"]["records"]
         if len(registered_address) > 0:
             return registered_address[0]["address"]
     return None
-
-
-def is_agent_address(address):
-    """
-    Check if the provided address is a valid agent address.
-
-    Args:
-        address: The address to check.
-
-    Returns:
-        bool: True if the address is a valid agent address, False otherwise.
-    """
-    if not isinstance(address, str):
-        return False
-
-    prefix = "agent"
-    expected_length = 65
-
-    return address.startswith(prefix) and len(address) == expected_length
 
 
 class Resolver(ABC):
@@ -105,9 +148,14 @@ class GlobalResolver(Resolver):
         Returns:
             Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
         """
-        if is_agent_address(destination):
-            return await self._almanc_resolver.resolve(destination)
-        return await self._name_service_resolver.resolve(destination)
+
+        prefix, _, address = parse_identifier(destination)
+
+        if is_valid_prefix(prefix):
+            resolver = self._almanc_resolver if address else self._name_service_resolver
+            return await resolver.resolve(destination)
+
+        return None, []
 
 
 class AlmanacResolver(Resolver):
@@ -130,7 +178,9 @@ class AlmanacResolver(Resolver):
         Returns:
             Tuple[str, List[str]]: The address and resolved endpoints.
         """
-        result = query_record(destination, "service")
+        prefix, _, address = parse_identifier(destination)
+        is_testnet = prefix != MAINNET_PREFIX
+        result = query_record(address, "service", is_testnet)
         if result is not None:
             record = result.get("record") or {}
             endpoint_list = (
@@ -140,7 +190,7 @@ class AlmanacResolver(Resolver):
             if len(endpoint_list) > 0:
                 endpoints = [val.get("url") for val in endpoint_list]
                 weights = [val.get("weight") for val in endpoint_list]
-                return destination, random.choices(
+                return address, random.choices(
                     endpoints,
                     weights=weights,
                     k=min(self._max_endpoints, len(endpoints)),
@@ -170,7 +220,9 @@ class NameServiceResolver(Resolver):
         Returns:
             Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
         """
-        address = get_agent_address(destination)
+        prefix, name, _ = parse_identifier(destination)
+        use_testnet = prefix != MAINNET_PREFIX
+        address = get_agent_address(name, use_testnet)
         if address is not None:
             return await self._almanac_resolver.resolve(address)
         return None, []
@@ -190,7 +242,7 @@ class RulesBasedResolver(Resolver):
         self._rules = rules
         self._max_endpoints = max_endpoints or DEFAULT_MAX_ENDPOINTS
 
-    async def resolve(self, destination: str) -> Optional[str]:
+    async def resolve(self, destination: str) -> Tuple[Optional[str], List[str]]:
         """
         Resolve the destination using the provided rules.
 

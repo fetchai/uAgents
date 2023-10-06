@@ -1,6 +1,7 @@
 import logging
 import sys
-from enum import Enum
+
+
 from typing import Any, Dict, List, Optional, Union
 
 from uvicorn.logging import DefaultFormatter
@@ -8,16 +9,22 @@ from uvicorn.logging import DefaultFormatter
 logging.basicConfig(level=logging.INFO)
 
 
-class AgentNetwork(Enum):
-    FETCHAI_TESTNET = 1
-    FETCHAI_MAINNET = 2
-
-
 AGENT_PREFIX = "agent"
 LEDGER_PREFIX = "fetch"
 USER_PREFIX = "user"
-CONTRACT_ALMANAC = "fetch1tjagw8g8nn4cwuw00cf0m5tl4l6wfw9c0ue507fhx9e3yrsck8zs0l3q4w"
-CONTRACT_NAME_SERVICE = (
+TESTNET_PREFIX = "test-agent"
+MAINNET_PREFIX = "agent"
+
+MAINNET_CONTRACT_ALMANAC = (
+    "fetch1mezzhfj7qgveewzwzdk6lz5sae4dunpmmsjr9u7z0tpmdsae8zmquq3y0y"
+)
+TESTNET_CONTRACT_ALMANAC = (
+    "fetch1tjagw8g8nn4cwuw00cf0m5tl4l6wfw9c0ue507fhx9e3yrsck8zs0l3q4w"
+)
+MAINNET_CONTRACT_NAME_SERVICE = (
+    "fetch1479lwv5vy8skute5cycuz727e55spkhxut0valrcm38x9caa2x8q99ef0q"
+)
+TESTNET_CONTRACT_NAME_SERVICE = (
     "fetch1mxz8kn3l5ksaftx8a9pj9a6prpzk2uhxnqdkwuqvuh37tw80xu6qges77l"
 )
 REGISTRATION_FEE = 500000000000000000
@@ -25,7 +32,6 @@ REGISTRATION_DENOM = "atestfet"
 REGISTRATION_UPDATE_INTERVAL_SECONDS = 3600
 REGISTRATION_RETRY_INTERVAL_SECONDS = 60
 AVERAGE_BLOCK_INTERVAL = 5.7
-AGENT_NETWORK = AgentNetwork.FETCHAI_TESTNET
 
 AGENTVERSE_URL = "https://agentverse.ai"
 ALMANAC_API_URL = AGENTVERSE_URL + "/v1/almanac/"

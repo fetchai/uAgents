@@ -20,10 +20,10 @@ from cosmpy.aerial.tx import Transaction
 from cosmpy.aerial.wallet import LocalWallet
 
 from uagents.config import (
-    AgentNetwork,
-    CONTRACT_ALMANAC,
-    CONTRACT_NAME_SERVICE,
-    AGENT_NETWORK,
+    MAINNET_CONTRACT_ALMANAC,
+    TESTNET_CONTRACT_ALMANAC,
+    MAINNET_CONTRACT_NAME_SERVICE,
+    TESTNET_CONTRACT_NAME_SERVICE,
     AVERAGE_BLOCK_INTERVAL,
     REGISTRATION_FEE,
     REGISTRATION_DENOM,
@@ -33,24 +33,25 @@ from uagents.config import (
 
 logger = get_logger("network")
 
-# Setting up the Ledger and Faucet based on Agent Network
-if AGENT_NETWORK == AgentNetwork.FETCHAI_TESTNET:
-    _ledger = LedgerClient(NetworkConfig.fetchai_stable_testnet())
-    _faucet_api = FaucetApi(NetworkConfig.fetchai_stable_testnet())
-elif AGENT_NETWORK == AgentNetwork.FETCHAI_MAINNET:
-    _ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
-else:
-    raise NotImplementedError
+
+_faucet_api = FaucetApi(NetworkConfig.fetchai_stable_testnet())
+_testnet_ledger = LedgerClient(NetworkConfig.fetchai_stable_testnet())
+_mainnet_ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
 
 
-def get_ledger() -> LedgerClient:
+def get_ledger(test: bool = True) -> LedgerClient:
     """
     Get the Ledger client.
+
+    Args:
+        test (bool): Whether to use the testnet or mainnet. Defaults to True.
 
     Returns:
         LedgerClient: The Ledger client instance.
     """
-    return _ledger
+    if test:
+        return _testnet_ledger
+    return _mainnet_ledger
 
 
 def get_faucet() -> FaucetApi:
@@ -65,6 +66,7 @@ def get_faucet() -> FaucetApi:
 
 async def wait_for_tx_to_complete(
     tx_hash: str,
+    ledger: LedgerClient,
     timeout: Optional[timedelta] = None,
     poll_period: Optional[timedelta] = None,
 ) -> TxResponse:
@@ -73,10 +75,10 @@ async def wait_for_tx_to_complete(
 
     Args:
         tx_hash (str): The hash of the transaction to monitor.
-        timeout (Optional[timedelta], optional): The maximum time to wait for
+        ledger (LedgerClient): The Ledger client to poll.
+        timeout (Optional[timedelta], optional): The maximum time to wait.
         the transaction to complete. Defaults to None.
         poll_period (Optional[timedelta], optional): The time interval to poll
-        the Ledger for the transaction status. Defaults to None.
 
     Returns:
         TxResponse: The response object containing the transaction details.
@@ -88,7 +90,7 @@ async def wait_for_tx_to_complete(
     start = datetime.now()
     while True:
         try:
-            return _ledger.query_tx(tx_hash)
+            return ledger.query_tx(tx_hash)
         except NotFoundError:
             pass
 
@@ -231,7 +233,7 @@ class AlmanacContract(LedgerContract):
         transaction = prepare_and_broadcast_basic_transaction(
             ledger, transaction, wallet
         )
-        await wait_for_tx_to_complete(transaction.tx_hash)
+        await wait_for_tx_to_complete(transaction.tx_hash, ledger)
 
     def get_sequence(self, address: str) -> int:
         """
@@ -249,17 +251,27 @@ class AlmanacContract(LedgerContract):
         return sequence
 
 
-_almanac_contract = AlmanacContract(None, _ledger, CONTRACT_ALMANAC)
+_mainnet_almanac_contract = AlmanacContract(
+    None, _mainnet_ledger, MAINNET_CONTRACT_ALMANAC
+)
+_testnet_almanac_contract = AlmanacContract(
+    None, _testnet_ledger, TESTNET_CONTRACT_ALMANAC
+)
 
 
-def get_almanac_contract() -> AlmanacContract:
+def get_almanac_contract(test: bool = True) -> AlmanacContract:
     """
     Get the AlmanacContract instance.
+
+    Args:
+        test (bool): Whether to use the testnet or mainnet. Defaults to True.
 
     Returns:
         AlmanacContract: The AlmanacContract instance.
     """
-    return _almanac_contract
+    if test:
+        return _testnet_almanac_contract
+    return _mainnet_almanac_contract
 
 
 class NameServiceContract(LedgerContract):
@@ -321,7 +333,12 @@ class NameServiceContract(LedgerContract):
         return res["is_public"]
 
     def get_registration_tx(
-        self, name: str, wallet_address: str, agent_address: str, domain: str
+        self,
+        name: str,
+        wallet_address: str,
+        agent_address: str,
+        domain: str,
+        test: bool,
     ):
         """
         Get the registration transaction for registering a name within a domain.
@@ -331,6 +348,7 @@ class NameServiceContract(LedgerContract):
             wallet_address (str): The wallet address initiating the registration.
             agent_address (str): The address of the agent.
             domain (str): The domain in which the name is registered.
+            test (bool): The agent type
 
         Returns:
             Optional[Transaction]: The registration transaction, or None if the name is not
@@ -348,11 +366,12 @@ class NameServiceContract(LedgerContract):
             }
         }
 
+        contract = (
+            TESTNET_CONTRACT_NAME_SERVICE if test else MAINNET_CONTRACT_NAME_SERVICE
+        )
         transaction = Transaction()
         transaction.add_message(
-            create_cosmwasm_execute_msg(
-                wallet_address, CONTRACT_NAME_SERVICE, registration_msg
-            )
+            create_cosmwasm_execute_msg(wallet_address, contract, registration_msg)
         )
 
         return transaction
@@ -376,8 +395,11 @@ class NameServiceContract(LedgerContract):
             domain (str): The domain in which the name is registered.
         """
         logger.info("Registering name...")
+        chain_id = ledger.query_chain_id()
 
-        if not get_almanac_contract().is_registered(agent_address):
+        if not get_almanac_contract(chain_id == "dorado-1").is_registered(
+            agent_address
+        ):
             logger.warning(
                 f"Agent {name} needs to be registered in almanac contract to register its name"
             )
@@ -390,7 +412,11 @@ class NameServiceContract(LedgerContract):
             return
 
         transaction = self.get_registration_tx(
-            name, str(wallet.address()), agent_address, domain
+            name,
+            str(wallet.address()),
+            agent_address,
+            domain,
+            chain_id == "dorado-1",
         )
 
         if transaction is None:
@@ -401,18 +427,28 @@ class NameServiceContract(LedgerContract):
         transaction = prepare_and_broadcast_basic_transaction(
             ledger, transaction, wallet
         )
-        await wait_for_tx_to_complete(transaction.tx_hash)
+        await wait_for_tx_to_complete(transaction.tx_hash, ledger)
         logger.info("Registering name...complete")
 
 
-_name_service_contract = NameServiceContract(None, _ledger, CONTRACT_NAME_SERVICE)
+_mainnet_name_service_contract = NameServiceContract(
+    None, _mainnet_ledger, MAINNET_CONTRACT_NAME_SERVICE
+)
+_testnet_name_service_contract = NameServiceContract(
+    None, _testnet_ledger, TESTNET_CONTRACT_NAME_SERVICE
+)
 
 
-def get_name_service_contract() -> NameServiceContract:
+def get_name_service_contract(test: bool = True) -> NameServiceContract:
     """
     Get the NameServiceContract instance.
+
+    Args:
+        test (bool): Whether to use the testnet or mainnet. Defaults to True.
 
     Returns:
         NameServiceContract: The NameServiceContract instance.
     """
-    return _name_service_contract
+    if test:
+        return _testnet_name_service_contract
+    return _mainnet_name_service_contract
