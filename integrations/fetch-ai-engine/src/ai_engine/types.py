@@ -25,3 +25,10 @@ class UAgentResponse(Model):
     options: Optional[List[KeyValue]]
     verbose_message: Optional[str]
     verbose_options: Optional[List[KeyValue]]
+
+
+class BookingRequest(Model):
+    request_id: str
+    user_response: str
+    user_email: str
+    user_full_name: str
