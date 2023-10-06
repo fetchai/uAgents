@@ -34,8 +34,9 @@ from uagents.crypto import Identity
 from uagents.dispatch import JsonStr, dispatcher
 from uagents.envelope import Envelope
 from uagents.models import ErrorMessage, Model
-from uagents.resolver import Resolver
+from uagents.resolver import Resolver, parse_identifier
 from uagents.storage import KeyValueStore
+
 
 if TYPE_CHECKING:
     from uagents.protocol import Protocol
@@ -134,6 +135,7 @@ class Context:
     def __init__(
         self,
         address: str,
+        identifier: str,
         name: Optional[str],
         storage: KeyValueStore,
         resolve: Resolver,
@@ -174,6 +176,7 @@ class Context:
         self.ledger = ledger
         self._name = name
         self._address = str(address)
+        self._identifier = str(identifier)
         self._resolver = resolve
         self._identity = identity
         self._queries = queries
@@ -205,6 +208,16 @@ class Context:
             str: The address of the context.
         """
         return self._address
+
+    @property
+    def identifier(self) -> str:
+        """
+        Get the address of the agent used for communication including the network prefix.
+
+        Returns:
+            str: The agent's address and network prefix.
+        """
+        return self._identifier
 
     @property
     def logger(self) -> logging.Logger:
@@ -415,21 +428,44 @@ class Context:
                         endpoint="",
                     )
         # Check if this message is a valid interval message
-        if self._message_received is None and self._interval_messages:
-            if schema_digest not in self._interval_messages:
-                self._logger.exception(
-                    f"Outgoing message {message_type} is not a valid interval message"
+        if (
+            self._message_received is None
+            and self._interval_messages
+            and schema_digest not in self._interval_messages
+        ):
+            self._logger.exception(
+                f"Outgoing message {message_type} is not a valid interval message"
+            )
+            return MsgStatus(
+                status=DeliveryStatus.FAILED,
+                detail="Invalid interval message",
+                destination=destination,
+                endpoint="",
+            )
+
+        # Extract address from destination agent identifier if present
+        _, _, destination_address = parse_identifier(destination)
+
+        if destination_address:
+            # Handle local dispatch of messages
+            if dispatcher.contains(destination_address):
+                await dispatcher.dispatch(
+                    self.address,
+                    destination_address,
+                    schema_digest,
+                    json_message,
+                    self._session,
                 )
                 return MsgStatus(
-                    status=DeliveryStatus.FAILED,
-                    detail="Invalid interval message",
-                    destination=destination,
+                    status=DeliveryStatus.DELIVERED,
+                    detail="Message dispatched locally",
+                    destination=destination_address,
                     endpoint="",
                 )
 
         current_session = self._session or uuid.uuid4()
 
-        # if the message is part of a Dialogue, update the Dialogues state accordingly
+        # if the message is part of a Dialogue, update the Dialogue state accordingly
         current_protocol_digest = self.get_message_protocol(schema_digest)
         if current_protocol_digest is not None:
             current_protocol = self.protocols[current_protocol_digest]
