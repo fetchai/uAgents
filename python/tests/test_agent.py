@@ -51,7 +51,7 @@ class TestAgent(unittest.TestCase):
         unsigned_msg_handlers = self.agent._protocol._unsigned_message_handlers
 
         self.assertEqual(len(unsigned_msg_handlers), 0)
-        self.assertEqual(len(signed_msg_handlers), 1)
+        self.assertEqual(len(signed_msg_handlers), 2)
         self.assertTrue(isinstance(signed_msg_handlers[MESSAGE_DIGEST], Callable))
 
     def test_agent_on_unsigned_message(self):
@@ -63,7 +63,7 @@ class TestAgent(unittest.TestCase):
         unsigned_msg_handlers = self.agent._protocol._unsigned_message_handlers
 
         self.assertEqual(len(unsigned_msg_handlers), 1)
-        self.assertEqual(len(signed_msg_handlers), 1)
+        self.assertEqual(len(signed_msg_handlers), 2)
         self.assertTrue(isinstance(signed_msg_handlers[MESSAGE_DIGEST], Callable))
         self.assertTrue(isinstance(unsigned_msg_handlers[QUERY_DIGEST], Callable))
 
