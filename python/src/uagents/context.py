@@ -463,6 +463,19 @@ class Context:
                     endpoint="",
                 )
 
+            # Handle queries waiting for a response
+            if destination_address in self._queries:
+                self._queries[destination_address].set_result(
+                    (json_message, schema_digest)
+                )
+                del self._queries[destination_address]
+                return MsgStatus(
+                    status=DeliveryStatus.DELIVERED,
+                    detail="Sync message resolved",
+                    destination=destination_address,
+                    endpoint="",
+                )
+
         current_session = self._session or uuid.uuid4()
 
         # if the message is part of a Dialogue, update the Dialogue state accordingly
@@ -493,17 +506,6 @@ class Context:
             return MsgStatus(
                 status=DeliveryStatus.DELIVERED,
                 detail="Message dispatched locally",
-                destination=destination,
-                endpoint="",
-            )
-
-        # Handle queries waiting for a response
-        if destination in self._queries:
-            self._queries[destination].set_result((json_message, schema_digest))
-            del self._queries[destination]
-            return MsgStatus(
-                status=DeliveryStatus.DELIVERED,
-                detail="Sync message resolved",
                 destination=destination,
                 endpoint="",
             )
