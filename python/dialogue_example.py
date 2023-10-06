@@ -39,6 +39,5 @@ class ResourceRequestDialogue(dialogue.Dialogue):
             name="ResourceRequestDialogue",
             version=version,
             rules=rules,
-            dialogue_id=None,
             agent_address=agent_address,
         )

@@ -2,11 +2,11 @@
 import graphlib
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Type
-from uuid import UUID, uuid4
+from typing import Any, Optional, Type
+from uuid import UUID
 
 from pydantic import Field
-from uagents import Model, Protocol
+from uagents import Context, Model, Protocol
 from uagents.storage import KeyValueStore
 
 JsonStr = str
@@ -110,11 +110,11 @@ class Dialogue(Protocol):
         self,
         name: str,  # mandatory, due to storage naming
         version: Optional[str] = None,
-        rules: dict[Type[Model], list[Type[Model]]] = None,
-        dialogue_id: Optional[UUID] = None,
-        agent_address: Optional[str] = "",
+        rules: dict[Type[Model], set[Type[Model]]] = None,
+        agent_address: Optional[str] = "",  # TODO: discuss storage naming
+        timeout: int = 10,  # should be constant
     ) -> None:
-        self._id = dialogue_id or uuid4()  # id of the dialogue
+        self._name = name
         self._rules = self._build_rules(
             rules
         )  # DAG of dialogue represented by message digests
@@ -123,23 +123,33 @@ class Dialogue(Protocol):
         self._states: dict[
             UUID, str
         ] = {}  # current state of the dialogue (as digest) per session
+        self._lifetime = timeout
+        self._storage = KeyValueStore(
+            f"{agent_address[0:16]}_dialogues"
+        )  # persistent session + message storage
         self._sessions: dict[
-            UUID, list[(SenderStr, ReceiverStr, JsonStr)]
-        ] = {}  # session + message storage
-        self._lifetime = 0
-        self._storage = KeyValueStore(f"{agent_address[0:16]}_dialogues")
-        super().__init__(name=name, version=version)
+            UUID, list[Any]
+        ] = self._load_storage()  # volatile session + message storage
+        super().__init__(name=self._name, version=version)
 
-        self._storage.clear()  # TODO: remove after testing
+        @self.on_interval(1)
+        async def cleanup_dialogue(_ctx: Context):
+            """
+            Cleanup the dialogue.
 
-    @property
-    def dialogue_id(self) -> UUID:
-        """
-        Property to access the id of the dialogue.
-
-        :return: UUID: id of the dialogue
-        """
-        return self._id
+            Deletes sessions that have not been used for a certain amount of time.
+            Sessions with 0 as timeout will never be deleted.
+            """
+            mark_for_deletion = []
+            for session_id, session in self._sessions.items():
+                timeout = session[-1]["timeout"]
+                if timeout > 0 and session[-1][
+                    "timestamp"
+                ] + timeout < datetime.timestamp(datetime.now()):
+                    mark_for_deletion.append(session_id)
+            if mark_for_deletion:
+                for session_id in mark_for_deletion:
+                    self.cleanup_session(session_id)
 
     @property
     def rules(self) -> dict[str, list[str]]:
@@ -224,6 +234,7 @@ class Dialogue(Protocol):
         sender: SenderStr,
         receiver: ReceiverStr,
         content: JsonStr,
+        **kwargs,
     ) -> None:
         """Add a message to a session within the dialogue instance."""
         if session_id not in self._sessions:
@@ -236,11 +247,12 @@ class Dialogue(Protocol):
                 "content": content,
                 "timestamp": datetime.timestamp(datetime.now()),
                 "timeout": self._lifetime,
+                **kwargs,
             }
         )
         self._update_session_in_storage(session_id)
 
-    def get_session(self, session_id) -> list[(SenderStr, ReceiverStr, JsonStr)]:
+    def get_session(self, session_id) -> list[Any]:
         """
         Return a session from the dialogue instance.
 
@@ -275,6 +287,15 @@ class Dialogue(Protocol):
             bool: True if the message is included, False otherwise.
         """
         return msg_digest in self._rules
+
+    def _load_storage(self) -> dict[UUID, list[Any]]:
+        """Load the sessions from the storage."""
+        cache: dict = self._storage.get(self.name)
+        return (
+            {UUID(session_id): session for session_id, session in cache.items()}
+            if cache
+            else {}
+        )
 
     def _update_session_in_storage(self, session_id: UUID) -> None:
         """Update a session in the storage."""

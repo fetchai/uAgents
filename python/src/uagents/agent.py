@@ -845,15 +845,6 @@ class Agent(Sink):
             )
             if handler is None:
                 if not is_user_address(sender):
-                    # we parse incoming messages before forwarding to the function
-                    # assumed at this point:
-                    #   - agent-agent communication (on_message),
-                    #   - model is expected (in general, so a handler is registered)
-                    #   - we have access to the context + session id
-                    #   - schema_digest, sender, message, session are available
-                    # steps:
-                    #   - check if a session id is already in context
-
                     for protocol in context.protocols.values():
                         if hasattr(protocol, "rules") and protocol.is_included(
                             schema_digest
@@ -882,7 +873,6 @@ class Agent(Sink):
                                 self._ctx.logger.debug(
                                     "dialogue ended, cleaning up session"
                                 )
-                                # protocol.cleanup_session(session)
                             else:
                                 self._ctx.logger.debug("dialogue picked up")
 
