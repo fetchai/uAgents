@@ -1,7 +1,7 @@
 """Endpoint Resolver."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import random
 
 from uagents.config import (
@@ -11,6 +11,30 @@ from uagents.config import (
     AGENT_PREFIX,
 )
 from uagents.network import get_almanac_contract, get_name_service_contract
+
+
+def weighted_random_sample(
+    items: List[Any], weights: Optional[List[float]] = None, k: int = 1, rng=random
+) -> List[Any]:
+    """
+    Weighted random sample from a list of items without replacement.
+
+    Ref: Efraimidis, Pavlos S. "Weighted random sampling over data streams."
+
+    Args:
+        items (List[Any]): The list of items to sample from.
+        weights (Optional[List[float]]): The optional list of weights for each item.
+        k (int): The number of items to sample.
+        rng (random): The random number generator.
+
+    Returns:
+        List[Any]: The sampled items.
+    """
+    if weights is None:
+        return rng.sample(items, k=k)
+    values = [rng.random() ** (1 / w) for w in weights]
+    order = sorted(range(len(items)), key=lambda i: values[i])
+    return [items[i] for i in order[-k:]]
 
 
 def is_valid_address(address: str) -> bool:
@@ -190,7 +214,7 @@ class AlmanacResolver(Resolver):
             if len(endpoint_list) > 0:
                 endpoints = [val.get("url") for val in endpoint_list]
                 weights = [val.get("weight") for val in endpoint_list]
-                return address, random.choices(
+                return address, weighted_random_sample(
                     endpoints,
                     weights=weights,
                     k=min(self._max_endpoints, len(endpoints)),
@@ -258,7 +282,7 @@ class RulesBasedResolver(Resolver):
         elif endpoints is None:
             endpoints = []
         if len(endpoints) > self._max_endpoints:
-            endpoints = random.choices(
+            endpoints = random.sample(
                 endpoints, k=min(self._max_endpoints, len(endpoints))
             )
         return destination, endpoints
