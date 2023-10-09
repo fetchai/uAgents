@@ -153,7 +153,6 @@ async def handle_interval(ctx: Context):
 
 
 if __name__ == "__main__":
-    # TODO: do without bureau to have separate states
     bureau = Bureau(port=8080, endpoint="http://localhost:8080/submit")
     bureau.add(agent1)
     print("Agent 1:", agent1.address)
