@@ -163,6 +163,20 @@ class ASGIServer:
                 }
             )
             return
+        
+        request_method = scope["method"].decode()
+        if request_method == "HEAD":
+            # if the request method is HEAD, return a 200 OK
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [
+                        [b"content-type", b"application/json"],
+                    ],
+                }
+            )
+            return
 
         # read the entire payload
         raw_contents = await _read_asgi_body(receive)
