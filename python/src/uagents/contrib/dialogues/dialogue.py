@@ -1,6 +1,6 @@
 """Dialogue class aka. blueprint for protocols"""
 import graphlib
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Optional, Type
 from uuid import UUID
@@ -138,14 +138,19 @@ class Dialogue(Protocol):
             Cleanup the dialogue.
 
             Deletes sessions that have not been used for a certain amount of time.
+            The task runs every second so the configured timeout is currently
+            measured in seconds as well (interval time * timeout parameter).
             Sessions with 0 as timeout will never be deleted.
             """
             mark_for_deletion = []
             for session_id, session in self._sessions.items():
                 timeout = session[-1]["timeout"]
-                if timeout > 0 and session[-1][
-                    "timestamp"
-                ] + timeout < datetime.timestamp(datetime.now()):
+                if (
+                    timeout > 0
+                    and datetime.fromtimestamp(session[-1]["timestamp"])
+                    + timedelta(seconds=timeout)
+                    < datetime.now()
+                ):
                     mark_for_deletion.append(session_id)
             if mark_for_deletion:
                 for session_id in mark_for_deletion:
@@ -295,7 +300,7 @@ class Dialogue(Protocol):
             {UUID(session_id): session for session_id, session in cache.items()}
             if cache
             else {}
-        )
+        )  # TODO: fix crash on "None" entry in storage
 
     def _update_session_in_storage(self, session_id: UUID) -> None:
         """Update a session in the storage."""
