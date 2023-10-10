@@ -406,6 +406,7 @@ class Context:
         Returns:
             MsgStatus: The delivery status of the message.
         """
+        current_session = self._session or uuid.uuid4()
 
         # Check if this message is a reply
         if (
@@ -443,6 +444,22 @@ class Context:
                 endpoint="",
             )
 
+        # if the message is part of a Dialogue, update the Dialogue state accordingly
+        current_protocol_digest = self.get_message_protocol(schema_digest)
+        if current_protocol_digest is not None:
+            current_protocol = self.protocols[current_protocol_digest]
+            if hasattr(current_protocol, "rules"):
+                message_name = current_protocol.models[schema_digest].__name__
+                current_protocol.add_message(
+                    session_id=current_session,
+                    message=message_name,
+                    sender=self.address,
+                    receiver=destination,
+                    content=json_message,
+                )
+                current_protocol.update_state(schema_digest, current_session)
+                self.logger.debug(f"update state to: {message_name}")
+
         # Extract address from destination agent identifier if present
         _, _, destination_address = parse_identifier(destination)
 
@@ -454,7 +471,7 @@ class Context:
                     destination_address,
                     schema_digest,
                     json_message,
-                    self._session,
+                    current_session,
                 )
                 return MsgStatus(
                     status=DeliveryStatus.DELIVERED,
@@ -475,24 +492,6 @@ class Context:
                     destination=destination_address,
                     endpoint="",
                 )
-
-        current_session = self._session or uuid.uuid4()
-
-        # if the message is part of a Dialogue, update the Dialogue state accordingly
-        current_protocol_digest = self.get_message_protocol(schema_digest)
-        if current_protocol_digest is not None:
-            current_protocol = self.protocols[current_protocol_digest]
-            if hasattr(current_protocol, "rules"):
-                message_name = current_protocol.models[schema_digest].__name__
-                current_protocol.add_message(
-                    session_id=current_session,
-                    message=message_name,
-                    sender=self.address,
-                    receiver=destination,
-                    content=json_message,
-                )
-                current_protocol.update_state(schema_digest, current_session)
-                self.logger.debug(f"update state to: {message_name}")
 
         # Resolve the destination address and endpoint ('destination' can be a name or address)
         destination_address, endpoints = await self._resolver.resolve(destination)
