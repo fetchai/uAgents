@@ -1,5 +1,4 @@
 """Testing platform"""
-from uagents.resolver import Resolver
 from src.uagents import Agent, Bureau, Context
 from src.uagents.models import ErrorMessage
 from src.uagents.setup import fund_agent_if_low
@@ -153,6 +152,7 @@ async def handle_interval(ctx: Context):
     counter += 1
 
 
+tmp = """
 # explicit example
 abstract_dialogue = de.ResourceRequestDialogue(
     version = "0.1",
@@ -177,7 +177,7 @@ contained_dialogue = de.ResourceRequestDialogue(
 async def handle_state1(ctx: Context, _sender: str, _msg: de.ResourceQuery):
     # do the stuff that corresponds to this state transition
     pass
-
+"""
 
 if __name__ == "__main__":
     bureau = Bureau(port=8080, endpoint="http://localhost:8080/submit")

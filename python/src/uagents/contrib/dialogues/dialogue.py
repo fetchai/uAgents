@@ -11,7 +11,6 @@ from uagents import Context, Model, Protocol
 from uagents.storage import KeyValueStore
 
 
-
 JsonStr = str
 SenderStr = str
 ReceiverStr = str
@@ -102,22 +101,24 @@ class DialogueWrapper(Model):
     dialogue_label: DialogueLabel
     dialogue_message: DialogueMessage
 
-class Node():
+
+class Node:
     def __init__(
         self,
         name: str,
         description: str,
-        ) -> None:
+    ) -> None:
         pass
 
-class Vertex():
+
+class Vertex:
     def __init__(
         self,
         name: str,
         description: str,
         parent: Node,
         child: Node,
-        ) -> None:
+    ) -> None:
         pass
 
 
@@ -378,7 +379,8 @@ class Dialogue(Protocol):
                         Model.build_schema_digest(model), []
                     ):
                         raise ValueError(
-                            "Interaction not allowed! Please check the rules defined for the used dialogue."
+                            "Interaction not allowed! "
+                            "Please check the rules defined for the used dialogue."
                         )
                 self._add_message_handler(model, func, replies, allow_unverified)
 

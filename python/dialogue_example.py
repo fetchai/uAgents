@@ -42,10 +42,14 @@ class ResourceRequestDialogue(dialogue.Dialogue):
             agent_address=agent_address,
         )
 
-class AbstractDialogue(dialogue.Dialogue):
 
-    state1 = dialogue.Node("start state", "this state expects this and that to get started")
-    state2 = dialogue.Node("next state", "initial message has been received and needs to be handled")
+class AbstractDialogue(dialogue.Dialogue):
+    state1 = dialogue.Node(
+        "start state", "this state expects this and that to get started"
+    )
+    state2 = dialogue.Node(
+        "next state", "initial message has been received and needs to be handled"
+    )
 
     def __init__(
         self,
