@@ -102,6 +102,24 @@ class DialogueWrapper(Model):
     dialogue_label: DialogueLabel
     dialogue_message: DialogueMessage
 
+class Node():
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        ) -> None:
+        pass
+
+class Vertex():
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        parent: Node,
+        child: Node,
+        ) -> None:
+        pass
+
 
 class Dialogue(Protocol):
     """
@@ -117,6 +135,7 @@ class Dialogue(Protocol):
         name: str,  # mandatory, due to storage naming
         version: Optional[str] = None,
         rules: dict[Type[Model], set[Type[Model]]] = None,
+        abstract_rules: dict[Node, set[Vertex]] = None,
         agent_address: Optional[str] = "",  # TODO: discuss storage naming
         timeout: int = 10,  # should be constant
     ) -> None:

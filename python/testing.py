@@ -1,4 +1,5 @@
 """Testing platform"""
+from uagents.resolver import Resolver
 from src.uagents import Agent, Bureau, Context
 from src.uagents.models import ErrorMessage
 from src.uagents.setup import fund_agent_if_low
@@ -150,6 +151,32 @@ async def handle_interval(ctx: Context):
     if counter == 2:
         await ctx.send(agent2.address, de.ResourceRejection())
     counter += 1
+
+
+# explicit example
+abstract_dialogue = de.ResourceRequestDialogue(
+    version = "0.1",
+    agent_address = agent1.address,
+    message_map = {
+        State1: de.ResourceQuery,
+        State2: de.ResourceAvailability,
+        }
+)
+
+abstract_dialogue.transition1 = handle_resource_query
+abstract_dialogue.transition2 = handle_resource_availability
+
+
+#implicit example
+contained_dialogue = de.ResourceRequestDialogue(
+    version = "0.1",
+    agent_address = agent1.address,
+)
+
+@contained_dialogue.state1()
+async def handle_state1(ctx: Context, _sender: str, _msg: de.ResourceQuery):
+    # do the stuff that corresponds to this state transition
+    pass
 
 
 if __name__ == "__main__":
