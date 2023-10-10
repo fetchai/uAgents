@@ -2,16 +2,22 @@
 import graphlib
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional, Type
+from typing import Any, Optional, Type, Callable, Awaitable, Union, Set
 from uuid import UUID
 
+import functools
 from pydantic import Field
 from uagents import Context, Model, Protocol
 from uagents.storage import KeyValueStore
 
+
+
 JsonStr = str
 SenderStr = str
 ReceiverStr = str
+
+
+MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
 
 NOTES = """
 - A dialogue is a sequence of messages
@@ -308,3 +314,50 @@ class Dialogue(Protocol):
         cache: dict = self._storage.get(self.name)
         cache.pop(str(session_id))
         self._storage.set(self.name, cache)
+
+    def on_message(
+        self,
+        model: Type[Model],
+        replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
+        allow_unverified: Optional[bool] = False,
+    ):
+        """
+        Decorator to register a message handler for the protocol.
+        Compared to the basic decorator defined in the Protocol module, this descorator
+        additionally verifies if the given interaction is allowed in the rules set
+        of this Dialogue.
+
+        Args:
+            model (Type[Model]): The message model type.
+            replies (Optional[Union[Type[Model], Set[Type[Model]]]], optional): The associated
+            reply types. Defaults to None.
+            allow_unverified (Optional[bool], optional): Whether to allow unverified messages.
+            Defaults to False.
+
+        Returns:
+            Callable: The decorator to register the message handler.
+        """
+
+        def decorator_on_message(func: MessageCallback):
+            @functools.wraps(func)
+            def handler(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            if replies is not None:
+                repliez = set()
+                if isinstance(replies, set):
+                    repliez = replies
+                if isinstance(replies, type) and issubclass(replies, Model):
+                    repliez = {replies}
+                for rep in repliez:
+                    if not Model.build_schema_digest(rep) in self._rules.get(
+                        Model.build_schema_digest(model), []
+                    ):
+                        raise ValueError(
+                            "Interaction not allowed! Please check the rules defined for the used dialogue."
+                        )
+                self._add_message_handler(model, func, replies, allow_unverified)
+
+            return handler
+
+        return decorator_on_message
