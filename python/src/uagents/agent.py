@@ -915,11 +915,11 @@ class Agent(Sink):
 
                             context.dialogue = protocol.get_session(session)
                             protocol.add_message(
-                                session,
-                                self._models[schema_digest].__name__,
-                                sender,
-                                self.address,
-                                message,
+                                session_id=session,
+                                message_type=self._models[schema_digest].__name__,
+                                sender=sender,
+                                receiver=self.address,
+                                content=message,
                             )
                     handler = self._signed_message_handlers.get(schema_digest)
                 elif schema_digest in self._signed_message_handlers:
