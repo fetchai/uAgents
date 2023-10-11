@@ -1,15 +1,15 @@
 """Dialogue class aka. blueprint for protocols"""
+import functools
 import graphlib
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Optional, Type, Callable, Awaitable, Union, Set
+from typing import Any, Awaitable, Callable, Optional, Set, Type, Union
 from uuid import UUID
 
-import functools
+import networkx as nx
 from pydantic import Field
 from uagents import Context, Model, Protocol
 from uagents.storage import KeyValueStore
-
 
 JsonStr = str
 SenderStr = str
@@ -55,71 +55,51 @@ start with:
 """
 
 
-class Performative(str, Enum):
-    INIT = "init"
-    ACCEPT = "accept"
-    DECLINE = "decline"
-    MESSAGE = "message"
-    FINISH = "finish"
+def brainstorming():
+    class Performative(str, Enum):
+        INIT = "init"
+        ACCEPT = "accept"
+        DECLINE = "decline"
+        MESSAGE = "message"
+        FINISH = "finish"
 
-
-class DialogueMessage(Model):
-    performative: Performative = Field(
-        description=("Description of what is being done (may be defined by a protocol)")
-    )
-    contents: dict = Field(
-        description=(
-            "Content of the message. " "This will vary based on the Performative."
+    class DialogueMessage(Model):
+        performative: Performative = Field(
+            description=(
+                "Description of what is being done (may be defined by a protocol)"
+            )
         )
-    )
-    is_incoming: bool = Field(
-        description=("True if the message is incoming, False if outgoing"),
-        default=False,
-    )
-    target: str = Field(
-        description=("Address of the agent that is the target of the message")
-    )
-    sender: str = Field(
-        description=("Address of the agent that is the sender of the message")
-    )
+        contents: dict = Field(
+            description=(
+                "Content of the message. " "This will vary based on the Performative."
+            )
+        )
+        is_incoming: bool = Field(
+            description=("True if the message is incoming, False if outgoing"),
+            default=False,
+        )
+        target: str = Field(
+            description=("Address of the agent that is the target of the message")
+        )
+        sender: str = Field(
+            description=("Address of the agent that is the sender of the message")
+        )
 
+    # To give the dialogue a context and to enable dialogue comparison
+    class DialogueLabel(Model):
+        session_id: UUID = Field(description="Id of the dialogue")
+        dialogue_starter: str = Field(
+            description="Address of the agent that started the dialogue"
+        )
+        dialogue_receiver: str = Field(
+            description="Address of the agent that is the receiver of the dialogue"
+        )
 
-# To give the dialogue a context and to enable dialogue comparison
-class DialogueLabel(Model):
-    session_id: UUID = Field(description="Id of the dialogue")
-    dialogue_starter: str = Field(
-        description="Address of the agent that started the dialogue"
-    )
-    dialogue_receiver: str = Field(
-        description="Address of the agent that is the receiver of the dialogue"
-    )
-
-
-# The actual message that will be sent to the other agent
-# May need some more fields
-class DialogueWrapper(Model):
-    dialogue_label: DialogueLabel
-    dialogue_message: DialogueMessage
-
-
-class Node:
-    def __init__(
-        self,
-        name: str,
-        description: str,
-    ) -> None:
-        pass
-
-
-class Vertex:
-    def __init__(
-        self,
-        name: str,
-        description: str,
-        parent: Node,
-        child: Node,
-    ) -> None:
-        pass
+    # The actual message that will be sent to the other agent
+    # May need some more fields
+    class DialogueWrapper(Model):
+        dialogue_label: DialogueLabel
+        dialogue_message: DialogueMessage
 
 
 class Dialogue(Protocol):
@@ -136,7 +116,7 @@ class Dialogue(Protocol):
         name: str,  # mandatory, due to storage naming
         version: Optional[str] = None,
         rules: dict[Type[Model], set[Type[Model]]] = None,
-        abstract_rules: dict[Node, set[Vertex]] = None,
+        # abstract_rules: dict[Node, set[Vertex]] = None,
         agent_address: Optional[str] = "",  # TODO: discuss storage naming
         timeout: int = 10,  # should be constant
     ) -> None:
@@ -344,8 +324,7 @@ class Dialogue(Protocol):
         self,
         model: Type[Model],
         replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
-        allow_unverified: Optional[bool] = False,
-    ):
+    ):  # pylint: disable=arguments-differ
         """
         Decorator to register a message handler for the protocol.
         Compared to the basic decorator defined in the Protocol module, this descorator
@@ -356,8 +335,6 @@ class Dialogue(Protocol):
             model (Type[Model]): The message model type.
             replies (Optional[Union[Type[Model], Set[Type[Model]]]], optional): The associated
             reply types. Defaults to None.
-            allow_unverified (Optional[bool], optional): Whether to allow unverified messages.
-            Defaults to False.
 
         Returns:
             Callable: The decorator to register the message handler.
@@ -369,12 +346,12 @@ class Dialogue(Protocol):
                 return func(*args, **kwargs)
 
             if replies is not None:
-                repliez = set()
+                replies_set = set()
                 if isinstance(replies, set):
-                    repliez = replies
+                    replies_set = replies
                 if isinstance(replies, type) and issubclass(replies, Model):
-                    repliez = {replies}
-                for rep in repliez:
+                    replies_set = {replies}
+                for rep in replies_set:
                     if not Model.build_schema_digest(rep) in self._rules.get(
                         Model.build_schema_digest(model), []
                     ):
@@ -382,8 +359,105 @@ class Dialogue(Protocol):
                             "Interaction not allowed! "
                             "Please check the rules defined for the used dialogue."
                         )
-                self._add_message_handler(model, func, replies, allow_unverified)
+                self._add_message_handler(model, func, replies, False)
 
             return handler
 
         return decorator_on_message
+
+
+# This makes sense as an abstraction for a state. Each node represents a state
+# in the dialogue. The node has a name and a description.
+# In general: we have to decide if Nodes or Edges are the main methods of
+#             defining a dialogue.
+# -> current assumption: edges as they are equivalent to transitions
+class Node:
+    def __init__(
+        self,
+        name: str,
+        description: str,
+    ) -> None:
+        self.name = name
+        self.description = description
+
+
+# This descriptive approach will increase the amount of code needed to define
+# a dialogue.
+class Edge:
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        parent: Node,  # tail
+        child: Node,  # head
+        model: Type[Model] = None,
+    ) -> None:
+        self.name = name
+        self.description = description
+        self.parent = parent
+        self.child = child
+        self._model = model
+
+    @property
+    def model(self) -> Type[Model]:
+        return self._model
+
+    @model.setter
+    def model(self, model: Type[Model]) -> None:
+        self._model = model
+
+
+# Approach to abstract the individual states and transitions into another layer
+class AbstractDialogue(Dialogue):
+    def __init__(
+        self,
+        name: str | None = None,
+        version: str | None = None,
+        agent_address: str | None = None,
+        nodes: list[Node] | None = None,
+        edges: list[Edge] | None = None,
+    ) -> None:
+        self.nodes = nodes
+        self.edges = edges
+
+        graph = nx.Graph()
+        graph.add_nodes_from(self.nodes)
+        graph.add_edges_from(self.edges)
+        # <additional graph checks happen here>
+
+        super().__init__(
+            name=name,
+            version=version,
+            rules=graph,  # TODO: convert graph to rules
+            agent_address=agent_address,
+        )
+
+    def _auto_add_message_handler(self) -> None:
+        # iterate over all edges and add respective message handlers
+        return
+
+    def _update_transition_model(self, edge: Edge, model: Type[Model]) -> None:
+        self.edges[self.edges.index(edge)].model = model
+
+    def on_state_transition(self, edge: Edge, model: Type[Model]):
+        """
+        Main decorator to register a message handler for the dialogue.
+        The Model in this case is the message model type but it refers to the
+        Edge which is the transition between two states.
+
+        Args:
+            edge (Edge): Edge object that represents the transition.
+            model (Type[Model]): Message model type.
+        """
+
+        def decorator_on_state_transition(func: MessageCallback):
+            @functools.wraps(func)
+            def handler(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            # TODO: find edge first
+            self._update_transition_model(edge, model)
+            return handler
+
+        # TODO: recalculate manifest after each update and re-register the protocol
+        return decorator_on_state_transition

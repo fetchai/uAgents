@@ -152,32 +152,24 @@ async def handle_interval(ctx: Context):
     counter += 1
 
 
-tmp = """
-# explicit example
-abstract_dialogue = de.ResourceRequestDialogue(
-    version = "0.1",
-    agent_address = agent1.address,
-    message_map = {
-        State1: de.ResourceQuery,
-        State2: de.ResourceAvailability,
-        }
+# --- abstract example
+# dev has a selection of specific dialogues to choose from and can update
+# the message structure and functional behaviour individually
+abstract_dialogue = de.A_ResourceRequestDialogue(
+    version="0.1",
+    agent_address=agent1.address,
 )
 
-abstract_dialogue.transition1 = handle_resource_query
-abstract_dialogue.transition2 = handle_resource_availability
 
+# Not needing to define replies
+@abstract_dialogue.on_state_transition("Resource Query", de.ResourceQuery)
+async def abs_handle_resource_query(
+    ctx: Context,
+    _sender: str,
+    _msg: de.ResourceQuery,
+):
+    print(ctx.dialogue)
 
-#implicit example
-contained_dialogue = de.ResourceRequestDialogue(
-    version = "0.1",
-    agent_address = agent1.address,
-)
-
-@contained_dialogue.state1()
-async def handle_state1(ctx: Context, _sender: str, _msg: de.ResourceQuery):
-    # do the stuff that corresponds to this state transition
-    pass
-"""
 
 if __name__ == "__main__":
     bureau = Bureau(port=8080, endpoint="http://localhost:8080/submit")
