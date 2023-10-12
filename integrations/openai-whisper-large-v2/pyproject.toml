@@ -1,0 +1,10 @@
+[tool.poetry]
+name = "openai-whisper-large-v2"
+version = "0.1.0"
+description = "Openai whisper model integration with fetch.ai micro-Agents"
+authors = ["Abhi"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+uagents = "*"
+requests = "^2.31.0"

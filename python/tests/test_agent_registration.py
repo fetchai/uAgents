@@ -35,7 +35,7 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
 
         domain = "agent"
 
-        name_service_contract = get_name_service_contract()
+        name_service_contract = get_name_service_contract(test=True)
 
         is_owner = name_service_contract.is_owner(
             agent.name, domain, str(agent.wallet.address())
@@ -58,7 +58,7 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
             "Almanac registration failed",
         )
 
-        name_service_contract = get_name_service_contract()
+        name_service_contract = get_name_service_contract(test=True)
 
         is_name_available = name_service_contract.is_name_available(agent.name, domain)
         self.assertEqual(is_name_available, True, "Agent name should be available")
@@ -80,7 +80,7 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(is_owner, True, "Domain ownership failed")
 
-        query_address = get_agent_address(agent.name + "." + domain)
+        query_address = get_agent_address(agent.name + "." + domain, True)
 
         self.assertEqual(
             query_address == agent.address, True, "Service contract registration failed"

@@ -44,8 +44,8 @@ async def query(
     schema_digest = Model.build_schema_digest(message)
 
     # resolve the endpoint
-    destination_address, endpoint = await resolver.resolve(destination)
-    if endpoint is None:
+    destination_address, endpoints = await resolver.resolve(destination)
+    if len(endpoints) == 0:
         LOGGER.exception(
             f"Unable to resolve destination endpoint for address {destination}"
         )
@@ -65,22 +65,30 @@ async def query(
     )
     env.encode_payload(json_message)
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            endpoint,
-            headers={
-                "content-type": "application/json",
-                "x-uagents-connection": "sync",
-            },
-            data=env.json(),
-            timeout=timeout,
-        ) as resp:
-            success = resp.status == 200
+    for endpoint in endpoints:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    endpoints[0],
+                    headers={
+                        "content-type": "application/json",
+                        "x-uagents-connection": "sync",
+                    },
+                    data=env.json(),
+                    timeout=timeout,
+                ) as resp:
+                    success = resp.status == 200
 
-            if success:
-                return Envelope.parse_obj(await resp.json())
+                    if success:
+                        return Envelope.parse_obj(await resp.json())
+        except aiohttp.ClientConnectorError as ex:
+            LOGGER.warning(f"Failed to connect to {endpoint}: {ex}")
+        except Exception as ex:
+            LOGGER.warning(
+                f"Failed to send sync message to {destination} @ {endpoint}: {ex}"
+            )
 
-    LOGGER.exception(f"Unable to query {destination} @ {endpoint}")
+    LOGGER.exception(f"Failed to send sync message to {destination}")
 
 
 def enclose_response(message: Model, sender: str, session: str) -> str:

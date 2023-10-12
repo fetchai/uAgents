@@ -1,0 +1,10 @@
+[tool.poetry]
+name = "finbert-integration"
+version = "0.0.1"
+description = "showcasing finbert integration with uagents"
+authors = ["Sangram Singh"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+uagents = "*"
+requests = "^2.31.0"

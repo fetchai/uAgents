@@ -12,7 +12,9 @@ from uagents import Agent, Context
 from uagents.setup import fund_agent_if_low
 
 
-CLEANER_ADDRESS = "agent1qdfdx6952trs028fxyug7elgcktam9f896ays6u9art4uaf75hwy2j9m87w"
+CLEANER_ADDRESS = (
+    "test-agent://agent1qdfdx6952trs028fxyug7elgcktam9f896ays6u9art4uaf75hwy2j9m87w"
+)
 
 user = Agent(
     name="user",

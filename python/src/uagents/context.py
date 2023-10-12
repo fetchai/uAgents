@@ -6,6 +6,7 @@ import asyncio
 import logging
 import uuid
 from dataclasses import dataclass
+from enum import Enum
 from time import time
 from typing import (
     Dict,
@@ -33,8 +34,9 @@ from uagents.crypto import Identity
 from uagents.dispatch import JsonStr, dispatcher
 from uagents.envelope import Envelope
 from uagents.models import ErrorMessage, Model
-from uagents.resolver import Resolver
+from uagents.resolver import Resolver, parse_identifier
 from uagents.storage import KeyValueStore
+
 
 if TYPE_CHECKING:
     from uagents.protocol import Protocol
@@ -43,6 +45,14 @@ IntervalCallback = Callable[["Context"], Awaitable[None]]
 MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
 EventCallback = Callable[["Context"], Awaitable[None]]
 WalletMessageCallback = Callable[["Context", Any], Awaitable[None]]
+
+
+class DeliveryStatus(str, Enum):
+    """Delivery status of a message."""
+
+    SENT = "sent"
+    DELIVERED = "delivered"
+    FAILED = "failed"
 
 
 @dataclass
@@ -57,6 +67,24 @@ class MsgDigest:
 
     message: Any
     schema_digest: str
+
+
+@dataclass
+class MsgStatus:
+    """
+    Represents the status of a sent message.
+
+    Attributes:
+        status (str): The delivery status of the message {'sent', 'delivered', 'failed'}.
+        detail (str): The details of the message delivery.
+        destination (str): The destination address of the message.
+        endpoint (str): The endpoint the message was sent to.
+    """
+
+    status: DeliveryStatus
+    detail: str
+    destination: str
+    endpoint: str
 
 
 ERROR_MESSAGE_DIGEST = Model.build_schema_digest(ErrorMessage)
@@ -77,7 +105,7 @@ class Context:
         _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their
         response Futures.
         _session (Optional[uuid.UUID]): The session UUID.
-        _replies (Optional[Dict[str, Set[Type[Model]]]]): Dictionary of allowed reply digests
+        _replies (Optional[Dict[str, Dict[str, Type[Model]]]]): Dictionary of allowed reply digests
         for each type of incoming message.
         _interval_messages (Optional[Set[str]]): Set of message digests that may be sent by
         interval tasks.
@@ -108,6 +136,7 @@ class Context:
     def __init__(
         self,
         address: str,
+        identifier: str,
         name: Optional[str],
         storage: KeyValueStore,
         resolve: Resolver,
@@ -116,7 +145,7 @@ class Context:
         ledger: LedgerClient,
         queries: Dict[str, asyncio.Future],
         session: Optional[uuid.UUID] = None,
-        replies: Optional[Dict[str, Set[Type[Model]]]] = None,
+        replies: Optional[Dict[str, Dict[str, Type[Model]]]] = None,
         interval_messages: Optional[Set[str]] = None,
         message_received: Optional[MsgDigest] = None,
         wallet_messaging_client: Optional[Any] = None,
@@ -137,7 +166,8 @@ class Context:
             queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their response
             Futures.
             session (Optional[uuid.UUID]): The optional session UUID.
-            replies (Optional[Dict[str, Set[Type[Model]]]]): Optional dictionary of reply models.
+            replies (Optional[Dict[str, Dict[str, Type[Model]]]]): Dictionary of allowed replies
+            for each type of incoming message.
             interval_messages (Optional[Set[str]]): The optional set of interval messages.
             message_received (Optional[MsgDigest]): The optional message digest received.
             protocols (Optional[Dict[str, Protocol]]): The optional dictionary of protocols.
@@ -148,6 +178,7 @@ class Context:
         self.ledger = ledger
         self._name = name
         self._address = str(address)
+        self._identifier = str(identifier)
         self._resolver = resolve
         self._identity = identity
         self._queries = queries
@@ -180,6 +211,16 @@ class Context:
             str: The address of the context.
         """
         return self._address
+
+    @property
+    def identifier(self) -> str:
+        """
+        Get the address of the agent used for communication including the network prefix.
+
+        Returns:
+            str: The agent's address and network prefix.
+        """
+        return self._identifier
 
     @property
     def logger(self) -> logging.Logger:
@@ -265,7 +306,7 @@ class Context:
         destination: str,
         message: Model,
         timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
-    ):
+    ) -> MsgStatus:
         """
         Send a message to the specified destination.
 
@@ -273,9 +314,12 @@ class Context:
             destination (str): The destination address to send the message to.
             message (Model): The message to be sent.
             timeout (Optional[int]): The optional timeout for sending the message, in seconds.
+
+        Returns:
+            MsgStatus: The delivery status of the message.
         """
         schema_digest = Model.build_schema_digest(message)
-        await self.send_raw(
+        return await self.send_raw(
             destination,
             message.json(),
             schema_digest,
@@ -289,7 +333,7 @@ class Context:
         message: Model,
         limit: Optional[int] = DEFAULT_SEARCH_LIMIT,
         timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
-    ):
+    ) -> List[MsgStatus]:
         """Broadcast a message to agents with a specific protocol.
 
         This asynchronous method broadcasts a given message to agents associated
@@ -303,7 +347,7 @@ class Context:
             timeout (int, optional): The timeout for sending each message.
 
         Returns:
-            None
+            List[MsgStatus]: A list of message delivery statuses.
         """
         agents = self.get_agents_by_protocol(destination_protocol, limit=limit)
         if not agents:
@@ -323,6 +367,7 @@ class Context:
             ]
         )
         self.logger.debug(f"Sent {len(futures)} messages")
+        return futures
 
     async def send_raw(
         self,
@@ -331,17 +376,21 @@ class Context:
         schema_digest: str,
         message_type: Optional[Type[Model]] = None,
         timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
-    ):
+    ) -> MsgStatus:
         """
         Send a raw message to the specified destination.
 
         Args:
-            destination (str): The destination address to send the message to.
+            destination (str): The destination name or address to send the message to.
             json_message (JsonStr): The JSON-encoded message to be sent.
             schema_digest (str): The schema digest of the message.
             message_type (Optional[Type[Model]]): The optional type of the message being sent.
             timeout (Optional[int]): The optional timeout for sending the message, in seconds.
+
+        Returns:
+            MsgStatus: The delivery status of the message.
         """
+
         # Check if this message is a reply
         if (
             self._message_received is not None
@@ -356,36 +405,73 @@ class Context:
                         f"Outgoing message {message_type or ''} "
                         f"is not a valid reply to {received.message}"
                     )
-                    return
-
+                    return MsgStatus(
+                        status=DeliveryStatus.FAILED,
+                        detail="Invalid reply",
+                        destination=destination,
+                        endpoint="",
+                    )
         # Check if this message is a valid interval message
-        if self._message_received is None and self._interval_messages:
-            if schema_digest not in self._interval_messages:
-                self._logger.exception(
-                    f"Outgoing message {message_type} is not a valid interval message"
-                )
-                return
-
-        # Handle local dispatch of messages
-        if dispatcher.contains(destination):
-            await dispatcher.dispatch(
-                self.address, destination, schema_digest, json_message, self._session
+        if (
+            self._message_received is None
+            and self._interval_messages
+            and schema_digest not in self._interval_messages
+        ):
+            self._logger.exception(
+                f"Outgoing message {message_type} is not a valid interval message"
             )
-            return
+            return MsgStatus(
+                status=DeliveryStatus.FAILED,
+                detail="Invalid interval message",
+                destination=destination,
+                endpoint="",
+            )
 
-        # Handle queries waiting for a response
-        if destination in self._queries:
-            self._queries[destination].set_result((json_message, schema_digest))
-            del self._queries[destination]
-            return
+        # Extract address from destination agent identifier if present
+        _, _, destination_address = parse_identifier(destination)
 
-        # Resolve the endpoint
-        destination_address, endpoint = await self._resolver.resolve(destination)
-        if endpoint is None:
+        if destination_address:
+            # Handle local dispatch of messages
+            if dispatcher.contains(destination_address):
+                await dispatcher.dispatch(
+                    self.address,
+                    destination_address,
+                    schema_digest,
+                    json_message,
+                    self._session,
+                )
+                return MsgStatus(
+                    status=DeliveryStatus.DELIVERED,
+                    detail="Message dispatched locally",
+                    destination=destination_address,
+                    endpoint="",
+                )
+
+            # Handle queries waiting for a response
+            if destination_address in self._queries:
+                self._queries[destination_address].set_result(
+                    (json_message, schema_digest)
+                )
+                del self._queries[destination_address]
+                return MsgStatus(
+                    status=DeliveryStatus.DELIVERED,
+                    detail="Sync message resolved",
+                    destination=destination_address,
+                    endpoint="",
+                )
+
+        # Resolve the destination address and endpoint ('destination' can be a name or address)
+        destination_address, endpoints = await self._resolver.resolve(destination)
+        if len(endpoints) == 0:
             self._logger.exception(
                 f"Unable to resolve destination endpoint for address {destination}"
             )
-            return
+            return MsgStatus(
+                status=DeliveryStatus.FAILED,
+                detail="Unable to resolve destination endpoint",
+                destination=destination,
+                endpoint="",
+            )
 
         # Calculate when the envelope expires
         expires = int(time()) + timeout
@@ -403,22 +489,41 @@ class Context:
         env.encode_payload(json_message)
         env.sign(self._identity)
 
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    endpoint,
-                    headers={"content-type": "application/json"},
-                    data=env.json(),
-                ) as resp:
-                    success = resp.status == 200
-                if not success:
-                    self._logger.exception(
-                        f"Unable to send envelope to {destination_address} @ {endpoint}"
+        for endpoint in endpoints:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        endpoint,
+                        headers={"content-type": "application/json"},
+                        data=env.json(),
+                    ) as resp:
+                        success = resp.status == 200
+                    if success:
+                        return MsgStatus(
+                            status=DeliveryStatus.DELIVERED,
+                            detail="Message successfully delivered via HTTP",
+                            destination=destination,
+                            endpoint=endpoint,
+                        )
+                    self._logger.warning(
+                        f"Failed to send message to {destination_address} @ {endpoint}: "
+                        + (await resp.text())
                     )
-        except aiohttp.ClientConnectorError as ex:
-            self._logger.exception(f"Failed to connect to {endpoint}: {ex}")
-        except Exception as ex:
-            self._logger.exception(f"Failed to send message to {destination}: {ex}")
+            except aiohttp.ClientConnectorError as ex:
+                self._logger.warning(f"Failed to connect to {endpoint}: {ex}")
+            except Exception as ex:
+                self._logger.warning(
+                    f"Failed to send message to {destination} @ {endpoint}: {ex}"
+                )
+
+        self._logger.exception(f"Failed to deliver message to {destination}")
+
+        return MsgStatus(
+            status=DeliveryStatus.FAILED,
+            detail="Message delivery failed",
+            destination=destination,
+            endpoint="",
+        )
 
     async def send_wallet_message(
         self,

@@ -13,7 +13,6 @@ alice = Agent(
     endpoint=["http://localhost:8000/submit"],
 )
 
-
 fund_agent_if_low(alice.wallet.address())
 
 

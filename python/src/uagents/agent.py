@@ -9,6 +9,7 @@ import requests
 
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
+from cosmpy.aerial.client import LedgerClient
 
 from uagents.asgi import ASGIServer
 from uagents.context import (
@@ -34,6 +35,8 @@ from uagents.config import (
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     LEDGER_PREFIX,
     REGISTRATION_RETRY_INTERVAL_SECONDS,
+    TESTNET_PREFIX,
+    MAINNET_PREFIX,
     parse_endpoint_config,
     parse_agentverse_config,
     get_logger,
@@ -74,7 +77,7 @@ async def _delay(coroutine: Coroutine, delay_seconds: float):
     await coroutine
 
 
-async def _handle_error(ctx: Context, destination: str, msg: ErrorMessage):
+async def _send_error_message(ctx: Context, destination: str, msg: ErrorMessage):
     """
     Send an error message to the specified destination.
 
@@ -111,7 +114,7 @@ class Agent(Sink):
         _unsigned_message_handlers (Dict[str, MessageCallback]): Handlers for
         unsigned messages.
         _models (Dict[str, Type[Model]]): Dictionary mapping supported message digests to messages.
-        _replies (Dict[str, Set[Type[Model]]]): Dictionary of allowed reply digests for each type
+        _replies (Dict[str, Dict[str, Type[Model]]]): Dictionary of allowed replies for each type
         of incoming message.
         _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their response
         Futures.
@@ -125,10 +128,12 @@ class Agent(Sink):
         protocols (Dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
         corresponding protocols.
         _ctx (Context): The context for agent interactions.
+        _test (bool): True if the agent will register and transact on the testnet.
 
     Properties:
         name (str): The name of the agent.
         address (str): The address of the agent used for communication.
+        identifier (str): The Agent Identifier, including network prefix and address.
         wallet (LocalWallet): The agent's wallet for transacting on the ledger.
         storage (KeyValueStore): The key-value store for storage operations.
         mailbox (Dict[str, str]): The mailbox configuration for the agent (deprecated and replaced
@@ -151,7 +156,9 @@ class Agent(Sink):
         resolve: Optional[Resolver] = None,
         enable_wallet_messaging: Optional[Union[bool, Dict[str, str]]] = False,
         wallet_key_derivation_index: Optional[int] = 0,
+        max_resolver_endpoints: Optional[int] = None,
         version: Optional[str] = None,
+        test: Optional[bool] = True,
     ):
         """
         Initialize an Agent instance.
@@ -164,12 +171,17 @@ class Agent(Sink):
             agentverse (Optional[Union[str, Dict[str, str]]]): The agentverse configuration.
             mailbox (Optional[Union[str, Dict[str, str]]]): The mailbox configuration.
             resolve (Optional[Resolver]): The resolver to use for agent communication.
+            max_resolver_endpoints (Optional[int]): The maximum number of endpoints to resolve.
             version (Optional[str]): The version of the agent.
         """
         self._name = name
         self._port = port if port is not None else 8000
         self._background_tasks: Set[asyncio.Task] = set()
-        self._resolver = resolve if resolve is not None else GlobalResolver()
+        self._resolver = (
+            resolve
+            if resolve is not None
+            else GlobalResolver(max_endpoints=max_resolver_endpoints)
+        )
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
 
         # initialize wallet and identity
@@ -206,20 +218,21 @@ class Agent(Sink):
         else:
             self._mailbox_client = None
 
-        self._ledger = get_ledger()
-        self._almanac_contract = get_almanac_contract()
+        self._ledger = get_ledger(test)
+        self._almanac_contract = get_almanac_contract(test)
         self._storage = KeyValueStore(self.address[0:16])
         self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
         self._interval_messages: Set[str] = set()
         self._signed_message_handlers: Dict[str, MessageCallback] = {}
         self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
         self._models: Dict[str, Type[Model]] = {}
-        self._replies: Dict[str, Set[Type[Model]]] = {}
+        self._replies: Dict[str, Dict[str, Type[Model]]] = {}
         self._queries: Dict[str, asyncio.Future] = {}
         self._dispatcher = dispatcher
         self._message_queue = asyncio.Queue()
         self._on_startup = []
         self._on_shutdown = []
+        self._test = test
         self._version = version or "0.1.0"
 
         if enable_wallet_messaging:
@@ -249,6 +262,7 @@ class Agent(Sink):
 
         self._ctx = Context(
             self._identity.address,
+            self.identifier,
             self._name,
             self._storage,
             self._resolver,
@@ -270,6 +284,11 @@ class Agent(Sink):
             self._server = ASGIServer(
                 self._port, self._loop, self._queries, logger=self._logger
             )
+
+        # define default error message handler
+        @self.on_message(ErrorMessage)
+        async def _handle_error_message(ctx: Context, sender: str, msg: ErrorMessage):
+            ctx.logger.exception(f"Received error message from {sender}: {msg.error}")
 
     def _initialize_wallet_and_identity(self, seed, name, wallet_key_derivation_index):
         """
@@ -325,6 +344,17 @@ class Agent(Sink):
         return self._identity.address
 
     @property
+    def identifier(self) -> str:
+        """
+        Get the Agent Identifier, including network prefix and address.
+
+        Returns:
+            str: The agent's identifier.
+        """
+        prefix = TESTNET_PREFIX if self._test else MAINNET_PREFIX
+        return prefix + self._identity.address
+
+    @property
     def wallet(self) -> LocalWallet:
         """
         Get the wallet of the agent.
@@ -333,6 +363,16 @@ class Agent(Sink):
             LocalWallet: The agent's wallet.
         """
         return self._wallet
+
+    @property
+    def ledger(self) -> LedgerClient:
+        """
+        Get the ledger of the agent.
+
+        Returns:
+            LedgerClient: The agent's ledger
+        """
+        return self._ledger
 
     @property
     def storage(self) -> KeyValueStore:
@@ -373,6 +413,17 @@ class Agent(Sink):
             MailboxClient: The mailbox client instance.
         """
         return self._mailbox_client
+
+    @property
+    def balance(self) -> int:
+        """
+        Get the balance of the agent.
+
+        Returns:
+            int: Bank balance.
+        """
+
+        return self.ledger.query_bank_balance(Address(self.wallet.address()))
 
     @mailbox.setter
     def mailbox(self, config: Union[str, Dict[str, str]]):
@@ -488,11 +539,7 @@ class Agent(Sink):
             or list(self.protocols.keys())
             != self._almanac_contract.get_protocols(self.address)
         ):
-            agent_balance = self._ledger.query_bank_balance(
-                Address(self.wallet.address())
-            )
-
-            if agent_balance < REGISTRATION_FEE:
+            if self.balance < REGISTRATION_FEE:
                 self._logger.warning(
                     f"I do not have enough funds to register on Almanac contract\
                         \nFund using wallet address: {self.wallet.address()}"
@@ -501,7 +548,7 @@ class Agent(Sink):
             self._logger.info("Registering on almanac contract...")
             signature = self.sign_registration()
             await self._almanac_contract.register(
-                self._ledger,
+                self.ledger,
                 self.wallet,
                 self.address,
                 list(self.protocols.keys()),
@@ -838,6 +885,7 @@ class Agent(Sink):
 
             context = Context(
                 self._identity.address,
+                self.identifier,
                 self._name,
                 self._storage,
                 self._resolver,
@@ -860,7 +908,7 @@ class Agent(Sink):
                 recovered = model_class.parse_raw(message)
             except ValidationError as ex:
                 self._logger.warning(f"Unable to parse message: {ex}")
-                await _handle_error(
+                await _send_error_message(
                     context,
                     sender,
                     ErrorMessage(
@@ -877,7 +925,7 @@ class Agent(Sink):
                 if not is_user_address(sender):
                     handler = self._signed_message_handlers.get(schema_digest)
                 elif schema_digest in self._signed_message_handlers:
-                    await _handle_error(
+                    await _send_error_message(
                         context,
                         sender,
                         ErrorMessage(

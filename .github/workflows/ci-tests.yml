@@ -4,20 +4,30 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "python/**"
-      - ".github/**"
 
   pull_request:
     branches:
       - main
-    paths:
-      - "python/**"
-      - ".github/**"
 
 jobs:
+  check-if-files-changed:
+    runs-on: ubuntu-latest
+    outputs:
+      uagents: ${{ steps.files-changed.outputs.uagents }}
+    steps:
+      - uses: dorny/paths-filter@v2
+        id: files-changed
+        with:
+          filters: |
+            uagents:
+              - 'python/**'
+              - '.github/**'
+
   tests:
     name: Tests
+    needs: check-if-files-changed
+    if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+
     defaults:
       run:
         shell: bash
@@ -64,6 +74,9 @@ jobs:
 
   linting:
     name: Lint & Formatting
+    needs: check-if-files-changed
+    if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+
     defaults:
       run:
         shell: bash

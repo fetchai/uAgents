@@ -79,7 +79,7 @@ Please see the [official documentation](https://docs.fetch.ai/) for full setup i
 
 ## 🌱 Examples
 
-The [`examples`](https://github.com/fetchai/uAgents/tree/main/examples) folder contains several examples of how to create and run various types of agents.
+The [`examples`](https://github.com/fetchai/uAgents/tree/main/python/examples) folder contains several examples of how to create and run various types of agents.
 
 ## Python Library
 

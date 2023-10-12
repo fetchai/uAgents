@@ -8,9 +8,12 @@ disable=missing-module-docstring,
         too-many-instance-attributes,
         duplicate-code,
         too-many-arguments,
+        too-many-locals,
+        too-many-return-statements,
         logging-fstring-interpolation,
         import-outside-toplevel,
         too-many-statements,
         too-many-locals,
+        too-many-lines,
         broad-exception-caught
 
