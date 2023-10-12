@@ -2,102 +2,16 @@
 import functools
 import graphlib
 from datetime import datetime, timedelta
-from enum import Enum
 from typing import Any, Awaitable, Callable, Optional, Set, Type, Union
 from uuid import UUID
 
 import networkx as nx
-from pydantic import Field
 from uagents import Context, Model, Protocol
 from uagents.storage import KeyValueStore
 
 JsonStr = str
 
-
 MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
-
-NOTES = """
-- A dialogue is a sequence of messages
-- Each dialogue has a unique identifier
-- A dialogue is identified by a DialogueLabel
-- A dialogue will have a list of messages
-- A dialogue will have a lifetime
-- A dialogue will always have 1 "init" state in the beginning and a "finish"
-  state in the end
-
-Q: where to store the messages? Separate from ctx.storage?
-Q: how to handle the lifetime of the dialogues? Block or time based?
-
-- msg has a session id
-- we can use this session id to identify the dialogue
-- one dialogue id can have multiple messages and ids
-
-- less interest in generic solution
-- we focus on set of structures -> to come up with client abstractions
-- time log confirmation dialogue
-- see dialogue as a blueprint for protocols
-
-- dialogue stores only the rules
-- you would still need to define the states and message handlers
-
-- try to simplify the handling of individual messages
-- single model for state (across whole flow or dialogue)
-- dialogue would be a layer on top of  protocols and messages
-
-- dialogue object has custom set of decorators (to build on the learnings)
-
-start with:
-- simple dialogue with simple rules
-- query -> response -> accept/decline -> finish
-- success, failure, timeout, retry
-"""
-
-
-def brainstorming():
-    class Performative(str, Enum):
-        INIT = "init"
-        ACCEPT = "accept"
-        DECLINE = "decline"
-        MESSAGE = "message"
-        FINISH = "finish"
-
-    class DialogueMessage(Model):
-        performative: Performative = Field(
-            description=(
-                "Description of what is being done (may be defined by a protocol)"
-            )
-        )
-        contents: dict = Field(
-            description=(
-                "Content of the message. " "This will vary based on the Performative."
-            )
-        )
-        is_incoming: bool = Field(
-            description=("True if the message is incoming, False if outgoing"),
-            default=False,
-        )
-        target: str = Field(
-            description=("Address of the agent that is the target of the message")
-        )
-        sender: str = Field(
-            description=("Address of the agent that is the sender of the message")
-        )
-
-    # To give the dialogue a context and to enable dialogue comparison
-    class DialogueLabel(Model):
-        session_id: UUID = Field(description="Id of the dialogue")
-        dialogue_starter: str = Field(
-            description="Address of the agent that started the dialogue"
-        )
-        dialogue_receiver: str = Field(
-            description="Address of the agent that is the receiver of the dialogue"
-        )
-
-    # The actual message that will be sent to the other agent
-    # May need some more fields
-    class DialogueWrapper(Model):
-        dialogue_label: DialogueLabel
-        dialogue_message: DialogueMessage
 
 
 class Dialogue(Protocol):

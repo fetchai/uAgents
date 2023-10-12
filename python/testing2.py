@@ -1,6 +1,6 @@
 """Testing platform"""
 from src.uagents import Agent, Bureau, Context, Model
-from src.uagents.contrib.dialogues.dialogue import Dialogue
+from src.uagents.experimental.dialogues.dialogue import Dialogue
 from src.uagents.setup import fund_agent_if_low
 
 agent1 = Agent(name="agent1", seed="9876543210000000000")

@@ -1,4 +1,4 @@
-from src.uagents.contrib.dialogues import dialogue
+from src.uagents.experimental.dialogues import dialogue
 from uagents import Model
 
 
