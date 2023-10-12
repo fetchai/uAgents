@@ -12,8 +12,6 @@ from uagents import Context, Model, Protocol
 from uagents.storage import KeyValueStore
 
 JsonStr = str
-SenderStr = str
-ReceiverStr = str
 
 
 MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
@@ -118,12 +116,14 @@ class Dialogue(Protocol):
         rules: dict[Type[Model], set[Type[Model]]] = None,
         # abstract_rules: dict[Node, set[Vertex]] = None,
         agent_address: Optional[str] = "",  # TODO: discuss storage naming
-        timeout: int = 10,  # should be constant
+        timeout: int = 10,  # should be constant in config
+        max_nr_of_messages: int = 100,  # should also be constant in config
     ) -> None:
         self._name = name
         self._rules = self._build_rules(
             rules
-        )  # DAG of dialogue represented by message digests
+        )  # graph of dialogue represented by message digests
+        self._cyclic = False
         self._starter = self._build_starter()  # first message of the dialogue
         self._ender = self._build_ender()  # last message(s) of the dialogue
         self._states: dict[
@@ -136,6 +136,7 @@ class Dialogue(Protocol):
         self._sessions: dict[
             UUID, list[Any]
         ] = self._load_storage()  # volatile session + message storage
+        self.max_nr_of_messages = max_nr_of_messages  # TODO: implement feature
         super().__init__(name=self._name, version=version)
 
         @self.on_interval(1)
@@ -171,6 +172,16 @@ class Dialogue(Protocol):
             dict[str, list[str]]: Dictionary of rules with schema digests as keys.
         """
         return self._rules
+
+    @property
+    def is_cyclic(self) -> bool:
+        """
+        Property to determine whether the dialogue has cycles.
+
+        Returns:
+            bool: True if the dialogue is cyclic, False otherwise.
+        """
+        return self._cyclic
 
     def get_current_state(self, session_id: UUID) -> str:
         """Get the current state of the dialogue for a given session."""
@@ -210,6 +221,9 @@ class Dialogue(Protocol):
     def _build_starter(self) -> str:
         """Build the starting message of the dialogue."""
         graph = graphlib.TopologicalSorter(self._rules)
+        if graph._find_cycle():  # pylint: disable=protected-access
+            self._cyclic = True
+            return list(self._rules.keys())[0]
         return list(graph.static_order())[-1]
 
     def _build_ender(self) -> set[str]:
@@ -241,9 +255,9 @@ class Dialogue(Protocol):
     def add_message(
         self,
         session_id: UUID,
-        message: str,
-        sender: SenderStr,
-        receiver: ReceiverStr,
+        message_type: str,
+        sender: str,
+        receiver: str,
         content: JsonStr,
         **kwargs,
     ) -> None:
@@ -252,10 +266,10 @@ class Dialogue(Protocol):
             self._add_session(session_id)
         self._sessions[session_id].append(
             {
-                "message": message,
+                "message_type": message_type,
                 "sender": sender,
                 "receiver": receiver,
-                "content": content,
+                "message_content": content,
                 "timestamp": datetime.timestamp(datetime.now()),
                 "timeout": self._lifetime,
                 **kwargs,

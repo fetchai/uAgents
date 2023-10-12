@@ -452,7 +452,7 @@ class Context:
                 message_name = current_protocol.models[schema_digest].__name__
                 current_protocol.add_message(
                     session_id=current_session,
-                    message=message_name,
+                    message_type=message_name,
                     sender=self.address,
                     receiver=destination,
                     content=json_message,
