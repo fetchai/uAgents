@@ -409,6 +409,8 @@ class Edge:
 
 # Approach to abstract the individual states and transitions into another layer
 class AbstractDialogue(Dialogue):
+    """Abstract base class"""
+
     def __init__(
         self,
         name: str | None = None,

@@ -155,14 +155,14 @@ async def handle_interval(ctx: Context):
 # --- abstract example
 # dev has a selection of specific dialogues to choose from and can update
 # the message structure and functional behaviour individually
-abstract_dialogue = de.A_ResourceRequestDialogue(
+specific_dialogue = de.A_ResourceRequestDialogue(
     version="0.1",
     agent_address=agent1.address,
 )
 
 
 # Not needing to define replies
-@abstract_dialogue.on_state_transition("Resource Query", de.ResourceQuery)
+@specific_dialogue.on_state_transition("Resource Query", de.ResourceQuery)
 async def abs_handle_resource_query(
     ctx: Context,
     _sender: str,

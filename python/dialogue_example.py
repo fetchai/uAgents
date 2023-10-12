@@ -46,6 +46,8 @@ class ResourceRequestDialogue(dialogue.Dialogue):
 # This is a specific derivation of the abstract dialogue class
 # The rules will be predefined and the actual messages will be passed into it
 class A_ResourceRequestDialogue(dialogue.AbstractDialogue):
+    """Pattern definition"""
+
     state1 = dialogue.Node(
         name="Dialogue Creation",
         description="This is the initial state of the dialogue.",
