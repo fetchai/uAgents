@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 from typing import Any, Awaitable, Callable, Optional, Set, Type, Union
 from uuid import UUID
 
-import networkx as nx
 from uagents import Context, Model, Protocol
 from uagents.storage import KeyValueStore
 
@@ -16,12 +15,11 @@ JsonStr = str
 MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
 
 
-# This makes sense as an abstraction for a state. Each node represents a state
-# in the dialogue. The node has a name and a description.
-# In general: we have to decide if Nodes or Edges are the main methods of
-#             defining a dialogue.
-# -> current assumption: edges as they are equivalent to transitions
 class Node:
+    """
+    A node represents a state in the dialogue.
+    """
+
     def __init__(
         self,
         name: str,
@@ -31,9 +29,11 @@ class Node:
         self.description = description
 
 
-# This descriptive approach will increase the amount of code needed to define
-# a dialogue.
 class Edge:
+    """
+    An edge represents a transition between two states in the dialogue.
+    """
+
     def __init__(
         self,
         name: str,
@@ -50,6 +50,7 @@ class Edge:
 
     @property
     def model(self) -> Type[Model]:
+        """The message model type that is associated with the edge."""
         return self._model
 
     @model.setter
@@ -59,6 +60,8 @@ class Edge:
 
 class Dialogue(Protocol):
     """
+    A Dialogue is the local representation of the dialogue.
+
     - This should be the local representation of the dialogue.
     - Each participant will have its own instance of this class per dialogue.
     - A storage will contain all the dialogues that took place, which may be
@@ -84,10 +87,7 @@ class Dialogue(Protocol):
         self.nodes = nodes
         self.edges = edges
 
-        graph = nx.Graph()
-        graph.add_nodes_from(self.nodes)
-        graph.add_edges_from(self.edges)
-        # <additional graph checks happen here>
+        # TODO: <graph checks happen here>
 
         self._rules = self._build_rules(
             rules

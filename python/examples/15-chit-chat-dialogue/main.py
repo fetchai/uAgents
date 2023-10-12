@@ -12,6 +12,7 @@ agent2._logger.setLevel("DEBUG")
 fund_agent_if_low(agent2.wallet.address())
 
 
+# define dialogue messages; each transition needs a separate message
 class InitiateChitChatDialogue(Model):
     pass
 
@@ -21,6 +22,10 @@ class ChitChatDialogueMessage(Model):
 
 
 class ConcludeChitChatDialogue(Model):
+    pass
+
+
+class RejectChitChatDialogue(Model):
     pass
 
 
@@ -49,12 +54,12 @@ async def start_chitchat(
 
 
 @chitchat_dialogue1.on_state_transition(
-    "Session Rejected / Not Needed", ConcludeChitChatDialogue
+    "Session Rejected / Not Needed", RejectChitChatDialogue
 )
 async def reject_chitchat(
     ctx: Context,
     sender: str,
-    _msg: ConcludeChitChatDialogue,
+    _msg: RejectChitChatDialogue,
 ):
     # do something when the dialogue is rejected and nothing has been sent yet
     ctx.logger.info(f"Received conclude message from: {sender}")
@@ -85,7 +90,7 @@ async def continue_chitchat(
 async def conclude_chitchat(
     ctx: Context,
     sender: str,
-    msg: ConcludeChitChatDialogue,
+    _msg: ConcludeChitChatDialogue,
 ):
     # do something when the dialogue is concluded after messages have been exchanged
     ctx.logger.info(f"Received conclude message from: {sender}")
@@ -105,12 +110,12 @@ async def start_chitchat2(
 
 
 @chitchat_dialogue2.on_state_transition(
-    "Session Rejected / Not Needed", ConcludeChitChatDialogue
+    "Session Rejected / Not Needed", RejectChitChatDialogue
 )
 async def reject_chitchat2(
     ctx: Context,
     sender: str,
-    _msg: ConcludeChitChatDialogue,
+    _msg: RejectChitChatDialogue,
 ):
     # do something when the dialogue is rejected and nothing has been sent yet
     ctx.logger.info(f"Received conclude message from: {sender}")
@@ -151,6 +156,7 @@ agent1.include(chitchat_dialogue1)
 agent2.include(chitchat_dialogue2)
 
 
+# initiate dialogue
 @agent1.on_event("startup")
 async def start_cycle(ctx: Context):
     await ctx.send(agent2.address, InitiateChitChatDialogue())
