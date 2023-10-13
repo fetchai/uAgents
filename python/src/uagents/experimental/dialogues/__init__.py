@@ -85,10 +85,12 @@ class Dialogue(Protocol):
 
         self._nodes = nodes or []
         self._edges = edges or []
-        self._graph = self._build_graph()
-        self._rules: dict[str, list[str]] = self._build_rules()
-        self._mapping: dict[str, str] = {}  # TODO: implement feature
-        # here we store the message models that are associated with an edge
+        self._graph: dict[str, list[str]] = self._build_graph()  # by nodes
+        self._rules: dict[str, list[str]] = self._build_rules()  # by edges
+        self._mapping: dict[str, str] = {
+            edge.name: Model.build_schema_digest(edge.model) if edge.model else ""
+            for edge in self._edges
+        }  # here we store the message models that are associated with an edge
 
         self._cyclic = False
         self._starter = self._build_starter()  # first message of the dialogue
@@ -145,7 +147,7 @@ class Dialogue(Protocol):
         Property to access the rules of the dialogue.
 
         Returns:
-            dict[str, list[str]]: Dictionary of rules with schema digests as keys.
+            dict[str, list[str]]: Dictionary of rules represented by edges.
         """
         return self._rules
 
@@ -220,53 +222,51 @@ class Dialogue(Protocol):
             for e in self._edges:
                 if e.parent and e.parent.name == edge.child.name:
                     out[edge.name].append(e.name)
+
+        graph = graphlib.TopologicalSorter(out)
+        if graph._find_cycle():  # pylint: disable=protected-access
+            self._cyclic = True
         return out
 
-    def get_current_state(self, session_id: UUID) -> str:
-        """Get the current state of the dialogue for a given session."""
-        return self._states[session_id] if session_id in self._states else ""
+    def _build_starter(self) -> str:
+        """Build the starting message of the dialogue."""
+        edges_without_entry = list(filter(lambda e: e.parent is None, self._edges))
+        if len(edges_without_entry) > 1:
+            raise ValueError("Dialogue has more than one entry point!")
+        return edges_without_entry[0].name if edges_without_entry else ""
 
-    def is_valid_transition(self, session_id: UUID, msg_digest: str) -> bool:
-        pass
+    def _build_ender(self) -> set[str]:
+        """Build the last message(s) of the dialogue."""
+        return set(edge for edge in self._rules if not self._rules[edge])
 
     def is_starter(self, digest: str) -> bool:
         """
         Return True if the digest is the starting message of the dialogue.
         False otherwise.
         """
-        return self._starter == digest
+        return self._mapping[self._starter] == digest
 
     def is_ender(self, digest: str) -> bool:
         """
         Return True if the digest is the last message of the dialogue.
         False otherwise.
         """
-        return digest in self._ender
+        return digest in [self._mapping[edge] for edge in self._ender]
+
+    def get_current_state(self, session_id: UUID) -> str:
+        """Get the current state of the dialogue for a given session."""
+        return self._states[session_id] if session_id in self._states else ""
+
+    def is_valid_transition(self, session_id: UUID, msg_digest: str) -> bool:
+        if session_id not in self._sessions:
+            return True
+        # TODO: implement return when session exists
+        # if session_id in self._states:
+        #     return msg_digest in self._rules[self._states[session_id]]
 
     def _auto_add_message_handler(self) -> None:
         # iterate over all edges and add respective message handlers
         return
-
-    def _build_starter(self) -> str:
-        """Build the starting message of the dialogue."""
-        graph = graphlib.TopologicalSorter(self._rules)
-        if graph._find_cycle():  # pylint: disable=protected-access
-            self._cyclic = True
-            return list(self._rules.keys())[0]
-        return list(graph.static_order())[-1]
-
-        # programmatic way of finding the starter node
-        # handled_models = set()
-        # for model, replies in self._rules.items():
-        #     for reply in self._rules[model]:
-        #         handled_models.add(reply)
-        #         assert reply in self._rules, f"Reply {reply} not in ruleset!"
-        # nodes_without_entry = set(self._rules.keys()).difference(handled_models)
-        # print(nodes_without_entry)  # must be entry node, may be multiple (?)
-
-    def _build_ender(self) -> set[str]:
-        """Build the last message(s) of the dialogue."""
-        return set(model for model in self._rules if not self._rules[model])
 
     def update_state(self, digest: str, session_id: UUID) -> None:
         """
@@ -325,6 +325,10 @@ class Dialogue(Protocol):
         """
         return self._sessions.get(session_id)
 
+    def get_edge(self, edge_name: str) -> Edge:
+        """Return an edge from the dialogue instance."""
+        return next(edge for edge in self._edges if edge.name == edge_name)
+
     def is_valid_message(self, session_id: UUID, msg_digest: str) -> bool:
         """
         Check if a message is valid for a given session.
@@ -351,7 +355,7 @@ class Dialogue(Protocol):
         Returns:
             bool: True if the message is included, False otherwise.
         """
-        return msg_digest in self._rules
+        return msg_digest in self._mapping.values()
 
     def _load_storage(self) -> dict[UUID, list[Any]]:
         """Load the sessions from the storage."""
@@ -375,6 +379,7 @@ class Dialogue(Protocol):
         self._storage.set(self.name, cache)
 
     def _update_transition_model(self, edge: Edge, model: Type[Model]) -> None:
+        self._mapping[edge.name] = Model.build_schema_digest(model)
         self._edges[self._edges.index(edge)].model = model
 
     def on_state_transition(self, edge_name: str, model: Type[Model]):
@@ -393,10 +398,12 @@ class Dialogue(Protocol):
             def handler(*args, **kwargs):
                 return func(*args, **kwargs)
 
-            # TODO: find edge first
+            edge = self.get_edge(edge_name)
             self._update_transition_model(edge, model)
             # Note: we sacrifice the ability to pass replies into the decorator
+            #       but validate the replies based on the message model instead
             self._add_message_handler(model, func, None, False)
+            # self._update_message_handlers()
             return handler
 
         # TODO: recalculate manifest after each update and re-register the protocol

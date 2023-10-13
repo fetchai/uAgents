@@ -54,7 +54,7 @@ pp.pp(chitchat_dialogue1.get_overview())
 counter = 0
 
 
-@chitchat_dialogue1.on_state_transition("Session Started", InitiateChitChatDialogue)
+@chitchat_dialogue1.on_state_transition("Initiate Session", InitiateChitChatDialogue)
 async def start_chitchat(
     ctx: Context,
     sender: str,
@@ -64,7 +64,7 @@ async def start_chitchat(
     await ctx.send(sender, AcceptChitChatDialogue())
 
 
-@chitchat_dialogue1.on_state_transition("Session Started", AcceptChitChatDialogue)
+@chitchat_dialogue1.on_state_transition("Dialogue Started", AcceptChitChatDialogue)
 async def accept_chitchat(
     ctx: Context,
     sender: str,
@@ -120,7 +120,7 @@ async def conclude_chitchat(
 # agent2
 
 
-@chitchat_dialogue2.on_state_transition("Session Started", InitiateChitChatDialogue)
+@chitchat_dialogue2.on_state_transition("Initiate Session", InitiateChitChatDialogue)
 async def start_chitchat2(
     ctx: Context,
     sender: str,
@@ -130,7 +130,7 @@ async def start_chitchat2(
     await ctx.send(sender, ChitChatDialogueMessage(text="Hello!"))
 
 
-@chitchat_dialogue2.on_state_transition("Session Started", AcceptChitChatDialogue)
+@chitchat_dialogue2.on_state_transition("Dialogue Started", AcceptChitChatDialogue)
 async def accept_chitchat2(
     ctx: Context,
     sender: str,
