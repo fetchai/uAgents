@@ -1,4 +1,6 @@
 """Chit chat dialogue example"""
+import pprint as pp
+
 from dialogues.chitchat import ChitChatDialogue
 from uagents import Agent, Bureau, Context, Model
 from uagents.setup import fund_agent_if_low
@@ -14,6 +16,10 @@ fund_agent_if_low(agent2.wallet.address())
 
 # define dialogue messages; each transition needs a separate message
 class InitiateChitChatDialogue(Model):
+    pass
+
+
+class AcceptChitChatDialogue(Model):
     pass
 
 
@@ -39,6 +45,10 @@ chitchat_dialogue2 = ChitChatDialogue(
     agent_address=agent2.address,
 )
 
+# get an overview of the dialogue structure
+pp.pp(chitchat_dialogue1.get_overview())
+
+
 # agent1
 
 counter = 0
@@ -50,7 +60,17 @@ async def start_chitchat(
     sender: str,
     _msg: InitiateChitChatDialogue,
 ):
-    # do something when the dialogue is started; e.g. send a message
+    # do something when the dialogue is initiated
+    await ctx.send(sender, AcceptChitChatDialogue())
+
+
+@chitchat_dialogue1.on_state_transition("Session Started", AcceptChitChatDialogue)
+async def accept_chitchat(
+    ctx: Context,
+    sender: str,
+    _msg: AcceptChitChatDialogue,
+):
+    # do something after the dialogue is started; e.g. send a message
     await ctx.send(sender, ChitChatDialogueMessage(text="Hello!"))
 
 
@@ -106,7 +126,17 @@ async def start_chitchat2(
     sender: str,
     _msg: InitiateChitChatDialogue,
 ):
-    # do something when the dialogue is started; e.g. send a message
+    # do something when the dialogue is initiated
+    await ctx.send(sender, ChitChatDialogueMessage(text="Hello!"))
+
+
+@chitchat_dialogue2.on_state_transition("Session Started", AcceptChitChatDialogue)
+async def accept_chitchat2(
+    ctx: Context,
+    sender: str,
+    _msg: AcceptChitChatDialogue,
+):
+    # do something after the dialogue is started; e.g. send a message
     await ctx.send(sender, ChitChatDialogueMessage(text="Hello!"))
 
 

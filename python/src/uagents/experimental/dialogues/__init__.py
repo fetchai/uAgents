@@ -2,7 +2,7 @@
 import functools
 import graphlib
 from datetime import datetime, timedelta
-from typing import Any, Awaitable, Callable, Optional, Set, Type, Union
+from typing import Any, Awaitable, Callable, Optional, Type
 from uuid import UUID
 
 from uagents import Context, Model, Protocol
@@ -41,12 +41,14 @@ class Edge:
         parent: Node,  # tail
         child: Node,  # head
         model: Type[Model] = None,
+        func: MessageCallback = lambda *args, **kwargs: None,
     ) -> None:
         self.name = name
         self.description = description
         self.parent = parent
         self.child = child
         self._model = model
+        self._func = func
 
     @property
     def model(self) -> Type[Model]:
@@ -75,9 +77,6 @@ class Dialogue(Protocol):
         version: Optional[str] = None,
         nodes: list[Node] | None = None,
         edges: list[Edge] | None = None,
-        rules: dict[
-            Type[Model], set[Type[Model]]
-        ] = None,  # replace with nodes and edges
         agent_address: Optional[str] = "",  # TODO: discuss storage naming
         timeout: int = DEFAULT_SESSION_TIMEOUT,
         max_nr_of_messages: int = 100,  # TODO: enforce limit
@@ -86,15 +85,15 @@ class Dialogue(Protocol):
 
         self._nodes = nodes or []
         self._edges = edges or []
+        self._graph = self._build_graph()
+        self._rules: dict[str, list[str]] = self._build_rules()
+        self._mapping: dict[str, str] = {}  # TODO: implement feature
+        # here we store the message models that are associated with an edge
 
-        # TODO: <graph checks happen here>
-
-        self._rules = self._build_rules(
-            rules
-        )  # graph of dialogue represented by message digests
         self._cyclic = False
         self._starter = self._build_starter()  # first message of the dialogue
         self._ender = self._build_ender()  # last message(s) of the dialogue
+
         self._states: dict[
             UUID, str
         ] = {}  # current state of the dialogue (as digest) per session
@@ -108,8 +107,13 @@ class Dialogue(Protocol):
         self.max_nr_of_messages = max_nr_of_messages  # TODO: implement feature
         super().__init__(name=self._name, version=version)
 
-        # for edge in self._edges:
-        #     pass
+        # if a model exists for an edge, register the handler automatically
+        # TODO: check feasibility
+        for edge in self._edges:
+            if edge.model:
+                model_digest = Model.build_schema_digest(edge.model)
+                self._models[model_digest] = edge.model
+                self._signed_message_handlers[model_digest] = edge._func
 
         @self.on_interval(1)
         async def cleanup_dialogue(_ctx: Context):
@@ -155,9 +159,75 @@ class Dialogue(Protocol):
         """
         return self._cyclic
 
+    @property
+    def nodes(self) -> list[Node]:
+        return self._nodes
+
+    @property
+    def edges(self) -> list[Edge]:
+        return self._edges
+
+    def get_overview(self) -> dict:
+        """
+        Get an overview of the dialogue structure.
+
+        Returns:
+            dict: Manifest like representation of the dialogue structure.
+        """
+        return (
+            {
+                "nodes": [node.__dict__ for node in self._nodes],
+                "edges": [
+                    {
+                        "name": edge.name,
+                        "description": edge.description,
+                        "parent": edge.parent.name if edge.parent else None,
+                        "child": edge.child.name,
+                        "model": edge.model.__name__ if edge.model else None,
+                    }
+                    for edge in self._edges
+                ],
+            }
+            if self._nodes
+            else {}
+        )
+
+    def _build_graph(self) -> dict[str, list[str]]:
+        """
+        Build the graph of the dialogue while showing the state relations.
+
+        Returns:
+            dict[str, list[str]]: List of states and their relations.
+        """
+        graph = {}
+        for node in self._nodes:
+            graph.setdefault(node.name, [])
+        for edge in self._edges:
+            if edge.parent:
+                graph.setdefault(edge.parent.name, []).append(edge.child.name)
+        return graph
+
+    def _build_rules(self) -> dict[str, list[str]]:
+        """
+        Build the rules for the dialogue.
+        Which replies are allowed after a certain message.
+
+        Returns:
+            dict[str, list[str]]: Rules for the dialogue.
+        """
+        out = {edge.name: [] for edge in self._edges}
+        for edge in self._edges:
+            for e in self._edges:
+                if e.parent and e.parent.name == edge.child.name:
+                    out[edge.name].append(e.name)
+        return out
+
     def get_current_state(self, session_id: UUID) -> str:
         """Get the current state of the dialogue for a given session."""
         return self._states[session_id] if session_id in self._states else ""
+
+    def is_valid_transition(self, session_id: UUID, msg_digest: str) -> bool:
+        pass
 
     def is_starter(self, digest: str) -> bool:
         """
@@ -177,23 +247,6 @@ class Dialogue(Protocol):
         # iterate over all edges and add respective message handlers
         return
 
-    def _build_rules(self, rules: dict[Model, list[Model]]) -> dict[str, list[str]]:
-        """
-        Build the rules for the dialogue.
-
-        Args:
-            rules (dict[Model, list[Model]]): Rules for the dialogue.
-
-        Returns:
-            dict[str, list[str]]: Rules for the dialogue.
-        """
-        return {
-            Model.build_schema_digest(key): [
-                Model.build_schema_digest(v) for v in values
-            ]
-            for key, values in rules.items()
-        }
-
     def _build_starter(self) -> str:
         """Build the starting message of the dialogue."""
         graph = graphlib.TopologicalSorter(self._rules)
@@ -204,13 +257,11 @@ class Dialogue(Protocol):
 
         # programmatic way of finding the starter node
         # handled_models = set()
-        # for model, replies in RULESET.items():
-        #     for reply in RULESET[model]:
+        # for model, replies in self._rules.items():
+        #     for reply in self._rules[model]:
         #         handled_models.add(reply)
-        #         assert reply in RULESET, f"Reply {reply} not in ruleset!"
-        # # assert len(handled_models) == len(RULESET), "Not all models are handled!"
-        # nodes_without_entry = set(RULESET.keys()).difference(handled_models)
-
+        #         assert reply in self._rules, f"Reply {reply} not in ruleset!"
+        # nodes_without_entry = set(self._rules.keys()).difference(handled_models)
         # print(nodes_without_entry)  # must be entry node, may be multiple (?)
 
     def _build_ender(self) -> set[str]:
@@ -326,7 +377,7 @@ class Dialogue(Protocol):
     def _update_transition_model(self, edge: Edge, model: Type[Model]) -> None:
         self._edges[self._edges.index(edge)].model = model
 
-    def on_state_transition(self, edge: Edge, model: Type[Model]):
+    def on_state_transition(self, edge_name: str, model: Type[Model]):
         """
         Main decorator to register a message handler for the dialogue.
         The Model in this case is the message model type but it refers to the
@@ -344,6 +395,8 @@ class Dialogue(Protocol):
 
             # TODO: find edge first
             self._update_transition_model(edge, model)
+            # Note: we sacrifice the ability to pass replies into the decorator
+            self._add_message_handler(model, func, None, False)
             return handler
 
         # TODO: recalculate manifest after each update and re-register the protocol

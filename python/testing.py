@@ -74,7 +74,7 @@ async def handle_resource_reservation_confirmation(
     print("---")
 
 
-@simple_dialogue2.on_message(de.ResourceQuery, de.ResourceAvailability)
+@simple_dialogue2.on_message(de.ResourceQuery)
 async def handle_resource_query2(
     ctx: Context,
     sender: str,
@@ -131,14 +131,14 @@ agent2.include(simple_dialogue2)
 counter = 0
 
 
-@agent1.on_interval(5)
-async def handle_interval(ctx: Context):
-    global counter
-    if counter == 1:
-        await ctx.send(agent2.address, de.ResourceQuery())
-    if counter == 2:
-        await ctx.send(agent2.address, de.ResourceRejection())
-    counter += 1
+# @agent1.on_interval(5)
+# async def handle_interval(ctx: Context):
+#     global counter
+#     if counter == 1:
+#         await ctx.send(agent2.address, de.ResourceQuery())
+#     if counter == 2:
+#         await ctx.send(agent2.address, de.ResourceRejection())
+#     counter += 1
 
 
 @agent1.on_event("startup")

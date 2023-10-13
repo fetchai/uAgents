@@ -24,10 +24,10 @@ class ChitChatDialogue(Dialogue):
     # Models are attached to the transitions, this way we may be able to
     # predefine a specific message structure that can also be overwritten
     transition1 = Edge(
-        name="Session Started",
-        description="This is the transition from initiated to chit chatting.",
-        parent=state1,
-        child=state2,
+        name="Initiate Session",
+        description="This is the transition to start the dialogue",
+        parent=None,
+        child=state1,
     )
     transition2 = Edge(
         name="Session Rejected / Not Needed",
@@ -38,6 +38,12 @@ class ChitChatDialogue(Dialogue):
         child=state3,
     )
     transition3 = Edge(
+        name="Dialogue Started",
+        description="This is the transition from initiated to chit chatting.",
+        parent=state1,
+        child=state2,
+    )
+    transition4 = Edge(
         name="Dialogue Continues",
         description=(
             "This is the transition from one dialogue message to the next, "
@@ -46,7 +52,7 @@ class ChitChatDialogue(Dialogue):
         parent=state2,
         child=state2,
     )
-    transition4 = Edge(
+    transition5 = Edge(
         name="Hang Up / End Session",
         description="This is the transition for when the session is ended.",
         parent=state2,
@@ -68,5 +74,6 @@ class ChitChatDialogue(Dialogue):
                 self.transition2,
                 self.transition3,
                 self.transition4,
+                self.transition5,
             ],
         )
