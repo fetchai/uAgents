@@ -1,6 +1,5 @@
 """Testing platform"""
 from src.uagents import Agent, Bureau, Context
-from src.uagents.models import ErrorMessage
 from src.uagents.setup import fund_agent_if_low
 import dialogue_example as de
 
@@ -11,16 +10,6 @@ fund_agent_if_low(agent1.wallet.address())
 agent2 = Agent(name="agent2", seed="9876543210000000001")
 agent2._logger.setLevel("DEBUG")
 fund_agent_if_low(agent2.wallet.address())
-
-
-@agent1.on_message(ErrorMessage)
-async def handle_error1(ctx: Context, sender: str, msg: ErrorMessage):
-    ctx.logger.error(f"Error received from {sender[-6:]}: {msg.error}")
-
-
-@agent2.on_message(ErrorMessage)
-async def handle_error2(ctx: Context, sender: str, msg: ErrorMessage):
-    ctx.logger.error(f"Error received from {sender[-6:]}: {msg.error}")
 
 
 simple_dialogue1 = de.ResourceRequestDialogue(
@@ -152,23 +141,9 @@ async def handle_interval(ctx: Context):
     counter += 1
 
 
-# --- abstract example
-# dev has a selection of specific dialogues to choose from and can update
-# the message structure and functional behaviour individually
-specific_dialogue = de.A_ResourceRequestDialogue(
-    version="0.1",
-    agent_address=agent1.address,
-)
-
-
-# Not needing to define replies
-@specific_dialogue.on_state_transition("Resource Query", de.ResourceQuery)
-async def abs_handle_resource_query(
-    ctx: Context,
-    _sender: str,
-    _msg: de.ResourceQuery,
-):
-    print(ctx.dialogue)
+@agent1.on_event("startup")
+async def start_agent(ctx: Context):
+    await ctx.send(agent2.address, de.ResourceQuery())
 
 
 if __name__ == "__main__":

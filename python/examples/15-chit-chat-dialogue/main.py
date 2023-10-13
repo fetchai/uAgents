@@ -29,6 +29,7 @@ class RejectChitChatDialogue(Model):
     pass
 
 
+# instantiate the dialogues
 chitchat_dialogue1 = ChitChatDialogue(
     version="0.1",
     agent_address=agent1.address,
@@ -146,10 +147,11 @@ async def continue_chitchat2(
 async def conclude_chitchat2(
     ctx: Context,
     sender: str,
-    msg: ConcludeChitChatDialogue,
+    _msg: ConcludeChitChatDialogue,
 ):
     # do something when the dialogue is concluded after messages have been exchanged
-    ctx.logger.info(f"Received conclude message from: {sender}")
+    ctx.logger.info(f"Received conclude message from: {sender}; accessing history:")
+    ctx.logger.info(ctx.dialogue)
 
 
 agent1.include(chitchat_dialogue1)

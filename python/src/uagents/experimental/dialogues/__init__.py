@@ -84,8 +84,8 @@ class Dialogue(Protocol):
     ) -> None:
         self._name = name
 
-        self.nodes = nodes
-        self.edges = edges
+        self._nodes = nodes or []
+        self._edges = edges or []
 
         # TODO: <graph checks happen here>
 
@@ -107,6 +107,9 @@ class Dialogue(Protocol):
         ] = self._load_storage()  # volatile session + message storage
         self.max_nr_of_messages = max_nr_of_messages  # TODO: implement feature
         super().__init__(name=self._name, version=version)
+
+        # for edge in self._edges:
+        #     pass
 
         @self.on_interval(1)
         async def cleanup_dialogue(_ctx: Context):
@@ -169,6 +172,10 @@ class Dialogue(Protocol):
         False otherwise.
         """
         return digest in self._ender
+
+    def _auto_add_message_handler(self) -> None:
+        # iterate over all edges and add respective message handlers
+        return
 
     def _build_rules(self, rules: dict[Model, list[Model]]) -> dict[str, list[str]]:
         """
@@ -242,6 +249,8 @@ class Dialogue(Protocol):
         **kwargs,
     ) -> None:
         """Add a message to a session within the dialogue instance."""
+        if session_id is None:
+            raise ValueError("Session ID must not be None!")
         if session_id not in self._sessions:
             self._add_session(session_id)
         self._sessions[session_id].append(
@@ -300,7 +309,7 @@ class Dialogue(Protocol):
             {UUID(session_id): session for session_id, session in cache.items()}
             if cache
             else {}
-        )  # TODO: fix crash on "None" entry in storage
+        )
 
     def _update_session_in_storage(self, session_id: UUID) -> None:
         """Update a session in the storage."""
@@ -314,57 +323,8 @@ class Dialogue(Protocol):
         cache.pop(str(session_id))
         self._storage.set(self.name, cache)
 
-    def on_message(
-        self,
-        model: Type[Model],
-        replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
-    ):  # pylint: disable=arguments-differ
-        """
-        Decorator to register a message handler for the protocol.
-        Compared to the basic decorator defined in the Protocol module, this descorator
-        additionally verifies if the given interaction is allowed in the rules set
-        of this Dialogue.
-
-        Args:
-            model (Type[Model]): The message model type.
-            replies (Optional[Union[Type[Model], Set[Type[Model]]]], optional): The associated
-            reply types. Defaults to None.
-
-        Returns:
-            Callable: The decorator to register the message handler.
-        """
-
-        def decorator_on_message(func: MessageCallback):
-            @functools.wraps(func)
-            def handler(*args, **kwargs):
-                return func(*args, **kwargs)
-
-            if replies is not None:
-                replies_set = set()
-                if isinstance(replies, set):
-                    replies_set = replies
-                if isinstance(replies, type) and issubclass(replies, Model):
-                    replies_set = {replies}
-                for rep in replies_set:
-                    if not Model.build_schema_digest(rep) in self._rules.get(
-                        Model.build_schema_digest(model), []
-                    ):
-                        raise ValueError(
-                            "Interaction not allowed! "
-                            "Please check the rules defined for the used dialogue."
-                        )
-                self._add_message_handler(model, func, replies, False)
-
-            return handler
-
-        return decorator_on_message
-
-    def _auto_add_message_handler(self) -> None:
-        # iterate over all edges and add respective message handlers
-        return
-
     def _update_transition_model(self, edge: Edge, model: Type[Model]) -> None:
-        self.edges[self.edges.index(edge)].model = model
+        self._edges[self._edges.index(edge)].model = model
 
     def on_state_transition(self, edge: Edge, model: Type[Model]):
         """
