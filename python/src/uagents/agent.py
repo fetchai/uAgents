@@ -325,7 +325,7 @@ class Agent(Sink):
             str: The agent's identifier.
         """
         prefix = TESTNET_PREFIX if self._test else MAINNET_PREFIX
-        return prefix + self._identity.address
+        return prefix + "://" + self._identity.address
 
     @property
     def wallet(self) -> LocalWallet:
