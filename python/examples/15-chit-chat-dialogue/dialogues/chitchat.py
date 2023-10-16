@@ -1,6 +1,12 @@
 """Specific dialogue class for the chit-chat dialogue."""
 from uagents.experimental.dialogues import Dialogue, Node, Edge
 
+state0 = Node(
+    name="Default State",
+    description="This is the default state of the dialogue.",
+    starter=True,
+)
+
 # Node definition for the dialogue states
 state1 = Node(
     name="Initiated",

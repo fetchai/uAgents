@@ -24,9 +24,11 @@ class Node:
         self,
         name: str,
         description: str,
+        starter: bool = False,
     ) -> None:
         self.name = name
         self.description = description
+        self.starter = starter
 
 
 class Edge:
@@ -96,9 +98,6 @@ class Dialogue(Protocol):
         self._starter = self._build_starter()  # first message of the dialogue
         self._ender = self._build_ender()  # last message(s) of the dialogue
 
-        self._states: dict[
-            UUID, str
-        ] = {}  # current state of the dialogue (as digest) per session
         self._lifetime = timeout
         self._storage = KeyValueStore(
             f"{agent_address[0:16]}_dialogues"
@@ -106,16 +105,16 @@ class Dialogue(Protocol):
         self._sessions: dict[
             UUID, list[Any]
         ] = self._load_storage()  # volatile session + message storage
+        self._states: dict[
+            UUID, str
+        ] = {}  # current state of the dialogue (as transition digest) per session
+
         self.max_nr_of_messages = max_nr_of_messages  # TODO: implement feature
         super().__init__(name=self._name, version=version)
 
         # if a model exists for an edge, register the handler automatically
         # TODO: check feasibility
-        for edge in self._edges:
-            if edge.model:
-                model_digest = Model.build_schema_digest(edge.model)
-                self._models[model_digest] = edge.model
-                self._signed_message_handlers[model_digest] = edge._func
+        self._auto_add_message_handler()
 
         @self.on_interval(1)
         async def cleanup_dialogue(_ctx: Context):
@@ -257,16 +256,13 @@ class Dialogue(Protocol):
         """Get the current state of the dialogue for a given session."""
         return self._states[session_id] if session_id in self._states else ""
 
-    def is_valid_transition(self, session_id: UUID, msg_digest: str) -> bool:
-        if session_id not in self._sessions:
-            return True
-        # TODO: implement return when session exists
-        # if session_id in self._states:
-        #     return msg_digest in self._rules[self._states[session_id]]
-
     def _auto_add_message_handler(self) -> None:
-        # iterate over all edges and add respective message handlers
-        return
+        """Automatically add message handlers for edges with models."""
+        for edge in self._edges:
+            if edge.model:
+                model_digest = Model.build_schema_digest(edge.model)
+                self._models[model_digest] = edge.model
+                self._signed_message_handlers[model_digest] = edge._func
 
     def update_state(self, digest: str, session_id: UUID) -> None:
         """
@@ -329,6 +325,10 @@ class Dialogue(Protocol):
         """Return an edge from the dialogue instance."""
         return next(edge for edge in self._edges if edge.name == edge_name)
 
+    def _resolve_mapping(self, msg_digest: str) -> str:
+        """Resolve the mapping of a message digest to a message model."""
+        return next(k for k, v in self._mapping.items() if v == msg_digest)
+
     def is_valid_message(self, session_id: UUID, msg_digest: str) -> bool:
         """
         Check if a message is valid for a given session.
@@ -342,8 +342,11 @@ class Dialogue(Protocol):
         """
         if session_id not in self._sessions:
             return self.is_starter(msg_digest)
-        allowed_msgs = self._rules.get(self.get_current_state(session_id), [])
-        return msg_digest in allowed_msgs
+
+        transition = self._resolve_mapping(msg_digest)
+        current_state = self._resolve_mapping(self.get_current_state(session_id))
+        allowed_msgs = self._rules.get(current_state, [])
+        return transition in allowed_msgs
 
     def is_included(self, msg_digest: str) -> bool:
         """
@@ -374,11 +377,14 @@ class Dialogue(Protocol):
 
     def _remove_session_from_storage(self, session_id: UUID) -> None:
         """Remove a session from the storage."""
-        cache: dict = self._storage.get(self.name)
-        cache.pop(str(session_id))
+        cache: dict = self._storage.get(self.name) or {}
+        session = str(session_id)
+        if session in cache.keys():
+            cache.pop(session)
         self._storage.set(self.name, cache)
 
     def _update_transition_model(self, edge: Edge, model: Type[Model]) -> None:
+        """Update the message model for a transition."""
         self._mapping[edge.name] = Model.build_schema_digest(model)
         self._edges[self._edges.index(edge)].model = model
 
@@ -392,6 +398,8 @@ class Dialogue(Protocol):
             edge (Edge): Edge object that represents the transition.
             model (Type[Model]): Message model type.
         """
+        if edge_name not in self._mapping:
+            raise ValueError("Edge does not exist in the dialogue!")
 
         def decorator_on_state_transition(func: MessageCallback):
             @functools.wraps(func)
@@ -401,10 +409,9 @@ class Dialogue(Protocol):
             edge = self.get_edge(edge_name)
             self._update_transition_model(edge, model)
             # Note: we sacrifice the ability to pass replies into the decorator
-            #       but validate the replies based on the message model instead
+            #       but validate the replies based on the graph instead
             self._add_message_handler(model, func, None, False)
-            # self._update_message_handlers()
             return handler
 
-        # TODO: recalculate manifest after each update and re-register the protocol
+        # TODO: recalculate manifest after each update and re-register /w agent
         return decorator_on_state_transition

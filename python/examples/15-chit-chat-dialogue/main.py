@@ -1,5 +1,5 @@
 """Chit chat dialogue example"""
-import pprint as pp
+import json
 
 from dialogues.chitchat import ChitChatDialogue
 from uagents import Agent, Bureau, Context, Model
@@ -46,7 +46,9 @@ chitchat_dialogue2 = ChitChatDialogue(
 )
 
 # get an overview of the dialogue structure
-pp.pp(chitchat_dialogue1.get_overview())
+print("Dialogue overview:")
+print(json.dumps(chitchat_dialogue1.get_overview(), indent=4))
+print("---")
 
 
 # agent1
@@ -114,7 +116,8 @@ async def conclude_chitchat(
     _msg: ConcludeChitChatDialogue,
 ):
     # do something when the dialogue is concluded after messages have been exchanged
-    ctx.logger.info(f"Received conclude message from: {sender}")
+    ctx.logger.info(f"Received conclude message from: {sender}; accessing history:")
+    ctx.logger.info(ctx.dialogue)
 
 
 # agent2
@@ -127,7 +130,7 @@ async def start_chitchat2(
     _msg: InitiateChitChatDialogue,
 ):
     # do something when the dialogue is initiated
-    await ctx.send(sender, ChitChatDialogueMessage(text="Hello!"))
+    await ctx.send(sender, AcceptChitChatDialogue())
 
 
 @chitchat_dialogue2.on_state_transition("Dialogue Started", AcceptChitChatDialogue)
@@ -180,8 +183,7 @@ async def conclude_chitchat2(
     _msg: ConcludeChitChatDialogue,
 ):
     # do something when the dialogue is concluded after messages have been exchanged
-    ctx.logger.info(f"Received conclude message from: {sender}; accessing history:")
-    ctx.logger.info(ctx.dialogue)
+    ctx.logger.info(f"Received conclude message from: {sender}")
 
 
 agent1.include(chitchat_dialogue1)
