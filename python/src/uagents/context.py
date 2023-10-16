@@ -449,6 +449,20 @@ class Context:
         if current_protocol_digest is not None:
             current_protocol = self.protocols[current_protocol_digest]
             if hasattr(current_protocol, "rules"):
+                if self._message_received and not current_protocol.is_valid_reply(
+                    self._message_received.schema_digest, schema_digest
+                ):
+                    self._logger.exception(
+                        f"Outgoing message {message_type} is not a valid "
+                        "dialogue response message."
+                    )
+                    return MsgStatus(
+                        status=DeliveryStatus.FAILED,
+                        detail="Invalid dialogue reply",
+                        destination=destination,
+                        endpoint="",
+                    )
+
                 message_name = current_protocol.models[schema_digest].__name__
                 current_protocol.add_message(
                     session_id=current_session,

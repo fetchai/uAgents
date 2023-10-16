@@ -1,61 +1,66 @@
 """Specific dialogue class for the chit-chat dialogue."""
 from uagents.experimental.dialogues import Dialogue, Node, Edge
 
-state0 = Node(
-    name="Default State",
-    description="This is the default state of the dialogue.",
-    starter=True,
-)
-
 # Node definition for the dialogue states
-state1 = Node(
+default_state = Node(
+    name="Default State",
+    description=(
+        "This is the default state of the dialogue. Every session starts in "
+        "this state and is automatically updated once ."
+    ),
+    starter=True,
+)  # currently not used as states are measured by the edges
+init_state = Node(
     name="Initiated",
-    description="This is the initial state of the dialogue.",
+    description=(
+        "This is the initial state of the dialogue that is only available at "
+        "the receiving agent."
+    ),
 )
-state2 = Node(
+chatting_state = Node(
     name="Chit Chatting",
     description="This is the state in which messages are exchanged.",
 )
-state3 = Node(
+end_state = Node(
     name="Concluded",
     description="This is the state after the dialogue has been concluded.",
 )
 
 # Edge definition for the dialogue transitions
-transition1 = Edge(
+init_session = Edge(
     name="Initiate Session",
     description="This is the transition to start the dialogue",
     parent=None,
-    child=state1,
+    child=init_state,
 )
-transition2 = Edge(
+reject_session = Edge(
     name="Session Rejected / Not Needed",
     description=(
         "This is the transition for when the session is rejected or not needed."
     ),
-    parent=state1,
-    child=state3,
+    parent=init_state,
+    child=end_state,
 )
-transition3 = Edge(
+start_dialogue = Edge(
     name="Dialogue Started",
     description="This is the transition from initiated to chit chatting.",
-    parent=state1,
-    child=state2,
+    parent=init_state,
+    child=chatting_state,
 )
-transition4 = Edge(
+cont_dialogue = Edge(
     name="Dialogue Continues",
     description=(
         "This is the transition from one dialogue message to the next, "
         "i.e. for when the dialogue continues."
     ),
-    parent=state2,
-    child=state2,
+    parent=chatting_state,
+    child=chatting_state,
 )
-transition5 = Edge(
+end_session = Edge(
     name="Hang Up / End Session",
     description="This is the transition for when the session is ended.",
-    parent=state2,
-    child=state3,
+    parent=chatting_state,
+    child=end_state,
 )
 
 
@@ -75,15 +80,15 @@ class ChitChatDialogue(Dialogue):
             version=version,
             agent_address=agent_address,
             nodes=[
-                state1,
-                state2,
-                state3,
+                init_state,
+                chatting_state,
+                end_state,
             ],
             edges=[
-                transition1,
-                transition2,
-                transition3,
-                transition4,
-                transition5,
+                init_session,
+                reject_session,
+                start_dialogue,
+                cont_dialogue,
+                end_session,
             ],
         )

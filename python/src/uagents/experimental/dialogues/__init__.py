@@ -340,13 +340,29 @@ class Dialogue(Protocol):
         Returns:
             bool: True if the message is valid, False otherwise.
         """
-        if session_id not in self._sessions:
+        if session_id not in self._sessions or len(self._sessions[session_id]) == 0:
             return self.is_starter(msg_digest)
 
         transition = self._resolve_mapping(msg_digest)
-        current_state = self._resolve_mapping(self.get_current_state(session_id))
-        allowed_msgs = self._rules.get(current_state, [])
+        current_state = self.get_current_state(session_id)
+        current_state_mapped = self._resolve_mapping(current_state)
+        allowed_msgs = self._rules.get(current_state_mapped, [])
         return transition in allowed_msgs
+
+    def is_valid_reply(self, in_msg: str, out_msg: str) -> bool:
+        """
+        Check if a reply is valid for a given message.
+
+        Args:
+            in_msg (str): The digest of the message to check the reply for.
+            out_msg (str): The digest of the reply to check.
+
+        Returns:
+            bool: True if the reply is valid, False otherwise.
+        """
+        return self._resolve_mapping(out_msg) in self._rules.get(
+            self._resolve_mapping(in_msg), []
+        )
 
     def is_included(self, msg_digest: str) -> bool:
         """
