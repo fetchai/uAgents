@@ -11,5 +11,8 @@ disable=missing-module-docstring,
         too-many-locals,
         too-many-return-statements,
         logging-fstring-interpolation,
-        broad-exception-caught
+        broad-exception-caught,
+        too-many-branches,
+        too-many-lines,
+        too-many-nested-blocks,
 

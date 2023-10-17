@@ -61,6 +61,15 @@ class Edge:
     def model(self, model: Type[Model]) -> None:
         self._model = model
 
+    @property
+    def func(self) -> MessageCallback:
+        """The message handler that is associated with the edge."""
+        return self._func
+
+    @func.setter
+    def func(self, func: MessageCallback) -> None:
+        self._func = func
+
 
 class Dialogue(Protocol):
     """
@@ -218,9 +227,9 @@ class Dialogue(Protocol):
         """
         out = {edge.name: [] for edge in self._edges}
         for edge in self._edges:
-            for e in self._edges:
-                if e.parent and e.parent.name == edge.child.name:
-                    out[edge.name].append(e.name)
+            for inner_edge in self._edges:
+                if inner_edge.parent and inner_edge.parent.name == edge.child.name:
+                    out[edge.name].append(inner_edge.name)
 
         graph = graphlib.TopologicalSorter(out)
         if graph._find_cycle():  # pylint: disable=protected-access
@@ -262,7 +271,7 @@ class Dialogue(Protocol):
             if edge.model:
                 model_digest = Model.build_schema_digest(edge.model)
                 self._models[model_digest] = edge.model
-                self._signed_message_handlers[model_digest] = edge._func
+                self._signed_message_handlers[model_digest] = edge.func
 
     def update_state(self, digest: str, session_id: UUID) -> None:
         """

@@ -888,7 +888,8 @@ class Agent(Sink):
                         ):
                             state = protocol.get_current_state(session)
                             context.logger.debug(
-                                f"current state: {protocol.models[state].__name__ if state else 'n/a'}"
+                                "current state: "
+                                f"{(protocol.models[state].__name__ if state else 'n/a')}"
                             )
                             is_valid = protocol.is_valid_message(session, schema_digest)
                             context.logger.debug(f"message allowed: {is_valid}")

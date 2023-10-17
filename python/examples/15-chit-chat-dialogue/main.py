@@ -6,11 +6,11 @@ from uagents import Agent, Bureau, Context, Model
 from uagents.setup import fund_agent_if_low
 
 agent1 = Agent(name="agent1", seed="9876543210000000000")
-agent1._logger.setLevel("DEBUG")
+agent1._logger.setLevel("DEBUG")  # pylint: disable=protected-access
 fund_agent_if_low(agent1.wallet.address())
 
 agent2 = Agent(name="agent2", seed="9876543210000000001")
-agent2._logger.setLevel("DEBUG")
+agent2._logger.setLevel("DEBUG")  # pylint: disable=protected-access
 fund_agent_if_low(agent2.wallet.address())
 
 
@@ -52,8 +52,8 @@ print("---")
 
 
 # agent1
-
-counter = 0
+agent1.storage.set("message_counter", 0)
+agent2.storage.set("message_counter", 0)
 
 
 @chitchat_dialogue1.on_state_transition("Initiate Session", InitiateChitChatDialogue)
@@ -96,13 +96,14 @@ async def continue_chitchat(
 ):
     # do something when the dialogue continues
     ctx.logger.info(f"Received message: {msg}")
-    global counter
-    if counter < 10:
+    counter = agent1.storage.get("message_counter")
+    if counter < 3:
         await ctx.send(
             sender,
             ChitChatDialogueMessage(text=f"Hello again #{counter}!"),
         )
         counter += 1
+        agent1.storage.set("message_counter", counter)
     else:
         await ctx.send(sender, ConcludeChitChatDialogue())
 
@@ -163,13 +164,14 @@ async def continue_chitchat2(
 ):
     # do something when the dialogue continues
     ctx.logger.info(f"Received message: {msg}")
-    global counter
-    if counter < 10:
+    counter = agent2.storage.get("message_counter")
+    if counter < 3:
         await ctx.send(
             sender,
             ChitChatDialogueMessage(text=f"Hello again #{counter}!"),
         )
         counter += 1
+        agent2.storage.set("message_counter", counter)
     else:
         await ctx.send(sender, ConcludeChitChatDialogue())
 
