@@ -463,6 +463,14 @@ class Context:
                         endpoint="",
                     )
 
+                if (
+                    self._session is None
+                    and current_protocol.custom_session
+                    and current_protocol.is_starter(schema_digest)
+                ):
+                    current_session = current_protocol.custom_session
+                    current_protocol.reset_custom_session_id()
+
                 message_name = current_protocol.models[schema_digest].__name__
                 current_protocol.add_message(
                     session_id=current_session,

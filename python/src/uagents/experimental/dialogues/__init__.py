@@ -90,7 +90,7 @@ class Dialogue(Protocol):
         edges: list[Edge] | None = None,
         agent_address: Optional[str] = "",  # TODO: discuss storage naming
         timeout: int = DEFAULT_SESSION_TIMEOUT,
-        max_nr_of_messages: int = 100,  # TODO: enforce limit
+        max_nr_of_messages: int = 100,
     ) -> None:
         self._name = name
 
@@ -117,6 +117,7 @@ class Dialogue(Protocol):
         self._states: dict[
             UUID, str
         ] = {}  # current state of the dialogue (as transition digest) per session
+        self._custom_session: UUID | None = None
 
         self.max_nr_of_messages = max_nr_of_messages  # TODO: implement feature
         super().__init__(name=self._name, version=version)
@@ -440,3 +441,27 @@ class Dialogue(Protocol):
 
         # TODO: recalculate manifest after each update and re-register /w agent
         return decorator_on_state_transition
+
+    @property
+    def custom_session(self) -> UUID | None:
+        """Return the custom session ID."""
+        return self._custom_session
+
+    def set_custom_session_id(self, uuid: UUID) -> None:
+        """
+        Start a new session with the given ID.
+
+        This method will create a session with the given UUID and uses that
+        ID the next time that a starter message is sent.
+        """
+        if uuid.version != 4:
+            raise ValueError("Session ID must be of type UUIDv4!")
+        if uuid in self._sessions:
+            raise ValueError("Session ID already exists!")
+        if self._custom_session:
+            raise ValueError("Custom session ID already set!")
+        self._custom_session = uuid
+
+    def reset_custom_session_id(self) -> None:
+        """Reset the custom session ID."""
+        self._custom_session = None
