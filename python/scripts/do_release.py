@@ -65,7 +65,7 @@ def make_release(current_version: Version) -> None:
     """Make release on Github."""
     subprocess.check_call(
         f"""gh release create v{current_version} --title "v{current_version}"
-        --generate-notes --latest --verify-tag """,
+        --generate-notes --latest""",
         shell=True,
     )
 
