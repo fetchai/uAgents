@@ -7,16 +7,16 @@ class Message(Model):
 
 
 # Copy ALICE_ADDRESS generated in alice.py
-ALICE_ADDRESS = "agent1q0z5xvmagqtg052zdcks3lpgyyzq8xajuv5ufaewzcdheuexfxmeceh3f0g"
+ALICE_ADDRESS = "paste_alice_address_here"
 
 # Generate a second seed phrase (e.g. https://pypi.org/project/mnemonic/)
-SEED_PHRASE = "put_your_xxxrr"
+SEED_PHRASE = "put_your_seed_phrase_here"
 
 # Copy the address shown below
 print(f"Your agent's address is: {Agent(seed=SEED_PHRASE).address}")
 
 # Then go to https://agentverse.ai to get your API key and register a second agent
-API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0eXBlIjoiYXBpLWtleSIsIm5vbmNlIjoiZmViZjY1NzAtZTQ0Yy00NjNjLTg4ZDctZmIzMWQwODQ2NzA1Iiwic3ViIjoiNWYxYTE5MGNlMThjZGU2YzJiM2UzMjlmZWEzZWQ1MmIxYTI0MzVjNzY2YWQyMWI5IiwiZXhwIjoxNzA1NDk3NjM2fQ.W4NAtp84O2ernWr0Y3t4yomm4vfqJFF1Y-09BD58UJY"
+API_KEY = "put_your_API_key_here"
 
 # Now your agent is ready to join the agentverse!
 agent = Agent(
