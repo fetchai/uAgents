@@ -895,7 +895,7 @@ class Agent(Sink):
                             context.logger.debug(f"message allowed: {is_valid}")
 
                             if not is_valid:
-                                context.session = None
+                                context.reset_session()
                                 await _send_error_message(
                                     context,
                                     sender,

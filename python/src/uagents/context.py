@@ -249,15 +249,11 @@ class Context:
         """
         return self._session
 
-    @session.setter
-    def session(self, session: uuid.UUID) -> None:
+    def reset_session(self) -> None:
         """
-        Set the session UUID associated with the context.
-
-        Args:
-            session (uuid.UUID): The session UUID.
+        Reset the session UUID associated with the context.
         """
-        self._session = session
+        self._session = None
 
     def get_message_protocol(self, message_schema_digest) -> Optional[str]:
         """
