@@ -1,5 +1,6 @@
 """Chit chat dialogue example"""
 import json
+from uuid import uuid4
 
 from dialogues.chitchat import ChitChatDialogue
 from uagents import Agent, Bureau, Context, Model
@@ -56,7 +57,7 @@ agent1.storage.set("message_counter", 0)
 agent2.storage.set("message_counter", 0)
 
 
-@chitchat_dialogue1.on_state_transition("Initiate Session", InitiateChitChatDialogue)
+@chitchat_dialogue1.on_initiate_session(InitiateChitChatDialogue)
 async def start_chitchat(
     ctx: Context,
     sender: str,
@@ -66,19 +67,21 @@ async def start_chitchat(
     await ctx.send(sender, AcceptChitChatDialogue())
 
 
-@chitchat_dialogue1.on_state_transition("Dialogue Started", AcceptChitChatDialogue)
+@chitchat_dialogue1.on_start_dialogue(AcceptChitChatDialogue)
 async def accept_chitchat(
     ctx: Context,
     sender: str,
     _msg: AcceptChitChatDialogue,
 ):
     # do something after the dialogue is started; e.g. send a message
+    ctx.storage.set(
+        str(ctx.session),
+        {"my_data": "my_value"},
+    )
     await ctx.send(sender, ChitChatDialogueMessage(text="Hello!"))
 
 
-@chitchat_dialogue1.on_state_transition(
-    "Session Rejected / Not Needed", RejectChitChatDialogue
-)
+@chitchat_dialogue1.on_reject_session(RejectChitChatDialogue)
 async def reject_chitchat(
     ctx: Context,
     sender: str,
@@ -88,7 +91,7 @@ async def reject_chitchat(
     ctx.logger.info(f"Received conclude message from: {sender}")
 
 
-@chitchat_dialogue1.on_state_transition("Dialogue Continues", ChitChatDialogueMessage)
+@chitchat_dialogue1.on_continue_dialogue(ChitChatDialogueMessage)
 async def continue_chitchat(
     ctx: Context,
     sender: str,
@@ -108,9 +111,7 @@ async def continue_chitchat(
         await ctx.send(sender, ConcludeChitChatDialogue())
 
 
-@chitchat_dialogue1.on_state_transition(
-    "Hang Up / End Session", ConcludeChitChatDialogue
-)
+@chitchat_dialogue1.on_end_session(ConcludeChitChatDialogue)
 async def conclude_chitchat(
     ctx: Context,
     sender: str,
@@ -124,29 +125,32 @@ async def conclude_chitchat(
 # agent2
 
 
-@chitchat_dialogue2.on_state_transition("Initiate Session", InitiateChitChatDialogue)
+@chitchat_dialogue2.on_initiate_session(InitiateChitChatDialogue)
 async def start_chitchat2(
     ctx: Context,
     sender: str,
     _msg: InitiateChitChatDialogue,
 ):
     # do something when the dialogue is initiated
+    ctx.logger.info(f"session: {ctx.session}")
     await ctx.send(sender, AcceptChitChatDialogue())
 
 
-@chitchat_dialogue2.on_state_transition("Dialogue Started", AcceptChitChatDialogue)
+@chitchat_dialogue2.on_start_dialogue(AcceptChitChatDialogue)
 async def accept_chitchat2(
     ctx: Context,
     sender: str,
     _msg: AcceptChitChatDialogue,
 ):
     # do something after the dialogue is started; e.g. send a message
+    ctx.storage.set(
+        str(ctx.session),
+        {"my_data": "my_value"},
+    )
     await ctx.send(sender, ChitChatDialogueMessage(text="Hello!"))
 
 
-@chitchat_dialogue2.on_state_transition(
-    "Session Rejected / Not Needed", RejectChitChatDialogue
-)
+@chitchat_dialogue2.on_reject_session(RejectChitChatDialogue)
 async def reject_chitchat2(
     ctx: Context,
     sender: str,
@@ -156,7 +160,7 @@ async def reject_chitchat2(
     ctx.logger.info(f"Received conclude message from: {sender}")
 
 
-@chitchat_dialogue2.on_state_transition("Dialogue Continues", ChitChatDialogueMessage)
+@chitchat_dialogue2.on_continue_dialogue(ChitChatDialogueMessage)
 async def continue_chitchat2(
     ctx: Context,
     sender: str,
@@ -176,9 +180,7 @@ async def continue_chitchat2(
         await ctx.send(sender, ConcludeChitChatDialogue())
 
 
-@chitchat_dialogue2.on_state_transition(
-    "Hang Up / End Session", ConcludeChitChatDialogue
-)
+@chitchat_dialogue2.on_end_session(ConcludeChitChatDialogue)
 async def conclude_chitchat2(
     ctx: Context,
     sender: str,
@@ -195,6 +197,9 @@ agent2.include(chitchat_dialogue2)
 # initiate dialogue
 @agent1.on_event("startup")
 async def start_cycle(ctx: Context):
+    session = uuid4()
+    print(f"custom session: {session}")
+    chitchat_dialogue1.set_custom_session_id(session)
     await ctx.send(agent2.address, InitiateChitChatDialogue())
 
 

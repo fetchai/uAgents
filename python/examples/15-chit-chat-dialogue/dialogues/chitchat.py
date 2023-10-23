@@ -1,5 +1,8 @@
 """Specific dialogue class for the chit-chat dialogue."""
-from uagents.experimental.dialogues import Dialogue, Node, Edge
+from typing import Type
+
+from uagents import Model
+from uagents.experimental.dialogues import Dialogue, Edge, Node
 
 # Node definition for the dialogue states
 default_state = Node(
@@ -28,13 +31,13 @@ end_state = Node(
 
 # Edge definition for the dialogue transitions
 init_session = Edge(
-    name="Initiate Session",
+    name="initiate_session",
     description="This is the transition to start the dialogue",
     parent=None,
     child=init_state,
 )
 reject_session = Edge(
-    name="Session Rejected / Not Needed",
+    name="reject_session",
     description=(
         "This is the transition for when the session is rejected or not needed."
     ),
@@ -42,13 +45,13 @@ reject_session = Edge(
     child=end_state,
 )
 start_dialogue = Edge(
-    name="Dialogue Started",
+    name="start_dialogue",
     description="This is the transition from initiated to chit chatting.",
     parent=init_state,
     child=chatting_state,
 )
 cont_dialogue = Edge(
-    name="Dialogue Continues",
+    name="continue_dialogue",
     description=(
         "This is the transition from one dialogue message to the next, "
         "i.e. for when the dialogue continues."
@@ -57,7 +60,7 @@ cont_dialogue = Edge(
     child=chatting_state,
 )
 end_session = Edge(
-    name="Hang Up / End Session",
+    name="end_session",
     description="This is the transition for when the session is ended.",
     parent=chatting_state,
     child=end_state,
@@ -92,3 +95,23 @@ class ChitChatDialogue(Dialogue):
                 end_session,
             ],
         )
+
+    def on_initiate_session(self, model: Type[Model]):
+        """Explicit state transition for the initiate_session event."""
+        return super()._on_state_transition(init_session.name, model)
+
+    def on_reject_session(self, model: Type[Model]):
+        """Explicit state transition for the reject_session event."""
+        return super()._on_state_transition(reject_session.name, model)
+
+    def on_start_dialogue(self, model: Type[Model]):
+        """Explicit state transition for the start_dialogue event."""
+        return super()._on_state_transition(start_dialogue.name, model)
+
+    def on_continue_dialogue(self, model: Type[Model]):
+        """Explicit state transition for the continue_dialogue event."""
+        return super()._on_state_transition(cont_dialogue.name, model)
+
+    def on_end_session(self, model: Type[Model]):
+        """Explicit state transition for the end_session event."""
+        return super()._on_state_transition(end_session.name, model)
