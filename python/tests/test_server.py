@@ -617,20 +617,6 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             ]
         )
 
-    # async def test_head_valid_address_ready(mocked):
-    #     mocked.head(url, status=200)
-    #     headers[b"x-uagents-address"] = agent.address.encode()
-    #     dispatcher.register(agent)
-    #     await server(scope, receive, send)
-    #     send.assert_called_with(...) # Check ready status
-
-    # @aioresponses()
-    # async def test_head_invalid_address(mocked):
-    #     mocked.head(url, status=200)
-    #     headers[b"x-uagents-address"] = b"invalid"
-    #     await server(scope, receive, send)
-    #     send.assert_called_with(...) # Check indeterminate status
-
 
 if __name__ == "__main__":
     unittest.main()
