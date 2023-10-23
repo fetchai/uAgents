@@ -1,6 +1,4 @@
 """Chit chat dialogue example"""
-import json
-
 from dialogues.chitchat import ChitChatDialogue
 from uagents import Agent, Context, Model
 from uagents.setup import fund_agent_if_low
@@ -8,12 +6,11 @@ from uagents.setup import fund_agent_if_low
 API_KEY = "paste your api key"
 
 agent2 = Agent(
-    name="agent2", 
-    seed="9876543210000000001", 
+    name="agent2",
+    seed="9876543210000000001",
     port=8002,
-    agentverse=f"{API_KEY}@https://agentverse.ai"
-    )
-
+    agentverse=f"{API_KEY}@https://agentverse.ai",
+)
 agent2._logger.setLevel("DEBUG")  # pylint: disable=protected-access
 fund_agent_if_low(agent2.wallet.address())
 
@@ -45,7 +42,8 @@ chitchat_dialogue2 = ChitChatDialogue(
     agent_address=agent2.address,
 )
 
-@chitchat_dialogue2.on_state_transition("Initiate Session", InitiateChitChatDialogue)
+
+@chitchat_dialogue2.on_initiate_session(InitiateChitChatDialogue)
 async def start_chitchat(
     ctx: Context,
     sender: str,
@@ -56,20 +54,20 @@ async def start_chitchat(
     await ctx.send(sender, AcceptChitChatDialogue())
 
 
-@chitchat_dialogue2.on_state_transition("Dialogue Started", AcceptChitChatDialogue)
+@chitchat_dialogue2.on_start_dialogue(AcceptChitChatDialogue)
 async def accept_chitchat(
     ctx: Context,
     sender: str,
     _msg: AcceptChitChatDialogue,
 ):
-    ctx.logger.info(f"session with {sender} was accepted. I'll say 'Hello!' to start the ChitChat")
+    ctx.logger.info(
+        f"session with {sender} was accepted. I'll say 'Hello!' to start the ChitChat"
+    )
     # do something after the dialogue is started; e.g. send a message
     await ctx.send(sender, ChitChatDialogueMessage(text="Hello!"))
 
 
-@chitchat_dialogue2.on_state_transition(
-    "Session Rejected / Not Needed", RejectChitChatDialogue
-)
+@chitchat_dialogue2.on_reject_session(RejectChitChatDialogue)
 async def reject_chitchat(
     ctx: Context,
     sender: str,
@@ -79,7 +77,7 @@ async def reject_chitchat(
     ctx.logger.info(f"Received conclude message from: {sender}")
 
 
-@chitchat_dialogue2.on_state_transition("Dialogue Continues", ChitChatDialogueMessage)
+@chitchat_dialogue2.on_continue_dialogue(ChitChatDialogueMessage)
 async def continue_chitchat(
     ctx: Context,
     sender: str,
@@ -92,12 +90,9 @@ async def continue_chitchat(
         await ctx.send(sender, ChitChatDialogueMessage(text=my_msg))
     except EOFError:
         await ctx.send(sender, ConcludeChitChatDialogue())
-        
 
 
-@chitchat_dialogue2.on_state_transition(
-    "Hang Up / End Session", ConcludeChitChatDialogue
-)
+@chitchat_dialogue2.on_end_session(ConcludeChitChatDialogue)
 async def conclude_chitchat(
     ctx: Context,
     sender: str,
@@ -108,9 +103,7 @@ async def conclude_chitchat(
     ctx.logger.info(ctx.dialogue)
 
 
-
 agent2.include(chitchat_dialogue2)
-
 
 
 if __name__ == "__main__":

@@ -448,7 +448,9 @@ class Context:
                 if self._message_received and not current_protocol.is_valid_reply(
                     self._message_received.schema_digest, schema_digest
                 ):
-                    message_received_name = current_protocol.models[self._message_received.schema_digest].__name__
+                    message_received_name = current_protocol.models[
+                        self._message_received.schema_digest
+                    ].__name__
                     self._logger.exception(
                         f"Outgoing message {message_type.__name__} is not a valid "
                         f"response to {message_received_name} "

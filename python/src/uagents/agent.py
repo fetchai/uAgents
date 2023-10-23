@@ -892,7 +892,10 @@ class Agent(Sink):
                                 f"{(protocol.models[state].__name__ if state else 'n/a')}"
                             )
                             is_valid = protocol.is_valid_message(session, schema_digest)
-                            context.logger.debug(f"message {self._models[schema_digest].__name__} allowed: {is_valid}")
+                            context.logger.debug(
+                                f"message {self._models[schema_digest].__name__} "
+                                f"allowed: {is_valid}"
+                            )
 
                             if not is_valid:
                                 context.reset_session()
