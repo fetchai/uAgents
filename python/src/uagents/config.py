@@ -92,7 +92,7 @@ def parse_agentverse_config(
     if "://" in base_url:
         protocol, base_url = base_url.split("://")
     protocol = protocol_override or protocol or "https"
-    http_prefix = "https" if protocol == "https" else "http"
+    http_prefix = "https" if protocol in {"wss", "https"} else "http"
     return {
         "api_key": api_key,
         "base_url": base_url,

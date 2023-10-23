@@ -72,7 +72,7 @@ expected_configs = [
         "api_key": None,
         "base_url": "some_url",
         "protocol": "wss",
-        "http_prefix": "http",
+        "http_prefix": "https",
         "use_mailbox": False,
     },
     {
@@ -86,7 +86,7 @@ expected_configs = [
         "api_key": "api_key",
         "base_url": "agentverse.ai",
         "protocol": "wss",
-        "http_prefix": "http",
+        "http_prefix": "https",
         "use_mailbox": True,
     },
     {
