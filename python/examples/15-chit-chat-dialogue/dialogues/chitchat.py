@@ -32,15 +32,13 @@ end_state = Node(
 # Edge definition for the dialogue transitions
 init_session = Edge(
     name="initiate_session",
-    description="This is the transition to start the dialogue",
+    description="Every dialogue starts with this transition.",
     parent=None,
     child=init_state,
 )
 reject_session = Edge(
     name="reject_session",
-    description=(
-        "This is the transition for when the session is rejected or not needed."
-    ),
+    description=("This is the transition for when the dialogue is rejected"),
     parent=init_state,
     child=end_state,
 )
@@ -97,21 +95,43 @@ class ChitChatDialogue(Dialogue):
         )
 
     def on_initiate_session(self, model: Type[Model]):
-        """Explicit state transition for the initiate_session event."""
+        """
+        This handler is triggered when the initial message of the
+        dialogue is received. From here you can either accept or reject.
+        Logic that is needed to complete any kind of handshake or considers
+        global agent state should go here.
+        """
         return super()._on_state_transition(init_session.name, model)
 
     def on_reject_session(self, model: Type[Model]):
-        """Explicit state transition for the reject_session event."""
+        """
+        This handler is triggered when a reject message is returned on
+        the initial message.
+        Implement this if you need to clean up session data.
+        """
         return super()._on_state_transition(reject_session.name, model)
 
     def on_start_dialogue(self, model: Type[Model]):
-        """Explicit state transition for the start_dialogue event."""
+        """
+        This handler is triggered when an accept message is returned on
+        the initial message.
+        Include logic to complete any handshake on the sender side and
+        prepare the actual message exchange.
+        """
         return super()._on_state_transition(start_dialogue.name, model)
 
     def on_continue_dialogue(self, model: Type[Model]):
-        """Explicit state transition for the continue_dialogue event."""
+        """
+        This handler is triggered for every incoming "chitchat" message
+        once the session has been accepted.
+        Any additional stateful information within a dialogue needs to be
+        persisted explicitly to access it at a later point in the dialogue.
+        """
         return super()._on_state_transition(cont_dialogue.name, model)
 
     def on_end_session(self, model: Type[Model]):
-        """Explicit state transition for the end_session event."""
+        """
+        This handler is triggered once the other party has ended the dialogue.
+        Any final conclusion or cleanup goes here.
+        """
         return super()._on_state_transition(end_session.name, model)

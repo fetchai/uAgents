@@ -52,18 +52,13 @@ print(json.dumps(chitchat_dialogue1.get_overview(), indent=4))
 print("---")
 
 
-# agent1
-agent1.storage.set("message_counter", 0)
-agent2.storage.set("message_counter", 0)
-
-
 @chitchat_dialogue1.on_initiate_session(InitiateChitChatDialogue)
 async def start_chitchat(
     ctx: Context,
     sender: str,
     _msg: InitiateChitChatDialogue,
 ):
-    # do something when the dialogue is initiated
+    # handle incoming request and decide whether to accept or reject
     await ctx.send(sender, AcceptChitChatDialogue())
 
 
@@ -76,7 +71,7 @@ async def accept_chitchat(
     # do something after the dialogue is started; e.g. send a message
     ctx.storage.set(
         str(ctx.session),
-        {"my_data": "my_value"},
+        {"message_counter": 0},
     )
     await ctx.send(sender, ChitChatDialogueMessage(text="Hello!"))
 
@@ -99,14 +94,14 @@ async def continue_chitchat(
 ):
     # do something when the dialogue continues
     ctx.logger.info(f"Received message: {msg}")
-    counter = agent1.storage.get("message_counter")
+    counter = agent1.storage.get(str(ctx.session)).get("message_counter")
     if counter < 3:
         await ctx.send(
             sender,
             ChitChatDialogueMessage(text=f"Hello again #{counter}!"),
         )
         counter += 1
-        agent1.storage.set("message_counter", counter)
+        agent1.storage.set(str(ctx.session), {"message_counter": counter})
     else:
         await ctx.send(sender, ConcludeChitChatDialogue())
 
@@ -131,9 +126,17 @@ async def start_chitchat2(
     sender: str,
     _msg: InitiateChitChatDialogue,
 ):
-    # do something when the dialogue is initiated
     ctx.logger.info(f"session: {ctx.session}")
-    await ctx.send(sender, AcceptChitChatDialogue())
+    accept_criteria = True
+    # handle incoming request and decide whether to accept or reject
+    if accept_criteria:
+        ctx.storage.set(
+            str(ctx.session),
+            {"message_counter": 0},
+        )
+        await ctx.send(sender, AcceptChitChatDialogue())
+    else:
+        await ctx.send(sender, RejectChitChatDialogue())
 
 
 @chitchat_dialogue2.on_start_dialogue(AcceptChitChatDialogue)
@@ -142,10 +145,12 @@ async def accept_chitchat2(
     sender: str,
     _msg: AcceptChitChatDialogue,
 ):
-    # do something after the dialogue is started; e.g. send a message
+    # session accepted, prepare information exchange.
+
+    # Example to persist session specific information:
     ctx.storage.set(
         str(ctx.session),
-        {"my_data": "my_value"},
+        {"message_counter": 0},
     )
     await ctx.send(sender, ChitChatDialogueMessage(text="Hello!"))
 
@@ -168,14 +173,14 @@ async def continue_chitchat2(
 ):
     # do something when the dialogue continues
     ctx.logger.info(f"Received message: {msg}")
-    counter = agent2.storage.get("message_counter")
+    counter = agent2.storage.get(str(ctx.session)).get("message_counter")
     if counter < 3:
         await ctx.send(
             sender,
             ChitChatDialogueMessage(text=f"Hello again #{counter}!"),
         )
         counter += 1
-        agent2.storage.set("message_counter", counter)
+        agent2.storage.set(str(ctx.session), {"message_counter": counter})
     else:
         await ctx.send(sender, ConcludeChitChatDialogue())
 
