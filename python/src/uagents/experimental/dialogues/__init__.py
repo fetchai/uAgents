@@ -2,13 +2,13 @@
 import functools
 import graphlib
 from datetime import datetime, timedelta
-from typing import Any, Awaitable, Callable, Optional, Type
+from typing import Any, Awaitable, Callable, Optional, Type, List
 from uuid import UUID
 
 from uagents import Context, Model, Protocol
 from uagents.storage import KeyValueStore
 
-DEFAULT_SESSION_TIMEOUT = 100
+DEFAULT_SESSION_TIMEOUT_IN_SECONDS = 100
 
 JsonStr = str
 
@@ -86,19 +86,19 @@ class Dialogue(Protocol):
         self,
         name: str,  # mandatory, due to storage naming
         version: Optional[str] = None,
-        nodes: list[Node] | None = None,
-        edges: list[Edge] | None = None,
+        nodes: List[Node] | None = None,
+        edges: List[Edge] | None = None,
         agent_address: Optional[str] = "",  # TODO: discuss storage naming
-        timeout: int = DEFAULT_SESSION_TIMEOUT,
+        timeout: int = DEFAULT_SESSION_TIMEOUT_IN_SECONDS,
         max_nr_of_messages: int = 100,
     ) -> None:
         self._name = name
 
         self._nodes = nodes or []
         self._edges = edges or []
-        self._graph: dict[str, list[str]] = self._build_graph()  # by nodes
-        self._rules: dict[str, list[str]] = self._build_rules()  # by edges
-        self._mapping: dict[str, str] = {
+        self._graph: dict[str, List[str]] = self._build_graph()  # by nodes
+        self._rules: dict[str, List[str]] = self._build_rules()  # by edges
+        self._digest_by_edge: dict[str, str] = {
             edge.name: Model.build_schema_digest(edge.model) if edge.model else ""
             for edge in self._edges
         }  # here we store the message models that are associated with an edge
@@ -112,7 +112,7 @@ class Dialogue(Protocol):
             f"{agent_address[0:16]}_dialogues"
         )  # persistent session + message storage
         self._sessions: dict[
-            UUID, list[Any]
+            UUID, List[Any]
         ] = self._load_storage()  # volatile session + message storage
         self._states: dict[
             UUID, str
@@ -150,13 +150,17 @@ class Dialogue(Protocol):
                 for session_id in mark_for_deletion:
                     self.cleanup_session(session_id)
 
+        # radical but effective
+        self.on_message = None
+        self.on_query = None
+
     @property
-    def rules(self) -> dict[str, list[str]]:
+    def rules(self) -> dict[str, List[str]]:
         """
         Property to access the rules of the dialogue.
 
         Returns:
-            dict[str, list[str]]: Dictionary of rules represented by edges.
+            dict[str, List[str]]: Dictionary of rules represented by edges.
         """
         return self._rules
 
@@ -171,11 +175,11 @@ class Dialogue(Protocol):
         return self._cyclic
 
     @property
-    def nodes(self) -> list[Node]:
+    def nodes(self) -> List[Node]:
         return self._nodes
 
     @property
-    def edges(self) -> list[Edge]:
+    def edges(self) -> List[Edge]:
         return self._edges
 
     def get_overview(self) -> dict:
@@ -203,12 +207,12 @@ class Dialogue(Protocol):
             else {}
         )
 
-    def _build_graph(self) -> dict[str, list[str]]:
+    def _build_graph(self) -> dict[str, List[str]]:
         """
         Build the graph of the dialogue while showing the state relations.
 
         Returns:
-            dict[str, list[str]]: List of states and their relations.
+            dict[str, List[str]]: List of states and their relations.
         """
         graph = {}
         for node in self._nodes:
@@ -218,13 +222,13 @@ class Dialogue(Protocol):
                 graph.setdefault(edge.parent.name, []).append(edge.child.name)
         return graph
 
-    def _build_rules(self) -> dict[str, list[str]]:
+    def _build_rules(self) -> dict[str, List[str]]:
         """
         Build the rules for the dialogue.
         Which replies are allowed after a certain message.
 
         Returns:
-            dict[str, list[str]]: Rules for the dialogue.
+            dict[str, List[str]]: Rules for the dialogue.
         """
         out = {edge.name: [] for edge in self._edges}
         for edge in self._edges:
@@ -253,14 +257,14 @@ class Dialogue(Protocol):
         Return True if the digest is the starting message of the dialogue.
         False otherwise.
         """
-        return self._mapping[self._starter] == digest
+        return self._digest_by_edge[self._starter] == digest
 
     def is_ender(self, digest: str) -> bool:
         """
         Return True if the digest is the last message of the dialogue.
         False otherwise.
         """
-        return digest in [self._mapping[edge] for edge in self._ender]
+        return digest in [self._digest_by_edge[edge] for edge in self._ender]
 
     def get_current_state(self, session_id: UUID) -> str:
         """Get the current state of the dialogue for a given session."""
@@ -323,7 +327,7 @@ class Dialogue(Protocol):
         )
         self._update_session_in_storage(session_id)
 
-    def get_session(self, session_id) -> list[Any]:
+    def get_session(self, session_id) -> List[Any]:
         """
         Return a session from the dialogue instance.
 
@@ -337,7 +341,7 @@ class Dialogue(Protocol):
 
     def _resolve_mapping(self, msg_digest: str) -> str:
         """Resolve the mapping of a message digest to a message model."""
-        return next(k for k, v in self._mapping.items() if v == msg_digest)
+        return next(k for k, v in self._digest_by_edge.items() if v == msg_digest)
 
     def is_valid_message(self, session_id: UUID, msg_digest: str) -> bool:
         """
@@ -384,9 +388,9 @@ class Dialogue(Protocol):
         Returns:
             bool: True if the message is included, False otherwise.
         """
-        return msg_digest in self._mapping.values()
+        return msg_digest in self._digest_by_edge.values()
 
-    def _load_storage(self) -> dict[UUID, list[Any]]:
+    def _load_storage(self) -> dict[UUID, List[Any]]:
         """Load the sessions from the storage."""
         cache: dict = self._storage.get(self.name)
         return (
@@ -411,10 +415,10 @@ class Dialogue(Protocol):
 
     def _update_transition_model(self, edge: Edge, model: Type[Model]) -> None:
         """Update the message model for a transition."""
-        self._mapping[edge.name] = Model.build_schema_digest(model)
+        self._digest_by_edge[edge.name] = Model.build_schema_digest(model)
         self._edges[self._edges.index(edge)].model = model
 
-    def on_state_transition(self, edge_name: str, model: Type[Model]):
+    def _on_state_transition(self, edge_name: str, model: Type[Model]):
         """
         Main decorator to register a message handler for the dialogue.
         The Model in this case is the message model type but it refers to the
@@ -424,7 +428,7 @@ class Dialogue(Protocol):
             edge (Edge): Edge object that represents the transition.
             model (Type[Model]): Message model type.
         """
-        if edge_name not in self._mapping:
+        if edge_name not in self._digest_by_edge:
             raise ValueError("Edge does not exist in the dialogue!")
 
         def decorator_on_state_transition(func: MessageCallback):
