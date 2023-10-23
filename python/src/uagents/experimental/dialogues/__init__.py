@@ -8,7 +8,7 @@ from uuid import UUID
 from uagents import Context, Model, Protocol
 from uagents.storage import KeyValueStore
 
-DEFAULT_SESSION_TIMEOUT = 10
+DEFAULT_SESSION_TIMEOUT = 100
 
 JsonStr = str
 
@@ -107,7 +107,7 @@ class Dialogue(Protocol):
         self._starter = self._build_starter()  # first message of the dialogue
         self._ender = self._build_ender()  # last message(s) of the dialogue
 
-        self._lifetime = timeout
+        self._timeout = timeout
         self._storage = KeyValueStore(
             f"{agent_address[0:16]}_dialogues"
         )  # persistent session + message storage
@@ -317,7 +317,7 @@ class Dialogue(Protocol):
                 "receiver": receiver,
                 "message_content": content,
                 "timestamp": datetime.timestamp(datetime.now()),
-                "timeout": self._lifetime,
+                "timeout": self._timeout,
                 **kwargs,
             }
         )
