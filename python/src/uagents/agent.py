@@ -136,8 +136,7 @@ class Agent(Sink):
         identifier (str): The Agent Identifier, including network prefix and address.
         wallet (LocalWallet): The agent's wallet for transacting on the ledger.
         storage (KeyValueStore): The key-value store for storage operations.
-        mailbox (Dict[str, str]): The mailbox configuration for the agent (deprecated and replaced
-        by agentverse).
+        mailbox (Dict[str, str]): The mailbox configuration for the agent.
         agentverse (Dict[str, str]): The agentverse configuration for the agent.
         mailbox_client (MailboxClient): The client for interacting with the agentverse mailbox.
         protocols (Dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
@@ -199,9 +198,6 @@ class Agent(Sink):
                 )
             else:
                 agentverse = mailbox
-            self._logger.warning(
-                "The 'mailbox' configuration is deprecated in favor of 'agentverse'"
-            )
         self._agentverse = parse_agentverse_config(agentverse)
         self._use_mailbox = self._agentverse["use_mailbox"]
         if self._use_mailbox:
@@ -360,7 +356,8 @@ class Agent(Sink):
     @property
     def mailbox(self) -> Dict[str, str]:
         """
-        Get the mailbox configuration of the agent (deprecated and replaced by agentverse).
+        Get the mailbox configuration of the agent.
+        Agentverse overrides it but mailbox is kept for backwards compatibility.
 
         Returns:
             Dict[str, str]: The mailbox configuration.
@@ -401,7 +398,8 @@ class Agent(Sink):
     @mailbox.setter
     def mailbox(self, config: Union[str, Dict[str, str]]):
         """
-        Set the mailbox configuration for the agent (deprecated and replaced by agentverse).
+        Set the mailbox configuration for the agent.
+        Agentverse overrides it but mailbox is kept for backwards compatibility.
 
         Args:
             config (Union[str, Dict[str, str]]): The new mailbox configuration.
