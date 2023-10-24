@@ -1,5 +1,8 @@
 """Specific dialogue class for the chit-chat dialogue."""
-from uagents.experimental.dialogues import Dialogue, Node, Edge
+from typing import Type
+
+from uagents import Model
+from uagents.experimental.dialogues import Dialogue, Edge, Node
 
 # Node definition for the dialogue states
 chatting_state = Node(
@@ -68,3 +71,28 @@ class SimpleChitChatDialogue(Dialogue):
                 end_dialogue,
             ],
         )
+
+    def on_start_dialogue(self, model: Type[Model]):
+        """
+        This handler is triggered when the initial message of the
+        dialogue is received.
+        It automatically transitions into the chit-chatting state for
+        the next message exchange or directly into the end state.
+        """
+        return super()._on_state_transition(start_dialogue.name, model)
+
+    def on_continue_dialogue(self, model: Type[Model]):
+        """
+        This handler is triggered for every incoming "chitchat" message
+        once the session has been accepted.
+        Any additional stateful information within a dialogue needs to be
+        persisted explicitly to access it at a later point in the dialogue.
+        """
+        return super()._on_state_transition(cont_dialogue.name, model)
+
+    def on_end_session(self, model: Type[Model]):
+        """
+        This handler is triggered once the other party has ended the dialogue.
+        Any final conclusion or cleanup goes here.
+        """
+        return super()._on_state_transition(end_dialogue.name, model)
