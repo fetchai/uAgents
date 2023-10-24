@@ -2,7 +2,7 @@
 import functools
 import graphlib
 from datetime import datetime, timedelta
-from typing import Any, Awaitable, Callable, Optional, Type, List
+from typing import Any, Awaitable, Callable, List, Optional, Type
 from uuid import UUID
 
 from uagents import Context, Model, Protocol
@@ -73,13 +73,45 @@ class Edge:
 
 class Dialogue(Protocol):
     """
-    A Dialogue is the local representation of the dialogue.
+    A dialogue is a protocol with added functionality to handle the enforcement
+    of a sequence of messages.
+    The instance of this class is the local representation of the dialogue,
+    i.e. the definition of a pattern of messages that are exchanged between
+    two participants.
 
-    - This should be the local representation of the dialogue.
-    - Each participant will have its own instance of this class per dialogue.
-    - A storage will contain all the dialogues that took place, which may be
-      automatically deleted after a certain amount of time.
-    - is meant to simplify the handling of individual messages
+    When defining a pattern of Nodes and Edges, the dialogue will automatically
+    be validated for cycles and the rules will be derived from the graph.
+
+    The only thing left to do is to add message handlers for the edges in a
+    known fashion, i.e. the message handler for an edge must be decorated with
+    the edge name and the message model type.
+    The message handler will be registered automatically and the message model
+    will be used to validate the message content.
+
+    Ex.:
+        @dialogue._on_state_transition("edge_name", MessageModel)
+        async def handler(ctx: Context, sender: str, message: MessageModel):
+            pass
+
+    A common practice is to add additional decorators to the pattern definition
+    to simplify the usage of the dialogue class. This can be done by creating
+    creating additional decorators that call the _on_state_transition method.
+    Ex.:
+        def on_init(model: Type[Model]):
+            return super()._on_state_transition("edge_name", model)
+
+    and then use it like this:
+        @pattern.on_init(MessageModel)
+        async def handler(ctx: Context, sender: str, message: MessageModel):
+            pass
+
+    The current features include:
+    - A graph representation of the dialogue, which is used to validate the
+        sequence of messages.
+    - Session handling which includes a session storage that contains all the
+        messages that were exchanged between two participants.
+    - Sessions will automatically be deleted after a certain amount of time.
+    - Access to the dialogue history through ctx.dialogue (see Context class).
     """
 
     def __init__(
@@ -88,9 +120,8 @@ class Dialogue(Protocol):
         version: Optional[str] = None,
         nodes: List[Node] | None = None,
         edges: List[Edge] | None = None,
-        agent_address: Optional[str] = "",  # TODO: discuss storage naming
+        agent_address: Optional[str] = "",  # storage naming to be discussed
         timeout: int = DEFAULT_SESSION_TIMEOUT_IN_SECONDS,
-        max_nr_of_messages: int = 100,
     ) -> None:
         self._name = name
 
@@ -101,7 +132,7 @@ class Dialogue(Protocol):
         self._digest_by_edge: dict[str, str] = {
             edge.name: Model.build_schema_digest(edge.model) if edge.model else ""
             for edge in self._edges
-        }  # here we store the message models that are associated with an edge
+        }  # store the message models that are associated with an edge
 
         self._cyclic = False
         self._starter = self._build_starter()  # first message of the dialogue
@@ -116,14 +147,12 @@ class Dialogue(Protocol):
         ] = self._load_storage()  # volatile session + message storage
         self._states: dict[
             UUID, str
-        ] = {}  # current state of the dialogue (as transition digest) per session
+        ] = {}  # current state of the dialogue (as edge digest) per session
         self._custom_session: UUID | None = None
 
-        self.max_nr_of_messages = max_nr_of_messages  # TODO: implement feature
         super().__init__(name=self._name, version=version)
 
         # if a model exists for an edge, register the handler automatically
-        # TODO: check feasibility
         self._auto_add_message_handler()
 
         @self.on_interval(1)
@@ -424,6 +453,9 @@ class Dialogue(Protocol):
         The Model in this case is the message model type but it refers to the
         Edge which is the transition between two states.
 
+        Replies will not be validated based on the decorator parameters but
+        on the graph and its rules instead.
+
         Args:
             edge (Edge): Edge object that represents the transition.
             model (Type[Model]): Message model type.
@@ -438,12 +470,10 @@ class Dialogue(Protocol):
 
             edge = self.get_edge(edge_name)
             self._update_transition_model(edge, model)
-            # Note: we sacrifice the ability to pass replies into the decorator
-            #       but validate the replies based on the graph instead
             self._add_message_handler(model, func, None, False)
             return handler
 
-        # TODO: recalculate manifest after each update and re-register /w agent
+        # NOTE: recalculate manifest after each update and re-register /w agent
         return decorator_on_state_transition
 
     @property
