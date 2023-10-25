@@ -6,7 +6,8 @@ from unittest.mock import patch, AsyncMock, call
 
 from uagents import Agent, Model
 from uagents.envelope import Envelope
-from uagents.crypto import generate_user_address
+from uagents.config import RESPONSE_TIME_HINT_SECONDS
+from uagents.crypto import generate_user_address, Identity
 from uagents.query import enclose_response
 
 
@@ -46,6 +47,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             await self.agent._server(
                 scope={
                     "type": "http",
+                    "method": "POST",
                     "path": "/submit",
                     "headers": {b"content-type": b"application/json"},
                 },
@@ -89,6 +91,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             await self.agent._server(
                 scope={
                     "type": "http",
+                    "method": "POST",
                     "path": "/submit",
                     "headers": {b"content-type": b"application/json"},
                 },
@@ -134,6 +137,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                     self.agent._server(
                         scope={
                             "type": "http",
+                            "method": "POST",
                             "path": "/submit",
                             "headers": {
                                 b"content-type": b"application/json",
@@ -186,6 +190,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                     self.agent._server(
                         scope={
                             "type": "http",
+                            "method": "POST",
                             "path": "/submit",
                             "headers": {
                                 b"content-type": b"application/json",
@@ -237,6 +242,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             await self.agent._server(
                 scope={
                     "type": "http",
+                    "method": "POST",
                     "path": "/bad/path",
                     "headers": {b"content-type": b"application/json"},
                 },
@@ -279,6 +285,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             await self.agent._server(
                 scope={
                     "type": "http",
+                    "method": "POST",
                     "path": "/submit",
                     "headers": {b"content-type": b"application/badapp"},
                 },
@@ -311,6 +318,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             await self.agent._server(
                 scope={
                     "type": "http",
+                    "method": "POST",
                     "path": "/submit",
                     "headers": {b"content-type": b"application/json"},
                 },
@@ -352,6 +360,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             await self.agent._server(
                 scope={
                     "type": "http",
+                    "method": "POST",
                     "path": "/submit",
                     "headers": {b"content-type": b"application/json"},
                 },
@@ -394,6 +403,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             await self.agent._server(
                 scope={
                     "type": "http",
+                    "method": "POST",
                     "path": "/submit",
                     "headers": {b"content-type": b"application/json"},
                 },
@@ -436,6 +446,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             await self.agent._server(
                 scope={
                     "type": "http",
+                    "method": "POST",
                     "path": "/submit",
                     "headers": {b"content-type": b"application/json"},
                 },
@@ -465,6 +476,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         await self.agent._server(
             scope={
                 "type": "http",
+                "method": "POST",
                 "path": "/submit",
                 "headers": {},
             },
@@ -489,11 +501,76 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             ]
         )
 
+    async def test_request_fail_no_contents(self):
+        mock_send = AsyncMock()
+        with patch("uagents.asgi._read_asgi_body") as mock_receive:
+            mock_receive.return_value = None
+            await self.agent._server(
+                scope={
+                    "type": "http",
+                    "method": "POST",
+                    "path": "/submit",
+                    "headers": {b"content-type": b"application/json"},
+                },
+                receive=None,
+                send=mock_send,
+            )
+        mock_send.assert_has_calls(
+            [
+                call(
+                    {
+                        "type": "http.response.start",
+                        "status": 400,
+                        "headers": [[b"content-type", b"application/json"]],
+                    }
+                ),
+                call(
+                    {
+                        "type": "http.response.body",
+                        "body": b'{"error": "empty or invalid payload"}',
+                    }
+                ),
+            ]
+        )
+
+    async def test_request_fail_invalid_json(self):
+        mock_send = AsyncMock()
+        with patch("uagents.asgi._read_asgi_body") as mock_receive:
+            mock_receive.return_value = '{"bad", "json"}'.encode()
+            await self.agent._server(
+                scope={
+                    "type": "http",
+                    "method": "POST",
+                    "path": "/submit",
+                    "headers": {b"content-type": b"application/json"},
+                },
+                receive=None,
+                send=mock_send,
+            )
+        mock_send.assert_has_calls(
+            [
+                call(
+                    {
+                        "type": "http.response.start",
+                        "status": 400,
+                        "headers": [[b"content-type", b"application/json"]],
+                    }
+                ),
+                call(
+                    {
+                        "type": "http.response.body",
+                        "body": b'{"error": "empty or invalid payload"}',
+                    }
+                ),
+            ]
+        )
+
     async def test_request_from_browser(self):
         mock_send = AsyncMock()
         await self.agent._server(
             scope={
                 "type": "http",
+                "method": "POST",
                 "path": "/submit",
                 "headers": {b"User-Agent": b"Mozilla/5.0"},
             },
@@ -513,6 +590,88 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                     {
                         "type": "http.response.body",
                         "body": b'{"status": "OK - Agent is running"}',
+                    }
+                ),
+            ]
+        )
+
+    async def test_head_no_address_header(self):
+        mock_send = AsyncMock()
+        await self.agent._server(
+            scope={
+                "type": "http",
+                "method": "HEAD",
+                "path": "/submit",
+                "headers": {},
+            },
+            receive=None,
+            send=mock_send,
+        )
+        mock_send.assert_has_calls(
+            [
+                call(
+                    {
+                        "type": "http.response.start",
+                        "status": 200,
+                        "headers": [
+                            [b"x-uagents-status", b"indeterminate"],
+                        ],
+                    }
+                ),
+            ]
+        )
+
+    async def test_head_agent_ready(self):
+        mock_send = AsyncMock()
+        await self.agent._server(
+            scope={
+                "type": "http",
+                "method": "HEAD",
+                "path": "/submit",
+                "headers": {b"x-uagents-address": self.agent.address.encode()},
+            },
+            receive=None,
+            send=mock_send,
+        )
+        mock_send.assert_has_calls(
+            [
+                call(
+                    {
+                        "type": "http.response.start",
+                        "status": 200,
+                        "headers": [
+                            [b"x-uagents-status", b"ready"],
+                            [
+                                b"x-uagents-response-time-hint",
+                                str(RESPONSE_TIME_HINT_SECONDS).encode(),
+                            ],
+                        ],
+                    }
+                ),
+            ]
+        )
+
+    async def test_head_agent_not_ready(self):
+        mock_send = AsyncMock()
+        await self.agent._server(
+            scope={
+                "type": "http",
+                "method": "HEAD",
+                "path": "/submit",
+                "headers": {b"x-uagents-address": Identity.generate().address.encode()},
+            },
+            receive=None,
+            send=mock_send,
+        )
+        mock_send.assert_has_calls(
+            [
+                call(
+                    {
+                        "type": "http.response.start",
+                        "status": 200,
+                        "headers": [
+                            [b"x-uagents-status", b"not-ready"],
+                        ],
                     }
                 ),
             ]
