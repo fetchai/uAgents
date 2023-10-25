@@ -2,7 +2,7 @@
 import functools
 import graphlib
 from datetime import datetime, timedelta
-from typing import Any, Awaitable, Callable, List, Optional, Type
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Type
 from uuid import UUID
 
 from uagents import Context, Model, Protocol
@@ -499,3 +499,26 @@ class Dialogue(Protocol):
     def reset_custom_session_id(self) -> None:
         """Reset the custom session ID."""
         self._custom_session = None
+
+    def manifest(self) -> Dict[str, Any]:
+        """
+        This method will add the dialogue structure to the original manifest
+        and recalculate the digest.
+        """
+
+        updated_manifest = super().manifest() | {
+            "nodes": [node.__dict__ for node in self._nodes],
+            "edges": [
+                {
+                    "name": edge.name,
+                    "description": edge.description,
+                    "parent": edge.parent.name if edge.parent else None,
+                    "child": edge.child.name,
+                    "model": edge.model.__name__ if edge.model else None,
+                }
+                for edge in self._edges
+            ],
+        }
+        new_digest = Protocol.compute_digest(updated_manifest)
+        updated_manifest["metadata"]["digest"] = new_digest
+        return updated_manifest
