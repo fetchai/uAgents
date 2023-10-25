@@ -536,7 +536,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
     async def test_request_fail_invalid_json(self):
         mock_send = AsyncMock()
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
-            mock_receive.return_value = None
+            mock_receive.return_value = '{"bad", "json"}'.encode()
             await self.agent._server(
                 scope={
                     "type": "http",
@@ -615,10 +615,6 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                         "status": 200,
                         "headers": [
                             [b"x-uagents-status", b"indeterminate"],
-                            [
-                                b"x-uagents-response-time-hint",
-                                str(RESPONSE_TIME_HINT_SECONDS).encode(),
-                            ],
                         ],
                     }
                 ),
