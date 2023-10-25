@@ -501,6 +501,70 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             ]
         )
 
+    async def test_request_fail_no_contents(self):
+        mock_send = AsyncMock()
+        with patch("uagents.asgi._read_asgi_body") as mock_receive:
+            mock_receive.return_value = None
+            await self.agent._server(
+                scope={
+                    "type": "http",
+                    "method": "POST",
+                    "path": "/submit",
+                    "headers": {b"content-type": b"application/json"},
+                },
+                receive=None,
+                send=mock_send,
+            )
+        mock_send.assert_has_calls(
+            [
+                call(
+                    {
+                        "type": "http.response.start",
+                        "status": 400,
+                        "headers": [[b"content-type", b"application/json"]],
+                    }
+                ),
+                call(
+                    {
+                        "type": "http.response.body",
+                        "body": b'{"error": "empty or invalid payload"}',
+                    }
+                ),
+            ]
+        )
+
+    async def test_request_fail_invalid_json(self):
+        mock_send = AsyncMock()
+        with patch("uagents.asgi._read_asgi_body") as mock_receive:
+            mock_receive.return_value = None
+            await self.agent._server(
+                scope={
+                    "type": "http",
+                    "method": "POST",
+                    "path": "/submit",
+                    "headers": {b"content-type": b"application/json"},
+                },
+                receive=None,
+                send=mock_send,
+            )
+        mock_send.assert_has_calls(
+            [
+                call(
+                    {
+                        "type": "http.response.start",
+                        "status": 400,
+                        "headers": [[b"content-type", b"application/json"]],
+                    }
+                ),
+                call(
+                    {
+                        "type": "http.response.body",
+                        "body": b'{"error": "empty or invalid payload"}',
+                    }
+                ),
+            ]
+        )
+
     async def test_request_from_browser(self):
         mock_send = AsyncMock()
         await self.agent._server(

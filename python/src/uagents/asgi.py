@@ -81,10 +81,6 @@ class ASGIServer:
                     "status": 200,
                     "headers": [
                         [b"x-uagents-status", b"indeterminate"],
-                        [
-                            b"x-uagents-response-time-hint",
-                            str(RESPONSE_TIME_HINT_SECONDS).encode(),
-                        ],
                     ],
                 }
             )
@@ -223,7 +219,26 @@ class ASGIServer:
 
         # read the entire payload
         raw_contents = await _read_asgi_body(receive)
-        contents = json.loads(raw_contents.decode())
+
+        try:
+            contents = json.loads(raw_contents.decode())
+        except (AttributeError, UnicodeDecodeError, json.JSONDecodeError):
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 400,
+                    "headers": [
+                        [b"content-type", b"application/json"],
+                    ],
+                }
+            )
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": b'{"error": "empty or invalid payload"}',
+                }
+            )
+            return
 
         try:
             env: Envelope = Envelope.parse_obj(contents)
