@@ -22,7 +22,7 @@ API_KEY = "put_your_API_key_here"
 agent = Agent(
     name="bob",
     seed=SEED_PHRASE,
-    mailbox=f"{API_KEY}@wss://agentverse.ai",
+    mailbox=f"{API_KEY}@https://agentverse.ai",
 )
 
 fund_agent_if_low(agent.wallet.address())

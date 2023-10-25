@@ -49,7 +49,7 @@ def protocol()
 
 Property to access the protocol of the mailbox server.
 
-Returns: The protocol of the mailbox server {ws, wss, http, https}.
+Returns: The protocol of the mailbox server {http, https}.
 
 <a id="src.uagents.mailbox.MailboxClient.http_prefix"></a>
 
