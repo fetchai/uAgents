@@ -12,9 +12,9 @@ RECIPIENT_ADDRESS = (
 
 alice = Agent(
     name="alice",
-    port=8002,
+    port=8000,
     seed="alice secret phrase",
-    endpoint=["http://127.0.0.1:8002/submit"],
+    endpoint=["http://127.0.0.1:8000/submit"],
 )
 
 fund_agent_if_low(alice.wallet.address())
