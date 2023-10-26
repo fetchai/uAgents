@@ -10,6 +10,7 @@ from uagents.config import (
     MAINNET_PREFIX,
     AGENT_PREFIX,
 )
+from uagents.crypto import is_user_address
 from uagents.network import get_almanac_contract, get_name_service_contract
 
 
@@ -47,7 +48,9 @@ def is_valid_address(address: str) -> bool:
     Returns:
         bool: True if the address is valid; False otherwise.
     """
-    return len(address) == 65 and address.startswith(AGENT_PREFIX)
+    return is_user_address(address) or (
+        len(address) == 65 and address.startswith(AGENT_PREFIX)
+    )
 
 
 def is_valid_prefix(prefix: str) -> bool:
