@@ -5,7 +5,6 @@ from protocols.query import (
 )
 
 from uagents import Agent, Context
-from uagents.setup import fund_agent_if_low
 
 
 RESTAURANT_ADDRESS = (
@@ -21,7 +20,6 @@ user = Agent(
     },
 )
 
-fund_agent_if_low(user.wallet.address())
 
 table_query = QueryTableRequest(
     guests=3,

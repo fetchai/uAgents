@@ -1,7 +1,6 @@
 from cosmpy.aerial.wallet import LocalWallet
 
-from uagents.network import get_name_service_contract
-from uagents.setup import fund_agent_if_low
+from uagents.network import get_name_service_contract, get_faucet
 from uagents import Agent, Context, Model
 
 
@@ -22,11 +21,10 @@ bob = Agent(
 
 my_wallet = LocalWallet.from_unsafe_seed("registration test wallet")
 name_service_contract = get_name_service_contract(test=True)
+faucet = get_faucet()
 DOMAIN = "agent"
 
-
-for wallet in [my_wallet, bob.wallet]:
-    fund_agent_if_low(wallet.address())
+faucet.get_wealth(my_wallet.address())
 
 
 @bob.on_event("startup")

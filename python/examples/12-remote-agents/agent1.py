@@ -10,7 +10,6 @@ Preparation:
 from pyngrok import conf, ngrok
 
 from uagents import Agent, Context, Model
-from uagents.setup import fund_agent_if_low
 
 
 class Message(Model):
@@ -28,8 +27,6 @@ alice = Agent(
     port=PORT,
     endpoint=[f"{http_tunnel.public_url}/submit"],
 )
-
-fund_agent_if_low(alice.wallet.address())
 
 
 @alice.on_message(model=Message)

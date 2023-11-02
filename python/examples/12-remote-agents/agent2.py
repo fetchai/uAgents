@@ -2,7 +2,6 @@
 Counterpart for the remote connection example in agent1.py.
 """
 from uagents import Agent, Context, Model
-from uagents.setup import fund_agent_if_low
 
 
 class Message(Model):
@@ -15,8 +14,6 @@ bob = Agent(
     seed="agent2 secret seed phrase",
     endpoint=["http://127.0.0.1:8001/submit"],
 )
-
-fund_agent_if_low(bob.wallet.address())
 
 ALICE_ADDRESS = "agent1qv2l7qzcd2g2rcv2p93tqflrcaq5dk7c2xc7fcnfq3s37zgkhxjmq5mfyvz"
 
