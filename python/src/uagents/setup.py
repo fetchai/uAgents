@@ -12,10 +12,11 @@ LOGGER = get_logger("setup")
 
 def fund_agent_if_low(wallet_address: str, min_balance: int = REGISTRATION_FEE):
     """
-    Checks the agent's wallet balance and adds testnet funds if it's below the registration fee.
+    Checks the agent's wallet balance and adds testnet funds if it's below min_balance.
 
     Args:
         wallet_address (str): The wallet address of the agent.
+        min_balance (int): The minimum balance required.
 
     Returns:
         None
