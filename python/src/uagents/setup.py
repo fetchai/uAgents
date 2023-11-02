@@ -10,7 +10,7 @@ from uagents.network import get_ledger, get_faucet
 LOGGER = get_logger("setup")
 
 
-def fund_agent_if_low(wallet_address: str):
+def fund_agent_if_low(wallet_address: str, min_balance: int = REGISTRATION_FEE):
     """
     Checks the agent's wallet balance and adds testnet funds if it's below the registration fee.
 
@@ -25,7 +25,7 @@ def fund_agent_if_low(wallet_address: str):
 
     agent_balance = ledger.query_bank_balance(Address(wallet_address))
 
-    if agent_balance < REGISTRATION_FEE:
+    if agent_balance < min_balance:
         try:
             LOGGER.info("Adding testnet funds to agent...")
             faucet.get_wealth(wallet_address)
