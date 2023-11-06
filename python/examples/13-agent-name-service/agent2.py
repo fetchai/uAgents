@@ -1,4 +1,3 @@
-from uagents.setup import fund_agent_if_low
 from uagents import Agent, Context, Model
 
 
@@ -12,8 +11,6 @@ alice = Agent(
     port=8000,
     endpoint=["http://localhost:8000/submit"],
 )
-
-fund_agent_if_low(alice.wallet.address())
 
 
 @alice.on_interval(period=5)

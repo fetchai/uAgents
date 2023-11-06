@@ -28,9 +28,12 @@ from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.network import (
     get_ledger,
     get_almanac_contract,
+    add_testnet_funds,
+    InsufficientFundsError,
 )
 from uagents.mailbox import MailboxClient
 from uagents.config import (
+    AVERAGE_BLOCK_INTERVAL,
     REGISTRATION_FEE,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     LEDGER_PREFIX,
@@ -512,10 +515,18 @@ class Agent(Sink):
         ):
             if self.balance < REGISTRATION_FEE:
                 self._logger.warning(
-                    f"I do not have enough funds to register on Almanac contract\
-                        \nFund using wallet address: {self.wallet.address()}"
+                    "I do not have enough funds to register on Almanac contract"
                 )
-                return
+                if self._test:
+                    add_testnet_funds(str(self.wallet.address()))
+                    self._logger.info(
+                        f"Adding testnet funds to {self.wallet.address()}"
+                    )
+                else:
+                    self._logger.info(
+                        f"Send funds to wallet address: {self.wallet.address()}"
+                    )
+                raise InsufficientFundsError()
             self._logger.info("Registering on almanac contract...")
             signature = self.sign_registration()
             await self._almanac_contract.register(
@@ -541,6 +552,8 @@ class Agent(Sink):
         time_until_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
         try:
             await self.register()
+        except InsufficientFundsError:
+            time_until_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
         except Exception as ex:
             self._logger.exception(f"Failed to register on almanac contract: {ex}")
             time_until_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS

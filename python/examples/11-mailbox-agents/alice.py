@@ -1,5 +1,4 @@
 from uagents import Agent, Context, Model
-from uagents.setup import fund_agent_if_low
 
 
 class Message(Model):
@@ -21,8 +20,6 @@ agent = Agent(
     seed=SEED_PHRASE,
     mailbox=f"{API_KEY}@https://agentverse.ai",
 )
-
-fund_agent_if_low(agent.wallet.address())
 
 
 @agent.on_message(model=Message, replies={Message})
