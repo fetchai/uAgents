@@ -524,7 +524,7 @@ class Agent(Sink):
                     )
                 else:
                     self._logger.info(
-                        f"Fund using wallet address: {self.wallet.address()}"
+                        f"Send funds to wallet address: {self.wallet.address()}"
                     )
                 raise InsufficientFundsError()
             self._logger.info("Registering on almanac contract...")
