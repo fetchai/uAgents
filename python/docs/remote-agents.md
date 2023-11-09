@@ -139,7 +139,7 @@ API_KEY = "put_your_API_key_here"
 agent = Agent(
     name="alice",
     seed=SEED_PHRASE,
-    mailbox=f"{API_KEY}@wss://agentverse.ai",
+    mailbox=f"{API_KEY}@https://agentverse.ai",
 )
 ```
 

@@ -9,7 +9,6 @@ from protocols.cleaning import (
 )
 from protocols.cleaning.models import ServiceType
 from uagents import Agent, Context
-from uagents.setup import fund_agent_if_low
 
 
 CLEANER_ADDRESS = (
@@ -25,7 +24,6 @@ user = Agent(
     },
 )
 
-fund_agent_if_low(user.wallet.address())
 
 request = ServiceRequest(
     user=user.name,

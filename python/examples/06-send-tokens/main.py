@@ -19,8 +19,8 @@ DENOM = "atestfet"
 alice = Agent(name="alice", seed="alice secret phrase")
 bob = Agent(name="bob", seed="bob secret phrase")
 
-fund_agent_if_low(alice.wallet.address())
-fund_agent_if_low(bob.wallet.address())
+
+fund_agent_if_low(bob.wallet.address(), min_balance=AMOUNT)
 
 
 @alice.on_interval(period=10.0)

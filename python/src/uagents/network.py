@@ -41,6 +41,10 @@ _testnet_ledger = LedgerClient(NetworkConfig.fetchai_stable_testnet())
 _mainnet_ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
 
 
+class InsufficientFundsError(Exception):
+    """Raised when an agent has insufficient funds for a transaction."""
+
+
 def get_ledger(test: bool = True) -> LedgerClient:
     """
     Get the Ledger client.
@@ -64,6 +68,18 @@ def get_faucet() -> FaucetApi:
         FaucetApi: The Faucet API instance.
     """
     return _faucet_api
+
+
+def add_testnet_funds(wallet_address: str):
+    """
+    Add testnet funds to the provided wallet address.
+
+    Args:
+        wallet_address (str): The wallet address to add funds to.
+    """
+    _faucet_api._try_create_faucet_claim(  # pylint: disable=protected-access
+        wallet_address
+    )
 
 
 async def wait_for_tx_to_complete(

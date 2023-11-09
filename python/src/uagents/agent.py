@@ -28,9 +28,12 @@ from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.network import (
     get_ledger,
     get_almanac_contract,
+    add_testnet_funds,
+    InsufficientFundsError,
 )
 from uagents.mailbox import MailboxClient
 from uagents.config import (
+    AVERAGE_BLOCK_INTERVAL,
     REGISTRATION_FEE,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     LEDGER_PREFIX,
@@ -136,8 +139,7 @@ class Agent(Sink):
         identifier (str): The Agent Identifier, including network prefix and address.
         wallet (LocalWallet): The agent's wallet for transacting on the ledger.
         storage (KeyValueStore): The key-value store for storage operations.
-        mailbox (Dict[str, str]): The mailbox configuration for the agent (deprecated and replaced
-        by agentverse).
+        mailbox (Dict[str, str]): The mailbox configuration for the agent.
         agentverse (Dict[str, str]): The agentverse configuration for the agent.
         mailbox_client (MailboxClient): The client for interacting with the agentverse mailbox.
         protocols (Dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
@@ -201,9 +203,6 @@ class Agent(Sink):
                 )
             else:
                 agentverse = mailbox
-            self._logger.warning(
-                "The 'mailbox' configuration is deprecated in favor of 'agentverse'"
-            )
         self._agentverse = parse_agentverse_config(agentverse)
         self._use_mailbox = self._agentverse["use_mailbox"]
         if self._use_mailbox:
@@ -352,7 +351,7 @@ class Agent(Sink):
             str: The agent's identifier.
         """
         prefix = TESTNET_PREFIX if self._test else MAINNET_PREFIX
-        return prefix + self._identity.address
+        return prefix + "://" + self._identity.address
 
     @property
     def wallet(self) -> LocalWallet:
@@ -387,7 +386,8 @@ class Agent(Sink):
     @property
     def mailbox(self) -> Dict[str, str]:
         """
-        Get the mailbox configuration of the agent (deprecated and replaced by agentverse).
+        Get the mailbox configuration of the agent.
+        Agentverse overrides it but mailbox is kept for backwards compatibility.
 
         Returns:
             Dict[str, str]: The mailbox configuration.
@@ -428,7 +428,8 @@ class Agent(Sink):
     @mailbox.setter
     def mailbox(self, config: Union[str, Dict[str, str]]):
         """
-        Set the mailbox configuration for the agent (deprecated and replaced by agentverse).
+        Set the mailbox configuration for the agent.
+        Agentverse overrides it but mailbox is kept for backwards compatibility.
 
         Args:
             config (Union[str, Dict[str, str]]): The new mailbox configuration.
@@ -541,10 +542,18 @@ class Agent(Sink):
         ):
             if self.balance < REGISTRATION_FEE:
                 self._logger.warning(
-                    f"I do not have enough funds to register on Almanac contract\
-                        \nFund using wallet address: {self.wallet.address()}"
+                    "I do not have enough funds to register on Almanac contract"
                 )
-                return
+                if self._test:
+                    add_testnet_funds(str(self.wallet.address()))
+                    self._logger.info(
+                        f"Adding testnet funds to {self.wallet.address()}"
+                    )
+                else:
+                    self._logger.info(
+                        f"Send funds to wallet address: {self.wallet.address()}"
+                    )
+                raise InsufficientFundsError()
             self._logger.info("Registering on almanac contract...")
             signature = self.sign_registration()
             await self._almanac_contract.register(
@@ -570,6 +579,8 @@ class Agent(Sink):
         time_until_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
         try:
             await self.register()
+        except InsufficientFundsError:
+            time_until_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
         except Exception as ex:
             self._logger.exception(f"Failed to register on almanac contract: {ex}")
             time_until_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS

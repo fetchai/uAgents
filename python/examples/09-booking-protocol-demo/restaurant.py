@@ -3,7 +3,6 @@ from protocols.query import query_proto, TableStatus
 
 from uagents import Agent
 from uagents.contrib.protocols.protocol_query import proto_query
-from uagents.setup import fund_agent_if_low
 
 
 restaurant = Agent(
@@ -15,7 +14,6 @@ restaurant = Agent(
     },
 )
 
-fund_agent_if_low(restaurant.wallet.address())
 
 # build the restaurant agent from stock protocols and publish their details
 restaurant.include(query_proto, publish_manifest=True)
