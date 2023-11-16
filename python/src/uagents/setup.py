@@ -55,6 +55,6 @@ def register_agent_with_mailbox(agent: Agent, email: str):
     )
     if resp.status_code == 200:
         LOGGER.info("Registered agent on mailbox server")
-        mailbox["mailbox_key"] = resp.json()["mailbox_key"]
+        mailbox["agent_mailbox_key"] = resp.json()["agent_mailbox_key"]
     else:
         LOGGER.exception("Failed to register agent on mailbox server")

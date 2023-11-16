@@ -15,7 +15,7 @@ SEED_PHRASE = "put_your_seed_phrase_here"
 print(f"Your agent's address is: {Agent(seed=SEED_PHRASE).address}")
 
 # Then go to https://agentverse.ai to get your API key and register a second agent
-API_KEY = "put_your_API_key_here"
+AGENT_MAILBOX_KEY = "put_your_AGENT_MAILBOX_KEY_here"
 
 # Now your agent is ready to join the agentverse!
 agent = Agent(

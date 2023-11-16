@@ -36,13 +36,13 @@ class MailboxClient:
         return self._agent.mailbox["base_url"]
 
     @property
-    def mailbox_key(self):
+    def agent_mailbox_key(self):
         """
-        Property to access the mailbox_key key of the mailbox server.
+        Property to access the agent_mailbox_key key of the mailbox server.
 
-        Returns: The mailbox_key key of the mailbox server.
+        Returns: The agent_mailbox_keyy key of the mailbox server.
         """
-        return self._agent.mailbox["mailbox_key"]
+        return self._agent.mailbox["agent_mailbox_key"]
 
     @property
     def protocol(self):
@@ -215,7 +215,7 @@ class MailboxClient:
                 data=json.dumps(
                     {
                         "address": self._agent.address,
-                        "mailbox_key": self.mailbox_key,
+                        "agent_mailbox_key": self.agent_mailbox_key,
                         "challenge": challenge,
                         "challenge_response": self._agent.sign(challenge.encode()),
                     }

@@ -12,13 +12,13 @@ SEED_PHRASE = "put_your_seed_phrase_here"
 print(f"Your agent's address is: {Agent(seed=SEED_PHRASE).address}")
 
 # Then sign up at https://agentverse.ai to get an API key and register your agent
-MAILBOX_KEY = "put_your_MAILBOX_KEY_here"
+AGENT_MAILBOX_KEY = "put_your_AGENT_MAILBOX_KEY_here"
 
 # Now your agent is ready to join the agentverse!
 agent = Agent(
     name="alice",
     seed=SEED_PHRASE,
-    mailbox=f"{MAILBOX_KEY}@https://agentverse.ai",
+    mailbox=f"{AGENT_MAILBOX_KEY}@https://agentverse.ai",
 )
 
 

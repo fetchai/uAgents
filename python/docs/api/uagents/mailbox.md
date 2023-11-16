@@ -25,18 +25,18 @@ Property to access the base url of the mailbox server.
 
 Returns: The base url of the mailbox server.
 
-<a id="src.uagents.mailbox.MailboxClient.mailbox_key"></a>
+<a id="src.uagents.mailbox.MailboxClient.agent_mailbox_key"></a>
 
-#### mailbox`_`key
+#### agent`_`mailbox`_`key
 
 ```python
 @property
-def mailbox_key()
+def agent_mailbox_key()
 ```
 
-Property to access the mailbox_key key of the mailbox server.
+Property to access the agent_mailbox_key key of the mailbox server.
 
-Returns: The mailbox_key key of the mailbox server.
+Returns: The agent_mailbox_keyy key of the mailbox server.
 
 <a id="src.uagents.mailbox.MailboxClient.protocol"></a>
 
