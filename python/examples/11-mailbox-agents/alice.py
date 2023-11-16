@@ -11,7 +11,7 @@ SEED_PHRASE = "put_your_seed_phrase_here"
 # Copy the address shown below
 print(f"Your agent's address is: {Agent(seed=SEED_PHRASE).address}")
 
-# Then sign up at https://agentverse.ai to get an API key and register your agent
+# Then go to https://agentverse.ai, register your agent in the Mailroom and copy the agent's mailbox key
 AGENT_MAILBOX_KEY = "put_your_AGENT_MAILBOX_KEY_here"
 
 # Now your agent is ready to join the agentverse!
