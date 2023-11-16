@@ -21,7 +21,7 @@ AGENT_MAILBOX_KEY = "put_your_AGENT_MAILBOX_KEY_here"
 agent = Agent(
     name="bob",
     seed=SEED_PHRASE,
-    mailbox=f"{API_KEY}@https://agentverse.ai",
+    mailbox=f"{AGENT_MAILBOX_KEY}@https://agentverse.ai",
 )
 
 
