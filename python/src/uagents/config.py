@@ -75,19 +75,19 @@ def parse_agentverse_config(
     Returns:
         Dict[str, str]: The parsed agentverse configuration.
     """
-    api_key = None
+    mailbox_key = None
     base_url = AGENTVERSE_URL
     protocol = None
     protocol_override = None
     if isinstance(config, str):
         if config.count("@") == 1:
-            api_key, base_url = config.split("@")
+            mailbox_key, base_url = config.split("@")
         elif "://" in config:
             base_url = config
         else:
-            api_key = config
+            mailbox_key = config
     elif isinstance(config, dict):
-        api_key = config.get("api_key")
+        mailbox_key = config.get("mailbox_key")
         base_url = config.get("base_url") or base_url
         protocol_override = config.get("protocol")
     if "://" in base_url:
@@ -95,11 +95,11 @@ def parse_agentverse_config(
     protocol = protocol_override or protocol or "https"
     http_prefix = "https" if protocol in {"wss", "https"} else "http"
     return {
-        "api_key": api_key,
+        "mailbox_key": mailbox_key,
         "base_url": base_url,
         "protocol": protocol,
         "http_prefix": http_prefix,
-        "use_mailbox": api_key is not None,
+        "use_mailbox": mailbox_key is not None,
     }
 
 

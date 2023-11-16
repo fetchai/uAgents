@@ -4,15 +4,30 @@
 
 Network and Contracts.
 
+<a id="src.uagents.network.InsufficientFundsError"></a>
+
+## InsufficientFundsError Objects
+
+```python
+class InsufficientFundsError(Exception)
+```
+
+Raised when an agent has insufficient funds for a transaction.
+
 <a id="src.uagents.network.get_ledger"></a>
 
 #### get`_`ledger
 
 ```python
-def get_ledger() -> LedgerClient
+def get_ledger(test: bool = True) -> LedgerClient
 ```
 
 Get the Ledger client.
+
+**Arguments**:
+
+- `test` _bool_ - Whether to use the testnet or mainnet. Defaults to True.
+  
 
 **Returns**:
 
@@ -32,6 +47,20 @@ Get the Faucet API instance.
 
 - `FaucetApi` - The Faucet API instance.
 
+<a id="src.uagents.network.add_testnet_funds"></a>
+
+#### add`_`testnet`_`funds
+
+```python
+def add_testnet_funds(wallet_address: str)
+```
+
+Add testnet funds to the provided wallet address.
+
+**Arguments**:
+
+- `wallet_address` _str_ - The wallet address to add funds to.
+
 <a id="src.uagents.network.wait_for_tx_to_complete"></a>
 
 #### wait`_`for`_`tx`_`to`_`complete
@@ -39,6 +68,7 @@ Get the Faucet API instance.
 ```python
 async def wait_for_tx_to_complete(
         tx_hash: str,
+        ledger: LedgerClient,
         timeout: Optional[timedelta] = None,
         poll_period: Optional[timedelta] = None) -> TxResponse
 ```
@@ -48,10 +78,10 @@ Wait for a transaction to complete on the Ledger.
 **Arguments**:
 
 - `tx_hash` _str_ - The hash of the transaction to monitor.
-- `timeout` _Optional[timedelta], optional_ - The maximum time to wait for
+- `ledger` _LedgerClient_ - The Ledger client to poll.
+- `timeout` _Optional[timedelta], optional_ - The maximum time to wait.
   the transaction to complete. Defaults to None.
 - `poll_period` _Optional[timedelta], optional_ - The time interval to poll
-  the Ledger for the transaction status. Defaults to None.
   
 
 **Returns**:
@@ -193,10 +223,15 @@ Get the agent's sequence number for Almanac registration.
 #### get`_`almanac`_`contract
 
 ```python
-def get_almanac_contract() -> AlmanacContract
+def get_almanac_contract(test: bool = True) -> AlmanacContract
 ```
 
 Get the AlmanacContract instance.
+
+**Arguments**:
+
+- `test` _bool_ - Whether to use the testnet or mainnet. Defaults to True.
+  
 
 **Returns**:
 
@@ -282,7 +317,7 @@ Check if a domain is public.
 
 ```python
 def get_registration_tx(name: str, wallet_address: str, agent_address: str,
-                        domain: str)
+                        domain: str, test: bool)
 ```
 
 Get the registration transaction for registering a name within a domain.
@@ -293,6 +328,7 @@ Get the registration transaction for registering a name within a domain.
 - `wallet_address` _str_ - The wallet address initiating the registration.
 - `agent_address` _str_ - The address of the agent.
 - `domain` _str_ - The domain in which the name is registered.
+- `test` _bool_ - The agent type
   
 
 **Returns**:
@@ -324,10 +360,15 @@ Register a name within a domain using the NameService contract.
 #### get`_`name`_`service`_`contract
 
 ```python
-def get_name_service_contract() -> NameServiceContract
+def get_name_service_contract(test: bool = True) -> NameServiceContract
 ```
 
 Get the NameServiceContract instance.
+
+**Arguments**:
+
+- `test` _bool_ - Whether to use the testnet or mainnet. Defaults to True.
+  
 
 **Returns**:
 

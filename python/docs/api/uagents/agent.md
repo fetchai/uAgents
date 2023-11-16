@@ -36,7 +36,7 @@ An agent that interacts within a communication environment.
 - `_unsigned_message_handlers` _Dict[str, MessageCallback]_ - Handlers for
   unsigned messages.
 - `_models` _Dict[str, Type[Model]]_ - Dictionary mapping supported message digests to messages.
-- `_replies` _Dict[str, Set[Type[Model]]]_ - Dictionary of allowed reply digests for each type
+- `_replies` _Dict[str, Dict[str, Type[Model]]]_ - Dictionary of allowed replies for each type
   of incoming message.
 - `_queries` _Dict[str, asyncio.Future]_ - Dictionary mapping query senders to their response
   Futures.
@@ -50,14 +50,15 @@ An agent that interacts within a communication environment.
 - `protocols` _Dict[str, Protocol]_ - Dictionary mapping all supported protocol digests to their
   corresponding protocols.
 - `_ctx` _Context_ - The context for agent interactions.
+- `_test` _bool_ - True if the agent will register and transact on the testnet.
   
   Properties:
 - `name` _str_ - The name of the agent.
 - `address` _str_ - The address of the agent used for communication.
+- `identifier` _str_ - The Agent Identifier, including network prefix and address.
 - `wallet` _LocalWallet_ - The agent's wallet for transacting on the ledger.
 - `storage` _KeyValueStore_ - The key-value store for storage operations.
-- `mailbox` _Dict[str, str]_ - The mailbox configuration for the agent (deprecated and replaced
-  by agentverse).
+- `mailbox` _Dict[str, str]_ - The mailbox configuration for the agent.
 - `agentverse` _Dict[str, str]_ - The agentverse configuration for the agent.
 - `mailbox_client` _MailboxClient_ - The client for interacting with the agentverse mailbox.
 - `protocols` _Dict[str, Protocol]_ - Dictionary mapping all supported protocol digests to their
@@ -75,7 +76,9 @@ def __init__(name: Optional[str] = None,
              agentverse: Optional[Union[str, Dict[str, str]]] = None,
              mailbox: Optional[Union[str, Dict[str, str]]] = None,
              resolve: Optional[Resolver] = None,
-             version: Optional[str] = None)
+             max_resolver_endpoints: Optional[int] = None,
+             version: Optional[str] = None,
+             test: Optional[bool] = True)
 ```
 
 Initialize an Agent instance.
@@ -89,6 +92,7 @@ Initialize an Agent instance.
 - `agentverse` _Optional[Union[str, Dict[str, str]]]_ - The agentverse configuration.
 - `mailbox` _Optional[Union[str, Dict[str, str]]]_ - The mailbox configuration.
 - `resolve` _Optional[Resolver]_ - The resolver to use for agent communication.
+- `max_resolver_endpoints` _Optional[int]_ - The maximum number of endpoints to resolve.
 - `version` _Optional[str]_ - The version of the agent.
 
 <a id="src.uagents.agent.Agent.name"></a>
@@ -121,6 +125,21 @@ Get the address of the agent used for communication.
 
 - `str` - The agent's address.
 
+<a id="src.uagents.agent.Agent.identifier"></a>
+
+#### identifier
+
+```python
+@property
+def identifier() -> str
+```
+
+Get the Agent Identifier, including network prefix and address.
+
+**Returns**:
+
+- `str` - The agent's identifier.
+
 <a id="src.uagents.agent.Agent.wallet"></a>
 
 #### wallet
@@ -135,6 +154,21 @@ Get the wallet of the agent.
 **Returns**:
 
 - `LocalWallet` - The agent's wallet.
+
+<a id="src.uagents.agent.Agent.ledger"></a>
+
+#### ledger
+
+```python
+@property
+def ledger() -> LedgerClient
+```
+
+Get the ledger of the agent.
+
+**Returns**:
+
+- `LedgerClient` - The agent's ledger
 
 <a id="src.uagents.agent.Agent.storage"></a>
 
@@ -160,7 +194,8 @@ Get the key-value store used by the agent for data storage.
 def mailbox() -> Dict[str, str]
 ```
 
-Get the mailbox configuration of the agent (deprecated and replaced by agentverse).
+Get the mailbox configuration of the agent.
+Agentverse overrides it but mailbox is kept for backwards compatibility.
 
 **Returns**:
 
@@ -196,6 +231,21 @@ Get the mailbox client used by the agent for mailbox communication.
 
 - `MailboxClient` - The mailbox client instance.
 
+<a id="src.uagents.agent.Agent.balance"></a>
+
+#### balance
+
+```python
+@property
+def balance() -> int
+```
+
+Get the balance of the agent.
+
+**Returns**:
+
+- `int` - Bank balance.
+
 <a id="src.uagents.agent.Agent.mailbox"></a>
 
 #### mailbox
@@ -205,7 +255,8 @@ Get the mailbox client used by the agent for mailbox communication.
 def mailbox(config: Union[str, Dict[str, str]])
 ```
 
-Set the mailbox configuration for the agent (deprecated and replaced by agentverse).
+Set the mailbox configuration for the agent.
+Agentverse overrides it but mailbox is kept for backwards compatibility.
 
 **Arguments**:
 

@@ -45,6 +45,26 @@ Property to access the underlying uvicorn server.
 
 Returns: The server.
 
+<a id="src.uagents.asgi.ASGIServer.handle_readiness_probe"></a>
+
+#### handle`_`readiness`_`probe
+
+```python
+async def handle_readiness_probe(headers: CaseInsensitiveDict, send)
+```
+
+Handle a readiness probe sent via the HEAD method.
+
+<a id="src.uagents.asgi.ASGIServer.handle_missing_content_type"></a>
+
+#### handle`_`missing`_`content`_`type
+
+```python
+async def handle_missing_content_type(headers: CaseInsensitiveDict, send)
+```
+
+Handle missing content type header.
+
 <a id="src.uagents.asgi.ASGIServer.serve"></a>
 
 #### serve

@@ -4,6 +4,16 @@
 
 Agent Context and Message Handling
 
+<a id="src.uagents.context.DeliveryStatus"></a>
+
+## DeliveryStatus Objects
+
+```python
+class DeliveryStatus(str, Enum)
+```
+
+Delivery status of a message.
+
 <a id="src.uagents.context.MsgDigest"></a>
 
 ## MsgDigest Objects
@@ -19,6 +29,24 @@ Represents a message digest containing a message and its schema digest.
 
 - `message` _Any_ - The message content.
 - `schema_digest` _str_ - The schema digest of the message.
+
+<a id="src.uagents.context.MsgStatus"></a>
+
+## MsgStatus Objects
+
+```python
+@dataclass
+class MsgStatus()
+```
+
+Represents the status of a sent message.
+
+**Attributes**:
+
+- `status` _str_ - The delivery status of the message {'sent', 'delivered', 'failed'}.
+- `detail` _str_ - The details of the message delivery.
+- `destination` _str_ - The destination address of the message.
+- `endpoint` _str_ - The endpoint the message was sent to.
 
 <a id="src.uagents.context.Context"></a>
 
@@ -42,7 +70,7 @@ Represents the context in which messages are handled and processed.
 - `_queries` _Dict[str, asyncio.Future]_ - Dictionary mapping query senders to their
   response Futures.
 - `_session` _Optional[uuid.UUID]_ - The session UUID.
-- `_replies` _Optional[Dict[str, Set[Type[Model]]]]_ - Dictionary of allowed reply digests
+- `_replies` _Optional[Dict[str, Dict[str, Type[Model]]]]_ - Dictionary of allowed reply digests
   for each type of incoming message.
 - `_interval_messages` _Optional[Set[str]]_ - Set of message digests that may be sent by
   interval tasks.
@@ -76,6 +104,7 @@ Represents the context in which messages are handled and processed.
 
 ```python
 def __init__(address: str,
+             identifier: str,
              name: Optional[str],
              storage: KeyValueStore,
              resolve: Resolver,
@@ -84,7 +113,7 @@ def __init__(address: str,
              ledger: LedgerClient,
              queries: Dict[str, asyncio.Future],
              session: Optional[uuid.UUID] = None,
-             replies: Optional[Dict[str, Set[Type[Model]]]] = None,
+             replies: Optional[Dict[str, Dict[str, Type[Model]]]] = None,
              interval_messages: Optional[Set[str]] = None,
              message_received: Optional[MsgDigest] = None,
              protocols: Optional[Dict[str, Protocol]] = None,
@@ -105,7 +134,8 @@ Initialize the Context instance.
 - `queries` _Dict[str, asyncio.Future]_ - Dictionary mapping query senders to their response
   Futures.
 - `session` _Optional[uuid.UUID]_ - The optional session UUID.
-- `replies` _Optional[Dict[str, Set[Type[Model]]]]_ - Optional dictionary of reply models.
+- `replies` _Optional[Dict[str, Dict[str, Type[Model]]]]_ - Dictionary of allowed replies
+  for each type of incoming message.
 - `interval_messages` _Optional[Set[str]]_ - The optional set of interval messages.
 - `message_received` _Optional[MsgDigest]_ - The optional message digest received.
 - `protocols` _Optional[Dict[str, Protocol]]_ - The optional dictionary of protocols.
@@ -140,6 +170,21 @@ Get the address of the context.
 **Returns**:
 
 - `str` - The address of the context.
+
+<a id="src.uagents.context.Context.identifier"></a>
+
+#### identifier
+
+```python
+@property
+def identifier() -> str
+```
+
+Get the address of the agent used for communication including the network prefix.
+
+**Returns**:
+
+- `str` - The agent's address and network prefix.
 
 <a id="src.uagents.context.Context.logger"></a>
 
@@ -236,9 +281,11 @@ limited to a specified number of addresses.
 #### send
 
 ```python
-async def send(destination: str,
-               message: Model,
-               timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS)
+async def send(
+        destination: str,
+        message: Model,
+        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS
+) -> MsgStatus
 ```
 
 Send a message to the specified destination.
@@ -248,6 +295,11 @@ Send a message to the specified destination.
 - `destination` _str_ - The destination address to send the message to.
 - `message` _Model_ - The message to be sent.
 - `timeout` _Optional[int]_ - The optional timeout for sending the message, in seconds.
+  
+
+**Returns**:
+
+- `MsgStatus` - The delivery status of the message.
 
 <a id="src.uagents.context.Context.experimental_broadcast"></a>
 
@@ -255,10 +307,11 @@ Send a message to the specified destination.
 
 ```python
 async def experimental_broadcast(
-        destination_protocol: str,
-        message: Model,
-        limit: Optional[int] = DEFAULT_SEARCH_LIMIT,
-        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS)
+    destination_protocol: str,
+    message: Model,
+    limit: Optional[int] = DEFAULT_SEARCH_LIMIT,
+    timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS
+) -> List[MsgStatus]
 ```
 
 Broadcast a message to agents with a specific protocol.
@@ -277,27 +330,34 @@ The schema digest of the message is used for verification.
 
 **Returns**:
 
-  None
+- `List[MsgStatus]` - A list of message delivery statuses.
 
 <a id="src.uagents.context.Context.send_raw"></a>
 
 #### send`_`raw
 
 ```python
-async def send_raw(destination: str,
-                   json_message: JsonStr,
-                   schema_digest: str,
-                   message_type: Optional[Type[Model]] = None,
-                   timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS)
+async def send_raw(
+        destination: str,
+        json_message: JsonStr,
+        schema_digest: str,
+        message_type: Optional[Type[Model]] = None,
+        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS
+) -> MsgStatus
 ```
 
 Send a raw message to the specified destination.
 
 **Arguments**:
 
-- `destination` _str_ - The destination address to send the message to.
+- `destination` _str_ - The destination name or address to send the message to.
 - `json_message` _JsonStr_ - The JSON-encoded message to be sent.
 - `schema_digest` _str_ - The schema digest of the message.
 - `message_type` _Optional[Type[Model]]_ - The optional type of the message being sent.
 - `timeout` _Optional[int]_ - The optional timeout for sending the message, in seconds.
+  
+
+**Returns**:
+
+- `MsgStatus` - The delivery status of the message.
 
