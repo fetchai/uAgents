@@ -6,20 +6,18 @@ from typing import Any, Optional, Dict, List
 
 from cosmpy.aerial.contract import LedgerContract
 from cosmpy.aerial.client import (
-    Account,
     LedgerClient,
     NetworkConfig,
     DEFAULT_QUERY_INTERVAL_SECS,
     DEFAULT_QUERY_TIMEOUT_SECS,
-    create_bank_send_msg,
     prepare_and_broadcast_basic_transaction,
 )
 from cosmpy.aerial.exceptions import NotFoundError, QueryTimeoutError
 from cosmpy.aerial.contract.cosmwasm import create_cosmwasm_execute_msg
 from cosmpy.aerial.faucet import FaucetApi
-from cosmpy.aerial.tx import SigningCfg, Transaction
+from cosmpy.aerial.tx import Transaction
 from cosmpy.aerial.tx_helpers import TxResponse
-from cosmpy.aerial.wallet import Wallet, LocalWallet
+from cosmpy.aerial.wallet import LocalWallet
 
 from uagents.config import (
     MAINNET_CONTRACT_ALMANAC,
@@ -117,60 +115,6 @@ async def wait_for_tx_to_complete(
             raise QueryTimeoutError()
 
         await asyncio.sleep(poll_period.total_seconds())
-
-
-def create_send_tokens_transaction(
-    ledger: LedgerClient,
-    sender: Wallet,
-    destination: str,
-    amount: int,
-    denom: str,
-    **kwargs,
-):
-    transaction = Transaction()
-    transaction.add_message(
-        create_bank_send_msg(sender.address(), destination, amount, denom)
-    )
-    return prepare_basic_transaction(ledger, transaction, sender, **kwargs)
-
-
-def prepare_basic_transaction(
-    client: LedgerClient,
-    transaction: Transaction,
-    sender: Wallet,
-    account: Optional[Account] = None,
-    gas_limit: Optional[int] = None,
-    memo: Optional[str] = None,
-) -> Transaction:
-    if account is None:
-        account = client.query_account(sender.address())
-
-    if gas_limit is not None:
-        fee = client.estimate_fee_from_gas(gas_limit)
-    else:
-        transaction.seal(
-            SigningCfg.direct(sender.public_key(), account.sequence),
-            fee="",
-            gas_limit=0,
-            memo=memo,
-        )
-        transaction.sign(
-            sender.signer(), client.network_config.chain_id, account.number
-        )
-        transaction.complete()
-
-        # simulate the gas and fee for the transaction
-        gas_limit, fee = client.estimate_gas_and_fee_for_tx(transaction)
-
-    # finally, build the final transaction that will be executed with the correct gas and fee values
-    transaction.seal(
-        SigningCfg.direct(sender.public_key(), account.sequence),
-        fee=fee,
-        gas_limit=gas_limit,
-        memo=memo,
-    )
-
-    return transaction
 
 
 class AlmanacContract(LedgerContract):
