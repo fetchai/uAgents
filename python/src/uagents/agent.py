@@ -313,7 +313,6 @@ class Agent(Sink):
 
         Args:
             enable_wallet_messaging (Union[bool, Dict[str, str]]): Wallet messaging configuration.
-            messaging.
         """
         if enable_wallet_messaging:
             wallet_chain_id = self._ledger.network_config.chain_id
