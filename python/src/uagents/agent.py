@@ -251,7 +251,7 @@ class Agent(Sink):
                     wallet_chain_id,
                     self._logger,
                 )
-            except ModuleNotFoundError as ex:
+            except ModuleNotFoundError:
                 self._logger.exception(
                     "Unable to include wallet messaging. "
                     "Please install the 'wallet' extra to enable wallet messaging."
