@@ -12,8 +12,6 @@ disable=missing-module-docstring,
         too-many-return-statements,
         logging-fstring-interpolation,
         import-outside-toplevel,
-        too-many-statements,
-        too-many-locals,
         too-many-lines,
         broad-exception-caught
 

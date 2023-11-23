@@ -234,31 +234,7 @@ class Agent(Sink):
         self._test = test
         self._version = version or "0.1.0"
 
-        if enable_wallet_messaging:
-            wallet_chain_id = self._ledger.network_config.chain_id
-            if (
-                isinstance(enable_wallet_messaging, dict)
-                and "chain_id" in enable_wallet_messaging
-            ):
-                wallet_chain_id = enable_wallet_messaging["chain_id"]
-
-            try:
-                from uagents.wallet_messaging import WalletMessagingClient
-
-                self._wallet_messaging_client = WalletMessagingClient(
-                    self._identity,
-                    self._wallet,
-                    wallet_chain_id,
-                    self._logger,
-                )
-            except ModuleNotFoundError:
-                self._logger.exception(
-                    "Unable to include wallet messaging. "
-                    "Please install the 'wallet' extra to enable wallet messaging."
-                )
-                self._wallet_messaging_client = None
-        else:
-            self._wallet_messaging_client = None
+        self.initialize_wallet_messaging(enable_wallet_messaging)
 
         # initialize the internal agent protocol
         self._protocol = Protocol(name=self._name, version=self._version)
@@ -328,6 +304,42 @@ class Agent(Sink):
             )
         if name is None:
             self._name = self.address[0:16]
+
+    def initialize_wallet_messaging(
+        self, enable_wallet_messaging: Union[bool, Dict[str, str]]
+    ):
+        """
+        Initialize wallet messaging for the agent.
+
+        Args:
+            enable_wallet_messaging (Union[bool, Dict[str, str]]): Wallet messaging configuration.
+            messaging.
+        """
+        if enable_wallet_messaging:
+            wallet_chain_id = self._ledger.network_config.chain_id
+            if (
+                isinstance(enable_wallet_messaging, dict)
+                and "chain_id" in enable_wallet_messaging
+            ):
+                wallet_chain_id = enable_wallet_messaging["chain_id"]
+
+            try:
+                from uagents.wallet_messaging import WalletMessagingClient
+
+                self._wallet_messaging_client = WalletMessagingClient(
+                    self._identity,
+                    self._wallet,
+                    wallet_chain_id,
+                    self._logger,
+                )
+            except ModuleNotFoundError:
+                self._logger.exception(
+                    "Unable to include wallet messaging. "
+                    "Please install the 'wallet' extra to enable wallet messaging."
+                )
+                self._wallet_messaging_client = None
+        else:
+            self._wallet_messaging_client = None
 
     @property
     def name(self) -> str:

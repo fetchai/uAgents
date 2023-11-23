@@ -29,7 +29,7 @@ class WalletMessagingClient:
         delegate_pubkey_b64 = base64.b64encode(bytes.fromhex(delegate_pubkey)).decode()
         public_key = base64.b64decode(wallet.public_key().public_key).hex()
         signed_bytes, signature = identity.sign_arbitrary(public_key.encode())
-        self._client = Client(  # pylint: disable=E1121
+        self._client = Client(
             identity.address,
             delegate_pubkey_b64,
             signature,
@@ -56,9 +56,7 @@ class WalletMessagingClient:
 
         return decorator_on_message
 
-    async def send(
-        self, destination: str, msg: WalletMessage, msg_type: int = 1
-    ):  # pylint: disable=E1121
+    async def send(self, destination: str, msg: WalletMessage, msg_type: int = 1):
         self._client.send(destination, msg, msg_type)
 
     async def poll_server(self):
