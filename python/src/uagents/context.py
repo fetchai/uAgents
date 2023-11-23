@@ -349,7 +349,8 @@ class Context:
         agents = self.get_agents_by_protocol(destination_protocol, limit=limit)
         if not agents:
             self.logger.error(f"No active agents found for: {destination_protocol}")
-            return
+            return []
+
         schema_digest = Model.build_schema_digest(message)
         futures = await asyncio.gather(
             *[
@@ -457,12 +458,38 @@ class Context:
                     endpoint="",
                 )
 
+        return await self.send_raw_exchange_envelope(
+            self._identity,
+            destination,
+            self._resolver,
+            schema_digest,
+            self.get_message_protocol(schema_digest),
+            json_message,
+            logger=self._logger,
+            timeout=timeout,
+            session_id=self._session,
+        )
+
+    @staticmethod
+    async def send_raw_exchange_envelope(
+        sender: Identity,
+        destination: str,
+        resolver: Resolver,
+        schema_digest: str,
+        protocol_digest: Optional[str],
+        json_message: JsonStr,
+        logger: Optional[logging.Logger] = None,
+        timeout: int = 5,
+        session_id: Optional[uuid.UUID] = None,
+    ) -> MsgStatus:
         # Resolve the destination address and endpoint ('destination' can be a name or address)
-        destination_address, endpoints = await self._resolver.resolve(destination)
+        destination_address, endpoints = await resolver.resolve(destination)
         if len(endpoints) == 0:
-            self._logger.exception(
-                f"Unable to resolve destination endpoint for address {destination}"
-            )
+            if logger:
+                logger.exception(
+                    f"Unable to resolve destination endpoint for address {destination}"
+                )
+
             return MsgStatus(
                 status=DeliveryStatus.FAILED,
                 detail="Unable to resolve destination endpoint",
@@ -476,15 +503,15 @@ class Context:
         # Handle external dispatch of messages
         env = Envelope(
             version=1,
-            sender=self.address,
+            sender=sender.address,
             target=destination_address,
-            session=self._session or uuid.uuid4(),
+            session=session_id or uuid.uuid4(),
             schema_digest=schema_digest,
-            protocol_digest=self.get_message_protocol(schema_digest),
+            protocol_digest=protocol_digest,
             expires=expires,
         )
         env.encode_payload(json_message)
-        env.sign(self._identity)
+        env.sign(sender)
 
         for endpoint in endpoints:
             try:
@@ -502,18 +529,24 @@ class Context:
                             destination=destination,
                             endpoint=endpoint,
                         )
-                    self._logger.warning(
-                        f"Failed to send message to {destination_address} @ {endpoint}: "
-                        + (await resp.text())
-                    )
-            except aiohttp.ClientConnectorError as ex:
-                self._logger.warning(f"Failed to connect to {endpoint}: {ex}")
-            except Exception as ex:
-                self._logger.warning(
-                    f"Failed to send message to {destination} @ {endpoint}: {ex}"
-                )
 
-        self._logger.exception(f"Failed to deliver message to {destination}")
+                    if logger:
+                        logger.warning(
+                            f"Failed to send message to {destination_address} @ {endpoint}: "
+                            + (await resp.text())
+                        )
+            except aiohttp.ClientConnectorError as ex:
+                if logger:
+                    logger.warning(f"Failed to connect to {endpoint}: {ex}")
+
+            except Exception as ex:
+                if logger:
+                    logger.warning(
+                        f"Failed to send message to {destination} @ {endpoint}: {ex}"
+                    )
+
+        if logger:
+            logger.exception(f"Failed to deliver message to {destination}")
 
         return MsgStatus(
             status=DeliveryStatus.FAILED,
