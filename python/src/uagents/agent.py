@@ -242,7 +242,13 @@ class Agent(Sink):
             ):
                 wallet_chain_id = enable_wallet_messaging["chain_id"]
 
-            from uagents.wallet_messaging import WalletMessagingClient
+            try:
+                from uagents.wallet_messaging import WalletMessagingClient
+            except ImportError as ex:
+                raise ex(
+                    "Unable to include wallet messaging. "
+                    "Please install the 'wallet' extra to enable wallet messaging."
+                )
 
             self._wallet_messaging_client = WalletMessagingClient(
                 self._identity,
