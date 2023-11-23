@@ -1,5 +1,5 @@
 from uagents import Agent, Bureau, Context
-from uagents.wallet_messaging import WalletMessage
+# from uagents.wallet_messaging import WalletMessage
 
 
 ALICE_SEED = "alice dorado recovery phrase"
@@ -10,7 +10,7 @@ bob = Agent(name="bob", seed=BOB_SEED, enable_wallet_messaging=True)
 
 
 @alice.on_wallet_message()
-async def reply(ctx: Context, msg: WalletMessage):
+async def reply(ctx: Context, msg: dict):
     ctx.logger.info(f"Got wallet message: {msg.text}")
     await ctx.send_wallet_message(msg.sender, "hey, thanks for the message")
 

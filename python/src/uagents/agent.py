@@ -249,7 +249,6 @@ class Agent(Sink):
                     "Unable to include wallet messaging. "
                     "Please install the 'wallet' extra to enable wallet messaging."
                 )
-                raise ex
 
             self._wallet_messaging_client = WalletMessagingClient(
                 self._identity,
