@@ -18,6 +18,9 @@ aiohttp = "^3.8.3"
 cosmpy = "^0.9.1"
 websockets = "^10.4"
 
+# extras
+fetchai-babble = "^0.3.0"
+
 [tool.poetry.dev-dependencies]
 aioresponses = "^0.7.4"
 black = "^23.1.0"
@@ -31,9 +34,6 @@ tortoise-orm = "^0.19.2"
 
 [tool.poetry.group.geo.dependencies]
 geopy = "^2.3.0"
-
-[tool.poetry.group.wallet.dependencies]
-fetchai-babble = "^0.3.0"
 
 [tool.poetry.extras]
 wallet = ["fetchai-babble"]

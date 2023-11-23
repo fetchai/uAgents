@@ -170,6 +170,7 @@ class Context:
             for each type of incoming message.
             interval_messages (Optional[Set[str]]): The optional set of interval messages.
             message_received (Optional[MsgDigest]): The optional message digest received.
+            wallet_messaging_client (Optional[Any]): The optional wallet messaging client.
             protocols (Optional[Dict[str, Protocol]]): The optional dictionary of protocols.
             logger (Optional[logging.Logger]): The optional logger instance.
         """
