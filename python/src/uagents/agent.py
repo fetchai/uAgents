@@ -244,7 +244,7 @@ class Agent(Sink):
 
             try:
                 from uagents.wallet_messaging import WalletMessagingClient
-            except ImportError as ex:
+            except ModuleNotFoundError as ex:
                 raise ex(
                     "Unable to include wallet messaging. "
                     "Please install the 'wallet' extra to enable wallet messaging."
