@@ -715,7 +715,7 @@ class Agent(Sink):
             self._logger.warning(
                 "Discarding 'on_wallet_message' handler because wallet messaging is disabled"
             )
-            return None
+            return lambda func: func
         return self._wallet_messaging_client.on_message()
 
     def include(self, protocol: Protocol, publish_manifest: Optional[bool] = False):
