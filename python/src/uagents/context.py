@@ -365,7 +365,7 @@ class Context:
             ]
         )
         self.logger.debug(f"Sent {len(futures)} messages")
-        return list(futures)
+        return futures
 
     async def send_raw(
         self,
