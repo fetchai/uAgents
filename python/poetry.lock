@@ -801,13 +801,13 @@ test = ["pytest (>=6)"]
 
 [[package]]
 name = "fetchai-babble"
-version = "0.3.0"
+version = "0.4.0"
 description = "A simple python library for interacting with the Fetch.ai messaging service (called Memorandum)"
 optional = true
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "fetchai_babble-0.3.0-py3-none-any.whl", hash = "sha256:14f7bcf25fdd4975a0ed400f711dbcd09054da4e99f5f59afe2591be83e72e7c"},
-    {file = "fetchai_babble-0.3.0.tar.gz", hash = "sha256:58f6c1a92833dc32f306db1abf798d4b7c64d666db320d0469852298540cb173"},
+    {file = "fetchai_babble-0.4.0-py3-none-any.whl", hash = "sha256:44dd7184bb448d89ec843cab0df2ec046d9de6bf1395322bd2b5ec580339e229"},
+    {file = "fetchai_babble-0.4.0.tar.gz", hash = "sha256:09d2c47692b3b2c0555dccabf0067ec3bc2cbcf375a1362587e639edd4d87248"},
 ]
 
 [package.dependencies]
@@ -2512,4 +2512,4 @@ wallet = ["fetchai-babble"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "4928fcf3934f823f991e70dbd8081008f0e7c6960059ba2898d823432d002e50"
+content-hash = "89bd914e87770e8bf6fa295480750cbccc518cfea28e8f4dc4cb878fe3dd3d18"
