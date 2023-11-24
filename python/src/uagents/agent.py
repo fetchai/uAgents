@@ -161,6 +161,7 @@ class Agent(Sink):
         max_resolver_endpoints: Optional[int] = None,
         version: Optional[str] = None,
         test: Optional[bool] = True,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
     ):
         """
         Initialize an Agent instance.
@@ -184,7 +185,11 @@ class Agent(Sink):
             if resolve is not None
             else GlobalResolver(max_endpoints=max_resolver_endpoints)
         )
-        self._loop = asyncio.get_event_loop_policy().get_event_loop()
+
+        if loop is not None:
+            self._loop = loop
+        else:
+            self._loop = asyncio.get_event_loop_policy().get_event_loop()
 
         # initialize wallet and identity
         self._initialize_wallet_and_identity(seed, name, wallet_key_derivation_index)

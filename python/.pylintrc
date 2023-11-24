@@ -14,4 +14,3 @@ disable=missing-module-docstring,
         import-outside-toplevel,
         too-many-lines,
         broad-exception-caught
-
