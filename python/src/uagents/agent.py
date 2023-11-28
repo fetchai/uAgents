@@ -174,6 +174,10 @@ class Agent(Sink):
             agentverse (Optional[Union[str, Dict[str, str]]]): The agentverse configuration.
             mailbox (Optional[Union[str, Dict[str, str]]]): The mailbox configuration.
             resolve (Optional[Resolver]): The resolver to use for agent communication.
+            enable_wallet_messaging (Optional[Union[bool, Dict[str, str]]]): Whether to enable
+            wallet messaging. If '{"chain_id": CHAIN_ID}' is provided, this sets the chain ID for
+            the messaging server.
+            wallet_key_derivation_index (Optional[int]): The index used for deriving the wallet key.
             max_resolver_endpoints (Optional[int]): The maximum number of endpoints to resolve.
             version (Optional[str]): The version of the agent.
         """

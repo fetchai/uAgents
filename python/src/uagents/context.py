@@ -565,4 +565,7 @@ class Context:
         text: str,
         msg_type: int = 1,
     ):
-        await self._wallet_messaging_client.send(destination, text, msg_type)
+        if self._wallet_messaging_client is not None:
+            await self._wallet_messaging_client.send(destination, text, msg_type)
+        else:
+            self.logger.warning("Cannot send wallet message: no client available")

@@ -5,7 +5,6 @@ import logging
 from typing import List, Optional
 
 from babble import Client, Identity as BabbleIdentity
-from babble.client import Message as WalletMessage
 from cosmpy.aerial.wallet import LocalWallet
 from requests import HTTPError, JSONDecodeError
 
@@ -56,7 +55,7 @@ class WalletMessagingClient:
 
         return decorator_on_message
 
-    async def send(self, destination: str, msg: WalletMessage, msg_type: int = 1):
+    async def send(self, destination: str, msg: str, msg_type: int = 1):
         self._client.send(destination, msg, msg_type)
 
     async def poll_server(self):
