@@ -15,8 +15,8 @@ from cosmpy.aerial.client import (
 from cosmpy.aerial.exceptions import NotFoundError, QueryTimeoutError
 from cosmpy.aerial.contract.cosmwasm import create_cosmwasm_execute_msg
 from cosmpy.aerial.faucet import FaucetApi
-from cosmpy.aerial.tx_helpers import TxResponse
 from cosmpy.aerial.tx import Transaction
+from cosmpy.aerial.tx_helpers import TxResponse
 from cosmpy.aerial.wallet import LocalWallet
 
 from uagents.config import (

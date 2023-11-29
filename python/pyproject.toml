@@ -18,6 +18,12 @@ aiohttp = "^3.8.3"
 cosmpy = "^0.9.1"
 websockets = "^10.4"
 
+# extras
+fetchai-babble = {version = "^0.4.0", optional = true}
+tortoise-orm = {version = "^0.19.2", optional = true}
+geopy = {version = "^2.3.0", optional = true}
+pyngrok = {version = "^5.2.3", optional = true}
+
 [tool.poetry.dev-dependencies]
 aioresponses = "^0.7.4"
 black = "^23.1.0"
@@ -26,14 +32,13 @@ pylint = "^2.15.3"
 mkdocs = "^1.4.2"
 mkdocs-material = "^9.1.13"
 
-[tool.poetry.group.orm.dependencies]
-tortoise-orm = "^0.19.2"
 
-[tool.poetry.group.geo.dependencies]
-geopy = "^2.3.0"
-
-[tool.poetry.group.remote-agents.dependencies]
-pyngrok = "^5.2.3"
+[tool.poetry.extras]
+all = ["tortoise-orm", "geopy", "fetchai-babble", "pyngrok"]
+wallet = ["fetchai-babble"]
+orm = ["tortoise-orm"]
+geo = ["geopy"]
+remote-agents = ["pyngrok"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

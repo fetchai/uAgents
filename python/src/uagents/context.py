@@ -44,6 +44,7 @@ if TYPE_CHECKING:
 IntervalCallback = Callable[["Context"], Awaitable[None]]
 MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
 EventCallback = Callable[["Context"], Awaitable[None]]
+WalletMessageCallback = Callable[["Context", Any], Awaitable[None]]
 
 
 class DeliveryStatus(str, Enum):
@@ -147,6 +148,7 @@ class Context:
         replies: Optional[Dict[str, Dict[str, Type[Model]]]] = None,
         interval_messages: Optional[Set[str]] = None,
         message_received: Optional[MsgDigest] = None,
+        wallet_messaging_client: Optional[Any] = None,
         protocols: Optional[Dict[str, Protocol]] = None,
         logger: Optional[logging.Logger] = None,
     ):
@@ -168,6 +170,7 @@ class Context:
             for each type of incoming message.
             interval_messages (Optional[Set[str]]): The optional set of interval messages.
             message_received (Optional[MsgDigest]): The optional message digest received.
+            wallet_messaging_client (Optional[Any]): The optional wallet messaging client.
             protocols (Optional[Dict[str, Protocol]]): The optional dictionary of protocols.
             logger (Optional[logging.Logger]): The optional logger instance.
         """
@@ -184,6 +187,7 @@ class Context:
         self._replies = replies
         self._interval_messages = interval_messages
         self._message_received = message_received
+        self._wallet_messaging_client = wallet_messaging_client
         self._protocols = protocols or {}
         self._logger = logger
 
@@ -554,3 +558,14 @@ class Context:
             destination=destination,
             endpoint="",
         )
+
+    async def send_wallet_message(
+        self,
+        destination: str,
+        text: str,
+        msg_type: int = 1,
+    ):
+        if self._wallet_messaging_client is not None:
+            await self._wallet_messaging_client.send(destination, text, msg_type)
+        else:
+            self.logger.warning("Cannot send wallet message: no client available")
