@@ -4,7 +4,11 @@ import functools
 import logging
 from typing import List, Optional
 
-from babble import Client, Identity as BabbleIdentity
+from babble import (  # pylint: disable=unused-import
+    Client,
+    Identity as BabbleIdentity,
+    Message as WalletMessage,
+)
 from cosmpy.aerial.wallet import LocalWallet
 from requests import HTTPError, JSONDecodeError
 
