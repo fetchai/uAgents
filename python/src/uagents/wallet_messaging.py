@@ -60,7 +60,10 @@ class WalletMessagingClient:
         return decorator_on_message
 
     async def send(self, destination: str, msg: str, msg_type: int = 1):
-        self._client.send(destination, msg, msg_type)
+        try:
+            self._client.send(destination, msg, msg_type)
+        except Exception as ex:
+            self._logger.warning(f"Failed to send message to {destination}: {ex}")
 
     async def poll_server(self):
         self._logger.info("Connecting to wallet messaging server")
@@ -72,6 +75,7 @@ class WalletMessagingClient:
                 HTTPError,
                 ConnectionError,
                 JSONDecodeError,
+                Exception,
             ) as ex:
                 self._logger.warning(
                     f"Failed to get messages from wallet messaging server: {ex}"
