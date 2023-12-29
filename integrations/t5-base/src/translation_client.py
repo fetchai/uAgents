@@ -1,5 +1,5 @@
 from uagents import Bureau
-from agents.t5_base_user import user
+from agents.t5_base_user_translate import user
 
 if __name__ == "__main__":
     bureau = Bureau(endpoint="http://127.0.0.1:8001/submit", port=8001)
