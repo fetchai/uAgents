@@ -1,6 +1,6 @@
 ## Installation (Python)
 
-Install μAgents for Python 3.8, 3.9, 3.10, or 3.11:
+Install μAgents for Python 3.8 to 3.12:
 
 ```bash
 poetry install
