@@ -345,7 +345,7 @@ class NameServiceContract(LedgerContract):
         Returns:
             bool: True if the domain is public, False otherwise.
         """
-        res = self.query({"domain_record": {"domain": f".{domain}"}})
+        res = self.query({"domain_record": {"domain": f"VAL.{domain}"}})
         return res["is_public"]
 
     def get_registration_tx(
@@ -370,24 +370,38 @@ class NameServiceContract(LedgerContract):
             Optional[Transaction]: The registration transaction, or None if the name is not
             available or not owned by the wallet address.
         """
-        if not self.is_name_available(name, domain) and not self.is_owner(
-            name, domain, wallet_address
-        ):
-            return None
-
-        registration_msg = {
-            "register": {
-                "domain": f"{name}.{domain}",
-                "agent_address": agent_address,
-            }
-        }
+        transaction = Transaction()
 
         contract = (
             TESTNET_CONTRACT_NAME_SERVICE if test else MAINNET_CONTRACT_NAME_SERVICE
         )
-        transaction = Transaction()
+
+        if self.is_name_available(name, domain):
+            price_per_second = self.query({"contract_state": {}})["price_per_second"]
+            amount = int(price_per_second["amount"]) * 86400
+            denom = price_per_second["denom"]
+
+            registration_msg = {"register": {"domain": f"{name}.{domain}"}}
+
+            transaction.add_message(
+                create_cosmwasm_execute_msg(
+                    wallet_address, contract, registration_msg, funds=f"{amount}{denom}"
+                )
+            )
+        elif not self.is_owner(name, domain, wallet_address):
+            return None
+
+        agent_record = {"address": agent_address, "weight": 1}
+
+        record_msg = {
+            "update_record": {
+                "domain": f"{name}.{domain}",
+                "agent_records": [agent_record],
+            }
+        }
+
         transaction.add_message(
-            create_cosmwasm_execute_msg(wallet_address, contract, registration_msg)
+            create_cosmwasm_execute_msg(wallet_address, contract, record_msg)
         )
 
         return transaction
