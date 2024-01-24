@@ -345,7 +345,7 @@ class NameServiceContract(LedgerContract):
         Returns:
             bool: True if the domain is public, False otherwise.
         """
-        res = self.query({"query_domain_flags": {"domain": domain}}).get("domain_flags")
+        res = self.query({"query_domain_flags": {"domain": domain.split(".")[-1]}}).get("domain_flags")
         if res:
             return res["web3_flags"]["is_public"]
         return False

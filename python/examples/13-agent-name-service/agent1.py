@@ -22,7 +22,7 @@ bob = Agent(
 my_wallet = LocalWallet.from_unsafe_seed("registration test wallet")
 name_service_contract = get_name_service_contract(test=True)
 faucet = get_faucet()
-DOMAIN = "agent"
+DOMAIN = "example.agent"
 
 faucet.get_wealth(my_wallet.address())
 
