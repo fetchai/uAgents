@@ -14,6 +14,7 @@ alice = Agent(
 
 DOMAIN = "example.agent"
 
+
 @alice.on_interval(period=5)
 async def alice_interval_handler(ctx: Context):
     bob_name = "bob-0" + "." + DOMAIN
