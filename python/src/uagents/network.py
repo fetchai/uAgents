@@ -345,8 +345,10 @@ class NameServiceContract(LedgerContract):
         Returns:
             bool: True if the domain is public, False otherwise.
         """
-        res = self.query({"domain_record": {"domain": f"VAL.{domain}"}})
-        return res["is_public"]
+        res = self.query({"query_domain_flags": {"domain": domain}}).get("domain_flags")
+        if res:
+            return res["web3_flags"]["is_public"]
+        return False
 
     def get_registration_tx(
         self,
