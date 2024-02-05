@@ -137,7 +137,6 @@ def get_agent_address(name: str, test: bool) -> str:
             selected_address = (
                 selected_address_list[0] if selected_address_list else None
             )
-            print(selected_address)
             return selected_address
     return None
 
