@@ -134,7 +134,9 @@ def get_agent_address(name: str, test: bool) -> str:
             addresses = [val.get("address") for val in registered_records]
             weights = [val.get("weight") for val in registered_records]
             selected_address_list = weighted_random_sample(addresses, weights=weights)
-            selected_address = selected_address_list[0] if selected_address_list else None
+            selected_address = (
+                selected_address_list[0] if selected_address_list else None
+            )
             print(selected_address)
             return selected_address
     return None
