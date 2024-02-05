@@ -130,13 +130,11 @@ def get_agent_address(name: str, test: bool) -> str:
     result = get_name_service_contract(test).query(query_msg)
     if result["record"] is not None:
         registered_records = result["record"]["records"][0]["agent_address"]["records"]
-        print(registered_records)
         if len(registered_records) > 0:
             addresses = [val.get("address") for val in registered_records]
             weights = [val.get("weight") for val in registered_records]
             selected_address_list = weighted_random_sample(addresses, weights=weights)
             selected_address = selected_address_list[0] if selected_address_list else None
-            print("SELECTED:")
             print(selected_address)
             return selected_address
     return None
