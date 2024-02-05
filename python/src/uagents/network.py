@@ -2,7 +2,7 @@
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import Any, Optional, Dict, List
+from typing import Any, Optional, Dict, List, Union
 
 from cosmpy.aerial.contract import LedgerContract
 from cosmpy.aerial.client import (
@@ -78,6 +78,29 @@ def add_testnet_funds(wallet_address: str):
     _faucet_api._try_create_faucet_claim(  # pylint: disable=protected-access
         wallet_address
     )
+
+
+def parse_record_config(
+    record: Optional[Union[str, List[str], Dict[str, dict]]]
+) -> List[Dict[str, Any]]:
+    """
+    Parse the user-provided record configuration.
+
+    Returns:
+        List[Dict[str, Any]]: The parsed record configuration in correct format.
+    """
+    if isinstance(record, dict):
+        records = [
+            {"address": val[0], "weight": val[1].get("weight") or 1}
+            for val in record.items()
+        ]
+    elif isinstance(record, list):
+        records = [{"address": val, "weight": 1} for val in record]
+    elif isinstance(record, str):
+        records = [{"address": record, "weight": 1}]
+    else:
+        records = None
+    return records
 
 
 async def wait_for_tx_to_complete(
@@ -356,7 +379,7 @@ class NameServiceContract(LedgerContract):
         self,
         name: str,
         wallet_address: str,
-        agent_address: str,
+        agent_records: List[Dict[str, Any]],
         domain: str,
         test: bool,
     ):
@@ -395,12 +418,10 @@ class NameServiceContract(LedgerContract):
         elif not self.is_owner(name, domain, wallet_address):
             return None
 
-        agent_record = {"address": agent_address, "weight": 1}
-
         record_msg = {
             "update_record": {
                 "domain": f"{name}.{domain}",
-                "agent_records": [agent_record],
+                "agent_records": agent_records,
             }
         }
 
@@ -414,7 +435,7 @@ class NameServiceContract(LedgerContract):
         self,
         ledger: LedgerClient,
         wallet: LocalWallet,
-        agent_address: str,
+        agent_records: Optional[Union[str, List[str], Dict[str, dict]]],
         name: str,
         domain: str,
     ):
@@ -431,13 +452,17 @@ class NameServiceContract(LedgerContract):
         logger.info("Registering name...")
         chain_id = ledger.query_chain_id()
 
-        if not get_almanac_contract(chain_id == "dorado-1").is_registered(
-            agent_address
-        ):
-            logger.warning(
-                f"Agent {name} needs to be registered in almanac contract to register its name"
-            )
-            return
+        records = parse_record_config(agent_records)
+        agent_addresses = [val.get("address") for val in records]
+
+        for agent_address in agent_addresses:
+            if not get_almanac_contract(chain_id == "dorado-1").is_registered(
+                agent_address
+            ):
+                logger.warning(
+                    f"Address {agent_address} needs to be registered in almanac contract to be registered in a domain"
+                )
+                return
 
         if not self.is_domain_public(domain):
             logger.warning(
@@ -448,7 +473,7 @@ class NameServiceContract(LedgerContract):
         transaction = self.get_registration_tx(
             name,
             str(wallet.address()),
-            agent_address,
+            records,
             domain,
             chain_id == "dorado-1",
         )
