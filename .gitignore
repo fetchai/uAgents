@@ -1,6 +1,5 @@
 .idea/
 *.py[cgo]
 __pycache__
-*.json
 dist/
 *.sqlite3

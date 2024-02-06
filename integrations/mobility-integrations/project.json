@@ -1,0 +1,5 @@
+{
+    "title": "Mobility Integrations",
+    "description": "This contains examples of mobility integrations using two agents: `ev_charger` and `geoapi_car_parking`",
+    "categories":   ["Mobility", "Geocoding"]
+}
