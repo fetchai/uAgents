@@ -375,6 +375,24 @@ class NameServiceContract(LedgerContract):
             return res["web3_flags"]["is_public"]
         return False
 
+    def get_previous_records(self, name: str, domain: str):
+        """
+        Retrieve the previous records for a given name within a specified domain.
+
+        Args:
+            name (str): The name whose records are to be retrieved.
+            domain (str): The domain within which the name is registered.
+
+        Returns:
+            A list of dictionaries, where each dictionary contains
+            details of a record associated with the given name.
+        """
+        query_msg = {"domain_record": {"domain": f"{name}.{domain}"}}
+        result = self.query(query_msg)
+        if result["record"] is not None:
+            return result["record"]["records"][0]["agent_address"]["records"]
+        return []
+
     def get_registration_tx(
         self,
         name: str,
@@ -438,6 +456,7 @@ class NameServiceContract(LedgerContract):
         agent_records: Optional[Union[str, List[str], Dict[str, dict]]],
         name: str,
         domain: str,
+        overwrite: bool = True,
     ):
         """
         Register a name within a domain using the NameService contract.
@@ -448,6 +467,8 @@ class NameServiceContract(LedgerContract):
             agent_address (str): The address of the agent.
             name (str): The name to be registered.
             domain (str): The domain in which the name is registered.
+            overwrite (bool, optional): Whether to overwrite the existing name.
+            Defaults to True.
         """
         logger.info("Registering name...")
         chain_id = ledger.query_chain_id()
@@ -470,6 +491,15 @@ class NameServiceContract(LedgerContract):
                 f"Domain {domain} is not public, please select a public domain"
             )
             return
+
+        if not overwrite:
+            previous_records = self.get_previous_records(name, domain)
+            records = list(
+                {
+                    f"{rec['address']}_{rec['weight']}": rec
+                    for rec in previous_records + records
+                }.values()
+            )
 
         transaction = self.get_registration_tx(
             name,
