@@ -467,8 +467,9 @@ class NameServiceContract(LedgerContract):
             agent_address (str): The address of the agent.
             name (str): The name to be registered.
             domain (str): The domain in which the name is registered.
-            overwrite (bool, optional): Whether to overwrite the existing name.
-            Defaults to True.
+            overwrite (bool, optional): Specifies whether to overwrite any existing
+                addresses registered to the domain. If False, the address will be
+                appended to the previous records. Defaults to True.
         """
         logger.info("Registering name...")
         chain_id = ledger.query_chain_id()
