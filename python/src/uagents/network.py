@@ -482,8 +482,8 @@ class NameServiceContract(LedgerContract):
                 agent_address
             ):
                 logger.warning(
-                    f"Address {agent_address} needs to be registered in almanac contract "
-                    + "to be registered in a domain"
+                    "Address %s needs to be registered in almanac contract "
+                    "to be registered in a domain", agent_address
                 )
                 return
 
