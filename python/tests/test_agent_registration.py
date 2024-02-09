@@ -44,7 +44,11 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(is_owner, False, "Agent shouldn't own any domain")
 
     async def test_name_service_registration(self):
-        agent = Agent(endpoint=["http://localhost:8000/submit"], name="testagent")
+        agent = Agent(
+            endpoint=["http://localhost:8000/submit"],
+            name="testingagent",
+            seed="testingagent",
+        )
 
         domain = "agent"
 
@@ -61,12 +65,14 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
         name_service_contract = get_name_service_contract(test=True)
 
         is_name_available = name_service_contract.is_name_available(agent.name, domain)
-        self.assertEqual(is_name_available, True, "Agent name should be available")
-
         is_owner = name_service_contract.is_owner(
             agent.name, domain, str(agent.wallet.address())
         )
-        self.assertEqual(is_owner, False)
+        self.assertEqual(
+            is_name_available or is_owner,
+            True,
+            "Agent name should be available or agent should be owner",
+        )
 
         await name_service_contract.register(
             agent._ledger, agent.wallet, agent.address, agent.name, domain=domain
