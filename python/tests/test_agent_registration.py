@@ -44,7 +44,7 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(is_owner, False, "Agent shouldn't own any domain")
 
     async def test_name_service_registration(self):
-        agent = Agent(endpoint=["http://localhost:8000/submit"])
+        agent = Agent(endpoint=["http://localhost:8000/submit"], name="testagent")
 
         domain = "agent"
 
