@@ -5,7 +5,7 @@ from uagents import Agent, Model, Context, Protocol
 from uagents.setup import fund_agent_if_low
 from models import Response, Response_list, Location
 
-#defining business details angent 
+# Defining business details agent
 business_agent = Agent(
     name = 'business_details_agent',
     port = 1123,
@@ -13,15 +13,15 @@ business_agent = Agent(
     endpoint = 'http://localhost:1123/submit'
 )
 
-#funding business details agent
+# Funding business details agent
 fund_agent_if_low(business_agent.wallet.address())
 
-# defining business details protocol
+# Defining business details protocol
 business_protocol = Protocol("Bussiness Details Protocol")
 
-#defining function to get details of opted business
+# Defining function to get details of opted business
 async def business_list(name, city, category):
-    #calling API to get city's location coordinates
+    # Calling API to get city's location coordinates
     url = "https://geocoding-by-api-ninjas.p.rapidapi.com/v1/geocoding"
     querystring = {"city":city}
     headers = {
@@ -33,7 +33,7 @@ async def business_list(name, city, category):
     data = response.json()[0]
     longitude = str(data['longitude'])
     latitude = str(data['latitude'])
-    #calling API to get details for selected business
+    # Calling API to get details for selected business
     url = "https://local-business-data.p.rapidapi.com/search-nearby"
     querystring = {"query":category,"lat":latitude,"lng":longitude,"limit":"10","language":"en"}
     headers = {
@@ -57,23 +57,23 @@ async def business_list(name, city, category):
         else:
             continue
     
-#logging agent's address on startup
+# Logging agent's address on startup
 @business_agent.on_event('startup')
 async def agent_address(ctx: Context):
     ctx.logger.info(business_agent.address)
 
-# handling business details request from business finder agent
+# Handling business details request from business finder agent
 @business_agent.on_message(model=Response_list, replies = Response)
 async def bussiness_finder(ctx: Context, sender: str, msg: Response_list):
-    #logging list of businesses
+    # Logging list of businesses
     ctx.logger.info(msg.name_list)
-    #taking input from user to choose business name
+    # Taking input from user to choose business name
     number = int(input('Please select item from list'))
-    # fetching business details from API
+    # Fetching business details from API
     business = await business_list(msg.name_list[number-1], msg.city, msg.category)
     business = str(business)
-    #logging busineess details
+    # Logging busineess details
     ctx.logger.info(business)
-    #sending response to business finder agent    
+    # Sending response to business finder agent    
     await ctx.send(sender, Response(response = business)) 
 
