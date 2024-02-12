@@ -2,11 +2,11 @@
 
 This repository contains examples of business finder integrations using three agents: `business_finder_agent`, `business_details_agent` and `user_agent`.
 
-1. `user_agent` : This agent takes request as details from user (city and category), type of business they want to look for. 
+1. `user_agent`: This agent takes request as details from user (city and category), type of business they want to look for. 
 
-2. `business_finder_agent`: This agent takes city and category from user, fetch city's location coordinates using [GeoCoding API](https://rapidapi.com/apininjas/api/geocoding-by-api-ninjas/) and passing it to [Local Business Finder](https://rapidapi.com/alreadycoded/api/local-business-listing-finder/) to fetch list of ten businesses names.
+2. `business_finder_agent`: This agent takes city and category from user, fetches city's location coordinates using [GeoCoding API](https://rapidapi.com/apininjas/api/geocoding-by-api-ninjas/) and passes it to [Local Business Finder](https://rapidapi.com/alreadycoded/api/local-business-listing-finder/) to fetch list of ten businesses names.
 
-3. `business_details_agent`: This agent gets list of business names from business finder agent and takes input from user, which business they want details about. It retrieves the details of business using API's used in `business_finder_agent` and sends it to `business_finder_agent` which in turn sends it to user.
+3. `business_details_agent`: This agent gets list of business names from business finder agent and takes input from user about which business they want details about. It retrieves the details of the business using API's used in `business_finder_agent` and sends it to `business_finder_agent` which in turn sends it to user.
 
 ## Getting Started 🚀
 
