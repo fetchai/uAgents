@@ -1,7 +1,7 @@
-#importing models module from uagents library
+# Importing models module from uagents library
 from uagents import Model
 
-#defining classes for handling request and response
+# Defining classes for handling request and response
 class Location(Model):
     city: str
     category : str
