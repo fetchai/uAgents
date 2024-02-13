@@ -39,10 +39,10 @@ async def business_list(city, category):
 	    "X-RapidAPI-Host": "local-business-data.p.rapidapi.com"
     }
     response = requests.get(url, headers=headers, params=querystring)
+    # defining empty business list
     business = []
     data = response.json()['data']
-    print(1)
-    print(data)
+    #populating businesses in the business list.
     for i in range(10):
         details = data[i]['name']
         business.append(details)
