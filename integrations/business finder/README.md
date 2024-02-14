@@ -44,4 +44,4 @@ cd src
 python main.py
 ```
 
-Now you have the agents up and running to perform mobility integrations using the provided APIs. Happy integrating! 🎉
+Now you have the agents up and running to perform business finder integrations using the provided APIs. Happy integrating! 🎉
