@@ -20,12 +20,12 @@ Langchain RAG integration example offers a guide to setting up and using RAG (re
 
     Note that if you’ve run out of OpenAI credits, you will not be able to get results for this example.
 
-2. In the `langchain-rag/src` directory, create a `.env` file and set your API keys:
+2. In the `langchain-rag/src` directory, create a `.env` file and set your API keys and the agent seed:
 
     ```
     export COHERE_API_KEY="{GET THE API KEY}"
     export OPENAI_API_KEY="{GET THE API KEY}"
-    export LANGCHAIN_RAG_SEED="{GET THE API KEY}"
+    export LANGCHAIN_RAG_SEED="{random string that determines your agent's address}"
     ```
 
 3. In the `langchain-rag` directory install all dependencies
