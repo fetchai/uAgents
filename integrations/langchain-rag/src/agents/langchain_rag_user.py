@@ -17,10 +17,10 @@ user = Agent(
     endpoint=["http://127.0.0.1:8000/submit"],
 )
 
-langchain_rag_user = Protocol("Langchain RAG user")
+rag_user = Protocol("Langchain RAG user")
 
 
-@langchain_rag_user.on_interval(60, messages=RagRequest)
+@rag_user.on_interval(60, messages=RagRequest)
 async def ask_question(ctx: Context):
     ctx.logger.info(
         f"Asking RAG agent to answer {QUESTION} based on document located at {URL}, readin nested pages too: {DEEP_READ}"
@@ -30,12 +30,12 @@ async def ask_question(ctx: Context):
     )
 
 
-@langchain_rag_user.on_message(model=UAgentResponse)
+@rag_user.on_message(model=UAgentResponse)
 async def handle_data(ctx: Context, sender: str, data: UAgentResponse):
     ctx.logger.info(f"Got response from RAG agent: {data.message}")
 
 
-user.include(langchain_rag_user)
+user.include(rag_user)
 
 if __name__ == "__main__":
-    langchain_rag_user.run()
+    rag_user.run()
