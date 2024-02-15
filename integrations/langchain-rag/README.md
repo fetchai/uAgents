@@ -1,6 +1,6 @@
-# Langchain RAG integration
+# LangChain RAG integration
 
-Langchain RAG integration example offers a guide to setting up and using RAG (retrieval augmented generation) technology in a uagent. This example shows how to create a RAG application that can answer question based on a document.
+LangChain RAG integration example offers a guide to setting up and using RAG (retrieval augmented generation) technology in a uagent. This example shows how to create a RAG application that can answer question based on a document.
 
 - Python (v3.10+ recommended)
 - Poetry (A Python packaging and dependency management tool)
@@ -66,4 +66,4 @@ URL = "https://fetch.ai/docs/guides/agents/installing-uagent"
 DEEP_READ = "no"  # it means nested pages at the URL won't be parsed, just the actual URL
 ```
 
-Now you can enjoy answering questions with Langchan RAG agent!
+Now you can enjoy answering questions with LangChain RAG agent!

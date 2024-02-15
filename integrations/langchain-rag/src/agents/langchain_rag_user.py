@@ -17,7 +17,7 @@ user = Agent(
     endpoint=["http://127.0.0.1:8000/submit"],
 )
 
-rag_user = Protocol("Langchain RAG user")
+rag_user = Protocol("LangChain RAG user")
 
 
 @rag_user.on_interval(60, messages=RagRequest)
