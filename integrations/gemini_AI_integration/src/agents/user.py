@@ -7,7 +7,7 @@ from uagents import Model
 class Message(Model):
     message: str
 
-# Specifying the address of the restaurant agent
+# Specifying the address of the gemini ai agent
 Gemini_Address = "agent1qwg20ukwk97t989h6kc8a3sev0lvaltxakmvvn3sqz9jdjw4wsuxqa45e8l" # replace your Gemini API key here
 
 # Defining the user agent with specific configuration details
@@ -26,7 +26,7 @@ fund_agent_if_low(user.wallet.address())
 async def agent_address(ctx: Context):
     # Logging the user agent's address
     ctx.logger.info(user.address)
-    # Prompting for user input and sending it as a message to the restaurant agent
+    # Prompting for user input and sending it as a message to the gemini agent
     message = str(input('You:'))
     await ctx.send(Gemini_Address, Message(message=message))
 
