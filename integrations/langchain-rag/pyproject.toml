@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "langchain-rag"
+version = "0.1.0"
+description = "langchain-rag-uagent-integration"
+authors = ["Fetch.AI Limited"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+uagents = "*"
+requests = "^2.31.0"
+langchain = "^0.1.7"
+openai = "^1.12.0"
+langchain-openai = "^0.0.6"
+tiktoken = "^0.6.0"
+cohere = "^4.47"
+faiss-cpu = "^1.7.4"
+validators = "^0.22.0"
+uagents-ai-engine = "^0.1.2"
+unstructured = "^0.12.4"
