@@ -1,0 +1,45 @@
+# uAgent Live Sports Integration
+
+This repository contains examples of live sports integrations using three agents: `sports_agent` and `user_agent`.
+
+1. `user_agent` : This agent takes from and to location request as details from user, and responds with all possible routes with detailed plan.
+
+2. `sports_agent`: This agent takes sports name from user, for all sports other than cricket [Sport Score API](https://rapidapi.com/tipsters/api/sportscore1/) is used to fetch live scores. For cricket [LiveScore Sports API](https://rapidapi.com/tipsters/api/livescore-sports) is used to get live scores.
+
+## Getting Started 🚀
+
+To use these agents, follow the steps below:
+
+### Step 1: Obtain API Keys 🔑
+
+Before running the agents, you need to obtain the required API keys:
+
+#### Sport Score API
+
+1. Visit the RapidAPI website:https://rapidapi.com/tipsters/api/sportscore1/
+2. If you don't have an account, create one by signing up.
+3. Once you are logged in, click on test endpoint and register for API on free-tier.
+4. Once done you will see X-RapidAPI-Key in header parameter.
+
+#### LiveScore Sports API
+
+1. Visit the RapidAPI website: https://rapidapi.com/tipsters/api/livescore-sports
+2. If you don't have an account, create one by signing up.
+3. Once you are logged in, click on test endpoint and register for API on free-tier.
+4. Once done you will see X-RapidAPI-Key in header parameter.
+
+### Step 2: Set API Keys and address in agent scripts
+
+1. Fill in the API Keys in the `sports_agent` scripts.
+2. Replace the sports agent address in user agent's script.
+
+### Step 3: Run Project
+
+To run the project and its agents:
+
+```bash
+cd src
+python main.py
+```
+
+Now you have the agents up and running to perform live sports score integrations using the provided APIs. Happy integrating! 🎉
