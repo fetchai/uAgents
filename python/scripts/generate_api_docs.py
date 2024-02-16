@@ -29,7 +29,7 @@ def create_subdir(path: str) -> None:
 
 def replace_underscores(text: str) -> str:
     """
-    Replace escaped underscores in a text.
+    Replace escaped underscores in text.
     :param text: the text to replace underscores in
     :return: the processed text
     """
