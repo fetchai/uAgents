@@ -35,7 +35,7 @@ mkdocs-material = "^9.1.13"
 
 
 [tool.poetry.extras]
-all = ["tortoise-orm", "geopy", "fetchai-babble", "pyngrok"]
+all = ["tortoise-orm", "geopy", "fetchai-babble", "pyngrok", "fastapi"]
 wallet = ["fetchai-babble"]
 orm = ["tortoise-orm"]
 geo = ["geopy"]
