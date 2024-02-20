@@ -306,6 +306,7 @@ class Context:
         self,
         destination: str,
         message: Model,
+        session_id: Optional[uuid.UUID] = None,
         timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
         """
@@ -325,6 +326,7 @@ class Context:
             message.json(),
             schema_digest,
             message_type=type(message),
+            session_id=session_id,
             timeout=timeout,
         )
 
@@ -377,6 +379,7 @@ class Context:
         json_message: JsonStr,
         schema_digest: str,
         message_type: Optional[Type[Model]] = None,
+        session_id: Optional[uuid.UUID] = None,
         timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
         """
@@ -471,7 +474,7 @@ class Context:
             json_message,
             logger=self._logger,
             timeout=timeout,
-            session_id=self._session,
+            session_id=session_id or self._session,
         )
 
     @staticmethod
