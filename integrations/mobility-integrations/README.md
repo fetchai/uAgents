@@ -31,32 +31,10 @@ Before running the agents, you need to obtain the required API keys:
 4. Give your project a name and click "OK" to create the new project.
 5. Your `GEOAPI_API_KEY` will be generated. Copy this key and keep it secure, as it will be used to access Geoapify Projects and other services.
 
-### Step 2: Set Environment Variables 🌐
+#### GOOGLE_MAPS_API_KEY 🗺️
 
-Create a `.env` file in the `mobility-integrations` directory and export the obtained API keys as environment variables:
-
-```bash
-export OPENCHARGEMAP_API_KEY="{GET THE API KEY}"
-export GEOAPI_API_KEY="{GET THE API KEY}"
-```
-
-### Step 3: Install Dependencies ⚙️
-
-To use the environment variables from the `.env` file and install the project dependencies:
-
-```bash
-source .env
-poetry install
-```
-
-### Step 4: Run the Project 🏃
-
-To run the project and its agents:
-
-```bash
-cd src
-poetry shell
-python main.py
-```
-
-Now you have the agents up and running to perform mobility integrations using the provided APIs. Happy integrating! 🎉
+1. Go to the Google Cloud Console: https://console.cloud.google.com/.
+2. Create a new project or select an existing project from the top right corner.
+3. In the left navigation, click on the "API & Services" > "Credentials" section.
+4. Create a new API Key and restrict it to the Google Maps APIs you plan to use (e.g., Maps JavaScript API).
+5. Copy your `GOOGLE_MAPS_API_KEY` and make sure to keep it secure.
