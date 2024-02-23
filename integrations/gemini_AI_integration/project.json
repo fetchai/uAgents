@@ -1,5 +1,7 @@
 {
     "title": "Google Gemini Integration",
     "description": "This integration helps to have chat conversation with Google Gemini Generative AI",
-    "categories":    ["Generative AI", "Google Gemini"]
+    "categories":    ["Generative AI", "Google Gemini"],
+    "deltav": false
+}
 }
