@@ -1,13 +1,14 @@
-# 🌎 geocode integrations examples 🚴
+# 🌎 EV integrations examples 🚗
 
 ## geocode
 
 This agent returns EV Chargers from the open chargemap API, requires lat/lon to get distance to EV charger. 
 
-#### GOOGLE_MAPS_API_KEY 🗺️
+#### OPENCHARGEMAP_API_KEY 🔌
 
-1. Go to the Google Cloud Console: https://console.cloud.google.com/.
-2. Create a new project or select an existing project from the top right corner.
-3. In the left navigation, click on the "API & Services" > "Credentials" section.
-4. Create a new API Key and restrict it to the Google Maps APIs you plan to use (e.g., Maps JavaScript API).
-5. Copy your `GOOGLE_MAPS_API_KEY` and make sure to keep it secure
+1. Visit the OpenChargeMap API website: https://openchargemap.org/site/develop/api.
+2. If you don't have an account, create one by signing up.
+3. Once you are logged in, click on MY PROFILE > my apps at the top.
+4. Click on the REGISTER AN APPLICATION button.
+5. Fill out the required information in the form, including the purpose of using the API, and submit the request.
+6. Once approved, you will see your `OPENCHARGEMAP_API_KEY` under MY API KEYS.
