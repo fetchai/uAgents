@@ -1,7 +1,8 @@
 {
     "title": "Fetch AI Engine",
     "description": "This integration adds types required by AI-Engine to UAgents",
-    "categories":    ["AI Engine"],
+    "categories": [
+        "AI Engine"
+    ],
     "deltav": false
-}
 }
