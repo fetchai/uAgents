@@ -14,9 +14,12 @@ Contributions to integrations are welcome 😊 the integrations repo is the plac
 {
     "title": "Bert Base Uncased",
     "description": "BERT base model (uncased) Pretrained model on English language using a masked language modeling (MLM) objective.",
-    "categories":    ["Text Classification", "Hugging Face", "Text Generation"]
+    "categories":    ["Text Classification", "Hugging Face", "Text Generation"], 
+    "deltav": false
 }
 ```
+
+Set deltav to true if your agent is built using agentverse and is accessible by DeltaV.
 
 ## Commits and PRs
 
