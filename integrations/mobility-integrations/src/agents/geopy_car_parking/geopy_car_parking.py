@@ -1,123 +1,144 @@
-import os
+# Here we demonstrate how we can create a DeltaV compatible agent responsible for getting Car Parking from Geoapify
+# API. After running this agent, it can be registered to DeltaV on Agentverse's Services tab. For registration,
+# you will have to use the agent's address.
+#
+# third party modules used in this example
 import uuid
 
 import requests
-from messages import GeoParkingRequest, KeyValue, UAgentResponse, UAgentResponseType
-from uagents import Agent, Context, Protocol
-from uagents.setup import fund_agent_if_low
+from ai_engine import UAgentResponse, UAgentResponseType, KeyValue
+from pydantic import Field
 
-GEOAPI_PARKING_SEED = os.getenv(
-    "GEOAPI_PARKING_SEED", "geoapi parking adaptor agent secret phrase"
-)
-agent = Agent(name="geoapi_parking_adaptor", seed=GEOAPI_PARKING_SEED)
-geoapi_parking_protocol = Protocol("Geoapi CarParking")
-
-fund_agent_if_low(agent.wallet.address())
-
-GEOAPI_API_KEY = os.getenv("GEOAPI_API_KEY", "")
-
-assert GEOAPI_API_KEY, "GEOAPI_API_KEY environment variable is missing from .env"
-
-PARKING_API_URL = "https://api.geoapify.com/v2/places?"
+# modules from booking_protocol.py
+from booking_protocol import booking_proto
 
 
-def format_parking_data(api_response) -> list:
+class GeoParkingRequest(Model):
+    latitude: float = Field(
+        description="Describes the latitude where the user wants a Car parking. this shouldn't be the user location, "
+                    "but location of the place user specified")
+    longitude: float = Field(
+        description="Describes the longitude where the user wants a Car parking. this shouldn't be the user location, "
+                    "but the location of the place the user specified.")
+    radius: int = Field(
+        description="Distance in miles, the maximum distance b/w car parking and the location provided by user")
+    max_result: int = Field(description="Number of Parking Names, that user wants.")
+
+
+# To use this example, you will need to provide an API key for Google Maps: https://developers.google.com/maps
+URL = "https://api.geoapify.com/v2/places?"
+
+API_KEY = "YOUR_API_KEY"
+
+if API_KEY == "YOUR_API_KEY":
+    raise Exception("You need to provide an API key for Google Maps to use this example")
+
+MAX_RESULTS = 10
+
+parking_protocol_geoapi = Protocol("Geoapi CarParking")
+
+
+def reform_data(api_response):
     """
-    By taking the response from the API, this function formats the response
-    to be appropriate for displaying back to the user.
+    Reforms the Api Response into Options for Sending o Delta V.
+    Args:
+        api_response (Dict): Api Response From Geoapify API
+    Returns:
+        list or None: A list of Parking Space data if API is successful.
     """
-    parking_data = []
-    parking_name = "Unknown Parking"
+    refactored_data = []
+    parking_name = "Unknown"
     parking_capacity = ""
     for place in api_response["features"]:
-        if "name" in place["properties"]:
-            parking_name = place["properties"]["name"]
-            address = place["properties"]["formatted"].split(",")[1::]
+        if 'name' in place['properties']:
+            parking_name = place['properties']['name']
+            address = place['properties']['formatted'].split(",")[1::]
             parking_address = "".join(list(address))
-        elif "formatted" in place["properties"]:
-            parking_address = place["properties"]["formatted"]
+        elif 'formatted' in place['properties']:
+            parking_address = place['properties']['formatted']
         else:
             continue
-        if "capacity" in place["properties"]["datasource"]["raw"]:
-            parking_capacity = (
-                f'{place["properties"]["datasource"]["raw"]["capacity"]} spaces'
-            )
-        elif "parking" in place["properties"]["datasource"]["raw"]:
-            parking_capacity = (
-                f'{place["properties"]["datasource"]["raw"]["parking"]} parking'
-            )
-        elif (
-            "access" in place["properties"]["datasource"]["raw"]
-            and place["properties"]["datasource"]["raw"]["access"] != "yes"
-        ):
+        if 'capacity' in place['properties']['datasource']['raw']:
+            parking_capacity = str(place['properties']['datasource']['raw']['capacity']) + " spaces"
+        elif 'parking' in place['properties']['datasource']['raw']:
+            parking_capacity = place['properties']['datasource']['raw']['parking'] + " parking"
+        elif 'access' in place['properties']['datasource']['raw'] and place['properties']['datasource']['raw'][
+            'access'] != 'yes':
             continue
-        parking_data.append(
-            f"""● Car Parking: {parking_name} has {parking_capacity} at {parking_address}"""
-        )
-    return parking_data
+        refactored_data.append(f"""● This is Car Parking: {parking_name} has {parking_capacity} at {parking_address}""")
+    return refactored_data
 
 
-def get_parking_from_api(latitude, longitude, radius, max_r) -> list:
+def get_data(latitude, longitude, miles_radius) -> list or None:
     """
-    With all the user preferences, this function sends the request to the Geoapify Parking API,
-    which returns the response.
+    Retrieves data from the Geoapify API for Car Parking.
+    Args:
+        latitude (float): The latitude coordinate.
+        longitude (float): The longitude coordinate.
+        miles_radius (float): The radius in miles for searching EV chargers.
+    Returns:
+        list or None: A list of Car Parking data if successful, or None if the request fails.
     """
     try:
         response = requests.get(
-            url=f"{PARKING_API_URL}categories=parking&filter=circle:{longitude},{latitude},{radius}&bias=proximity:{longitude},{latitude}&limit={max_r}&apiKey={GEOAPI_API_KEY}",
+            url=f"{URL}categories=parking&filter=circle:{longitude},{latitude},{miles_radius}&bias=proximity:{longitude},{latitude}&limit={MAX_RESULTS}&apiKey={API_KEY}",
             timeout=60,
         )
-        return response.json()
-    except Exception as exc:
-        print("Error: ", exc)
-        return []
+        if response.status_code == 200:
+            data = response.json()
+            return reform_data(data)
+        else:
+            return None
+    except requests.Timeout as e:
+        print("Request timed out. Check your internet connection or try again later.", str(e))
+    except requests.RequestException as e:
+        print("An error occurred during the request:", str(e))
+    except Exception as e:
+        print("An unexpected error occurred:", str(e))
 
 
-@geoapi_parking_protocol.on_message(model=GeoParkingRequest, replies=UAgentResponse)
-async def geoapi_parking(ctx: Context, sender: str, msg: GeoParkingRequest):
-    """
-    The function takes the request to search for parking in any location based on user preferences
-    and returns the formatted response to TAGI.
-    """
+@parking_protocol_geoapi.on_message(model=GeoParkingRequest, replies=UAgentResponse)
+async def on_message(ctx: Context, sender: str, msg: GeoParkingRequest):
     ctx.logger.info(f"Received message from {sender}")
     try:
-        radius_in_meter = msg.radius * 1609
-        response = get_parking_from_api(
-            msg.latitude, msg.longitude, radius_in_meter, msg.max_result
-        )  # Sending user preferences to find nearby parking spaces.
-        response = format_parking_data(
-            response
-        )  # Sending the API response to be made appropriate to users.
+        radius_mtr = (msg.radius * 1609)
+        response = get_data(msg.latitude, msg.longitude, radius_mtr)
         request_id = str(uuid.uuid4())
-        if len(response) > 1:
-            option = f"""Here is the list of some Parking spaces nearby:\n"""
-            idx = ""
-            options = [KeyValue(key=idx, value=option)]
-            for parking in response:
-                option = parking
-                options.append(KeyValue(key=idx, value=option))
+        options = []
+        ctx_storage = {}
+        for idx, parking in enumerate(response):
+            option = parking
+            options.append(KeyValue(key=idx, value=option))
+            ctx_storage[idx] = option
+        ctx.storage.set(request_id, ctx_storage)
+        if options:
             await ctx.send(
                 sender,
                 UAgentResponse(
                     options=options,
                     type=UAgentResponseType.SELECT_FROM_OPTIONS,
-                    request_id=request_id,
-                ),
-            )  # Sending the response bach to users.
+                    request_id=request_id
+                )
+            )
         else:
             await ctx.send(
                 sender,
                 UAgentResponse(
-                    message="No options available for this context",
+                    message="No options are available for this context",
                     type=UAgentResponseType.FINAL,
-                    request_id=request_id,
-                ),
+                    request_id=request_id
+                )
             )
     except Exception as exc:
         ctx.logger.error(exc)
         await ctx.send(
-            sender, UAgentResponse(message=str(exc), type=UAgentResponseType.ERROR)
+            sender,
+            UAgentResponse(
+                message=str(exc),
+                type=UAgentResponseType.ERROR
+            )
         )
 
 
-agent.include(geoapi_parking_protocol)
+agent.include(parking_protocol_geoapi)
+agent.include(booking_proto())
