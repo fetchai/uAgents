@@ -9,9 +9,6 @@ import requests
 from ai_engine import UAgentResponse, UAgentResponseType, KeyValue
 from pydantic import Field
 
-# modules from booking_protocol.py
-from booking_protocol import booking_proto
-
 
 class GeoParkingRequest(Model):
     latitude: float = Field(
@@ -25,7 +22,6 @@ class GeoParkingRequest(Model):
     max_result: int = Field(description="Number of Parking Names, that user wants.")
 
 
-# To use this example, you will need to provide an API key for Google Maps: https://developers.google.com/maps
 URL = "https://api.geoapify.com/v2/places?"
 
 API_KEY = "YOUR_API_KEY"
@@ -40,7 +36,7 @@ parking_protocol_geoapi = Protocol("Geoapi CarParking")
 
 def reform_data(api_response):
     """
-    Reforms the Api Response into Options for Sending o Delta V.
+    Reforms the Api Response into Options for Sending to Delta V.
     Args:
         api_response (Dict): Api Response From Geoapify API
     Returns:
@@ -141,4 +137,3 @@ async def on_message(ctx: Context, sender: str, msg: GeoParkingRequest):
 
 
 agent.include(parking_protocol_geoapi)
-agent.include(booking_proto())
