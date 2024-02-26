@@ -1,0 +1,5 @@
+{
+    "title": "PDF Summarization",
+    "description": "The PDF Summarization is designed to extract concise and informative summaries from textual content. Leveraging advanced natural language processing (NLP) techniques, the API processes input documents, likely in PDF format, and generates condensed summaries, providing users with key insights without the need to review the entire document.",
+    "categories":    ["Text Summarization", "Text Generation"]
+}

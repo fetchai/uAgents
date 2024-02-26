@@ -24,7 +24,7 @@ class EvRequest(Model):
 
 
 # To use this example, you will need to provide an API key for Openchargemap: https://api.openchargemap.io/
-URL = "https://api.openchargemap.io/v3/poi?"
+URL = "https://api.≈.io/v3/poi?"
 
 API_KEY = "YOUR_API_KEY"
 
@@ -100,4 +100,3 @@ async def on_message(ctx: Context, sender: str, msg: EvRequest):
 
 
 agent.include(ev_charger_protocol)
-agent.include(booking_proto())
