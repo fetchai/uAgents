@@ -1,5 +1,4 @@
 from uagents import Agent, Context, Model
-from uagents.setup import fund_agent_if_low
 
 
 class Message(Model):
@@ -15,17 +14,16 @@ SEED_PHRASE = "put_your_seed_phrase_here"
 # Copy the address shown below
 print(f"Your agent's address is: {Agent(seed=SEED_PHRASE).address}")
 
-# Then go to https://agentverse.ai to get your API key and register a second agent
-API_KEY = "put_your_API_key_here"
+# Then go to https://agentverse.ai, register your agent in the Mailroom
+# and copy the agent's mailbox key
+AGENT_MAILBOX_KEY = "put_your_AGENT_MAILBOX_KEY_here"
 
 # Now your agent is ready to join the agentverse!
 agent = Agent(
     name="bob",
     seed=SEED_PHRASE,
-    mailbox=f"{API_KEY}@https://agentverse.ai",
+    mailbox=f"{AGENT_MAILBOX_KEY}@https://agentverse.ai",
 )
-
-fund_agent_if_low(agent.wallet.address())
 
 
 @agent.on_interval(period=2.0)

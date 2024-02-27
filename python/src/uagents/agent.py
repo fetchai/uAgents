@@ -28,9 +28,12 @@ from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.network import (
     get_ledger,
     get_almanac_contract,
+    add_testnet_funds,
+    InsufficientFundsError,
 )
 from uagents.mailbox import MailboxClient
 from uagents.config import (
+    AVERAGE_BLOCK_INTERVAL,
     REGISTRATION_FEE,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     LEDGER_PREFIX,
@@ -153,9 +156,12 @@ class Agent(Sink):
         agentverse: Optional[Union[str, Dict[str, str]]] = None,
         mailbox: Optional[Union[str, Dict[str, str]]] = None,
         resolve: Optional[Resolver] = None,
+        enable_wallet_messaging: Optional[Union[bool, Dict[str, str]]] = False,
+        wallet_key_derivation_index: Optional[int] = 0,
         max_resolver_endpoints: Optional[int] = None,
         version: Optional[str] = None,
         test: Optional[bool] = True,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
     ):
         """
         Initialize an Agent instance.
@@ -168,6 +174,10 @@ class Agent(Sink):
             agentverse (Optional[Union[str, Dict[str, str]]]): The agentverse configuration.
             mailbox (Optional[Union[str, Dict[str, str]]]): The mailbox configuration.
             resolve (Optional[Resolver]): The resolver to use for agent communication.
+            enable_wallet_messaging (Optional[Union[bool, Dict[str, str]]]): Whether to enable
+            wallet messaging. If '{"chain_id": CHAIN_ID}' is provided, this sets the chain ID for
+            the messaging server.
+            wallet_key_derivation_index (Optional[int]): The index used for deriving the wallet key.
             max_resolver_endpoints (Optional[int]): The maximum number of endpoints to resolve.
             version (Optional[str]): The version of the agent.
         """
@@ -179,10 +189,14 @@ class Agent(Sink):
             if resolve is not None
             else GlobalResolver(max_endpoints=max_resolver_endpoints)
         )
-        self._loop = asyncio.get_event_loop_policy().get_event_loop()
 
-        self._initialize_wallet_and_identity(seed, name)
+        if loop is not None:
+            self._loop = loop
+        else:
+            self._loop = asyncio.get_event_loop_policy().get_event_loop()
 
+        # initialize wallet and identity
+        self._initialize_wallet_and_identity(seed, name, wallet_key_derivation_index)
         self._logger = get_logger(self.name)
 
         # configure endpoints and mailbox
@@ -229,6 +243,8 @@ class Agent(Sink):
         self._test = test
         self._version = version or "0.1.0"
 
+        self.initialize_wallet_messaging(enable_wallet_messaging)
+
         # initialize the internal agent protocol
         self._protocol = Protocol(name=self._name, version=self._version)
 
@@ -247,6 +263,7 @@ class Agent(Sink):
             self._queries,
             replies=self._replies,
             interval_messages=self._interval_messages,
+            wallet_messaging_client=self._wallet_messaging_client,
             protocols=self.protocols,
             logger=self._logger,
         )
@@ -264,7 +281,7 @@ class Agent(Sink):
         async def _handle_error_message(ctx: Context, sender: str, msg: ErrorMessage):
             ctx.logger.exception(f"Received error message from {sender}: {msg.error}")
 
-    def _initialize_wallet_and_identity(self, seed, name):
+    def _initialize_wallet_and_identity(self, seed, name, wallet_key_derivation_index):
         """
         Initialize the wallet and identity for the agent.
 
@@ -274,6 +291,7 @@ class Agent(Sink):
         Args:
             seed (str or None): The seed for generating keys.
             name (str or None): The name of the agent.
+            wallet_key_derivation_index (int): The index for deriving the wallet key.
         """
         if seed is None:
             if name is None:
@@ -286,11 +304,50 @@ class Agent(Sink):
         else:
             self._identity = Identity.from_seed(seed, 0)
             self._wallet = LocalWallet(
-                PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
+                PrivateKey(
+                    derive_key_from_seed(
+                        seed, LEDGER_PREFIX, wallet_key_derivation_index
+                    )
+                ),
                 prefix=LEDGER_PREFIX,
             )
         if name is None:
             self._name = self.address[0:16]
+
+    def initialize_wallet_messaging(
+        self, enable_wallet_messaging: Union[bool, Dict[str, str]]
+    ):
+        """
+        Initialize wallet messaging for the agent.
+
+        Args:
+            enable_wallet_messaging (Union[bool, Dict[str, str]]): Wallet messaging configuration.
+        """
+        if enable_wallet_messaging:
+            wallet_chain_id = self._ledger.network_config.chain_id
+            if (
+                isinstance(enable_wallet_messaging, dict)
+                and "chain_id" in enable_wallet_messaging
+            ):
+                wallet_chain_id = enable_wallet_messaging["chain_id"]
+
+            try:
+                from uagents.wallet_messaging import WalletMessagingClient
+
+                self._wallet_messaging_client = WalletMessagingClient(
+                    self._identity,
+                    self._wallet,
+                    wallet_chain_id,
+                    self._logger,
+                )
+            except ModuleNotFoundError:
+                self._logger.exception(
+                    "Unable to include wallet messaging. "
+                    "Please install the 'wallet' extra to enable wallet messaging."
+                )
+                self._wallet_messaging_client = None
+        else:
+            self._wallet_messaging_client = None
 
     @property
     def name(self) -> str:
@@ -512,10 +569,18 @@ class Agent(Sink):
         ):
             if self.balance < REGISTRATION_FEE:
                 self._logger.warning(
-                    f"I do not have enough funds to register on Almanac contract\
-                        \nFund using wallet address: {self.wallet.address()}"
+                    "I do not have enough funds to register on Almanac contract"
                 )
-                return
+                if self._test:
+                    add_testnet_funds(str(self.wallet.address()))
+                    self._logger.info(
+                        f"Adding testnet funds to {self.wallet.address()}"
+                    )
+                else:
+                    self._logger.info(
+                        f"Send funds to wallet address: {self.wallet.address()}"
+                    )
+                raise InsufficientFundsError()
             self._logger.info("Registering on almanac contract...")
             signature = self.sign_registration()
             await self._almanac_contract.register(
@@ -541,6 +606,8 @@ class Agent(Sink):
         time_until_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
         try:
             await self.register()
+        except InsufficientFundsError:
+            time_until_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
         except Exception as ex:
             self._logger.exception(f"Failed to register on almanac contract: {ex}")
             time_until_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
@@ -660,6 +727,16 @@ class Agent(Sink):
             self._on_startup.append(func)
         elif event_type == "shutdown":
             self._on_shutdown.append(func)
+
+    def on_wallet_message(
+        self,
+    ):
+        if self._wallet_messaging_client is None:
+            self._logger.warning(
+                "Discarding 'on_wallet_message' handler because wallet messaging is disabled"
+            )
+            return lambda func: func
+        return self._wallet_messaging_client.on_message()
 
     def include(self, protocol: Protocol, publish_manifest: Optional[bool] = False):
         """
@@ -786,10 +863,6 @@ class Agent(Sink):
         # register the internal agent protocol
         self.include(self._protocol)
         self._loop.run_until_complete(self._startup())
-        if self._endpoints is None:
-            self._logger.warning(
-                "I have no endpoint and won't be able to receive external messages"
-            )
         self.start_background_tasks()
 
     def start_background_tasks(self):
@@ -807,6 +880,16 @@ class Agent(Sink):
         task = self._loop.create_task(self._process_message_queue())
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
+
+        # start the wallet messaging client if enabled
+        if self._wallet_messaging_client is not None:
+            for task in [
+                self._wallet_messaging_client.poll_server(),
+                self._wallet_messaging_client.process_message_queue(self._ctx),
+            ]:
+                task = self._loop.create_task(task)
+                self._background_tasks.add(task)
+                task.add_done_callback(self._background_tasks.discard)
 
     def run(self):
         """

@@ -44,6 +44,7 @@ if TYPE_CHECKING:
 IntervalCallback = Callable[["Context"], Awaitable[None]]
 MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
 EventCallback = Callable[["Context"], Awaitable[None]]
+WalletMessageCallback = Callable[["Context", Any], Awaitable[None]]
 
 
 class DeliveryStatus(str, Enum):
@@ -147,6 +148,7 @@ class Context:
         replies: Optional[Dict[str, Dict[str, Type[Model]]]] = None,
         interval_messages: Optional[Set[str]] = None,
         message_received: Optional[MsgDigest] = None,
+        wallet_messaging_client: Optional[Any] = None,
         protocols: Optional[Dict[str, Protocol]] = None,
         logger: Optional[logging.Logger] = None,
     ):
@@ -168,6 +170,7 @@ class Context:
             for each type of incoming message.
             interval_messages (Optional[Set[str]]): The optional set of interval messages.
             message_received (Optional[MsgDigest]): The optional message digest received.
+            wallet_messaging_client (Optional[Any]): The optional wallet messaging client.
             protocols (Optional[Dict[str, Protocol]]): The optional dictionary of protocols.
             logger (Optional[logging.Logger]): The optional logger instance.
         """
@@ -184,6 +187,7 @@ class Context:
         self._replies = replies
         self._interval_messages = interval_messages
         self._message_received = message_received
+        self._wallet_messaging_client = wallet_messaging_client
         self._protocols = protocols or {}
         self._logger = logger
 
@@ -364,7 +368,8 @@ class Context:
         agents = self.get_agents_by_protocol(destination_protocol, limit=limit)
         if not agents:
             self.logger.error(f"No active agents found for: {destination_protocol}")
-            return
+            return []
+
         schema_digest = Model.build_schema_digest(message)
         futures = await asyncio.gather(
             *[
@@ -515,12 +520,38 @@ class Context:
                     endpoint="",
                 )
 
+        return await self.send_raw_exchange_envelope(
+            self._identity,
+            destination,
+            self._resolver,
+            schema_digest,
+            self.get_message_protocol(schema_digest),
+            json_message,
+            logger=self._logger,
+            timeout=timeout,
+            session_id=self._session, #TODO merging@dialogues: should this be current_session?
+        )
+
+    @staticmethod
+    async def send_raw_exchange_envelope(
+        sender: Identity,
+        destination: str,
+        resolver: Resolver,
+        schema_digest: str,
+        protocol_digest: Optional[str],
+        json_message: JsonStr,
+        logger: Optional[logging.Logger] = None,
+        timeout: int = 5,
+        session_id: Optional[uuid.UUID] = None,
+    ) -> MsgStatus:
         # Resolve the destination address and endpoint ('destination' can be a name or address)
-        destination_address, endpoints = await self._resolver.resolve(destination)
+        destination_address, endpoints = await resolver.resolve(destination)
         if len(endpoints) == 0:
-            self._logger.exception(
-                f"Unable to resolve destination endpoint for address {destination}"
-            )
+            if logger:
+                logger.exception(
+                    f"Unable to resolve destination endpoint for address {destination}"
+                )
+
             return MsgStatus(
                 status=DeliveryStatus.FAILED,
                 detail="Unable to resolve destination endpoint",
@@ -534,15 +565,15 @@ class Context:
         # Handle external dispatch of messages
         env = Envelope(
             version=1,
-            sender=self.address,
+            sender=sender.address,
             target=destination_address,
-            session=current_session,
+            session=session_id or uuid.uuid4(),
             schema_digest=schema_digest,
-            protocol_digest=current_protocol_digest,
+            protocol_digest=protocol_digest,
             expires=expires,
         )
         env.encode_payload(json_message)
-        env.sign(self._identity)
+        env.sign(sender)
 
         for endpoint in endpoints:
             try:
@@ -560,18 +591,24 @@ class Context:
                             destination=destination,
                             endpoint=endpoint,
                         )
-                    self._logger.warning(
-                        f"Failed to send message to {destination_address} @ {endpoint}: "
-                        + (await resp.text())
-                    )
-            except aiohttp.ClientConnectorError as ex:
-                self._logger.warning(f"Failed to connect to {endpoint}: {ex}")
-            except Exception as ex:
-                self._logger.warning(
-                    f"Failed to send message to {destination} @ {endpoint}: {ex}"
-                )
 
-        self._logger.exception(f"Failed to deliver message to {destination}")
+                    if logger:
+                        logger.warning(
+                            f"Failed to send message to {destination_address} @ {endpoint}: "
+                            + (await resp.text())
+                        )
+            except aiohttp.ClientConnectorError as ex:
+                if logger:
+                    logger.warning(f"Failed to connect to {endpoint}: {ex}")
+
+            except Exception as ex:
+                if logger:
+                    logger.warning(
+                        f"Failed to send message to {destination} @ {endpoint}: {ex}"
+                    )
+
+        if logger:
+            logger.exception(f"Failed to deliver message to {destination}")
 
         return MsgStatus(
             status=DeliveryStatus.FAILED,
@@ -579,3 +616,14 @@ class Context:
             destination=destination,
             endpoint="",
         )
+
+    async def send_wallet_message(
+        self,
+        destination: str,
+        text: str,
+        msg_type: int = 1,
+    ):
+        if self._wallet_messaging_client is not None:
+            await self._wallet_messaging_client.send(destination, text, msg_type)
+        else:
+            self.logger.warning("Cannot send wallet message: no client available")

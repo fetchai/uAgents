@@ -1,5 +1,5 @@
 # uAgents: AI Agent Framework
-[![Official Website](https://img.shields.io/badge/Official%20Website-fetch.ai-blue?style=flat&logo=world&logoColor=white)](https://fetch.ai) [![Unit Tests](https://img.shields.io/github/actions/workflow/status/Fetchai/uAgents/ci.yml?label=unit%20tests)](https://github.com/Fetchai/uAgents/actions/workflows/ci.yml) [![GitHub Repo stars](https://img.shields.io/github/stars/Fetchai/uAgents?style=social)](https://github.com/Fetchai/uAgents/stargazers) [![Twitter Follow](https://img.shields.io/twitter/follow/fetch_ai?style=social)](https://twitter.com/fetch_ai)
+[![Official Website](https://img.shields.io/badge/Official%20Website-fetch.ai-blue?style=flat&logo=world&logoColor=white)](https://fetch.ai) [![Unit Tests](https://img.shields.io/github/actions/workflow/status/Fetchai/uAgents/ci-tests.yml?label=unit%20tests)](https://github.com/Fetchai/uAgents/actions/workflows/ci-tests.yml) [![GitHub Repo stars](https://img.shields.io/github/stars/Fetchai/uAgents?style=social)](https://github.com/Fetchai/uAgents/stargazers) [![Twitter Follow](https://img.shields.io/twitter/follow/fetch_ai?style=social)](https://twitter.com/fetch_ai)
 
 uAgents is a library developed by Fetch.ai that allows for creating autonomous AI agents in Python. With simple and expressive decorators, you can have an agent that performs various tasks on a schedule or takes action on various events.
 
@@ -12,7 +12,7 @@ uAgents is a library developed by Fetch.ai that allows for creating autonomous A
 ## ⚡ Quickstart
 
 ### Installation
-Get started with uAgents by installing it for Python 3.8, 3.9, 3.10, or 3.11:
+Get started with uAgents by installing it for Python 3.8 to 3.12:
 
     cd python
     poetry install
@@ -60,22 +60,20 @@ You should see the results in your terminal.
 
 ## 📖 Documentation
 
-Please see the [official documentation](https://docs.fetch.ai/) for full setup instructions and advanced features.
+Please see the [official documentation](https://fetch.ai/docs) for full setup instructions and advanced features.
 
-* [👋 Introduction](https://docs.fetch.ai/uAgents/)
-* [💻 Installation](https://docs.fetch.ai/uAgents/installation/)
-* [🏃 Running an agent](https://docs.fetch.ai/uAgents/run-agent/)
+* [👋 Introduction](https://fetch.ai/docs/concepts/agents/agents)
+* [💻 Installation](https://fetch.ai/docs/guides/agents/installing-uagent)
 * Tutorials
-  * [🤖 Agent Interactions](https://docs.fetch.ai/uAgents/simple-interaction/)
-  * [🛣️ Remote Agents](https://docs.fetch.ai/uAgents/remote-agents/)
-  * [🍽️ Restaurant Booking Demo](https://docs.fetch.ai/uAgents/booking-demo/)
+  * [🤖 Create an agent](https://fetch.ai/docs/guides/agents/create-a-uagent)
+  * [🛣️ Agent Communication](https://fetch.ai/docs/guides/agents/communicating-with-other-agents)
+  * [🍽️ Restaurant Booking Demo](https://fetch.ai/docs/guides/agents/booking-demo)
 * Key Concepts:
-  * [📍Addresses](https://docs.fetch.ai/uAgents/addresses/)
-  * [💾 Storage](https://docs.fetch.ai/uAgents/storage/)
-  * [📝 Interval Tasks](https://docs.fetch.ai/uAgents/interval-tasks/)
-  * [🌐 Agent Protocols](https://docs.fetch.ai/uAgents/agent-protocols/)
-  * [⚙️ Almanac Contracts](https://docs.fetch.ai/uAgents/almanac-overview/)
-  * [🔁 Exchange Protocol](https://docs.fetch.ai/uAgents/protocol/)
+  * [📍Addresses](https://fetch.ai/docs/guides/agents/getting-uagent-address)
+  * [💾 Storage](https://fetch.ai/docs/guides/agents/storage-function)
+  * [📝 Interval Tasks](https://fetch.ai/docs/guides/agents/interval-task)
+  * [🌐 Agent Broadcast](https://fetch.ai/docs/guides/agents/broadcast)
+  * [⚙️ Almanac Contracts](https://fetch.ai/docs/guides/agents/register-in-almanac)
 
 ## 🌱 Examples
 
@@ -99,7 +97,7 @@ We use [GitHub Issues](https://github.com/fetchai/uAgents/issues) for tracking r
 
 ## 🛡 Disclaimer
 
-This project, μAgent, is provided "as-is" without any warranty, express or implied. By using this software, you agree to assume all risks associated with its use, including but not limited to unexpected behavior, data loss, or any other issues that may arise. The developers and contributors of this project do not accept any responsibility or liability for any losses, damages, or other consequences that may occur as a result of using this
+This project, uAgents, is provided "as-is" without any warranty, express or implied. By using this software, you agree to assume all risks associated with its use, including but not limited to unexpected behavior, data loss, or any other issues that may arise. The developers and contributors of this project do not accept any responsibility or liability for any losses, damages, or other consequences that may occur as a result of using this
 
 ## License
 

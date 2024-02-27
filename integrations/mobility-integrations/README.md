@@ -1,10 +1,18 @@
 # 🚗 uAgent Mobility Integrations Examples 🚴
 
-This repository contains examples of mobility integrations using two agents: `ev_charger` and `geoapi_car_parking`.
+This repository contains examples of mobility integrations using these agents: `ev_charger`, `car_wash`, `car_service`, `restaurant`, `gecode` and `geoapi_car_parking`.
 
 1. `ev_charger`: This agent takes latitude, longitude, and a miles radius as input and returns available EV chargers in that region within the given radius. It utilizes the [OpenChargeMap](https://openchargemap.org/site/develop/api) API to retrieve the desired results.
 
 2. `geoapi_car_parking`: This agent takes latitude, longitude, and a miles radius as input and returns available parking spaces within that radius. The agent leverages [Geoapify](https://www.geoapify.com/) to fetch the desired results.
+
+3. `geocode`: This agent takes an address as input and returns latitude and longitude of the given address.
+
+4. `car_wash`: This agent takes latitude, longitude, and a miles radius as input and returns available Car wash in that region within the given radius. It utilizes the mock data from `car_wash_data.py` to retrieve the desired results.
+
+5. `car_service`: This agent takes latitude, longitude, and a miles radius as input and returns available Car services in that region within the given radius. It utilizes the mock data from `car_service_data.py` to retrieve the desired results.
+
+6. `restaurant`: This agent takes latitude, longitude, and a miles radius as input and returns available Restaurants in that region within the given radius. It utilizes the mock data from `restaurant_data.py` to retrieve the desired results.
 
 ## Getting Started 🚀
 
@@ -18,8 +26,8 @@ Before running the agents, you need to obtain the required API keys:
 
 1. Visit the OpenChargeMap API website: https://openchargemap.org/site/develop/api.
 2. If you don't have an account, create one by signing up.
-3. Once you are logged in, click on the MY PROFILE > my apps at the top.
-4. Click on REGISTER AN APPLICATION button.
+3. Once you are logged in, click on MY PROFILE > my apps at the top.
+4. Click on the REGISTER AN APPLICATION button.
 5. Fill out the required information in the form, including the purpose of using the API, and submit the request.
 6. Once approved, you will see your `OPENCHARGEMAP_API_KEY` under MY API KEYS.
 
@@ -31,32 +39,10 @@ Before running the agents, you need to obtain the required API keys:
 4. Give your project a name and click "OK" to create the new project.
 5. Your `GEOAPI_API_KEY` will be generated. Copy this key and keep it secure, as it will be used to access Geoapify Projects and other services.
 
-### Step 2: Set Environment Variables 🌐
+#### GOOGLE_MAPS_API_KEY 🗺️
 
-Create a `.env` file in the `mobility-integrations` directory and export the obtained API keys as environment variables:
-
-```bash
-export OPENCHARGEMAP_API_KEY="{GET THE API KEY}"
-export GEOAPI_API_KEY="{GET THE API KEY}"
-```
-
-### Step 3: Install Dependencies ⚙️
-
-To use the environment variables from the `.env` file and install the project dependencies:
-
-```bash
-source .env
-poetry install
-```
-
-### Step 4: Run the Project 🏃
-
-To run the project and its agents:
-
-```bash
-cd src
-poetry shell
-python main.py
-```
-
-Now you have the agents up and running to perform mobility integrations using the provided APIs. Happy integrating! 🎉
+1. Go to the Google Cloud Console: https://console.cloud.google.com/.
+2. Create a new project or select an existing project from the top right corner.
+3. In the left navigation, click on the "API & Services" > "Credentials" section.
+4. Create a new API Key and restrict it to the Google Maps APIs you plan to use (e.g., Maps JavaScript API).
+5. Copy your `GOOGLE_MAPS_API_KEY` and make sure to keep it secure.

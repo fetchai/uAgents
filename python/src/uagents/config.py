@@ -31,11 +31,13 @@ REGISTRATION_FEE = 500000000000000000
 REGISTRATION_DENOM = "atestfet"
 REGISTRATION_UPDATE_INTERVAL_SECONDS = 3600
 REGISTRATION_RETRY_INTERVAL_SECONDS = 60
-AVERAGE_BLOCK_INTERVAL = 5.7
+AVERAGE_BLOCK_INTERVAL = 6
 
 AGENTVERSE_URL = "https://agentverse.ai"
 ALMANAC_API_URL = AGENTVERSE_URL + "/v1/almanac/"
 MAILBOX_POLL_INTERVAL_SECONDS = 1.0
+
+WALLET_MESSAGING_POLL_INTERVAL_SECONDS = 2.0
 
 RESPONSE_TIME_HINT_SECONDS = 5
 DEFAULT_ENVELOPE_TIMEOUT_SECONDS = 30
@@ -75,19 +77,19 @@ def parse_agentverse_config(
     Returns:
         Dict[str, str]: The parsed agentverse configuration.
     """
-    api_key = None
+    agent_mailbox_key = None
     base_url = AGENTVERSE_URL
     protocol = None
     protocol_override = None
     if isinstance(config, str):
         if config.count("@") == 1:
-            api_key, base_url = config.split("@")
+            agent_mailbox_key, base_url = config.split("@")
         elif "://" in config:
             base_url = config
         else:
-            api_key = config
+            agent_mailbox_key = config
     elif isinstance(config, dict):
-        api_key = config.get("api_key")
+        agent_mailbox_key = config.get("agent_mailbox_key")
         base_url = config.get("base_url") or base_url
         protocol_override = config.get("protocol")
     if "://" in base_url:
@@ -95,11 +97,11 @@ def parse_agentverse_config(
     protocol = protocol_override or protocol or "https"
     http_prefix = "https" if protocol in {"wss", "https"} else "http"
     return {
-        "api_key": api_key,
+        "agent_mailbox_key": agent_mailbox_key,
         "base_url": base_url,
         "protocol": protocol,
         "http_prefix": http_prefix,
-        "use_mailbox": api_key is not None,
+        "use_mailbox": agent_mailbox_key is not None,
     }
 
 
