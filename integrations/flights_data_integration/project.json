@@ -1,5 +1,9 @@
 {
     "title": "Live Flight Status",
     "description": "This integration helps user to track current status of flights.",
-    "categories":    ["Live Flight Data", "Flight Status"]
+    "categories": [
+        "Live Flight Data",
+        "Flight Status"
+    ],
+    "deltav": false
 }

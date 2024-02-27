@@ -1,5 +1,9 @@
 {
     "title": "London Transport Journey Planner",
     "description": "This integration helps user to plan Journey using london transport",
-    "categories":    ["London Transport", "Transport"]
+    "categories": [
+        "London Transport",
+        "Transport"
+    ],
+    "deltav": false
 }

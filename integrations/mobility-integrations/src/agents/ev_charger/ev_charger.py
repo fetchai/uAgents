@@ -1,76 +1,103 @@
-import os
+# Here we demonstrate how we can create a DeltaV compatible agent responsible for getting EV Chargers from the open
+# chargemap API. After running this agent, it can be registered to DeltaV on Agentverse's Services tab. For
+# registration, you will have to use the agent's address.
+#
+# third party modules used in this example
 import uuid
-
 import requests
-from messages import EVRequest, KeyValue, UAgentResponse, UAgentResponseType
-from uagents import Agent, Context, Protocol
-from uagents.setup import fund_agent_if_low
+from ai_engine import KeyValue, UAgentResponse, UAgentResponseType
+from pydantic import Field
 
-EV_SEED = os.getenv("EV_SEED", "ev charger service secret phrase")
-
-agent = Agent(
-    name="ev_adaptor",
-    seed=EV_SEED,
-)
-
-fund_agent_if_low(agent.wallet.address())
-
-OPENCHARGEMAP_API_KEY = os.environ.get("OPENCHARGEMAP_API_KEY", "")
-
-assert (
-    OPENCHARGEMAP_API_KEY
-), "OPENCHARGEMAP_API_KEY environment variable is missing from .env"
-
-OPENCHARGEMAP_API_URL = "https://api.openchargemap.io/v3/poi?"
-MAX_RESULTS = 100
+# modules from booking_protocol.py
+from booking_protocol import booking_proto
 
 
-def get_ev_chargers(latitude: float, longitude: float, miles_radius: float) -> list:
-    """Return ev chargers available within given miles_readius of the latiture and longitude.
-    this information is being retrieved from https://api.openchargemap.io/v3/poi? API
+class EvRequest(Model):
+    latitude: float = Field(
+        description="Describes the latitude where the user wants an EV charger. This might not be the user current "
+                    "location, if user specified a specific location on the objective.")
+    longitude: float = Field(
+        description="Describes the longitude where the user wants an EV charger. This might not be the user current "
+                    "location, if user specified a specific location on the objective.")
+    miles_radius: float = Field(
+        description="Distance in miles, the maximum distance b/w ev charger and the location provided by user")
+
+
+# To use this example, you will need to provide an API key for Openchargemap: https://api.openchargemap.io/
+URL = "https://api.openchargemap.io/v3/poi?"
+
+API_KEY = "YOUR_API_KEY"
+
+if API_KEY == "YOUR_API_KEY":
+    raise Exception("You need to provide an API key for Openchargemap to use this example")
+
+MAX_RESULTS = 10
+
+ev_charger_protocol = Protocol("EVCharger")
+
+
+def get_data(latitude, longitude, miles_radius) -> list or None:
     """
-    response = requests.get(
-        url=OPENCHARGEMAP_API_URL
-        + f"maxresults={MAX_RESULTS}&latitude={latitude}&longitude={longitude}&distance={miles_radius}",
-        headers={"x-api-key": OPENCHARGEMAP_API_KEY},
-        timeout=5,
+    Retrieves data from the open chargemap API for EV chargers.
+    Args:
+        latitude (float): The latitude coordinate.
+        longitude (float): The longitude coordinate.
+        miles_radius (float): The radius in miles for searching EV chargers.
+    Returns:
+        list or None: A list of EV charger data if successful, or None if the request fails.
+    """
+    ev_charger_url = (
+            URL
+            + f"maxresults={MAX_RESULTS}&latitude={latitude}&longitude={longitude}&distance={miles_radius}"
     )
+    response = requests.get(url=ev_charger_url, headers={"x-api-key": API_KEY}, timeout=5)
     if response.status_code == 200:
-        return response.json()
+        data = response.json()
+        return data
     return []
 
 
-ev_chargers_protocol = Protocol("EvChargers")
-
-
-@ev_chargers_protocol.on_message(model=EVRequest, replies=UAgentResponse)
-async def ev_chargers(ctx: Context, sender: str, msg: EVRequest):
-    ctx.logger.info(f"Received message from {sender}")
+@ev_charger_protocol.on_message(model=EvRequest, replies=UAgentResponse)
+async def on_message(ctx: Context, sender: str, msg: EvRequest):
+    ctx.logger.info(f"Received message from {sender}.")
     try:
-        ev_chargers = get_ev_chargers(msg.latitude, msg.longitude, msg.miles_radius)
+        data = get_data(msg.latitude, msg.longitude, msg.miles_radius)
         request_id = str(uuid.uuid4())
-        conn_types = []
         options = []
-        for idx, ev_station in enumerate(ev_chargers):
-            for conn in ev_station["Connections"]:
-                conn_types.append(conn["ConnectionType"]["Title"])
-                conn_type_str = ", ".join(conn_types)
-                option = f"""● EV charger: {ev_station['AddressInfo']['Title']} , located {round(ev_station['AddressInfo']['Distance'], 2)} miles from your location\n● Usage cost {ev_station['UsageCost']};\n● Type - {conn_type_str}"""
-
+        ctx_storage = {}
+        for idx, o in enumerate(data):
+            option = f"""● {o['AddressInfo']['Title']} , which is located {round(o['AddressInfo']['Distance'], 2)} miles from the location."""
             options.append(KeyValue(key=idx, value=option))
-        await ctx.send(
-            sender,
-            UAgentResponse(
-                options=options,
-                type=UAgentResponseType.SELECT_FROM_OPTIONS,
-                request_id=request_id,
-            ),
-        )
+            ctx_storage[idx] = option
+        ctx.storage.set(request_id, ctx_storage)
+        if options:
+            await ctx.send(
+                sender,
+                UAgentResponse(
+                    options=options,
+                    type=UAgentResponseType.SELECT_FROM_OPTIONS,
+                    request_id=request_id
+                ),
+            )
+        else:
+            await ctx.send(
+                sender,
+                UAgentResponse(
+                    message="No ev chargers are available for this context",
+                    type=UAgentResponseType.FINAL,
+                    request_id=request_id
+                ),
+            )
     except Exception as exc:
         ctx.logger.error(exc)
         await ctx.send(
-            sender, UAgentResponse(message=str(exc), type=UAgentResponseType.ERROR)
+            sender,
+            UAgentResponse(
+                message=str(exc),
+                type=UAgentResponseType.ERROR
+            )
         )
 
 
-agent.include(ev_chargers_protocol)
+agent.include(ev_charger_protocol)
+agent.include(booking_proto())

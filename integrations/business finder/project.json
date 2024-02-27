@@ -1,5 +1,6 @@
 {
     "title": "Business Details Finder",
     "description": "Business Finder integration that helps finding list of top 10 business according to category and city provided.",
-    "categories":    ["Business Finder", "Business Details"]
+    "categories":    ["Business Finder", "Business Details"],
+    "deltav": false
 }
