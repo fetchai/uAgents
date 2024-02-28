@@ -14,7 +14,8 @@ agent1 = Agent(
     name="agent1",
     seed="9876543210000000000",
     port=8001,
-    agentverse=f"{API_KEY}@https://agentverse.ai",
+    # agentverse=f"{API_KEY}@https://agentverse.ai",
+    endpoint="http://127.0.0.1:8001/submit"
 )
 agent1._logger.setLevel("DEBUG")  # pylint: disable=protected-access
 fund_agent_if_low(agent1.wallet.address())

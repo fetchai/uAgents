@@ -9,10 +9,10 @@ agent2 = Agent(
     name="agent2",
     seed="9876543210000000001",
     port=8002,
-    agentverse=f"{API_KEY}@https://agentverse.ai",
+    # agentverse=f"{API_KEY}@https://agentverse.ai",
+    endpoint="http://127.0.0.1:8002/submit"
 )
 agent2._logger.setLevel("DEBUG")  # pylint: disable=protected-access
-fund_agent_if_low(agent2.wallet.address())
 
 
 # define dialogue messages; each transition needs a separate message
