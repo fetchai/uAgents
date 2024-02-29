@@ -963,6 +963,7 @@ class Agent(Sink):
             )
             if handler is None:
                 if not is_user_address(sender):
+                    is_valid = True # always valid unless considered invalid as part of a dialogue
                     for protocol in context.protocols.values():
                         if hasattr(protocol, "rules") and protocol.is_included(
                             schema_digest
@@ -987,7 +988,7 @@ class Agent(Sink):
                                         error=f"Unexpected message in dialogue: {message}"
                                     ),
                                 )
-                                continue
+                                break
 
                             if protocol.is_starter(schema_digest):
                                 self._ctx.logger.debug("dialogue started")
@@ -1006,7 +1007,8 @@ class Agent(Sink):
                                 receiver=self.address,
                                 content=message,
                             )
-                    handler = self._signed_message_handlers.get(schema_digest)
+                    if is_valid:
+                        handler = self._signed_message_handlers.get(schema_digest)
                 elif schema_digest in self._signed_message_handlers:
                     await _send_error_message(
                         context,

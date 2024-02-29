@@ -468,7 +468,7 @@ class Context:
                         endpoint="",
                     )
 
-                if (
+                if ( # currently will never be reached, see line 410
                     self._session is None
                     and current_protocol.custom_session
                     and current_protocol.is_starter(schema_digest)
@@ -485,7 +485,7 @@ class Context:
                     content=json_message,
                 )
                 current_protocol.update_state(schema_digest, current_session)
-                self.logger.debug(f"update state to: {message_name}")
+                self.logger.debug(f"update state to: {message_name} for session {current_session}")
 
         # Extract address from destination agent identifier if present
         _, _, destination_address = parse_identifier(destination)
@@ -529,7 +529,7 @@ class Context:
             json_message,
             logger=self._logger,
             timeout=timeout,
-            session_id=self._session, #TODO merging@dialogues: should this be current_session?
+            session_id=current_session
         )
 
     @staticmethod
