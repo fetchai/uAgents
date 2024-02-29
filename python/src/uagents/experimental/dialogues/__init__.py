@@ -251,7 +251,7 @@ class Dialogue(Protocol):
                 graph.setdefault(edge.parent.name, []).append(edge.child.name)
         return graph
 
-    def _build_rules(self) -> dict[str, List[str]]:
+    def _build_rules(self) -> Dict[str, List[str]]:
         """
         Build the rules for the dialogue.
         Which replies are allowed after a certain message.
