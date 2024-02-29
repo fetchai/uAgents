@@ -5,7 +5,7 @@ from dialogues.chitchat import ChitChatDialogue
 
 API_KEY = "paste your api key"
 
-agent2 = Agent(
+agent = Agent(
     name="agent2",
     seed="9876543210000000001",
     port=8002,
