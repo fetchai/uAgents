@@ -3,7 +3,6 @@ import json
 from asyncio import sleep
 
 from uagents import Agent, Context, Model
-from uagents.setup import fund_agent_if_low
 
 from dialogues.chitchat import ChitChatDialogue
 
