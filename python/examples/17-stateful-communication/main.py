@@ -8,7 +8,6 @@ from dialogues.chitchat import ChitChatDialogue
 
 agent1 = Agent(name="agent1", seed="9876543210000000000")
 agent1._logger.setLevel("DEBUG")  # pylint: disable=protected-access
-fund_agent_if_low(agent1.wallet.address())
 
 agent2 = Agent(name="agent2", seed="9876543210000000001")
 agent2._logger.setLevel("DEBUG")  # pylint: disable=protected-access
