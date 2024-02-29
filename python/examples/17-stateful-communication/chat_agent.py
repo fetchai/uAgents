@@ -37,7 +37,7 @@ class RejectChitChatDialogue(Model):
 
 
 # instantiate the dialogues
-chitchat_dialogue2 = ChitChatDialogue(
+chitchat_dialogue = ChitChatDialogue(
     version="0.1",
     agent_address=agent2.address,
 )
