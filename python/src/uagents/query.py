@@ -11,8 +11,7 @@ from uagents.crypto import generate_user_address
 from uagents.dispatch import JsonStr
 from uagents.envelope import Envelope
 from uagents.models import Model
-from uagents.resolver import Resolver, GlobalResolver
-
+from uagents.resolver import GlobalResolver, Resolver
 
 LOGGER = get_logger("query")
 

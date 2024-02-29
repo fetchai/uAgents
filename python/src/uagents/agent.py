@@ -2,16 +2,28 @@
 
 import asyncio
 import functools
-from typing import Dict, List, Optional, Set, Union, Type, Tuple, Any, Coroutine
 import uuid
-from pydantic import ValidationError
-import requests
+from typing import Any, Coroutine, Dict, List, Optional, Set, Tuple, Type, Union
 
+import requests
+from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
-from cosmpy.aerial.client import LedgerClient
+from pydantic import ValidationError
 
 from uagents.asgi import ASGIServer
+from uagents.config import (
+    AVERAGE_BLOCK_INTERVAL,
+    LEDGER_PREFIX,
+    MAINNET_PREFIX,
+    REGISTRATION_FEE,
+    REGISTRATION_RETRY_INTERVAL_SECONDS,
+    REGISTRATION_UPDATE_INTERVAL_SECONDS,
+    TESTNET_PREFIX,
+    get_logger,
+    parse_agentverse_config,
+    parse_endpoint_config,
+)
 from uagents.context import (
     Context,
     EventCallback,
@@ -20,30 +32,18 @@ from uagents.context import (
     MsgDigest,
 )
 from uagents.crypto import Identity, derive_key_from_seed, is_user_address
-from uagents.dispatch import Sink, dispatcher, JsonStr
-from uagents.models import Model, ErrorMessage
-from uagents.protocol import Protocol
-from uagents.resolver import Resolver, GlobalResolver
-from uagents.storage import KeyValueStore, get_or_create_private_keys
-from uagents.network import (
-    get_ledger,
-    get_almanac_contract,
-    add_testnet_funds,
-    InsufficientFundsError,
-)
+from uagents.dispatch import JsonStr, Sink, dispatcher
 from uagents.mailbox import MailboxClient
-from uagents.config import (
-    AVERAGE_BLOCK_INTERVAL,
-    REGISTRATION_FEE,
-    REGISTRATION_UPDATE_INTERVAL_SECONDS,
-    LEDGER_PREFIX,
-    REGISTRATION_RETRY_INTERVAL_SECONDS,
-    TESTNET_PREFIX,
-    MAINNET_PREFIX,
-    parse_endpoint_config,
-    parse_agentverse_config,
-    get_logger,
+from uagents.models import ErrorMessage, Model
+from uagents.network import (
+    InsufficientFundsError,
+    add_testnet_funds,
+    get_almanac_contract,
+    get_ledger,
 )
+from uagents.protocol import Protocol
+from uagents.resolver import GlobalResolver, Resolver
+from uagents.storage import KeyValueStore, get_or_create_private_keys
 
 
 async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
@@ -963,7 +963,7 @@ class Agent(Sink):
             )
             if handler is None:
                 if not is_user_address(sender):
-                    is_valid = True # always valid unless considered invalid as part of a dialogue
+                    is_valid = True  # always valid unless considered invalid as part of a dialogue
                     for protocol in context.protocols.values():
                         if hasattr(protocol, "rules") and protocol.is_included(
                             schema_digest

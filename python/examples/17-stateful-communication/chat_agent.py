@@ -1,7 +1,8 @@
 """Chit chat dialogue example"""
-from dialogues.chitchat import ChitChatDialogue
 from uagents import Agent, Context, Model
 from uagents.setup import fund_agent_if_low
+
+from dialogues.chitchat import ChitChatDialogue
 
 API_KEY = "paste your api key"
 
@@ -10,7 +11,7 @@ agent2 = Agent(
     seed="9876543210000000001",
     port=8002,
     # agentverse=f"{API_KEY}@https://agentverse.ai",
-    endpoint="http://127.0.0.1:8002/submit"
+    endpoint="http://127.0.0.1:8002/submit",
 )
 agent2._logger.setLevel("DEBUG")  # pylint: disable=protected-access
 

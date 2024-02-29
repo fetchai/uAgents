@@ -2,9 +2,10 @@
 import json
 from uuid import uuid4
 
-from dialogues.chitchat import ChitChatDialogue
 from uagents import Agent, Bureau, Context, Model
 from uagents.setup import fund_agent_if_low
+
+from dialogues.chitchat import ChitChatDialogue
 
 agent1 = Agent(name="agent1", seed="9876543210000000000")
 agent1._logger.setLevel("DEBUG")  # pylint: disable=protected-access

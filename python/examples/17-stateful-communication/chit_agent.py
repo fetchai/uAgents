@@ -1,10 +1,11 @@
 """Chit chat dialogue example"""
-from asyncio import sleep
 import json
+from asyncio import sleep
 
-from dialogues.chitchat import ChitChatDialogue
 from uagents import Agent, Context, Model
 from uagents.setup import fund_agent_if_low
+
+from dialogues.chitchat import ChitChatDialogue
 
 CHAT_AGENT_ADDRESS = "agent1qgp7urkvx24a2gs8e7496fajzy78h4887vz7va4h7klzf7azzhthsz7zymu"
 
@@ -15,7 +16,7 @@ agent1 = Agent(
     seed="9876543210000000000",
     port=8001,
     # agentverse=f"{API_KEY}@https://agentverse.ai",
-    endpoint="http://127.0.0.1:8001/submit"
+    endpoint="http://127.0.0.1:8001/submit",
 )
 agent1._logger.setLevel("DEBUG")  # pylint: disable=protected-access
 fund_agent_if_low(agent1.wallet.address())

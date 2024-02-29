@@ -1,8 +1,9 @@
 import json
 import os
-from typing import Any, Optional
-from typing import Tuple
+from typing import Any, Optional, Tuple
+
 from cosmpy.aerial.wallet import PrivateKey
+
 from uagents.crypto import Identity
 
 

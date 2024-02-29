@@ -9,15 +9,15 @@ from dataclasses import dataclass
 from enum import Enum
 from time import time
 from typing import (
-    Dict,
-    List,
-    Set,
-    Optional,
-    Callable,
+    TYPE_CHECKING,
     Any,
     Awaitable,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Set,
     Type,
-    TYPE_CHECKING,
 )
 
 import aiohttp
@@ -36,7 +36,6 @@ from uagents.envelope import Envelope
 from uagents.models import ErrorMessage, Model
 from uagents.resolver import Resolver, parse_identifier
 from uagents.storage import KeyValueStore
-
 
 if TYPE_CHECKING:
     from uagents.protocol import Protocol
@@ -468,7 +467,7 @@ class Context:
                         endpoint="",
                     )
 
-                if ( # currently will never be reached, see line 410
+                if (  # currently will never be reached, see line 410
                     self._session is None
                     and current_protocol.custom_session
                     and current_protocol.is_starter(schema_digest)
@@ -485,7 +484,9 @@ class Context:
                     content=json_message,
                 )
                 current_protocol.update_state(schema_digest, current_session)
-                self.logger.debug(f"update state to: {message_name} for session {current_session}")
+                self.logger.debug(
+                    f"update state to: {message_name} for session {current_session}"
+                )
 
         # Extract address from destination agent identifier if present
         _, _, destination_address = parse_identifier(destination)
@@ -529,7 +530,7 @@ class Context:
             json_message,
             logger=self._logger,
             timeout=timeout,
-            session_id=current_session
+            session_id=current_session,
         )
 
     @staticmethod

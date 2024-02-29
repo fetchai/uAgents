@@ -2,34 +2,33 @@
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import Any, Optional, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
-from cosmpy.aerial.contract import LedgerContract
 from cosmpy.aerial.client import (
-    LedgerClient,
-    NetworkConfig,
     DEFAULT_QUERY_INTERVAL_SECS,
     DEFAULT_QUERY_TIMEOUT_SECS,
+    LedgerClient,
+    NetworkConfig,
     prepare_and_broadcast_basic_transaction,
 )
-from cosmpy.aerial.exceptions import NotFoundError, QueryTimeoutError
+from cosmpy.aerial.contract import LedgerContract
 from cosmpy.aerial.contract.cosmwasm import create_cosmwasm_execute_msg
+from cosmpy.aerial.exceptions import NotFoundError, QueryTimeoutError
 from cosmpy.aerial.faucet import FaucetApi
 from cosmpy.aerial.tx import Transaction
 from cosmpy.aerial.tx_helpers import TxResponse
 from cosmpy.aerial.wallet import LocalWallet
 
 from uagents.config import (
-    MAINNET_CONTRACT_ALMANAC,
-    TESTNET_CONTRACT_ALMANAC,
-    MAINNET_CONTRACT_NAME_SERVICE,
-    TESTNET_CONTRACT_NAME_SERVICE,
     AVERAGE_BLOCK_INTERVAL,
-    REGISTRATION_FEE,
+    MAINNET_CONTRACT_ALMANAC,
+    MAINNET_CONTRACT_NAME_SERVICE,
     REGISTRATION_DENOM,
+    REGISTRATION_FEE,
+    TESTNET_CONTRACT_ALMANAC,
+    TESTNET_CONTRACT_NAME_SERVICE,
     get_logger,
 )
-
 
 logger = get_logger("network")
 

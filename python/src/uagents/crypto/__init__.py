@@ -1,9 +1,9 @@
+import base64
 import hashlib
+import json
 import struct
 from secrets import token_bytes
 from typing import Tuple, Union
-import json
-import base64
 
 import bech32
 import ecdsa
