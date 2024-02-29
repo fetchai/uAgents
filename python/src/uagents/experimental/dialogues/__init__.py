@@ -236,7 +236,7 @@ class Dialogue(Protocol):
             else {}
         )
 
-    def _build_graph(self) -> dict[str, List[str]]:
+    def _build_graph(self) -> Dict[str, List[str]]:
         """
         Build the graph of the dialogue while showing the state relations.
 
