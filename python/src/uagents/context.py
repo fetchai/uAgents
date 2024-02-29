@@ -467,7 +467,7 @@ class Context:
                         endpoint="",
                     )
 
-                if (  # currently will never be reached, see line 410
+                if ( 
                     self._session is None
                     and current_protocol.custom_session
                     and current_protocol.is_starter(schema_digest)
