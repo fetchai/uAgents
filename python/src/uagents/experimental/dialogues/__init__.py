@@ -419,7 +419,7 @@ class Dialogue(Protocol):
         """
         return msg_digest in self._digest_by_edge.values()
 
-    def _load_storage(self) -> dict[UUID, List[Any]]:
+    def _load_storage(self) -> Dict[UUID, List[Any]]:
         """Load the sessions from the storage."""
         cache: dict = self._storage.get(self.name)
         return (
