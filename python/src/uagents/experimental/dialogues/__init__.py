@@ -184,7 +184,7 @@ class Dialogue(Protocol):
         self.on_query = None
 
     @property
-    def rules(self) -> dict[str, List[str]]:
+    def rules(self) -> Dict[str, List[str]]:
         """
         Property to access the rules of the dialogue.
 
