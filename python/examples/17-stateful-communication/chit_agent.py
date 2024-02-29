@@ -18,7 +18,6 @@ agent1 = Agent(
     endpoint="http://127.0.0.1:8001/submit",
 )
 agent1._logger.setLevel("DEBUG")  # pylint: disable=protected-access
-fund_agent_if_low(agent1.wallet.address())
 
 
 # define dialogue messages; each transition needs a separate message
