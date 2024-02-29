@@ -3,7 +3,6 @@ import json
 from uuid import uuid4
 
 from uagents import Agent, Bureau, Context, Model
-from uagents.setup import fund_agent_if_low
 
 from dialogues.chitchat import ChitChatDialogue
 
