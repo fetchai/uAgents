@@ -127,7 +127,7 @@ class Context:
         send(destination, message, timeout): Send a message to a destination.
         send_raw(destination, json_message, schema_digest, message_type, timeout): Send a message
         with the provided schema digest to a destination.
-        experimental_broadcast(destination_protocol, message, limit, timeout): Broadcast a message
+        broadcast(destination_protocol, message, limit, timeout): Broadcast a message
         to agents with a specific protocol.
 
     """
@@ -342,7 +342,7 @@ class Context:
             timeout=timeout,
         )
 
-    async def experimental_broadcast(
+    async def broadcast(
         self,
         destination_protocol: str,
         message: Model,
