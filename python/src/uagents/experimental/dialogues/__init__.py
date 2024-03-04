@@ -42,7 +42,7 @@ class Edge:
         description: str,
         parent: Optional[Node],  # tail
         child: Node,  # head
-        model: Type[Model] = None,
+        model: Optional[Type[Model]] = None,
         func: MessageCallback = lambda *args, **kwargs: None,
     ) -> None:
         self.name = name
@@ -53,7 +53,7 @@ class Edge:
         self._func = func
 
     @property
-    def model(self) -> Type[Model]:
+    def model(self) -> Optional[Type[Model]]:
         """The message model type that is associated with the edge."""
         return self._model
 
@@ -116,20 +116,20 @@ class Dialogue(Protocol):
 
     def __init__(
         self,
-        name: str,  # mandatory, due to storage naming
+        name: str,
+        agent_address: str,  # tbd: storage naming and handling
         version: Optional[str] = None,
         nodes: List[Node] | None = None,
         edges: List[Edge] | None = None,
-        agent_address: Optional[str] = "",  # storage naming to be discussed
         timeout: int = DEFAULT_SESSION_TIMEOUT_IN_SECONDS,
     ) -> None:
         self._name = name
 
         self._nodes = nodes or []
         self._edges = edges or []
-        self._graph: dict[str, List[str]] = self._build_graph()  # by nodes
-        self._rules: dict[str, List[str]] = self._build_rules()  # by edges
-        self._digest_by_edge: dict[str, str] = {
+        self._graph: Dict[str, List[str]] = self._build_graph()  # by nodes
+        self._rules: Dict[str, List[str]] = self._build_rules()  # by edges
+        self._digest_by_edge: Dict[str, str] = {
             edge.name: Model.build_schema_digest(edge.model) if edge.model else ""
             for edge in self._edges
         }  # store the message models that are associated with an edge
@@ -142,10 +142,10 @@ class Dialogue(Protocol):
         self._storage = KeyValueStore(
             f"{agent_address[0:16]}_dialogues"
         )  # persistent session + message storage
-        self._sessions: dict[
+        self._sessions: Dict[
             UUID, List[Any]
         ] = self._load_storage()  # volatile session + message storage
-        self._states: dict[
+        self._states: Dict[
             UUID, str
         ] = {}  # current state of the dialogue (as edge digest) per session
         self._custom_session: UUID | None = None
@@ -189,7 +189,7 @@ class Dialogue(Protocol):
         Property to access the rules of the dialogue.
 
         Returns:
-            dict[str, List[str]]: Dictionary of rules represented by edges.
+            Dict[str, List[str]]: Dictionary of rules represented by edges.
         """
         return self._rules
 
@@ -211,12 +211,12 @@ class Dialogue(Protocol):
     def edges(self) -> List[Edge]:
         return self._edges
 
-    def get_overview(self) -> dict:
+    def get_overview(self) -> Dict:
         """
         Get an overview of the dialogue structure.
 
         Returns:
-            dict: Manifest like representation of the dialogue structure.
+            Dict: Manifest like representation of the dialogue structure.
         """
         return (
             {
@@ -241,7 +241,7 @@ class Dialogue(Protocol):
         Build the graph of the dialogue while showing the state relations.
 
         Returns:
-            dict[str, List[str]]: List of states and their relations.
+            Dict[str, List[str]]: List of states and their relations.
         """
         graph = {}
         for node in self._nodes:
@@ -257,7 +257,7 @@ class Dialogue(Protocol):
         Which replies are allowed after a certain message.
 
         Returns:
-            dict[str, List[str]]: Rules for the dialogue.
+            Dict[str, List[str]]: Rules for the dialogue.
         """
         out = {edge.name: [] for edge in self._edges}
         for edge in self._edges:
@@ -421,7 +421,7 @@ class Dialogue(Protocol):
 
     def _load_storage(self) -> Dict[UUID, List[Any]]:
         """Load the sessions from the storage."""
-        cache: dict = self._storage.get(self.name)
+        cache: Optional[Dict] = self._storage.get(self.name)
         return (
             {UUID(session_id): session for session_id, session in cache.items()}
             if cache
@@ -430,13 +430,13 @@ class Dialogue(Protocol):
 
     def _update_session_in_storage(self, session_id: UUID) -> None:
         """Update a session in the storage."""
-        cache: dict = self._storage.get(self.name) or {}
+        cache: Dict = self._storage.get(self.name) or {}
         cache[str(session_id)] = self._sessions[session_id]
         self._storage.set(self.name, cache)
 
     def _remove_session_from_storage(self, session_id: UUID) -> None:
         """Remove a session from the storage."""
-        cache: dict = self._storage.get(self.name) or {}
+        cache: Dict = self._storage.get(self.name) or {}
         session = str(session_id)
         if session in cache.keys():
             cache.pop(session)
@@ -489,7 +489,7 @@ class Dialogue(Protocol):
         ID the next time that a starter message is sent.
         """
         if uuid.version != 4:
-            raise ValueError("Session ID must be of type UUIDv4!")
+            raise ValueError("Session ID must be of type UUID v4!")
         if uuid in self._sessions:
             raise ValueError("Session ID already exists!")
         if self._custom_session:

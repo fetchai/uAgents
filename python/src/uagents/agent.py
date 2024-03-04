@@ -10,7 +10,6 @@ from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
 from pydantic import ValidationError
-
 from uagents.asgi import ASGIServer
 from uagents.config import (
     AVERAGE_BLOCK_INTERVAL,
@@ -999,7 +998,9 @@ class Agent(Sink):
                             else:
                                 self._ctx.logger.debug("dialogue picked up")
 
-                            context.dialogue = protocol.get_session(session)
+                            context.dialogue = protocol.get_session(
+                                session
+                            )  # add current dialogue messages to context
                             protocol.add_message(
                                 session_id=session,
                                 message_type=self._models[schema_digest].__name__,

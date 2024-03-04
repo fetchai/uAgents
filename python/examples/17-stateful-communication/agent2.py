@@ -110,6 +110,7 @@ agent.include(chitchat_dialogue)
 @agent.on_event("startup")
 async def start_cycle(ctx: Context):
     await sleep(5)
+    # use 'chitchat_dialogue.set_custom_session_id()' to set a custom session id (UUID4)
     await ctx.send(CHIT_AGENT_ADDRESS, InitiateChitChatDialogue())
 
 
