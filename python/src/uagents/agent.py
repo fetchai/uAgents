@@ -10,6 +10,7 @@ from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
 from pydantic import ValidationError
+
 from uagents.asgi import ASGIServer
 from uagents.config import (
     AVERAGE_BLOCK_INTERVAL,
