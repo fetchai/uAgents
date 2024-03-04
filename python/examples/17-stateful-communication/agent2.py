@@ -1,23 +1,18 @@
 """Chit chat dialogue example"""
-import json
 from asyncio import sleep
 
+from dialogues.chitchat import ChitChatDialogue
 from uagents import Agent, Context, Model
 
-from dialogues.chitchat import ChitChatDialogue
+CHIT_AGENT_ADDRESS = "agent1qvhlqy2a4lk9gge8ug7l65a6k07wc92hh2d5jhwtat0zakrtg08njmfn00j"
 
-CHAT_AGENT_ADDRESS = "agent1qgp7urkvx24a2gs8e7496fajzy78h4887vz7va4h7klzf7azzhthsz7zymu"
-
-API_KEY = "paste your api key"
-
-agent1 = Agent(
-    name="agent1",
-    seed="9876543210000000000",
-    port=8001,
-    # agentverse=f"{API_KEY}@https://agentverse.ai",
-    endpoint="http://127.0.0.1:8001/submit",
+agent = Agent(
+    name="chat_agent",
+    seed="9876543210000000001",
+    port=8002,
+    endpoint="http://127.0.0.1:8002/submit",
 )
-agent1._logger.setLevel("DEBUG")  # pylint: disable=protected-access
+agent._logger.setLevel("DEBUG")  # pylint: disable=protected-access
 
 
 # define dialogue messages; each transition needs a separate message
@@ -42,18 +37,13 @@ class RejectChitChatDialogue(Model):
 
 
 # instantiate the dialogues
-chitchat_dialogue1 = ChitChatDialogue(
+chitchat_dialogue = ChitChatDialogue(
     version="0.1",
-    agent_address=agent1.address,
+    agent_address=agent.address,
 )
 
-# get an overview of the dialogue structure
-print("Dialogue overview:")
-print(json.dumps(chitchat_dialogue1.get_overview(), indent=4))
-print("---")
 
-
-@chitchat_dialogue1.on_initiate_session(InitiateChitChatDialogue)
+@chitchat_dialogue.on_initiate_session(InitiateChitChatDialogue)
 async def start_chitchat(
     ctx: Context,
     sender: str,
@@ -64,7 +54,7 @@ async def start_chitchat(
     await ctx.send(sender, AcceptChitChatDialogue())
 
 
-@chitchat_dialogue1.on_start_dialogue(AcceptChitChatDialogue)
+@chitchat_dialogue.on_start_dialogue(AcceptChitChatDialogue)
 async def accept_chitchat(
     ctx: Context,
     sender: str,
@@ -77,7 +67,7 @@ async def accept_chitchat(
     await ctx.send(sender, ChitChatDialogueMessage(text="Hello!"))
 
 
-@chitchat_dialogue1.on_reject_session(RejectChitChatDialogue)
+@chitchat_dialogue.on_reject_session(RejectChitChatDialogue)
 async def reject_chitchat(
     ctx: Context,
     sender: str,
@@ -87,7 +77,7 @@ async def reject_chitchat(
     ctx.logger.info(f"Received conclude message from: {sender}")
 
 
-@chitchat_dialogue1.on_continue_dialogue(ChitChatDialogueMessage)
+@chitchat_dialogue.on_continue_dialogue(ChitChatDialogueMessage)
 async def continue_chitchat(
     ctx: Context,
     sender: str,
@@ -102,7 +92,7 @@ async def continue_chitchat(
         await ctx.send(sender, ConcludeChitChatDialogue())
 
 
-@chitchat_dialogue1.on_end_session(ConcludeChitChatDialogue)
+@chitchat_dialogue.on_end_session(ConcludeChitChatDialogue)
 async def conclude_chitchat(
     ctx: Context,
     sender: str,
@@ -113,16 +103,16 @@ async def conclude_chitchat(
     ctx.logger.info(ctx.dialogue)
 
 
-agent1.include(chitchat_dialogue1)
+agent.include(chitchat_dialogue)
 
 
 # initiate dialogue
-@agent1.on_event("startup")
+@agent.on_event("startup")
 async def start_cycle(ctx: Context):
     await sleep(5)
-    await ctx.send(CHAT_AGENT_ADDRESS, InitiateChitChatDialogue())
+    await ctx.send(CHIT_AGENT_ADDRESS, InitiateChitChatDialogue())
 
 
 if __name__ == "__main__":
-    print("Agent 1:", agent1.address)
-    agent1.run()
+    print(f"Agent address: {agent.address}")
+    agent.run()

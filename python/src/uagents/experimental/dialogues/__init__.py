@@ -40,7 +40,7 @@ class Edge:
         self,
         name: str,
         description: str,
-        parent: Node,  # tail
+        parent: Optional[Node],  # tail
         child: Node,  # head
         model: Type[Model] = None,
         func: MessageCallback = lambda *args, **kwargs: None,

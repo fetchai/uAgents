@@ -13,4 +13,6 @@ See `chitchat.py` for an example.
 2. Define message models for each transition defined in the dialogue, according to the needs of your use case.
 3. Implement all state transition decorators defined in the dialogue, similarly to the `on_message` handler and register the corresponding models with the respective transitions.
 
-See `main.py` for an example implementation of the `ChitChatDialogue` defined in `chitchat.py`.
+See `agent1.py` and `agent2.py` for an example implementation of the `ChitChatDialogue` defined in `chitchat.py`.
+
+To use the example start `agent1` first, then `agent2` which will initiate the dialogue after 5 seconds. To exit the dialogue press `ctrl + d` on your keyboard.
