@@ -79,6 +79,6 @@ class WalletMessagingClient:
 
     async def process_message_queue(self, ctx: Context):
         while True:
-            msg = await self._message_queue.get()
+            msg: WalletMessage = await self._message_queue.get()
             for handler in self._message_handlers:
                 await handler(ctx, msg)
