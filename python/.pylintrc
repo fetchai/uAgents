@@ -15,4 +15,5 @@ disable=missing-module-docstring,
         too-many-lines,
         broad-exception-caught,
         too-many-branches,
-        too-many-nested-blocks
+        too-many-nested-blocks,
+        import-error,
