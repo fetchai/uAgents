@@ -9,15 +9,15 @@ from dataclasses import dataclass
 from enum import Enum
 from time import time
 from typing import (
-    Dict,
-    List,
-    Set,
-    Optional,
-    Callable,
+    TYPE_CHECKING,
     Any,
     Awaitable,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Set,
     Type,
-    TYPE_CHECKING,
 )
 
 import aiohttp
@@ -36,7 +36,6 @@ from uagents.envelope import Envelope
 from uagents.models import ErrorMessage, Model
 from uagents.resolver import Resolver, parse_identifier
 from uagents.storage import KeyValueStore
-
 
 if TYPE_CHECKING:
     from uagents.protocol import Protocol
@@ -123,7 +122,7 @@ class Context:
         session (uuid.UUID): The session UUID.
 
     Methods:
-        get_message_protocol(message_schema_digest): Get the protocol associated
+        get_message_protocol(message_schema_digest): Get the protocol digest associated
         with a message schema digest.
         send(destination, message, timeout): Send a message to a destination.
         send_raw(destination, json_message, schema_digest, message_type, timeout): Send a message
@@ -253,9 +252,15 @@ class Context:
         """
         return self._session
 
+    def reset_session(self) -> None:
+        """
+        Reset the session UUID associated with the context.
+        """
+        self._session = None
+
     def get_message_protocol(self, message_schema_digest) -> Optional[str]:
         """
-        Get the protocol associated with a given message schema digest.
+        Get the protocol digest associated with a given message schema digest.
 
         Args:
             message_schema_digest (str): The schema digest of the message.
@@ -265,10 +270,19 @@ class Context:
             or None if not found.
         """
         for protocol_digest, protocol in self._protocols.items():
-            for reply_models in protocol.replies.values():
-                if message_schema_digest in reply_models:
+            for model in protocol.models.keys():
+                if message_schema_digest == model:
                     return protocol_digest
         return None
+
+    def update_protocols(self, protocol: Protocol) -> None:
+        """
+        Register a protocol with the context.
+
+        Args:
+            protocol (Protocol): The protocol to register.
+        """
+        self._protocols[protocol.digest] = protocol
 
     def get_agents_by_protocol(
         self, protocol_digest: str, limit: Optional[int] = None
@@ -392,6 +406,7 @@ class Context:
         Returns:
             MsgStatus: The delivery status of the message.
         """
+        current_session = self._session or uuid.uuid4()
 
         # Check if this message is a reply
         if (
@@ -429,6 +444,50 @@ class Context:
                 endpoint="",
             )
 
+        # if the message is part of a Dialogue, update the Dialogue state accordingly
+        current_protocol_digest = self.get_message_protocol(schema_digest)
+        if current_protocol_digest is not None:
+            current_protocol = self.protocols[current_protocol_digest]
+            if hasattr(current_protocol, "rules"):
+                if self._message_received and not current_protocol.is_valid_reply(
+                    self._message_received.schema_digest, schema_digest
+                ):
+                    message_received_name = current_protocol.models[
+                        self._message_received.schema_digest
+                    ].__name__
+                    self._logger.exception(
+                        f"Outgoing message {message_type.__name__} is not a valid "
+                        f"response to {message_received_name} "
+                        f"for a {current_protocol.name}"
+                    )
+                    return MsgStatus(
+                        status=DeliveryStatus.FAILED,
+                        detail="Invalid dialogue reply",
+                        destination=destination,
+                        endpoint="",
+                    )
+
+                if (
+                    self._session is None
+                    and current_protocol.custom_session
+                    and current_protocol.is_starter(schema_digest)
+                ):
+                    current_session = current_protocol.custom_session
+                    current_protocol.reset_custom_session_id()
+
+                message_name = current_protocol.models[schema_digest].__name__
+                current_protocol.add_message(
+                    session_id=current_session,
+                    message_type=message_name,
+                    sender=self.address,
+                    receiver=destination,
+                    content=json_message,
+                )
+                current_protocol.update_state(schema_digest, current_session)
+                self.logger.debug(
+                    f"update state to: {message_name} for session {current_session}"
+                )
+
         # Extract address from destination agent identifier if present
         _, _, destination_address = parse_identifier(destination)
 
@@ -440,7 +499,7 @@ class Context:
                     destination_address,
                     schema_digest,
                     json_message,
-                    self._session,
+                    current_session,
                 )
                 return MsgStatus(
                     status=DeliveryStatus.DELIVERED,
@@ -471,7 +530,7 @@ class Context:
             json_message,
             logger=self._logger,
             timeout=timeout,
-            session_id=self._session,
+            session_id=current_session,
         )
 
     @staticmethod

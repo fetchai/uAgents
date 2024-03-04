@@ -3,9 +3,9 @@
 import base64
 import hashlib
 import struct
-from typing import Optional, Any
+from typing import Any, Optional
 
-from pydantic import BaseModel, Field, UUID4
+from pydantic import UUID4, BaseModel, Field
 
 from uagents.crypto import Identity
 from uagents.dispatch import JsonStr

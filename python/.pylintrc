@@ -13,4 +13,7 @@ disable=missing-module-docstring,
         logging-fstring-interpolation,
         import-outside-toplevel,
         too-many-lines,
-        broad-exception-caught
+        broad-exception-caught,
+        too-many-branches,
+        too-many-nested-blocks,
+        import-error,

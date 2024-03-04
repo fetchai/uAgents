@@ -1,14 +1,14 @@
 """Endpoint Resolver."""
 
+import random
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
-import random
 
 from uagents.config import (
-    DEFAULT_MAX_ENDPOINTS,
-    TESTNET_PREFIX,
-    MAINNET_PREFIX,
     AGENT_PREFIX,
+    DEFAULT_MAX_ENDPOINTS,
+    MAINNET_PREFIX,
+    TESTNET_PREFIX,
 )
 from uagents.crypto import is_user_address
 from uagents.network import get_almanac_contract, get_name_service_contract

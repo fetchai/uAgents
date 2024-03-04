@@ -1,7 +1,5 @@
 import logging
 import sys
-
-
 from typing import Any, Dict, List, Optional, Union
 
 from uvicorn.logging import DefaultFormatter
