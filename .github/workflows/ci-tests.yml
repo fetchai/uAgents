@@ -35,7 +35,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: [ "3.8", "3.9", "3.10", "3.11", "3.12" ]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
         include:
           - os: macos-latest
             python-version: "3.10.10"
@@ -68,8 +68,8 @@ jobs:
           path: .venv
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
       - if: ${{
-              needs.check-if-files-changed.outputs.uagents == 'true' &&
-              steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+          needs.check-if-files-changed.outputs.uagents == 'true' &&
+          steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
           }}
         name: Install dependencies
         run: poetry install --no-interaction --no-root
@@ -92,7 +92,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ "3.10" ]
+        python-version: ["3.10"]
 
     steps:
       - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
@@ -118,8 +118,8 @@ jobs:
           path: .venv
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
       - if: ${{
-              needs.check-if-files-changed.outputs.uagents == 'true' &&
-              steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+          needs.check-if-files-changed.outputs.uagents == 'true' &&
+          steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
           }}
         name: Install dependencies
         run: poetry install -E all --no-interaction --no-root
@@ -127,6 +127,4 @@ jobs:
       - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
         run: poetry install -E all --no-interaction
       - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
-        run: poetry run black --check .
-      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
-        run: poetry run pylint $(git ls-files '*.py')
+        run: poetry run ruff check .
