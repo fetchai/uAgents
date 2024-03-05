@@ -1,4 +1,5 @@
 """Chit chat dialogue example"""
+
 from asyncio import sleep
 
 from dialogues.chitchat import ChitChatDialogue

@@ -1,4 +1,5 @@
 """Chit chat dialogue example"""
+
 import json
 
 from dialogues.chitchat import ChitChatDialogue
