@@ -108,7 +108,6 @@ class ASGIServer:
                         ],
                     }
                 )
-        return
 
     async def handle_missing_content_type(self, headers: CaseInsensitiveDict, send):
         """

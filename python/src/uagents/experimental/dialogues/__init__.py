@@ -1,15 +1,16 @@
 """Dialogue class aka. blueprint for protocols."""
 
 import functools
+import graphlib
 from datetime import datetime, timedelta
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Type
 from uuid import UUID
 
-import graphlib
 from uagents import Context, Model, Protocol
 from uagents.storage import KeyValueStore
 
 DEFAULT_SESSION_TIMEOUT_IN_SECONDS = 100
+TARGET_UUID_VERSION = 4
 
 JsonStr = str
 
@@ -485,7 +486,7 @@ class Dialogue(Protocol):
         This method will create a session with the given UUID and uses that
         ID the next time that a starter message is sent.
         """
-        if uuid.version != 4:
+        if uuid.version != TARGET_UUID_VERSION:
             raise ValueError("Session ID must be of type UUID v4!")
         if uuid in self._sessions:
             raise ValueError("Session ID already exists!")

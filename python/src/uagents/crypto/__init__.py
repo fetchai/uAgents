@@ -10,6 +10,8 @@ import ecdsa
 from ecdsa.util import sigencode_string_canonize
 from uagents.config import USER_PREFIX
 
+SHA_LENGTH = 256
+
 
 def _decode_bech32(value: str) -> Tuple[str, bytes]:
     prefix, data_base5 = bech32.bech32_decode(value)
@@ -33,7 +35,7 @@ def is_user_address(address: str) -> bool:
 def _key_derivation_hash(prefix: str, index: int) -> bytes:
     hasher = hashlib.sha256()
     hasher.update(prefix.encode())
-    assert 0 <= index < 256
+    assert 0 <= index < SHA_LENGTH
     hasher.update(bytes([index]))
     return hasher.digest()
 

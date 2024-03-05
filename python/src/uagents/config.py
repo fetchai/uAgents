@@ -12,6 +12,7 @@ LEDGER_PREFIX = "fetch"
 USER_PREFIX = "user"
 TESTNET_PREFIX = "test-agent"
 MAINNET_PREFIX = "agent"
+AGENT_ADDRESS_LENGTH = 65
 
 MAINNET_CONTRACT_ALMANAC = (
     "fetch1mezzhfj7qgveewzwzdk6lz5sae4dunpmmsjr9u7z0tpmdsae8zmquq3y0y"

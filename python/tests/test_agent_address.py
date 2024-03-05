@@ -1,6 +1,7 @@
 import unittest
 
 from uagents import Agent
+from uagents.config import AGENT_ADDRESS_LENGTH
 from uagents.crypto import Identity
 from uagents.resolver import is_valid_address, is_valid_prefix, parse_identifier
 
@@ -26,7 +27,7 @@ class TestAgentAdress(unittest.TestCase):
         alice = Agent(name="alice")
 
         self.assertEqual(alice.address[:5] == "agent", True)
-        self.assertEqual(len(alice.address) == 65, True)
+        self.assertEqual(len(alice.address) == AGENT_ADDRESS_LENGTH, True)
 
     def test_extract_valid_address(self):
         valid_addresses = [

@@ -45,6 +45,9 @@ proxy = ["fastapi"]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.ruff]
+target-version = "py310"
+
 [tool.ruff.lint]
 select = [
     # pycodestyle (Errors, Warnings)
@@ -59,7 +62,10 @@ select = [
     "I",
     # pep8-naming
     "N",
+    # pylint
+    "PL",
 ]
+ignore = ["PLR0913", "PLR0912", "PLR0911", "PLR2004"]
 
 [tool.ruff.lint.pycodestyle]
 max-line-length = 100
