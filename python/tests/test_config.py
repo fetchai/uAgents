@@ -2,7 +2,6 @@ import unittest
 
 from uagents import Agent
 
-
 agents = [
     Agent(),
     Agent(mailbox="agent_mailbox_key@some_url"),

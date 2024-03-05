@@ -1,10 +1,11 @@
-"""Dialogue class aka. blueprint for protocols"""
+"""Dialogue class aka. blueprint for protocols."""
+
 import functools
-import graphlib
 from datetime import datetime, timedelta
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Type
 from uuid import UUID
 
+import graphlib
 from uagents import Context, Model, Protocol
 from uagents.storage import KeyValueStore
 
@@ -16,9 +17,7 @@ MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
 
 
 class Node:
-    """
-    A node represents a state in the dialogue.
-    """
+    """A node represents a state in the dialogue."""
 
     def __init__(
         self,
@@ -32,9 +31,7 @@ class Node:
 
 
 class Edge:
-    """
-    An edge represents a transition between two states in the dialogue.
-    """
+    """An edge represents a transition between two states in the dialogue."""
 
     def __init__(
         self,
@@ -142,9 +139,9 @@ class Dialogue(Protocol):
         self._storage = KeyValueStore(
             f"{agent_address[0:16]}_dialogues"
         )  # persistent session + message storage
-        self._sessions: Dict[
-            UUID, List[Any]
-        ] = self._load_storage()  # volatile session + message storage
+        self._sessions: Dict[UUID, List[Any]] = (
+            self._load_storage()
+        )  # volatile session + message storage
         self._states: Dict[
             UUID, str
         ] = {}  # current state of the dialogue (as edge digest) per session
@@ -297,7 +294,7 @@ class Dialogue(Protocol):
 
     def get_current_state(self, session_id: UUID) -> str:
         """Get the current state of the dialogue for a given session."""
-        return self._states[session_id] if session_id in self._states else ""
+        return self._states.get(session_id, "")
 
     def _auto_add_message_handler(self) -> None:
         """Automatically add message handlers for edges with models."""
@@ -438,7 +435,7 @@ class Dialogue(Protocol):
         """Remove a session from the storage."""
         cache: Dict = self._storage.get(self.name) or {}
         session = str(session_id)
-        if session in cache.keys():
+        if session in cache:
             cache.pop(session)
         self._storage.set(self.name, cache)
 

@@ -44,7 +44,7 @@ DEFAULT_SEARCH_LIMIT = 100
 
 
 def parse_endpoint_config(
-    endpoint: Optional[Union[str, List[str], Dict[str, dict]]]
+    endpoint: Optional[Union[str, List[str], Dict[str, dict]]],
 ) -> List[Dict[str, Any]]:
     """
     Parse the user-provided endpoint configuration.

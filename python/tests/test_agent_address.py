@@ -2,7 +2,7 @@ import unittest
 
 from uagents import Agent
 from uagents.crypto import Identity
-from uagents.resolver import parse_identifier, is_valid_address, is_valid_prefix
+from uagents.resolver import is_valid_address, is_valid_prefix, parse_identifier
 
 
 class TestAgentAdress(unittest.TestCase):

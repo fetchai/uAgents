@@ -2,12 +2,12 @@
 import asyncio
 import unittest
 import uuid
-from unittest.mock import patch, AsyncMock, call
+from unittest.mock import AsyncMock, call, patch
 
 from uagents import Agent, Model
-from uagents.envelope import Envelope
 from uagents.config import RESPONSE_TIME_HINT_SECONDS
-from uagents.crypto import generate_user_address, Identity
+from uagents.crypto import Identity, generate_user_address
+from uagents.envelope import Envelope
 from uagents.query import enclose_response
 
 

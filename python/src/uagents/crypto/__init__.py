@@ -8,7 +8,6 @@ from typing import Tuple, Union
 import bech32
 import ecdsa
 from ecdsa.util import sigencode_string_canonize
-
 from uagents.config import USER_PREFIX
 
 
@@ -60,7 +59,7 @@ def encode_length_prefixed(value: Union[str, int, bytes]) -> bytes:
     elif isinstance(value, bytes):
         encoded = value
     else:
-        assert False
+        raise AssertionError()
 
     length = len(encoded)
     prefix = struct.pack(">Q", length)
@@ -69,14 +68,10 @@ def encode_length_prefixed(value: Union[str, int, bytes]) -> bytes:
 
 
 class Identity:
-    """
-    An identity is a cryptographic keypair that can be used to sign messages.
-    """
+    """An identity is a cryptographic keypair that can be used to sign messages."""
 
     def __init__(self, signing_key: ecdsa.SigningKey):
-        """
-        Create a new identity from a signing key.
-        """
+        """Create a new identity from a signing key."""
         self._sk = signing_key
 
         # build the address
@@ -86,49 +81,44 @@ class Identity:
 
     @staticmethod
     def from_seed(seed: str, index: int) -> "Identity":
-        """
-        Create a new identity from a seed and index.
-        """
+        """Create a new identity from a seed and index."""
         key = derive_key_from_seed(seed, "agent", index)
         signing_key = ecdsa.SigningKey.from_string(
-            key, curve=ecdsa.SECP256k1, hashfunc=hashlib.sha256
+            key,
+            curve=ecdsa.SECP256k1,
+            hashfunc=hashlib.sha256,
         )
         return Identity(signing_key)
 
     @staticmethod
     def generate() -> "Identity":
-        """
-        Generate a random new identity.
-        """
+        """Generate a random new identity."""
         signing_key = ecdsa.SigningKey.generate(
-            curve=ecdsa.SECP256k1, hashfunc=hashlib.sha256
+            curve=ecdsa.SECP256k1,
+            hashfunc=hashlib.sha256,
         )
         return Identity(signing_key)
 
     @staticmethod
     def from_string(private_key_hex: str) -> "Identity":
-        """
-        Create a new identity from a private key.
-        """
+        """Create a new identity from a private key."""
         bytes_key = bytes.fromhex(private_key_hex)
         signing_key = ecdsa.SigningKey.from_string(
-            bytes_key, curve=ecdsa.SECP256k1, hashfunc=hashlib.sha256
+            bytes_key,
+            curve=ecdsa.SECP256k1,
+            hashfunc=hashlib.sha256,
         )
 
         return Identity(signing_key)
 
     @property
     def private_key(self) -> str:
-        """
-        Property to access the private key of the identity.
-        """
+        """Property to access the private key of the identity."""
         return self._sk.to_string().hex()
 
     @property
     def address(self) -> str:
-        """
-        Property to access the address of the identity.
-        """
+        """Property to access the address of the identity."""
         return self._address
 
     @property
@@ -136,9 +126,7 @@ class Identity:
         return self._pub_key
 
     def sign(self, data: bytes) -> str:
-        """
-        Sign the provided data.
-        """
+        """Sign the provided data."""
         return _encode_bech32("sig", self._sk.sign(data))
 
     def sign_b64(self, data: bytes) -> str:
@@ -146,15 +134,11 @@ class Identity:
         return base64.b64encode(raw_signature).decode()
 
     def sign_digest(self, digest: bytes) -> str:
-        """
-        Sign the provided digest.
-        """
+        """Sign the provided digest."""
         return _encode_bech32("sig", self._sk.sign_digest(digest))
 
     def sign_registration(self, contract_address: str, sequence: int) -> str:
-        """
-        Sign the registration data for the Almanac contract.
-        """
+        """Sign the registration data for the Almanac contract."""
         hasher = hashlib.sha256()
         hasher.update(encode_length_prefixed(contract_address))
         hasher.update(encode_length_prefixed(self.address))
@@ -184,7 +168,9 @@ class Identity:
         }
 
         raw_sign_doc = json.dumps(
-            sign_doc, sort_keys=True, separators=(",", ":")
+            sign_doc,
+            sort_keys=True,
+            separators=(",", ":"),
         ).encode()
         signature = self.sign_b64(raw_sign_doc)
         enc_sign_doc = base64.b64encode(raw_sign_doc).decode()
@@ -193,9 +179,7 @@ class Identity:
 
     @staticmethod
     def verify_digest(address: str, digest: bytes, signature: str) -> bool:
-        """
-        Verify that the signature is correct for the provided signer address and digest.
-        """
+        """Verify that the signature is correct for the provided signer address and digest."""
         pk_prefix, pk_data = _decode_bech32(address)
         sig_prefix, sig_data = _decode_bech32(signature)
 

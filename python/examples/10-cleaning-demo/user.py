@@ -1,15 +1,14 @@
 from datetime import datetime, timedelta
-from pytz import utc
 
 from protocols.cleaning import (
-    ServiceBooking,
     BookingResponse,
+    ServiceBooking,
     ServiceRequest,
     ServiceResponse,
 )
 from protocols.cleaning.models import ServiceType
+from pytz import utc
 from uagents import Agent, Context
-
 
 CLEANER_ADDRESS = (
     "test-agent://agent1qdfdx6952trs028fxyug7elgcktam9f896ays6u9art4uaf75hwy2j9m87w"

@@ -20,7 +20,6 @@ HOST = "0.0.0.0"
 async def _read_asgi_body(receive):
     """
     Read the entire body of an ASGI message.
-
     """
     body = b""
     more_body = True
@@ -307,9 +306,10 @@ class ASGIServer:
         # wait for any queries to be resolved
         if expects_response:
             response_msg, schema_digest = await self._queries[env.sender]
-            if env.expires is not None:
-                if datetime.now() > datetime.fromtimestamp(env.expires):
-                    response_msg = ErrorMessage(error="Query envelope expired")
+            if (env.expires is not None) and (
+                datetime.now() > datetime.fromtimestamp(env.expires)
+            ):
+                response_msg = ErrorMessage(error="Query envelope expired")
             sender = env.target
             response = enclose_response_raw(
                 response_msg, schema_digest, sender, str(env.session)
