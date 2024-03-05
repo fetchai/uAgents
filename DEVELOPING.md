@@ -1,33 +1,31 @@
 ## Development setup
 
-The easiest way to get set up for development is to install Python (`3.8`, `3.9`, `3.10`, or `3.11`) and [poetry](https://pypi.org/project/poetry/), and then run the following from the top-level project directory:
+The easiest way to get set up for development is to install Python (`3.9` to `3.12`) and [poetry](https://pypi.org/project/poetry/), and then run the following from the top-level project directory:
 
 ```bash
   cd python
   poetry install
   poetry shell
+  pre-commit install
 ```
 
 ## Development commands
 
-Following are some helpful commands for development:
+When developing for `uAgents` make sure to have the poetry shell active. This ensures that linting and formatting will automatically be checked during `git commit`.
 
-- To run the code formatter:
+We are using [Ruff](https://github.com/astral-sh/ruff) with added rules for formatting and linting.
+Please consider adding `ruff` to your IDE to speed up the development process and ensure you only commit clean code.
 
-  ```bash
-    black .
-  ```
+Alternately you can invoke ruff by typing the following from within the `./python` folder
 
-- To run lint checks:
+```bash
+  ruff check --fix && ruff format
+```
 
-  ```bash
-    pylint $(git ls-files '*.py')
-  ```
+### Testing
 
-- To run tests:
+To run tests use the following command:
 
-  ```bash
-    pytest
-  ```
-
-Before committing and opening a PR, use the above commands to run the checks locally. This saves CI hours and ensures you only commit clean code.
+```bash
+  pytest
+```
