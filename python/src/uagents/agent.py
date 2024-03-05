@@ -886,9 +886,9 @@ class Agent(Sink):
                 self._wallet_messaging_client.poll_server(),
                 self._wallet_messaging_client.process_message_queue(self._ctx),
             ]:
-                task = self._loop.create_task(task)
-                self._background_tasks.add(task)
-                task.add_done_callback(self._background_tasks.discard)
+                new_task = self._loop.create_task(task)
+                self._background_tasks.add(new_task)
+                new_task.add_done_callback(self._background_tasks.discard)
 
     def run(self):
         """

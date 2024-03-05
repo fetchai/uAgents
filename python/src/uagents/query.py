@@ -65,15 +65,18 @@ async def query(
 
     for endpoint in endpoints:
         try:
-            async with aiohttp.ClientSession() as session, session.post(
-                endpoints[0],
-                headers={
-                    "content-type": "application/json",
-                    "x-uagents-connection": "sync",
-                },
-                data=env.json(),
-                timeout=timeout,
-            ) as response:
+            async with (
+                aiohttp.ClientSession() as session,
+                session.post(
+                    endpoints[0],
+                    headers={
+                        "content-type": "application/json",
+                        "x-uagents-connection": "sync",
+                    },
+                    data=env.json(),
+                    timeout=timeout,
+                ) as response,
+            ):
                 success = response.status == 200
 
                 if success:
