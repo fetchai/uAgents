@@ -107,5 +107,5 @@ expected_configs = [
 
 class TestConfig(unittest.TestCase):
     def test_parse_agentverse_config(self):
-        for agent, expected_config in zip(agents, expected_configs, strict=False):
+        for agent, expected_config in zip(agents, expected_configs):  # noqa
             self.assertEqual(agent.agentverse, expected_config)
