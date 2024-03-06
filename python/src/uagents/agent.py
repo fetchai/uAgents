@@ -2,16 +2,27 @@
 
 import asyncio
 import functools
-from typing import Dict, List, Optional, Set, Union, Type, Tuple, Any, Coroutine
 import uuid
-from pydantic import ValidationError
-import requests
+from typing import Any, Coroutine, Dict, List, Optional, Set, Tuple, Type, Union
 
+import requests
+from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
-from cosmpy.aerial.client import LedgerClient
-
+from pydantic import ValidationError
 from uagents.asgi import ASGIServer
+from uagents.config import (
+    AVERAGE_BLOCK_INTERVAL,
+    LEDGER_PREFIX,
+    MAINNET_PREFIX,
+    REGISTRATION_FEE,
+    REGISTRATION_RETRY_INTERVAL_SECONDS,
+    REGISTRATION_UPDATE_INTERVAL_SECONDS,
+    TESTNET_PREFIX,
+    get_logger,
+    parse_agentverse_config,
+    parse_endpoint_config,
+)
 from uagents.context import (
     Context,
     EventCallback,
@@ -20,30 +31,18 @@ from uagents.context import (
     MsgDigest,
 )
 from uagents.crypto import Identity, derive_key_from_seed, is_user_address
-from uagents.dispatch import Sink, dispatcher, JsonStr
-from uagents.models import Model, ErrorMessage
-from uagents.protocol import Protocol
-from uagents.resolver import Resolver, GlobalResolver
-from uagents.storage import KeyValueStore, get_or_create_private_keys
-from uagents.network import (
-    get_ledger,
-    get_almanac_contract,
-    add_testnet_funds,
-    InsufficientFundsError,
-)
+from uagents.dispatch import JsonStr, Sink, dispatcher
 from uagents.mailbox import MailboxClient
-from uagents.config import (
-    AVERAGE_BLOCK_INTERVAL,
-    REGISTRATION_FEE,
-    REGISTRATION_UPDATE_INTERVAL_SECONDS,
-    LEDGER_PREFIX,
-    REGISTRATION_RETRY_INTERVAL_SECONDS,
-    TESTNET_PREFIX,
-    MAINNET_PREFIX,
-    parse_endpoint_config,
-    parse_agentverse_config,
-    get_logger,
+from uagents.models import ErrorMessage, Model
+from uagents.network import (
+    InsufficientFundsError,
+    add_testnet_funds,
+    get_almanac_contract,
+    get_ledger,
 )
+from uagents.protocol import Protocol
+from uagents.resolver import GlobalResolver, Resolver
+from uagents.storage import KeyValueStore, get_or_create_private_keys
 
 
 async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
@@ -762,13 +761,13 @@ class Agent(Sink):
             if schema_digest in self._signed_message_handlers:
                 raise RuntimeError("Unable to register duplicate message handler")
             if schema_digest in protocol.signed_message_handlers:
-                self._signed_message_handlers[
-                    schema_digest
-                ] = protocol.signed_message_handlers[schema_digest]
+                self._signed_message_handlers[schema_digest] = (
+                    protocol.signed_message_handlers[schema_digest]
+                )
             elif schema_digest in protocol.unsigned_message_handlers:
-                self._unsigned_message_handlers[
-                    schema_digest
-                ] = protocol.unsigned_message_handlers[schema_digest]
+                self._unsigned_message_handlers[schema_digest] = (
+                    protocol.unsigned_message_handlers[schema_digest]
+                )
             else:
                 raise RuntimeError("Unable to lookup up message handler in protocol")
 
@@ -779,6 +778,8 @@ class Agent(Sink):
 
         if protocol.digest is not None:
             self.protocols[protocol.digest] = protocol
+            if self._ctx is not None:
+                self._ctx.update_protocols(protocol)
 
         if publish_manifest:
             self.publish_manifest(protocol.manifest())
@@ -885,9 +886,9 @@ class Agent(Sink):
                 self._wallet_messaging_client.poll_server(),
                 self._wallet_messaging_client.process_message_queue(self._ctx),
             ]:
-                task = self._loop.create_task(task)
-                self._background_tasks.add(task)
-                task.add_done_callback(self._background_tasks.discard)
+                new_task = self._loop.create_task(task)
+                self._background_tasks.add(new_task)
+                new_task.add_done_callback(self._background_tasks.discard)
 
     def run(self):
         """
@@ -961,7 +962,54 @@ class Agent(Sink):
             )
             if handler is None:
                 if not is_user_address(sender):
-                    handler = self._signed_message_handlers.get(schema_digest)
+                    is_valid = True  # always valid unless considered invalid as part of a dialogue
+                    for protocol in context.protocols.values():
+                        if hasattr(protocol, "rules") and protocol.is_included(
+                            schema_digest
+                        ):
+                            state = protocol.get_current_state(session)
+                            context.logger.debug(
+                                "current state: "
+                                f"{(protocol.models[state].__name__ if state else 'n/a')}"
+                            )
+                            is_valid = protocol.is_valid_message(session, schema_digest)
+                            context.logger.debug(
+                                f"message {self._models[schema_digest].__name__} "
+                                f"allowed: {is_valid}"
+                            )
+
+                            if not is_valid:
+                                context.reset_session()
+                                await _send_error_message(
+                                    context,
+                                    sender,
+                                    ErrorMessage(
+                                        error=f"Unexpected message in dialogue: {message}"
+                                    ),
+                                )
+                                break
+
+                            if protocol.is_starter(schema_digest):
+                                self._ctx.logger.debug("dialogue started")
+                            elif protocol.is_ender(schema_digest):
+                                self._ctx.logger.debug(
+                                    "dialogue ended, cleaning up session"
+                                )
+                            else:
+                                self._ctx.logger.debug("dialogue picked up")
+
+                            context.dialogue = protocol.get_session(
+                                session
+                            )  # add current dialogue messages to context
+                            protocol.add_message(
+                                session_id=session,
+                                message_type=self._models[schema_digest].__name__,
+                                sender=sender,
+                                receiver=self.address,
+                                content=message,
+                            )
+                    if is_valid:
+                        handler = self._signed_message_handlers.get(schema_digest)
                 elif schema_digest in self._signed_message_handlers:
                     await _send_error_message(
                         context,

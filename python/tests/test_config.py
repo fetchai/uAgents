@@ -2,7 +2,6 @@ import unittest
 
 from uagents import Agent
 
-
 agents = [
     Agent(),
     Agent(mailbox="agent_mailbox_key@some_url"),
@@ -108,5 +107,5 @@ expected_configs = [
 
 class TestConfig(unittest.TestCase):
     def test_parse_agentverse_config(self):
-        for agent, expected_config in zip(agents, expected_configs):
+        for agent, expected_config in zip(agents, expected_configs):  # noqa
             self.assertEqual(agent.agentverse, expected_config)

@@ -14,16 +14,14 @@ uAgents is a library developed by Fetch.ai that allows for creating autonomous A
 ### Installation
 Get started with uAgents by installing it for Python 3.8 to 3.12:
 
-    cd python
-    poetry install
-    poetry shell
+    pip install uagents
 
 ### Running a Demo
 
-#### Creating an Agent 
+#### Creating an Agent
 Build your first uAgent using the following script:
 
-    from uagents import Agent, Context 
+    from uagents import Agent, Context
     alice = Agent(name="alice", seed="alice recovery phrase")
 
 Include a seed parameter when creating an agent to set fixed addresses, or leave it out to generate random addresses each time.
@@ -34,21 +32,21 @@ Give it a simple task, such as greeting:
     @alice.on_interval(period=2.0)
     async def say_hello(ctx: Context):
         ctx.logger.info(f'hello, my name is {ctx.name}')
-    
+
     if __name__ == "__main__":
         alice.run()
 
-#### Running the Agent 
+#### Running the Agent
 So far, your code should look like this:
 
     from uagents import Agent, Context
-    
+
     alice = Agent(name="alice", seed="alice recovery phrase")
-    
+
     @alice.on_interval(period=2.0)
     async def say_hello(ctx: Context):
         ctx.logger.info(f'hello, my name is {ctx.name}')
-    
+
     if __name__ == "__main__":
         alice.run()
 
@@ -78,6 +76,10 @@ Please see the [official documentation](https://fetch.ai/docs) for full setup in
 ## 🌱 Examples
 
 The [`examples`](https://github.com/fetchai/uAgents/tree/main/python/examples) folder contains several examples of how to create and run various types of agents.
+
+## 🌲 Integrations
+
+The [`integrations`](https://github.com/fetchai/uAgents/tree/main/integrations) folder contains examples that provide a more in depth use of the uAgents library.
 
 ## Python Library
 

@@ -2,9 +2,9 @@
 import unittest
 
 from uagents import Agent
-from uagents.setup import fund_agent_if_low
-from uagents.resolver import get_agent_address
 from uagents.network import get_name_service_contract
+from uagents.resolver import get_agent_address
+from uagents.setup import fund_agent_if_low
 
 
 class TestRegistration(unittest.IsolatedAsyncioTestCase):

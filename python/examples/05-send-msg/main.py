@@ -1,4 +1,4 @@
-from uagents import Agent, Context, Bureau, Model
+from uagents import Agent, Bureau, Context, Model
 
 
 class Message(Model):

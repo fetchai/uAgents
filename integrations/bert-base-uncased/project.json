@@ -1,5 +1,6 @@
 {
     "title": "Bert Base Uncased",
     "description": "BERT base model (uncased) Pretrained model on English language using a masked language modeling (MLM) objective.",
-    "categories":    ["Text Classification", "Hugging Face", "Text Generation"]
+    "categories":    ["Text Classification", "Hugging Face", "Text Generation"],
+    "deltav": false
 }

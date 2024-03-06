@@ -6,10 +6,10 @@ from aioresponses import aioresponses
 from uagents import Agent
 from uagents.context import (
     DeliveryStatus,
-    MsgDigest,
-    MsgStatus,
     Identity,
     Model,
+    MsgDigest,
+    MsgStatus,
 )
 from uagents.dispatch import dispatcher
 from uagents.resolver import RulesBasedResolver

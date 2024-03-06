@@ -2,7 +2,6 @@
 import unittest
 from typing import Callable
 
-
 from uagents import Agent, Model, Protocol
 
 

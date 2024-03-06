@@ -1,14 +1,15 @@
 """Endpoint Resolver."""
 
+import random
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
-import random
 
 from uagents.config import (
-    DEFAULT_MAX_ENDPOINTS,
-    TESTNET_PREFIX,
-    MAINNET_PREFIX,
+    AGENT_ADDRESS_LENGTH,
     AGENT_PREFIX,
+    DEFAULT_MAX_ENDPOINTS,
+    MAINNET_PREFIX,
+    TESTNET_PREFIX,
 )
 from uagents.crypto import is_user_address
 from uagents.network import get_almanac_contract, get_name_service_contract
@@ -49,7 +50,7 @@ def is_valid_address(address: str) -> bool:
         bool: True if the address is valid; False otherwise.
     """
     return is_user_address(address) or (
-        len(address) == 65 and address.startswith(AGENT_PREFIX)
+        len(address) == AGENT_ADDRESS_LENGTH and address.startswith(AGENT_PREFIX)
     )
 
 

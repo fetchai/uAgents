@@ -5,14 +5,13 @@ from typing import Optional
 
 import aiohttp
 import pydantic
-from aiohttp.client_exceptions import ClientConnectorError
-from websockets import connect
 import websockets.exceptions
-
-from uagents.config import get_logger, MAILBOX_POLL_INTERVAL_SECONDS
+from aiohttp.client_exceptions import ClientConnectorError
+from uagents.config import MAILBOX_POLL_INTERVAL_SECONDS, get_logger
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
+from websockets import connect
 
 
 class MailboxClient:

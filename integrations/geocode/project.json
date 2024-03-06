@@ -1,0 +1,6 @@
+{
+    "title": "maps.googleapis integration",
+    "description": "Utilise Google apis to bring maps to your agents.",
+    "categories":   ["mobility", "google"],
+    "deltav": true
+}

@@ -1,7 +1,5 @@
 import logging
 import sys
-
-
 from typing import Any, Dict, List, Optional, Union
 
 from uvicorn.logging import DefaultFormatter
@@ -14,6 +12,7 @@ LEDGER_PREFIX = "fetch"
 USER_PREFIX = "user"
 TESTNET_PREFIX = "test-agent"
 MAINNET_PREFIX = "agent"
+AGENT_ADDRESS_LENGTH = 65
 
 MAINNET_CONTRACT_ALMANAC = (
     "fetch1mezzhfj7qgveewzwzdk6lz5sae4dunpmmsjr9u7z0tpmdsae8zmquq3y0y"
@@ -46,7 +45,7 @@ DEFAULT_SEARCH_LIMIT = 100
 
 
 def parse_endpoint_config(
-    endpoint: Optional[Union[str, List[str], Dict[str, dict]]]
+    endpoint: Optional[Union[str, List[str], Dict[str, dict]]],
 ) -> List[Dict[str, Any]]:
     """
     Parse the user-provided endpoint configuration.
