@@ -39,9 +39,9 @@ async def process_response_from_ai_agent(ctx: Context, sender: str, msg: AIRespo
         # get storage entry because another AI agent has already created an entry for this DeltaV session
         ai_agents_responses_session = ai_agents_responses[session_str]
     else:
-        # adapter hasn't got any messages from AI agents for this DeltaV session so far so let's create a new entry for it
+        # adapter hasn't got any messages from AI Agents for this DeltaV session so far so let's create a new entry for this session
         ai_agents_responses_session = {}
-    # add response of AI agent to session dictionary
+    # add response of AI Agent to session dictionary
     ai_agents_responses_session[sender] = msg.response
     # update all AI responses data with the one specific for this session
     ai_agents_responses[session_str] = ai_agents_responses_session
