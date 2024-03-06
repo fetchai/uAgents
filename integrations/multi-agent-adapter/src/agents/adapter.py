@@ -9,7 +9,7 @@ class AIResponse(Model):
     response: str
 
 
-adapter_protocol = Protocol(f"AI agent adapter protocol")
+adapter_protocol = Protocol(f"AI Agent Adapter protocol")
 
 
 @agent.on_event("startup")
