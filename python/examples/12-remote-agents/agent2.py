@@ -1,6 +1,7 @@
 """
 Counterpart for the remote connection example in agent1.py.
 """
+
 from uagents import Agent, Context, Model
 
 

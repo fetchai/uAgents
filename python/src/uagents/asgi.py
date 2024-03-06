@@ -7,7 +7,6 @@ from typing import Dict, Optional
 import pydantic
 import uvicorn
 from requests.structures import CaseInsensitiveDict
-
 from uagents.config import RESPONSE_TIME_HINT_SECONDS, get_logger
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
@@ -109,7 +108,6 @@ class ASGIServer:
                         ],
                     }
                 )
-        return
 
     async def handle_missing_content_type(self, headers: CaseInsensitiveDict, send):
         """
@@ -160,9 +158,7 @@ class ASGIServer:
         )
         await self._server.serve()
 
-    async def __call__(
-        self, scope, receive, send
-    ):  #  pylint: disable=too-many-branches
+    async def __call__(self, scope, receive, send):  #  pylint: disable=too-many-branches
         """
         Handle an incoming ASGI message, dispatching the envelope to the appropriate handler,
         and waiting for any queries to be resolved.
@@ -259,7 +255,7 @@ class ASGIServer:
             )
             return
 
-        expects_response = b"sync" == headers.get(b"x-uagents-connection")
+        expects_response = headers.get(b"x-uagents-connection") == b"sync"
         do_verify = not is_user_address(env.sender)
 
         if expects_response:
@@ -309,9 +305,10 @@ class ASGIServer:
         # wait for any queries to be resolved
         if expects_response:
             response_msg, schema_digest = await self._queries[env.sender]
-            if env.expires is not None:
-                if datetime.now() > datetime.fromtimestamp(env.expires):
-                    response_msg = ErrorMessage(error="Query envelope expired")
+            if (env.expires is not None) and (
+                datetime.now() > datetime.fromtimestamp(env.expires)
+            ):
+                response_msg = ErrorMessage(error="Query envelope expired")
             sender = env.target
             response = enclose_response_raw(
                 response_msg, schema_digest, sender, str(env.session)

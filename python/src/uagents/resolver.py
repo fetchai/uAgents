@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 
 from uagents.config import (
+    AGENT_ADDRESS_LENGTH,
     AGENT_PREFIX,
     DEFAULT_MAX_ENDPOINTS,
     MAINNET_PREFIX,
@@ -49,7 +50,7 @@ def is_valid_address(address: str) -> bool:
         bool: True if the address is valid; False otherwise.
     """
     return is_user_address(address) or (
-        len(address) == 65 and address.startswith(AGENT_PREFIX)
+        len(address) == AGENT_ADDRESS_LENGTH and address.startswith(AGENT_PREFIX)
     )
 
 

@@ -1,4 +1,5 @@
 """Specific dialogue class for the chit-chat dialogue."""
+
 from typing import Type
 
 from uagents import Model

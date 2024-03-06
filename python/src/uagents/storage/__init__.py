@@ -3,7 +3,6 @@ import os
 from typing import Any, Optional, Tuple
 
 from cosmpy.aerial.wallet import PrivateKey
-
 from uagents.crypto import Identity
 
 
@@ -66,7 +65,7 @@ class KeyValueStore:
         self._save()
 
     def _load(self):
-        with open(self._path, "r", encoding="utf-8") as file:
+        with open(self._path, encoding="utf-8") as file:
             self._data = json.load(file)
 
     def _save(self):
@@ -119,7 +118,7 @@ def get_or_create_private_keys(name: str) -> Tuple[str, str]:
 
     """
     keys = load_all_keys()
-    if name in keys.keys():
+    if name in keys:
         private_keys = keys.get(name)
         return private_keys["identity_key"], private_keys["wallet_key"]
 

@@ -18,7 +18,6 @@ from cosmpy.aerial.faucet import FaucetApi
 from cosmpy.aerial.tx import Transaction
 from cosmpy.aerial.tx_helpers import TxResponse
 from cosmpy.aerial.wallet import LocalWallet
-
 from uagents.config import (
     AVERAGE_BLOCK_INTERVAL,
     MAINNET_CONTRACT_ALMANAC,
@@ -80,7 +79,7 @@ def add_testnet_funds(wallet_address: str):
 
 
 def parse_record_config(
-    record: Optional[Union[str, List[str], Dict[str, dict]]]
+    record: Optional[Union[str, List[str], Dict[str, dict]]],
 ) -> List[Dict[str, Any]]:
     """
     Parse the user-provided record configuration.

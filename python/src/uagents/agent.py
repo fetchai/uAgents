@@ -10,7 +10,6 @@ from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
 from pydantic import ValidationError
-
 from uagents.asgi import ASGIServer
 from uagents.config import (
     AVERAGE_BLOCK_INTERVAL,
@@ -762,13 +761,13 @@ class Agent(Sink):
             if schema_digest in self._signed_message_handlers:
                 raise RuntimeError("Unable to register duplicate message handler")
             if schema_digest in protocol.signed_message_handlers:
-                self._signed_message_handlers[
-                    schema_digest
-                ] = protocol.signed_message_handlers[schema_digest]
+                self._signed_message_handlers[schema_digest] = (
+                    protocol.signed_message_handlers[schema_digest]
+                )
             elif schema_digest in protocol.unsigned_message_handlers:
-                self._unsigned_message_handlers[
-                    schema_digest
-                ] = protocol.unsigned_message_handlers[schema_digest]
+                self._unsigned_message_handlers[schema_digest] = (
+                    protocol.unsigned_message_handlers[schema_digest]
+                )
             else:
                 raise RuntimeError("Unable to lookup up message handler in protocol")
 
@@ -887,9 +886,9 @@ class Agent(Sink):
                 self._wallet_messaging_client.poll_server(),
                 self._wallet_messaging_client.process_message_queue(self._ctx),
             ]:
-                task = self._loop.create_task(task)
-                self._background_tasks.add(task)
-                task.add_done_callback(self._background_tasks.discard)
+                new_task = self._loop.create_task(task)
+                self._background_tasks.add(new_task)
+                new_task.add_done_callback(self._background_tasks.discard)
 
     def run(self):
         """

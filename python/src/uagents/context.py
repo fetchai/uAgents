@@ -270,7 +270,7 @@ class Context:
             or None if not found.
         """
         for protocol_digest, protocol in self._protocols.items():
-            for model in protocol.models.keys():
+            for model in protocol.models:
                 if message_schema_digest == model:
                     return protocol_digest
         return None
@@ -430,19 +430,20 @@ class Context:
             and schema_digest != ERROR_MESSAGE_DIGEST
         ):
             received = self._message_received
-            if received.schema_digest in self._replies:
-                # Ensure the reply is valid
-                if schema_digest not in self._replies[received.schema_digest]:
-                    self._logger.exception(
-                        f"Outgoing message {message_type or ''} "
-                        f"is not a valid reply to {received.message}"
-                    )
-                    return MsgStatus(
-                        status=DeliveryStatus.FAILED,
-                        detail="Invalid reply",
-                        destination=destination,
-                        endpoint="",
-                    )
+            # Ensure the reply is valid
+            if (received.schema_digest in self._replies) and (
+                schema_digest not in self._replies[received.schema_digest]
+            ):
+                self._logger.exception(
+                    f"Outgoing message {message_type or ''} "
+                    f"is not a valid reply to {received.message}"
+                )
+                return MsgStatus(
+                    status=DeliveryStatus.FAILED,
+                    detail="Invalid reply",
+                    destination=destination,
+                    endpoint="",
+                )
         # Check if this message is a valid interval message
         if (
             self._message_received is None

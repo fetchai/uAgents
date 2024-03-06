@@ -1,4 +1,5 @@
 import hashlib
+
 from uagents import Agent, Bureau, Context, Model
 from uagents.crypto import Identity
 

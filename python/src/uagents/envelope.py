@@ -6,7 +6,6 @@ import struct
 from typing import Any, Optional
 
 from pydantic import UUID4, BaseModel, Field
-
 from uagents.crypto import Identity
 from uagents.dispatch import JsonStr
 
