@@ -24,7 +24,7 @@ import aiohttp
 import requests
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet
-
+from typing_extensions import deprecated
 from uagents.config import (
     ALMANAC_API_URL,
     DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
@@ -341,6 +341,21 @@ class Context:
             message_type=type(message),
             timeout=timeout,
         )
+
+    @deprecated(
+        "This method will be removed in a future release. Please use ctx.broadcast()"
+    )
+    async def experimental_broadcast(
+        self,
+        destination_protocol: str,
+        message: Model,
+        limit: Optional[int] = DEFAULT_SEARCH_LIMIT,
+        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+    ) -> List[MsgStatus]:
+        """Deprecated method for broadcasting a message to agents with a specific protocol.
+        This method will be removed in a future release. Please use ctx.broadcast() instead.
+        """
+        return await self.broadcast(destination_protocol, message, limit, timeout)
 
     async def broadcast(
         self,
