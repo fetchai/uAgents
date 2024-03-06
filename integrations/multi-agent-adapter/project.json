@@ -1,0 +1,6 @@
+{
+    "title": "Multi-Agent adapter",
+    "description": "Multi-Agent adapter example can be useful when you have many agents that you would like to communicate with from DeltaV.",
+    "categories":    ["Multi-Agent System", "AI", "Text Generation"],
+    "deltav": true
+}
