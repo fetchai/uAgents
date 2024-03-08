@@ -37,7 +37,7 @@ async def process_response_from_ai_agent(ctx: Context, sender: str, msg: AIRespo
     ctx.logger.info(f"Response from AI agent: {msg.response}")
 
     # get all AI Agent responses from storage that belong to those DeltaV sessions
-    # for which we have already got some of the responses from some of our AI Agents but not all of them (= pending DeltaV sessions)
+    # for which we have already got some of the responses from our AI Agents but not all of them (= pending DeltaV sessions)
     pending_ai_agents_responses = ctx.storage.get("pending_ai_agents_responses")
     session_str = str(ctx.session)
     if session_str in pending_ai_agents_responses:
@@ -71,10 +71,10 @@ async def process_response_from_ai_agent(ctx: Context, sender: str, msg: AIRespo
                 type=UAgentResponseType.FINAL,
             ),
         )
-        # we don't need this session anymore so we can remove it from AI responses
+        # we don't need this session anymore so we can remove AI responses collected for current DeltaV session
         pending_ai_agents_responses.pop(session_str)
         # save updated AI responses data in agent storage
-        pending_ai_agents_responses = ctx.storage.get("pending_ai_agents_responses")
+        ctx.storage.set("pending_ai_agents_responses", pending_ai_agents_responses)
 
 
 agent.include(adapter_protocol)
