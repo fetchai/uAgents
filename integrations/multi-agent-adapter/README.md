@@ -23,9 +23,11 @@ The name of the agent can be for example `AI Agents Adapter`.
 
 ### Step 5:
 On line 14 add your AI Agent address(es):
+
     ```python
-    ctx.storage.set("ai_agent_addresses", [`{YOUR_AI_AGENT_ADDRESS(ES)}`])
+    ctx.storage.set("ai_agent_addresses", "{YOUR_AI_AGENT_ADDRESS(ES) AS A LIST OF STRINGS}")
     ```
+
 ### Step 6:
 Run your AI Agents adapter by clicking on `Run`:
 https://fetch.ai/docs/guides/agentverse/creating-a-hosted-agent#create-your-first-hosted-agent-on-the-agentverse
