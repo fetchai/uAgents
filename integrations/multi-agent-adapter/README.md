@@ -1,6 +1,6 @@
 #  Multi-Agent adapter system
 
-This Multi-Agent adapter example can be useful when you have many agents and you would like to send messages to all of them and/or you would like to collect messages from all of them, process the responses and send back a final result/options to DeltaV.
+This Multi-Agent adapter architecture can be useful when you have many agents and you would like to send messages to all of them, then would like to wait and collect all the responses from all of them, and send back a final result/options at once to DeltaV.
 
 ### Step 1:
 Create a Blank Agent on Agentverse:
