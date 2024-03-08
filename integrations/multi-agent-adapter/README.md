@@ -35,7 +35,7 @@ https://fetch.ai/docs/guides/agentverse/creating-a-hosted-agent#create-your-firs
 ### Step 7:
 Register your newly created AI Agents Adapter as a Service on Agentverse:
 https://fetch.ai/docs/guides/agentverse/registering-agent-services
-Name of the service can be for example `AI Agents adapter`.
+Name of the service can be for example: `AI Agents adapter`
 Description: `AI Agents adapter that sends prompt to multiple AI Agents and collects responses from them.`
 `prompt` field description: `The prompt the user wants the AI Agents to generate response for. You must ask the user what the prompt is, don't pre fill it.`
 
