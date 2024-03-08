@@ -1,6 +1,6 @@
 {
     "title": "Multi-Agent adapter",
-    "description": "Multi-Agent adapter example can be useful when you have many agents that you would like to communicate with from DeltaV.",
-    "categories":    ["Multi-Agent System", "AI", "Text Generation"],
+    "description": "Multi-Agent adapter example can be useful when you have many agents and you would like to collect responses from all of them at once using DeltaV.",
+    "categories":    ["Multi-Agent System", "AI", "DeltaV", "Text Generation"],
     "deltav": true
 }
