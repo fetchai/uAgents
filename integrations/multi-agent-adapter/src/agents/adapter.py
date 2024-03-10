@@ -41,10 +41,13 @@ async def process_response_from_ai_agent(ctx: Context, sender: str, msg: AIRespo
     pending_ai_agents_responses = ctx.storage.get("pending_ai_agents_responses")
     session_str = str(ctx.session)
     if session_str in pending_ai_agents_responses:
-        # get storage entry because another AI agent has already created an entry for this DeltaV session
+        # get storage entry for current DeltaV session from agent storage
+        # because another AI agent has already sent back its response to this Adapter via this message handler
+        # so an entry for this DeltaV session has already been created before in agent storage
         ai_agents_responses_session = pending_ai_agents_responses[session_str]
     else:
-        # adapter hasn't got any messages from AI Agents for this DeltaV session so far so let's create a new entry for this session
+        # Adapter hasn't got any messages from any of the AI Agents for this DeltaV session via this message handler so far
+        # so let's create a new entry for this session
         ai_agents_responses_session = {}
     # add response of AI Agent to session dictionary
     ai_agents_responses_session[sender] = msg.response
