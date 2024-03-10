@@ -10,7 +10,7 @@ class AIResponse(Model):
 async def respond_to_adapter(ctx: Context, sender: str, msg: AIRequest):
     ctx.logger.info(f"Message from AI Adapter: {msg.prompt}")
 
-    # TODO: implement AI Agent code here
+    # TODO: implement AI Agent logic here
 
     # TODO: send back the actual AI response to the Adapter agent
-    await ctx.send(sender, AIResponse(response="AI response 1"))
+    await ctx.send(sender, AIResponse(response="AI response"))
