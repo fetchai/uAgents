@@ -48,22 +48,21 @@ async def process_response_from_ai_agent(ctx: Context, sender: str, msg: AIRespo
         ai_agents_responses_session = {}
     # add response of AI Agent to session dictionary
     ai_agents_responses_session[sender] = msg.response
-    # update all AI responses data with the one specific for this session
-    pending_ai_agents_responses[session_str] = ai_agents_responses_session
     ctx.logger.info(
         f"""All AI Agent responses that belong to those DeltaV sessions
             for which we have got some of the responses but not all of them: {pending_ai_agents_responses}"""
     )
-    # store updated AI responses data in agent storage
-    ctx.storage.set("pending_ai_agents_responses", pending_ai_agents_responses)
 
     if len(ai_agents_responses_session) == len(ctx.storage.get("ai_agent_addresses")):
         ctx.logger.info(
-            f"Sending response back to DeltaV for session {session_str} since we have got responses from all AI Agents"
+            f"Sending response back to DeltaV for session {session_str} since we have received responses from all AI Agents"
         )
+
+        # concatenate all AI responses into a final response string
         final_ai_responses = ", ".join(
             [resp for resp in ai_agents_responses_session.values()]
         )
+        # send final response back to DeltaV
         await ctx.send(
             ctx.storage.get("deltav-sender-address"),
             UAgentResponse(
@@ -71,10 +70,18 @@ async def process_response_from_ai_agent(ctx: Context, sender: str, msg: AIRespo
                 type=UAgentResponseType.FINAL,
             ),
         )
-        # we don't need this session anymore so we can remove AI responses collected for current DeltaV session
+
+        # we don't need the store responses for this session anymore
+        # so we can remove those AI responses from agent storage the were collected for current DeltaV session
         pending_ai_agents_responses.pop(session_str)
-        # save updated AI responses data in agent storage
+        # save updated AI responses data (without current session responses) in agent storage
         ctx.storage.set("pending_ai_agents_responses", pending_ai_agents_responses)
+        return
+
+    # update all AI responses data with the one specific for this session
+    pending_ai_agents_responses[session_str] = ai_agents_responses_session
+    # save updated AI responses data in agent storage
+    ctx.storage.set("pending_ai_agents_responses", pending_ai_agents_responses)
 
 
 agent.include(adapter_protocol)
