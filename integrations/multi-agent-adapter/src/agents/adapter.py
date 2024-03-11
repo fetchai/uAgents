@@ -56,9 +56,11 @@ async def process_response_from_ai_agent(ctx: Context, sender: str, msg: AIRespo
             for which we have got some of the responses but not all of them: {pending_ai_agents_responses}"""
     )
 
+    # number of responses for current DeltaV session is equal to the number of AI Agents
+    # it means we have received the response from all AI Agents
     if len(ai_agents_responses_session) == len(ctx.storage.get("ai_agent_addresses")):
         ctx.logger.info(
-            f"Sending response back to DeltaV for session {session_str} since we have received responses from all AI Agents"
+            f"Sending response back to DeltaV for session {session_str} since we have received the response from all AI Agents"
         )
 
         # concatenate all AI responses into a final response string
