@@ -76,8 +76,8 @@ async def process_response_from_ai_agent(ctx: Context, sender: str, msg: AIRespo
             ),
         )
 
-        # we don't need the store responses for this session anymore
-        # so we can remove those AI responses from agent storage the were collected for current DeltaV session
+        # we don't need to store responses for this session anymore
+        # so we can remove those AI responses from agent storage that were collected for current DeltaV session
         pending_ai_agents_responses.pop(session_str)
         # save updated AI responses data (without current session responses) in agent storage
         ctx.storage.set("pending_ai_agents_responses", pending_ai_agents_responses)
