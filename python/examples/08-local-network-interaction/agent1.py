@@ -1,6 +1,5 @@
 from uagents import Agent, Context, Model
 
-
 # NOTE: Run agent1.py before running agent2.py
 
 

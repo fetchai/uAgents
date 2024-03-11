@@ -1,12 +1,11 @@
 from datetime import datetime, timedelta
 from typing import List
 
-from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
-
+from geopy.geocoders import Nominatim
 from uagents import Context, Model, Protocol
-from .models import Provider, Availability, User
 
+from .models import Availability, Provider, User
 
 PROTOCOL_NAME = "cleaning"
 PROTOCOL_VERSION = "0.1.0"

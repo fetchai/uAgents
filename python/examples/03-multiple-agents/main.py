@@ -1,4 +1,4 @@
-from uagents import Agent, Context, Bureau
+from uagents import Agent, Bureau, Context
 
 alice = Agent(name="alice")
 bob = Agent(name="bob")
