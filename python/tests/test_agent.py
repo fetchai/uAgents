@@ -1,6 +1,6 @@
 # pylint: disable=protected-access
 import unittest
-from typing import Callable
+from typing import Callable, Tuple
 
 from uagents import Agent, Context, Model
 from uagents.resolver import GlobalResolver
@@ -52,7 +52,7 @@ class TestAgent(unittest.TestCase):
 
         self.assertEqual(len(unsigned_msg_handlers), 0)
         self.assertEqual(len(signed_msg_handlers), 2)
-        self.assertTrue(isinstance(signed_msg_handlers[MESSAGE_DIGEST], Callable))
+        self.assertTrue(isinstance(signed_msg_handlers[MESSAGE_DIGEST], Tuple))
 
     def test_agent_on_unsigned_message(self):
         @self.agent.on_message(Query, allow_unverified=True)
@@ -64,8 +64,8 @@ class TestAgent(unittest.TestCase):
 
         self.assertEqual(len(unsigned_msg_handlers), 1)
         self.assertEqual(len(signed_msg_handlers), 2)
-        self.assertTrue(isinstance(signed_msg_handlers[MESSAGE_DIGEST], Callable))
-        self.assertTrue(isinstance(unsigned_msg_handlers[QUERY_DIGEST], Callable))
+        self.assertTrue(isinstance(signed_msg_handlers[MESSAGE_DIGEST], Tuple))
+        self.assertTrue(isinstance(unsigned_msg_handlers[QUERY_DIGEST], Tuple))
 
     def test_agent_on_startup_event(self):
         @self.agent.on_event("startup")
