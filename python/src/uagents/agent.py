@@ -45,18 +45,25 @@ from uagents.resolver import GlobalResolver, Resolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 
 
-async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
+async def _run_interval(
+    func: IntervalCallback,
+    state: Optional[str],
+    ctx: Context,
+    period: float,
+):
     """
     Run the provided interval callback function at a specified period.
 
     Args:
         func (IntervalCallback): The interval callback function to run.
+        state (Optional[str]): The desired state for the agent.
         ctx (Context): The context for the agent.
         period (float): The time period at which to run the callback function.
     """
     while True:
         try:
-            await func(ctx)
+            if ctx.state == state or state is None:
+                await func(ctx)
         except OSError as ex:
             ctx.logger.exception(f"OS Error in interval handler: {ex}")
         except RuntimeError as ex:
@@ -113,8 +120,7 @@ class Agent(Sink):
         handlers and their periods.
         _interval_messages (Set[str]): Set of message digests that may be sent by interval tasks.
         _signed_message_handlers (Dict[str, MessageCallback]): Handlers for signed messages.
-        _unsigned_message_handlers (Dict[str, MessageCallback]): Handlers for
-        unsigned messages.
+        _unsigned_message_handlers (Dict[str, MessageCallback]): Handlers for unsigned messages.
         _models (Dict[str, Type[Model]]): Dictionary mapping supported message digests to messages.
         _replies (Dict[str, Dict[str, Type[Model]]]): Dictionary of allowed replies for each type
         of incoming message.
@@ -230,8 +236,8 @@ class Agent(Sink):
         self._storage = KeyValueStore(self.address[0:16])
         self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
         self._interval_messages: Set[str] = set()
-        self._signed_message_handlers: Dict[str, MessageCallback] = {}
-        self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
+        self._signed_message_handlers: Dict[str, tuple[MessageCallback, str]] = {}
+        self._unsigned_message_handlers: Dict[str, tuple[MessageCallback, str]] = {}
         self._models: Dict[str, Type[Model]] = {}
         self._replies: Dict[str, Dict[str, Type[Model]]] = {}
         self._queries: Dict[str, asyncio.Future] = {}
@@ -451,6 +457,33 @@ class Agent(Sink):
 
         return self.ledger.query_bank_balance(Address(self.wallet.address()))
 
+    @property
+    def state(self) -> Optional[str]:
+        """
+        Get the state of the agent
+
+        Returns:
+            Optional[str]: The state of the agent
+        """
+        return self._ctx.state
+
+    @state.setter
+    def state(self, state: Optional[str]):
+        """
+        Set the state of the agent
+
+        Args:
+            state (Optional[str]): The state to set
+        """
+        self._ctx.state = state
+
+    @state.deleter
+    def state(self):
+        """
+        Delete the state of the agent
+        """
+        del self._ctx.state
+
     @mailbox.setter
     def mailbox(self, config: Union[str, Dict[str, str]]):
         """
@@ -619,6 +652,7 @@ class Agent(Sink):
         self,
         period: float,
         messages: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
+        state: Optional[str] = None,
     ):
         """
         Decorator to register an interval handler for the provided period.
@@ -626,13 +660,14 @@ class Agent(Sink):
         Args:
             period (float): The interval period.
             messages (Optional[Union[Type[Model], Set[Type[Model]]]]): Optional message types.
+            state (Optional[str]): Optional state for the interval handler.
 
         Returns:
             Callable: The decorator function for registering interval handlers.
 
         """
 
-        return self._protocol.on_interval(period, messages)
+        return self._protocol.on_interval(period, messages, state)
 
     def on_query(
         self,
@@ -658,6 +693,7 @@ class Agent(Sink):
         model: Type[Model],
         replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
         allow_unverified: Optional[bool] = False,
+        state: Optional[str] = None,
     ):
         """
         Decorator to register an message handler for the provided message model.
@@ -666,13 +702,14 @@ class Agent(Sink):
             model (Type[Model]): The message model.
             replies (Optional[Union[Type[Model], Set[Type[Model]]]]): Optional reply models.
             allow_unverified (Optional[bool]): Allow unverified messages.
+            state (Optional[str]): Optional state for the message handler.
 
         Returns:
             Callable: The decorator function for registering message handlers.
 
         """
 
-        return self._protocol.on_message(model, replies, allow_unverified)
+        return self._protocol.on_message(model, replies, allow_unverified, state)
 
     def on_event(self, event_type: str):
         """
@@ -750,8 +787,8 @@ class Agent(Sink):
             is encountered.
 
         """
-        for func, period in protocol.intervals:
-            self._interval_handlers.append((func, period))
+        for func, period, state in protocol.intervals:
+            self._interval_handlers.append((func, period, state))
 
         self._interval_messages.update(protocol.interval_messages)
 
@@ -870,8 +907,8 @@ class Agent(Sink):
 
         """
         # Start the interval tasks
-        for func, period in self._interval_handlers:
-            task = self._loop.create_task(_run_interval(func, self._ctx, period))
+        for func, period, state in self._interval_handlers:
+            task = self._loop.create_task(_run_interval(func, state, self._ctx, period))
             self._background_tasks.add(task)
             task.add_done_callback(self._background_tasks.discard)
 
@@ -957,8 +994,8 @@ class Agent(Sink):
                 continue
 
             # attempt to find the handler
-            handler: MessageCallback = self._unsigned_message_handlers.get(
-                schema_digest
+            handler, state = self._unsigned_message_handlers.get(
+                schema_digest, (None, None)
             )
             if handler is None:
                 if not is_user_address(sender):
@@ -1009,7 +1046,9 @@ class Agent(Sink):
                                 content=message,
                             )
                     if is_valid:
-                        handler = self._signed_message_handlers.get(schema_digest)
+                        handler, state = self._signed_message_handlers.get(
+                            schema_digest, (None, None)
+                        )
                 elif schema_digest in self._signed_message_handlers:
                     await _send_error_message(
                         context,
@@ -1019,6 +1058,14 @@ class Agent(Sink):
                         ),
                     )
                     continue
+
+            if state and state != self.state:
+                await _send_error_message(
+                    context,
+                    sender,
+                    ErrorMessage(error="Agent not in correct state to handle message"),
+                )
+                continue
 
             if handler is not None:
                 try:
