@@ -1,0 +1,6 @@
+{
+    "title": "Recipe Finder",
+    "description": "Recipe Finder integration enhances the capabilities of an AI agent by leveraging OpenAI for Recipe Generation.",
+    "categories": ["Recipe Finder", "OpenAI"],
+    "deltav": true
+}
