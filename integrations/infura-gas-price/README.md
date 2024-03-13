@@ -56,4 +56,6 @@ Once your agents are run, the agent protocol manifests are uploaded to the Alman
 3. Fill in the agent address in the Agent field.
 4. Set the task type to Task.
 
+![Image](./image.png)
+
 Now, your agents are enrolled as a service in Agentverse. You can manage and monitor them under the "Services" tab. Ensure that you follow the agent validation steps on Agent Explorer to confirm successful enrollment.
