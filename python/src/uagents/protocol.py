@@ -4,10 +4,9 @@ import copy
 import functools
 import hashlib
 import json
-from typing import Dict, List, Optional, Set, Tuple, Union, Type, Any
+from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
 
 from apispec import APISpec
-
 from uagents.context import IntervalCallback, MessageCallback
 from uagents.models import Model
 

@@ -1,6 +1,6 @@
+import uuid
 from abc import ABC, abstractmethod
 from typing import Dict, Set
-import uuid
 
 JsonStr = str
 

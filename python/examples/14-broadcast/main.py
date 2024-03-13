@@ -35,7 +35,7 @@ bob.include(proto)
 # let charles send the message to all agents supporting the protocol
 @charles.on_interval(period=5)
 async def say_hello(ctx: Context):
-    await ctx.experimental_broadcast(proto.digest, message=BroadcastExampleRequest())
+    await ctx.broadcast(proto.digest, message=BroadcastExampleRequest())
 
 
 @charles.on_message(model=BroadcastExampleResponse)

@@ -8,7 +8,6 @@ from pathlib import Path
 import tomli
 from packaging.version import Version
 
-
 ROOT = Path(__file__).parent.parent
 
 
