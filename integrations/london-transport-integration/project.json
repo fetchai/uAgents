@@ -3,7 +3,8 @@
     "description": "This integration helps user to plan Journey using london transport",
     "categories": [
         "London Transport",
-        "Transport"
+        "Transport",
+        "Mobility"
     ],
     "deltav": false
 }

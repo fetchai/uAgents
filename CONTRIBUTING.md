@@ -15,7 +15,7 @@ Contributions to this library are welcome.
 - Bug fixes also generally require unit tests, because the presence of bugs usually indicates insufficient test coverage.
 
 - Keep API compatibility in mind when you change code in `uAgents`. Above version `1.0.0`, breaking changes can happen across versions with different left digit. Below version `1.0.0`, they can happen across versions with different middle digit. Reviewers of your pull request will comment on any API compatibility issues.
-  
+
 - When you contribute a new feature to `uAgents`, the maintenance burden is transferred to the core team. This means that the benefit of the contribution must be compared against the cost of maintaining the feature.
 
 - Where possible, extend existing features instead of replacing one.
@@ -45,5 +45,4 @@ Further details on `conventional commits` can be found here: <https://www.conven
 
 When merging a branch, PRs should be squashed into one conventional commit by selecting the `Squash and merge` option. This ensures Release notes are useful and readable when releases are created.
 
-<!-- ![alt text](https://docs.github.com/assets/images/help/pull_requests/select-squash-and-merge-from-drop-down-menu.png) -->
-<img src="https://docs.github.com/assets/images/help/pull_requests/select-squash-and-merge-from-drop-down-menu.png" alt="drawing" style="width:600px;"/>
+See [Merge strategies](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/incorporating-changes-from-a-pull-request/about-pull-request-merges#squash-and-merge-your-commits) from the official GitHub documentation.

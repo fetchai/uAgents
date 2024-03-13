@@ -5,14 +5,12 @@ from time import time
 from typing import Optional
 
 import aiohttp
-
 from uagents.config import get_logger
 from uagents.crypto import generate_user_address
 from uagents.dispatch import JsonStr
 from uagents.envelope import Envelope
 from uagents.models import Model
-from uagents.resolver import Resolver, GlobalResolver
-
+from uagents.resolver import GlobalResolver, Resolver
 
 LOGGER = get_logger("query")
 
@@ -67,8 +65,9 @@ async def query(
 
     for endpoint in endpoints:
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
+            async with (
+                aiohttp.ClientSession() as session,
+                session.post(
                     endpoints[0],
                     headers={
                         "content-type": "application/json",
@@ -76,11 +75,12 @@ async def query(
                     },
                     data=env.json(),
                     timeout=timeout,
-                ) as resp:
-                    success = resp.status == 200
+                ) as response,
+            ):
+                success = response.status == 200
 
-                    if success:
-                        return Envelope.parse_obj(await resp.json())
+                if success:
+                    return Envelope.parse_obj(await response.json())
         except aiohttp.ClientConnectorError as ex:
             LOGGER.warning(f"Failed to connect to {endpoint}: {ex}")
         except Exception as ex:
