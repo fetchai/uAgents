@@ -12,7 +12,7 @@ from uagents.setup import fund_agent_if_low
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 AGENT_MAILBOX_KEY = os.getenv("AGENT_MAILBOX_KEY")
-SEED_PHRASE = os.getenv("AGENT_MAILBOX_KEY")
+SEED_PHRASE = os.getenv("SEED_PHRASE")
 
 agent = Agent(
     name="Github PR review AI Assistant",
