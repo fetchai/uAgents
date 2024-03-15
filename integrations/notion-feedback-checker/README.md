@@ -66,6 +66,6 @@ FEEDBACK_TITLE = "Test feedback"
 ```
 
 If you would like to talk to your Notion RAG agent from [DeltaV](https://deltav.agentverse.ai/) you need to register it as a Service. You can read through an example on how to achieve it here:
-https://fetch.ai/docs/guides/agentverse/registering-agent-coin-toss
+https://fetch.ai/docs/guides/agentverse/registering-agent-coin-toss#register-your-coin-toss-agent
 
 Now you can enjoy checking already existing feedbacks in Notion with Notion RAG agent!
