@@ -91,7 +91,7 @@ def startProcess(url: str):
 	
 	subject_page = crawlPage(url)
 	subject_keywords = extractKeywords(subject_page)
-	top_pages = getSERP({"keywords": subject_keywords})
+	top_pages = getSERP(subject_keywords)
 
 	print(top_pages)
 
