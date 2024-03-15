@@ -9,6 +9,9 @@ python = ">=3.10,<3.12"
 uagents = "^0.11.0"
 langchain = "^0.1.12"
 langchain-community = "^0.0.28"
+langchain-openai = ">=0.0.6"
+playwright = "^1.42.0"
+beautifulsoup4 = "^4.12.3"
 
 [build-system]
 requires = ["poetry-core"]

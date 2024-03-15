@@ -8,10 +8,13 @@ from langchain_openai import ChatOpenAI
 from langchain_community.document_loaders import AsyncChromiumLoader
 from langchain_community.document_transformers import BeautifulSoupTransformer
 
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+AGENT_MAILBOX_KEY = os.getenv("MAILBOX_API_KEY")
 
 @tool
 def getSERP(keywords: List[str], count: int = 4) -> List[str]:
     """Retrieves the first 'count' entries of a SERP for the given keywords"""
+    # use google serper
     result = []
     return result
 
