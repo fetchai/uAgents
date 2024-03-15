@@ -19,12 +19,12 @@ AGENT_MAILBOX_KEY = os.getenv("MAILBOX_API_KEY")
 GOOGLE_SEARCH_API_KEY = os.getenv("GOOGLE_SEARCH_API_KEY")
 GOOGLE_SEATCH_CSE_ID = os.getenv("GOOGLE_SEATCH_CSE_ID")
 
-@tool
+# @tool
 def getSERP(keywords: List[str], count: int = 4) -> List[str]:
 	"""Retrieves the first 'count' entries of a SERP for the given keywords"""
 
 	# Construct the API URL
-	query = keywords.join(" ")
+	query = " ".join(keywords)
 	url = f"https://www.googleapis.com/customsearch/v1?q={query}&key={GOOGLE_SEARCH_API_KEY}&cx={GOOGLE_SEATCH_CSE_ID}&num={count}"
 
 	# Make the GET request to the Google Custom Search API
@@ -38,7 +38,7 @@ def getSERP(keywords: List[str], count: int = 4) -> List[str]:
 			top_webpages.append(item['link'])
 	return top_webpages
 
-@tool
+# @tool
 def crawlPage(url: str) -> str:
 	"""Returns the content of a website"""
 	loader = AsyncChromiumLoader([url])
@@ -91,9 +91,9 @@ def startProcess(url: str):
 	
 	subject_page = crawlPage(url)
 	subject_keywords = extractKeywords(subject_page)
-	# top_pages = getSERP()
+	top_pages = getSERP(subject_keywords)
 
-	print(subject_keywords)
+	print(top_pages)
 
 if __name__ == "__main__":
 	startProcess("https://fetch.ai")
