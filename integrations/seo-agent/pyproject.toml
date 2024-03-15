@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "seo-agent"
+version = "0.1.0"
+description = "Agent using the dataforseo.com apis to suggest improvements to an existing site"
+authors = ["David Noack <david.noack@fetch.ai>", "Jiri <jiri.vestfal@fetch.ai>", "Niko <nikolay.dimitrov@fetch.ai>"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+uagents = "^0.11.0"
+langchain = "^0.1.12"
+langchain-community = "^0.0.28"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
