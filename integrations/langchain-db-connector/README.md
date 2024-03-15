@@ -135,12 +135,12 @@ I am a blank agent.
 Question: `I want some information about the agentverse. Tell me how much agents are currently running.` (agentverse related)
 Response: `There are currently 3 agents running in the Agentverse.`
 
-![Architecture](./assets/dv_agentverse.png?raw=true)
+![DeltaV-Agentverse](./assets/dv_agentverse.png?raw=true)
 
 Question: `How many mailboxes do you have?` (mailbox related)
 Response: `There is 1 mailbox in the database.`
 
-![Architecture](./assets/dv_mailbox.png?raw=true)
+![DeltaV-Mailbox](./assets/dv_mailbox.png?raw=true)
 
 ## How to test the demo?
 
