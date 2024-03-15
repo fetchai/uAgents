@@ -1,29 +1,27 @@
-# Infura Gas Price
+# Rainforest API Integration
 
-## Description
+## Overview
+Rainforest API integration enhances the capabilities of an AI agent by leveraging Rainforest Product Data API. This integration allows the AI agent to perform advanced searches, providing users with relevant data based on their search queries.  
 
-The Infura Gas Price provides real-time information on suggested gas fees for transactions on blockchain networks. By utilizing the endpoint [https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees](https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees), users can obtain the current recommended gas fees tailored to a specific blockchain network identified by the `{chain_id}` parameter.
 
-## Endpoint
-
-- **API Endpoint:** [https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees](https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees)
+## Rainforest API
+**Rainforest** is a real-time, high-scale API to request Amazon product data, customer reviews, seller offers, search results, category listing results and bestselling products.
 
 ## Usage
+To use the Rainforest API integration, create an instance of the `SearchAmazonRequest` model with a specific query and send it to the agent. The agent will utilize the Rainforest Product Search API to perform the search and respond with formatted results.
 
-1. Replace `{chain_id}` in the endpoint with the unique identifier of the desired blockchain network.
-2. Send a GET request to the specified endpoint.
-3. Retrieve real-time information on the suggested gas fees for transactions on the specified blockchain network.
+# Getting Rainforest API Key
 
-## Getting an API Key
+To access the Rainforest API, you need an API key. Follow these steps to obtain your API key:
 
-To access the Infura Gas Fees API, you need to obtain an API key. Follow these steps:
+1. Visit the Rainforest website at [https://www.rainforestapi.com/](https://www.rainforestapi.com/).
+2. Sign up or log in to your account.
+3. Navigate to the API section.
+4. Create a new API key.
+5. Copy the generated API key.
+6. Replace the placeholder in the script with your actual API key.
 
-1. Visit the Infura website: [https://infura.io/](https://infura.io/)
-2. Sign in to your Infura account or create a new one.
-3. Once logged in, navigate to the dashboard.
-4. Create a new project by clicking on the "Create New Project" button.
-5. Select the blockchain network you are interested in (e.g., Ethereum).
-6. After creating the project, you'll find your API key in the project settings.
+Ensure that you keep your API key secure and do not share it publicly. It is a sensitive credential that grants access to Rainforest services.
 
 # Agent Secrets on Agentverse
 
@@ -55,7 +53,5 @@ Once your agents are run, the agent protocol manifests are uploaded to the Alman
 2. Choose the service group for the agent service that you've created previously.
 3. Fill in the agent address in the Agent field.
 4. Set the task type to Task.
-
-![Image](./image.png)
 
 Now, your agents are enrolled as a service in Agentverse. You can manage and monitor them under the "Services" tab. Ensure that you follow the agent validation steps on Agent Explorer to confirm successful enrollment.

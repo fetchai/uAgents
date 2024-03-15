@@ -1,29 +1,14 @@
-# Infura Gas Price
+# Invoice Data Retrieval
 
-## Description
+This demonstrates an Invoice Data Retrieval agent that utilizes the pdf.ai API to upload and retrieve information from an invoice PDF. The agent is designed to handle requests for invoice data, process the PDF, and respond with the extracted information.
 
-The Infura Gas Price provides real-time information on suggested gas fees for transactions on blockchain networks. By utilizing the endpoint [https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees](https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees), users can obtain the current recommended gas fees tailored to a specific blockchain network identified by the `{chain_id}` parameter.
+## Getting Started
 
-## Endpoint
+Before using this agent, you need to obtain an API_KEY from pdf.ai. Follow these steps:
 
-- **API Endpoint:** [https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees](https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees)
-
-## Usage
-
-1. Replace `{chain_id}` in the endpoint with the unique identifier of the desired blockchain network.
-2. Send a GET request to the specified endpoint.
-3. Retrieve real-time information on the suggested gas fees for transactions on the specified blockchain network.
-
-## Getting an API Key
-
-To access the Infura Gas Fees API, you need to obtain an API key. Follow these steps:
-
-1. Visit the Infura website: [https://infura.io/](https://infura.io/)
-2. Sign in to your Infura account or create a new one.
-3. Once logged in, navigate to the dashboard.
-4. Create a new project by clicking on the "Create New Project" button.
-5. Select the blockchain network you are interested in (e.g., Ethereum).
-6. After creating the project, you'll find your API key in the project settings.
+1. Visit [pdf.ai](https://pdf.ai/) to sign up and create an account.
+2. After signing in, navigate to your account settings or dashboard to find the API_KEY.
+3. Copy the API_KEY and replace the placeholder `API_KEY` in the script with your actual API_KEY.
 
 # Agent Secrets on Agentverse
 

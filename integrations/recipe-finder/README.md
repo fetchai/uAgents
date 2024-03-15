@@ -1,29 +1,27 @@
-# Infura Gas Price
+# Recipe Finder Integration
 
-## Description
+## Overview
+Recipe Finder integration enhances the capabilities of an AI agent by leveraging OpenAI. This integration allows the AI agent to generate number of recipes, providing users with recipes based on the list of ingredients they have.  
 
-The Infura Gas Price provides real-time information on suggested gas fees for transactions on blockchain networks. By utilizing the endpoint [https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees](https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees), users can obtain the current recommended gas fees tailored to a specific blockchain network identified by the `{chain_id}` parameter.
 
-## Endpoint
-
-- **API Endpoint:** [https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees](https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees)
+## Recipe Finder
+**Recipe Finder** is a real-time, high-scale recipe generator based on list of ingredients user have readily available.
 
 ## Usage
+To use the Recipe Finder integration, create an instance of the `RecipeSearch` model with a specific list of ingredients and send it to the agent. The agent will utilize the OpenAI API to generate list of recipes with requested ingredients and respond with formatted results.
 
-1. Replace `{chain_id}` in the endpoint with the unique identifier of the desired blockchain network.
-2. Send a GET request to the specified endpoint.
-3. Retrieve real-time information on the suggested gas fees for transactions on the specified blockchain network.
+# Getting OpenAI API Key
 
-## Getting an API Key
+To access the OpenAI API, you need an API key. Follow these steps to obtain your API key:
 
-To access the Infura Gas Fees API, you need to obtain an API key. Follow these steps:
+1. Visit the OpenAI website at [https://platform.openai.com/](https://platform.openai.com/).
+2. Sign up or log in to your account.
+3. Navigate to the View API Keys under Profile section.
+4. Create a new secret key.
+5. Copy the generated API key.
+6. Replace the placeholder in the script with your actual API key.
 
-1. Visit the Infura website: [https://infura.io/](https://infura.io/)
-2. Sign in to your Infura account or create a new one.
-3. Once logged in, navigate to the dashboard.
-4. Create a new project by clicking on the "Create New Project" button.
-5. Select the blockchain network you are interested in (e.g., Ethereum).
-6. After creating the project, you'll find your API key in the project settings.
+Ensure that you keep your API key secure and do not share it publicly. It is a sensitive credential that grants access to Rainforest services.
 
 # Agent Secrets on Agentverse
 

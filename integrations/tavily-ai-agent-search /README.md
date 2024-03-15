@@ -1,29 +1,26 @@
-# Infura Gas Price
+# Tavily AI Agent Search Integration
 
-## Description
+## Overview
+The Tavily AI Agent Search integration enhances the capabilities of an AI agent by leveraging the Tavily AI Search API. This integration allows the AI agent to perform advanced searches, providing users with relevant information based on their queries.
 
-The Infura Gas Price provides real-time information on suggested gas fees for transactions on blockchain networks. By utilizing the endpoint [https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees](https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees), users can obtain the current recommended gas fees tailored to a specific blockchain network identified by the `{chain_id}` parameter.
-
-## Endpoint
-
-- **API Endpoint:** [https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees](https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees)
+## Tavily Search
+**Tavily Search** is a powerful AI-driven search API that enables intelligent content retrieval. It offers features such as configurable search depth, image inclusion/exclusion, and the ability to obtain raw content. The API is designed to enhance search experiences for applications and services.
 
 ## Usage
+To use the Tavily AI Agent Search integration, create an instance of the `SearchRequest` model with a specific query and send it to the agent. The agent will utilize the Tavily Search API to perform the search and respond with formatted results.
 
-1. Replace `{chain_id}` in the endpoint with the unique identifier of the desired blockchain network.
-2. Send a GET request to the specified endpoint.
-3. Retrieve real-time information on the suggested gas fees for transactions on the specified blockchain network.
+# Getting Tavily API Key
 
-## Getting an API Key
+To access the Tavily AI Search API, you need an API key. Follow these steps to obtain your API key:
 
-To access the Infura Gas Fees API, you need to obtain an API key. Follow these steps:
+1. Visit the Tavily website at [https://www.tavily.com](https://www.tavily.com).
+2. Sign up or log in to your account.
+3. Navigate to the API section.
+4. Create a new API key.
+5. Copy the generated API key.
+6. Replace the placeholder in the script with your actual API key.
 
-1. Visit the Infura website: [https://infura.io/](https://infura.io/)
-2. Sign in to your Infura account or create a new one.
-3. Once logged in, navigate to the dashboard.
-4. Create a new project by clicking on the "Create New Project" button.
-5. Select the blockchain network you are interested in (e.g., Ethereum).
-6. After creating the project, you'll find your API key in the project settings.
+Ensure that you keep your API key secure and do not share it publicly. It is a sensitive credential that grants access to Tavily's services.
 
 # Agent Secrets on Agentverse
 

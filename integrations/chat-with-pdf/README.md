@@ -1,29 +1,19 @@
-# Infura Gas Price
+# Chat With PDF Agent
 
 ## Description
+This code defines a Python module for an AI agent that interacts with a PDF using the pdf.ai API. The agent can receive a question and a URL of a PDF, upload the PDF if not already uploaded, and then retrieve an answer from the PDF.
 
-The Infura Gas Price provides real-time information on suggested gas fees for transactions on blockchain networks. By utilizing the endpoint [https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees](https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees), users can obtain the current recommended gas fees tailored to a specific blockchain network identified by the `{chain_id}` parameter.
+## Authentication
 
-## Endpoint
+To use the PDF.ai Summary API, you need to generate an API key. Follow the steps below to obtain your API key:
 
-- **API Endpoint:** [https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees](https://gas.api.infura.io/networks/{chain_id}/suggestedGasFees)
-
-## Usage
-
-1. Replace `{chain_id}` in the endpoint with the unique identifier of the desired blockchain network.
-2. Send a GET request to the specified endpoint.
-3. Retrieve real-time information on the suggested gas fees for transactions on the specified blockchain network.
-
-## Getting an API Key
-
-To access the Infura Gas Fees API, you need to obtain an API key. Follow these steps:
-
-1. Visit the Infura website: [https://infura.io/](https://infura.io/)
-2. Sign in to your Infura account or create a new one.
-3. Once logged in, navigate to the dashboard.
-4. Create a new project by clicking on the "Create New Project" button.
-5. Select the blockchain network you are interested in (e.g., Ethereum).
-6. After creating the project, you'll find your API key in the project settings.
+1. Visit the PDF.ai API Portal: [API Portal Link](https://pdf.ai/api-portal)
+2. Sign in to your account or create a new one.
+3. Navigate to the "API Keys" section in your account dashboard.
+4. Click on "Generate New API Key."
+5. Provide a name for your API key to easily identify its purpose.
+6. Click "Generate Key" to create the API key.
+7. Copy the generated API key and securely store it.
 
 # Agent Secrets on Agentverse
 
