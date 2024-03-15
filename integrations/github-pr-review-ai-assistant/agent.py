@@ -1,4 +1,6 @@
 import os
+from typing import Tuple
+from urllib.parse import urlparse
 
 from ai_engine import UAgentResponse, UAgentResponseType
 from codedog.actors.reporters.pull_request import PullRequestReporter
@@ -26,29 +28,32 @@ fund_agent_if_low(agent.wallet.address())
 class CodeReviewRequest(Model):
     """Model for handling code review requests."""
 
-    repository: str
-    pull_request_number: int
+    pull_request_url: str
 
 
 github_pr_review_protocol = Protocol("Github PR Review Automation")
 
 
-def fetch_and_review_pull_request(
-    repository: str, pull_request_number: int, context: Context
-):
+def parse_github_pr_url(url: str) -> Tuple[bool, str, int]:
+    p = urlparse(url)
+    if p.netloc == "github.com":
+        parts = p.path[1:].split("/")
+        if len(parts) > 3 and parts[2] == "pull" and parts[3].isdigit():
+            return True, "/".join(p.path[1:].split("/")[:2]), int(parts[3])
+    return False, "", -1
+
+
+def fetch_and_review_pull_request(pull_request_url, context: Context):
     """Fetches and reviews a GitHub pull request, returning a formatted report."""
     if not OPENAI_API_KEY:
         context.logger.error("OPENAI_API_KEY environment variables are not set.")
         return "Error: Missing environment variables."
 
-    if "https://github.com/" in repository:
-        parts = repository.replace("https://github.com/", "").split("/")
-        if len(parts) >= 2:
-            repository = "/".join(parts[:2])
-        else:
-            msg = "🚫 Invalid GitHub repository URL."
-            context.logger.error(msg)
-            return msg
+    ok, repository, pull_request_number = parse_github_pr_url(pull_request_url)
+    if not ok:
+        msg = "🚫 Invalid Pull Request URL."
+        context.logger.error(msg)
+        return msg
 
     try:
         github_client = Github()
@@ -99,7 +104,7 @@ def fetch_and_review_pull_request(
 @github_pr_review_protocol.on_message(model=CodeReviewRequest, replies=UAgentResponse)
 async def on_message(ctx: Context, sender: str, msg: CodeReviewRequest):
     """Processes code review requests and returns a formatted report or an error message."""
-    report = fetch_and_review_pull_request(msg.repository, msg.pull_request_number, ctx)
+    report = fetch_and_review_pull_request(msg.pull_request_url, ctx)
     if "🚫" in report:
         response_message = report
         response_type = UAgentResponseType.ERROR

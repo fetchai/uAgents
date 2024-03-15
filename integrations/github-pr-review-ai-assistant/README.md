@@ -21,8 +21,7 @@ To leverage the GitHub PR Review AI Assistant through DeltaV, follow these simpl
 2. **Initiate a Request**:
    - Use the sample prompt: "I need help in reviewing a Github PR."
 3. **Provide Required Information**:
-   - **Repository URL**: When prompted, enter the public GitHub repository URL where your pull request is located. Ensure it is a public repository for accessibility.
-   - **Pull Request Number**: Specify the number of the pull request you need reviewed.
+   - **PR URL**: When prompted, enter the whole PR URL. At this point only **\*public\*** GitHub repositories are supported.
 
 The GitHub PR Review AI Assistant will process your request and return a comprehensive review of the specified pull request, offering valuable insights to improve your code quality.
 
