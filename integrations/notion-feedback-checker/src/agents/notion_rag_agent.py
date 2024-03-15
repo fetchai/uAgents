@@ -5,7 +5,7 @@ from langchain_openai import ChatOpenAI
 from langchain_community.vectorstores import FAISS
 from langchain.prompts import ChatPromptTemplate
 from ai_engine import UAgentResponse, UAgentResponseType
-from notion_client import AsyncClient
+from notion_client import AsyncClient as AsyncNotionClient
 from messages.requests import NotionRequest
 from uagents import Agent, Context, Protocol
 
@@ -47,7 +47,7 @@ async def check_feedback(ctx: Context, sender: str, msg: NotionRequest):
     ctx.logger.info(f"Received message from {sender}, session: {ctx.session}")
     ctx.logger.info(f"New feedback title: {msg.feedback_title}")
 
-    notion = AsyncClient(auth=NOTION_TOKEN)
+    notion = AsyncNotionClient(auth=NOTION_TOKEN)
     my_page = await notion.databases.query(
         **{
             "database_id": NOTION_DB_ID,
@@ -63,24 +63,24 @@ async def check_feedback(ctx: Context, sender: str, msg: NotionRequest):
         )
         doc = Document(page_content=feedback_title, metadata={"source": "local"})
         feedback_titles.append(doc)
-    ctx.logger.info(feedback_titles)
+    ctx.logger.info(f"All feedback titles:\n{feedback_titles}")
 
     db = FAISS.from_documents(feedback_titles, OpenAIEmbeddings())
     retriever = db.as_retriever()
 
     similar_feedbacks = retriever.get_relevant_documents(msg.feedback_title)
-    ctx.logger.info(similar_feedbacks)
+    ctx.logger.info(f"Similar feedbacks from vector index:\n{similar_feedbacks}")
 
     context_text = "\n\n---\n\n".join([doc.page_content for doc in similar_feedbacks])
     prompt_template = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
     prompt = prompt_template.format(
         context=context_text, feedback_title=msg.feedback_title
     )
-    ctx.logger.info(prompt)
+    ctx.logger.info(f"Prompt:\n{prompt}")
 
     model = ChatOpenAI(model="gpt-3.5-turbo-1106")
     response = model.predict(prompt)
-    ctx.logger.info(f"Response from GPT 3.5 turbo: {response}")
+    ctx.logger.info(f"Response from GPT-3.5 Turbo model:\n{response}")
     await ctx.send(
         sender, UAgentResponse(message=response, type=UAgentResponseType.FINAL)
     )
