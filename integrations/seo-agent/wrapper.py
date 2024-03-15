@@ -6,8 +6,11 @@ from langchain_core.tools import tool
 from langchain import hub
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_openai import ChatOpenAI, OpenAI
+from langchain.output_parsers import CommaSeparatedListOutputParser
+from langchain.prompts import PromptTemplate
 from langchain_community.document_loaders import AsyncChromiumLoader
 from langchain_community.document_transformers import BeautifulSoupTransformer
+
 
 load_dotenv(find_dotenv())
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -28,22 +31,32 @@ def crawlPage(url: str) -> str:
 	html = loader.load()
 
 	# return html
+	# TODO include cleaned-up html to 
 	bs_transformer = BeautifulSoupTransformer()
 	docs_transformed = bs_transformer.transform_documents(html, tags_to_extract=["body"])
 
-	return docs_transformed[0].page_content[0:500]
+	return docs_transformed[0].page_content
 
 # @tool 
 def extractKeywords(text: str):
 	"""
 	Extracts keywords from the provided text using a language model asynchronously.
 	"""
+	parser = CommaSeparatedListOutputParser()
 	# Define the prompt to guide the LLM for keyword extraction
-	prompt = [f"Given the following text extracted from a web page, identify and list the most relevant keywords that summarize the core topics and themes. Focus on extracting key phrases, important terms, and entities that capture the essence of the text.:\n\n{text}"]
+	prompt_string = f"Given the following text extracted from a web page, identify and list the three most relevant keywords the present them as a Python list. Return the keywords as a comma separated list.:\n\n{text}"
+	format_instructions = parser.get_format_instructions()
+	prompt = PromptTemplate(
+		template="{subject}.\n{format_instructions}",
+		input_variables=["subject"],
+		partial_variables={"format_instructions": format_instructions},
+	)
 
 	# Use the LLM to generate a response based on the prompt
 	llm = OpenAI()
-	response = llm.generate(prompt, max_tokens=100)
+	chain = prompt | llm | parser
+	response = chain.invoke({"subject": prompt_string})
+	# response = llm.generate(prompt, max_tokens=100)
 	# Assuming the response is a string of keywords, possibly comma-separated or as a simple list
 	# You might need to adjust parsing based on the actual format of your LLM's response
 	return response
@@ -62,10 +75,11 @@ def startProcess(url: str):
 	# # Create an agent executor by passing in the agent and tools
 	# agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 	
-	result = crawlPage(url)
-	result = extractKeywords(result)
+	subject_page = crawlPage(url)
+	subject_keywords = extractKeywords(subject_page)
+	# top_pages = getSERP()
 
-	print(result)
+	print(subject_keywords)
 
 if __name__ == "__main__":
 	startProcess("https://fetch.ai")
