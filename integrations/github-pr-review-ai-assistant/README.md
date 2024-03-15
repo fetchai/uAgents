@@ -26,8 +26,6 @@ To leverage the GitHub PR Review AI Assistant through DeltaV, follow these simpl
 
 The GitHub PR Review AI Assistant will process your request and return a comprehensive review of the specified pull request, offering valuable insights to improve your code quality.
 
-The service will then process your request and return a comprehensive review of the specified pull request.
-
 ## Libraries Used
 
 This service incorporates several key libraries to provide its functionality:
