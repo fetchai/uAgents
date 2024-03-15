@@ -17,7 +17,7 @@ load_dotenv(find_dotenv())
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 AGENT_MAILBOX_KEY = os.getenv("MAILBOX_API_KEY")
 GOOGLE_SEARCH_API_KEY = os.getenv("GOOGLE_SEARCH_API_KEY")
-GOOGLE_SEATCH_CSE_ID = os.getenv("GOOGLE_SEATCH_CSE_ID")
+GOOGLE_SEARCH_CSE_ID = os.getenv("GOOGLE_SEARCH_CSE_ID")
 
 # @tool
 def getSERP(keywords: List[str], count: int = 4) -> List[str]:
@@ -25,7 +25,7 @@ def getSERP(keywords: List[str], count: int = 4) -> List[str]:
 
 	# Construct the API URL
 	query = " ".join(keywords)
-	url = f"https://www.googleapis.com/customsearch/v1?q={query}&key={GOOGLE_SEARCH_API_KEY}&cx={GOOGLE_SEATCH_CSE_ID}&num={count}"
+	url = f"https://www.googleapis.com/customsearch/v1?q={query}&key={GOOGLE_SEARCH_API_KEY}&cx={GOOGLE_SEARCH_CSE_ID}&num={count}"
 
 	# Make the GET request to the Google Custom Search API
 	response = requests.get(url)
