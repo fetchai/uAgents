@@ -17,7 +17,7 @@ load_dotenv(find_dotenv())
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 AGENT_MAILBOX_KEY = os.getenv("MAILBOX_API_KEY")
 GOOGLE_SEARCH_API_KEY = os.getenv("GOOGLE_SEARCH_API_KEY")
-GOOGLE_SEATCH_CSE_ID = os.getenv("GOOGLE_SEATCH_CSE_ID")
+GOOGLE_SEARCH_CSE_ID = os.getenv("GOOGLE_SEARCH_CSE_ID")
 
 # @tool
 def getSERP(keywords: List[str], count: int = 4) -> List[str]:
@@ -25,7 +25,7 @@ def getSERP(keywords: List[str], count: int = 4) -> List[str]:
 
 	# Construct the API URL
 	query = " ".join(keywords)
-	url = f"https://www.googleapis.com/customsearch/v1?q={query}&key={GOOGLE_SEARCH_API_KEY}&cx={GOOGLE_SEATCH_CSE_ID}&num={count}"
+	url = f"https://www.googleapis.com/customsearch/v1?q={query}&key={GOOGLE_SEARCH_API_KEY}&cx={GOOGLE_SEARCH_CSE_ID}&num={count}"
 
 	# Make the GET request to the Google Custom Search API
 	response = requests.get(url)
@@ -45,7 +45,6 @@ def crawlPage(url: str) -> str:
 	html = loader.load()
 
 	# return html
-	# TODO include cleaned-up html to 
 	bs_transformer = BeautifulSoupTransformer()
 	docs_transformed = bs_transformer.transform_documents(html, tags_to_extract=["body"])
 
@@ -75,6 +74,24 @@ def extractKeywords(text: str):
 	# You might need to adjust parsing based on the actual format of your LLM's response
 	return response
 
+def compare_websites_for_keywords(superior_page: str, inferior_page: str, keywords: List[str]) -> str:
+	"""
+	Compares 2 websites based on keywords and return a assesment why one is better ranked than the other
+	"""
+   
+	prompt = f"""
+	You are a SEO expert agent advising website owners how to improve their content. 
+	For this you will compare a superior ranked website 'SUPERIOR' with the website to be evaluated 'ORIGINAL'
+	and summarize why the superior website ranks better for the given 'KEYWORDS'.\n\n
+	SUPERIOR:\n\n{superior_page}\n\n ---
+	ORIGINAL:\n\n{inferior_page}\n\n ---
+	KEYWORDS:\n\n{keywords}\n\n
+	"""
+	llm = OpenAI()
+	# Use the LLM to generate the comparison
+	comparison_result = llm.generate(prompt)  # Adjust max_tokens as needed
+	return comparison_result
+
 tools = [getSERP, crawlPage, extractKeywords]
 
 def startProcess(url: str):
@@ -92,8 +109,10 @@ def startProcess(url: str):
 	subject_page = crawlPage(url)
 	subject_keywords = extractKeywords(subject_page)
 	top_pages = getSERP(subject_keywords)
+	top_1 = crawlPage(top_pages[0])
+	result = compare_websites_for_keywords(subject_page, top_1, subject_keywords)
 
-	print(top_pages)
+	print(result)
 
 if __name__ == "__main__":
 	startProcess("https://fetch.ai")
