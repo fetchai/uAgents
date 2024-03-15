@@ -27,11 +27,11 @@ def crawlPage(url: str) -> str:
 	loader = AsyncChromiumLoader([url])
 	html = loader.load()
 
-	return html
-	# bs_transformer = BeautifulSoupTransformer()
-	# docs_transformed = bs_transformer.transform_documents(html, tags_to_extract=["span"])
+	# return html
+	bs_transformer = BeautifulSoupTransformer()
+	docs_transformed = bs_transformer.transform_documents(html, tags_to_extract=["body"])
 
-	# return docs_transformed[0].page_content[0:500]
+	return docs_transformed[0].page_content[0:500]
 
 # @tool 
 def extractKeywords(text: str):
@@ -42,7 +42,7 @@ def extractKeywords(text: str):
 	prompt = [f"Given the following text extracted from a web page, identify and list the most relevant keywords that summarize the core topics and themes. Focus on extracting key phrases, important terms, and entities that capture the essence of the text.:\n\n{text}"]
 
 	# Use the LLM to generate a response based on the prompt
-	llm = OpenAI(model_name="gpt-3.5-turbo")
+	llm = OpenAI()
 	response = llm.generate(prompt, max_tokens=100)
 	# Assuming the response is a string of keywords, possibly comma-separated or as a simple list
 	# You might need to adjust parsing based on the actual format of your LLM's response
