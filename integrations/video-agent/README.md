@@ -15,7 +15,7 @@ export OPENAI_API_KEY=YOUR_KEY
 export ANTHROPIC_API_KEY=YOUR_KEY
 ```
 
-4. Install the required dependencies. Run the following command in your terminal:
+4. Run the following command in your terminal:
   ```bash
   python -m spacy download en_core_web_lg
   ```
