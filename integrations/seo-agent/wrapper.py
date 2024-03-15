@@ -11,8 +11,6 @@ from langchain_community.document_transformers import BeautifulSoupTransformer
 
 load_dotenv(find_dotenv())
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-print
-# os.environ["OPEN_API_KEY"] = OPENAI_API_KEY
 AGENT_MAILBOX_KEY = os.getenv("MAILBOX_API_KEY")
 GOOGLE_SEARCH_API_KEY = os.getenv("GOOGLE_SEARCH_API_KEY")
 
@@ -35,7 +33,7 @@ def crawlPage(url: str) -> str:
 
 	# return docs_transformed[0].page_content[0:500]
 
-# @tool
+# @tool 
 def extractKeywords(text: str):
 	"""
 	Extracts keywords from the provided text using a language model asynchronously.
@@ -44,7 +42,7 @@ def extractKeywords(text: str):
 	prompt = [f"Given the following text extracted from a web page, identify and list the most relevant keywords that summarize the core topics and themes. Focus on extracting key phrases, important terms, and entities that capture the essence of the text.:\n\n{text}"]
 
 	# Use the LLM to generate a response based on the prompt
-	llm = OpenAI()
+	llm = OpenAI(model_name="gpt-3.5-turbo")
 	response = llm.generate(prompt, max_tokens=100)
 	# Assuming the response is a string of keywords, possibly comma-separated or as a simple list
 	# You might need to adjust parsing based on the actual format of your LLM's response
