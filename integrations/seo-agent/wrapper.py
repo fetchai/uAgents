@@ -79,14 +79,14 @@ def compare_websites_for_keywords(superior_page: str, inferior_page: str, keywor
 	Compares 2 websites based on keywords and return a assesment why one is better ranked than the other
 	"""
    
-	prompt = f"""
+	prompt = [f"""
 	You are a SEO expert agent advising website owners how to improve their content. 
 	For this you will compare a superior ranked website 'SUPERIOR' with the website to be evaluated 'ORIGINAL'
 	and summarize why the superior website ranks better for the given 'KEYWORDS'.\n\n
 	SUPERIOR:\n\n{superior_page}\n\n ---
 	ORIGINAL:\n\n{inferior_page}\n\n ---
 	KEYWORDS:\n\n{keywords}\n\n
-	"""
+	"""]
 	llm = OpenAI()
 	# Use the LLM to generate the comparison
 	comparison_result = llm.generate(prompt)  # Adjust max_tokens as needed
