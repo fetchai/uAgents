@@ -24,7 +24,7 @@ def getSERP(keywords: List[str], count: int = 4) -> List[str]:
 	"""Retrieves the first 'count' entries of a SERP for the given keywords"""
 
 	# Construct the API URL
-	query = keywords.join(" ")
+	query = " ".join(keywords)
 	url = f"https://www.googleapis.com/customsearch/v1?q={query}&key={GOOGLE_SEARCH_API_KEY}&cx={GOOGLE_SEATCH_CSE_ID}&num={count}"
 
 	# Make the GET request to the Google Custom Search API
