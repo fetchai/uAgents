@@ -12,6 +12,7 @@ langchain-community = "^0.0.28"
 langchain-openai = ">=0.0.6"
 playwright = "^1.42.0"
 beautifulsoup4 = "^4.12.3"
+python-dotenv = "^1.0.1"
 
 [build-system]
 requires = ["poetry-core"]
