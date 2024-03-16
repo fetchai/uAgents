@@ -6,33 +6,32 @@ The Food Recipe Finder enhances the capabilities of an AI agent using Python GUI
 ## Usage
 1. *Installation*:
     - Ensure you have Poetry installed. If not, install it using:
-        bash
-        pip install poetry
+        ```bash
+        pip install poetry```
         
 2. *Install Dependencies*:
     - Run the following command to install all dependencies in a virtual environment:
-        bash
-        poetry install
+        ```bash
+        poetry install```
         
 3. *Activate Virtual Environment*:
     - Activate the virtual environment by running:
-        bash
-        poetry shell
+        ```bash
+        poetry shell```
         
 4. *Navigate to Source Directory*:
     - Change directory to /src/agents:
-        bash
-        cd src/agents
-        
+        ```bash
+        cd src/agents```
 5. *Env Settings*:
     - create .env file and add your api keys in it
-    API_TOKEN_higgingface="xxxxx"
-    API_TOKEN_RapidAPI="xxxxx"
+   ```API_TOKEN_higgingface="xxxxx"
+    API_TOKEN_RapidAPI="xxxxx"```
     
 5. *Run the Script*:
     - Execute main.py to start the Food Recipe Finder:
-        bash
-        python main.py
+        ```bash
+        python main.py```
         
 *Note*:- If a module is found not installed please install it manually.
 ## Integration
