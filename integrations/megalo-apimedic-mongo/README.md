@@ -55,6 +55,11 @@ Store resulting Institutions and records for logging, and later use
 - Add in the token section of `Checkup` Agent
 
 
+### `Register for Bing`    
+- Visit the [Bing Maps API Site](https://www.microsoft.com/en-us/maps/bing-maps/choose-your-bing-maps-api)
+- After that, Register for [API key here](https://www.bingmapsportal.com/Application)
+- Add in the token section of `Clinic` Agent
+
 
 
 
@@ -78,9 +83,6 @@ Store resulting Institutions and records for logging, and later use
 
 - Finally, Interact with the Service on DeltaV
 
-### `Register for Bing`    
-- Visit the [Bing Maps API Site](https://www.microsoft.com/en-us/maps/bing-maps/choose-your-bing-maps-api)
-- After that, Register for [API key here](https://www.bingmapsportal.com/Application)
-- Add in the token section of `Clinic` Agent
+
 
 
