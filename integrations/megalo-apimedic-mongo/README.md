@@ -8,14 +8,17 @@ A Decentralised Agent based Medical Assistance System built on top of the [fetch
 
 
 ## 🤖 Megalo Agents Overview
+
 ### `Checkup Agent - Using API Medic`    
 Entry point of the System where user checks up providing set of symptoms. 
 Makes use of [APIMedic](https://apimedic.com/) to get issues
-and specialisations associated with symptoms input
+and specialisations associated with symptoms input <br />
+[Additional Guide to this Agent](https://github.com/ShubhamTiwary914/uAgents/blob/main/integrations/megalo-apimedic-mongo/src/agents/checkup/README.md)
 
 
 ### `Clinics Agent - Using Bing Maps API`    
-Get list of clinics, hospitals and Medical Institutions related to the symptoms and locally around the user's choice
+Get list of clinics, hospitals and Medical Institutions related to the symptoms and locally around the user's choice <br />
+[Additional Guide to this Agent](https://github.com/ShubhamTiwary914/uAgents/blob/main/integrations/megalo-apimedic-mongo/src/agents/store/README.md)
 
 
 ### `Report Agent - Subtask`    
@@ -23,7 +26,8 @@ Prompt and Generate the Institutions and their locations, addresses, contacts fo
 
 
 ### `Store Agent - MongoDB`    
-Store resulting Institutions and records for logging, and later use
+Store resulting Institutions and records for logging, and later use <br />
+[Additional Guide to this Agent](https://github.com/ShubhamTiwary914/uAgents/blob/main/integrations/megalo-apimedic-mongo/src/agents/store/README.md)
 
 
 
