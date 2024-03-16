@@ -36,3 +36,10 @@ The Food Recipe Finder enhances the capabilities of an AI agent using Python GUI
 *Note*:- If a module is found not installed please install it manually.
 ## Integration
 You can integrate this agent into different projects by importing the run_gui function from main.py and invoking it as needed. This allows you to incorporate the Food Recipe Finder functionality seamlessly into your applications.
+
+## Team:- Pangea Pioneers
+## Contributors:- 
+(1) Bhumesh Gaur (+91 9760405165)
+(2) Satyam Patil
+(3) Saksham Panpaliya
+(4) Mohit Mahajan
