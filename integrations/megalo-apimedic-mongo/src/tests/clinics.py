@@ -1,7 +1,7 @@
 import requests
 import json
 
-bingKey = 'Ar2PnnN71Ber0cEAkzbL41ForcU9ZPl-rEdO6MnMkvQNht9C8Buz8XQrcKTWlral'
+bingKey = ''
 
 def fetchCoords(query):
     maxRes = 5
