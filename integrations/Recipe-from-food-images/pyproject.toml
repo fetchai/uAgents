@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "Image_Classification_GUI"
+version = "0.1.0"
+description = "A simple GUI application for image classification using Tkinter and Hugging Face API"
+authors = ["Crypto Mohit"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+aiohttp = "^3.8.1"
+Pillow = "^8.1.2"
+tk = "*"
+ai_engine = "*"
+pyttsx3 = "*"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
