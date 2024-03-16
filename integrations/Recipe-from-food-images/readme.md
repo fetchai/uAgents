@@ -1,5 +1,5 @@
 # Food Recipe Finder
-
+![main](https://github.com/Ease-at-Bhumesh/uAgents/assets/146590466/6575c328-cdb7-45a2-8239-ce49489da380)
 ## Overview
 The Food Recipe Finder enhances the capabilities of an AI agent using Python GUI, FastAPIs, Hugging Face models, and text-to-speech technology. This script allows users to upload an image of food, identifies the food item using Hugging Face's model, fetches a recipe for that food item, and displays it along with the ingredients and steps. Additionally, it provides the option to play/pause text-to-speech for the recipe steps, additional receipes for the same food and also provide keyword searching functionality.
 
@@ -36,6 +36,7 @@ The Food Recipe Finder enhances the capabilities of an AI agent using Python GUI
 *Note*:- If a module is found not installed please install it manually.
 ## Integration
 You can integrate this agent into different projects by importing the run_gui function from main.py and invoking it as needed. This allows you to incorporate the Food Recipe Finder functionality seamlessly into your applications.
+
 
 ## Team:- Pangea Pioneers
 ## Contributors:- 
