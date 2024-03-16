@@ -41,7 +41,9 @@ Store resulting Institutions and records for logging, and later use
 
 `APImedic`: External API for checking health issues and related given the symptoms and additional info.
 
+`Bing Maps API`: Open Source Maps API for GeoEncode-Decode and Location based queries
 
+`MongoDB (pymongo)`: Archives Logs of institutions found near users with symptoms matched
 
 
 
