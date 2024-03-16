@@ -15,8 +15,12 @@ With the integration of OMDB API and uAgents, this project aims to offer users a
 
 
 **Team Details**
-Asmi Manhas - Prompt and user Reviews                          9888824043 /n
+Asmi Manhas - Prompt and user Reviews                          9888824043
+
 Ritesh Chandel - Fetching Details and Filtering                8755060825
+
 Tanishq Khera - Filtering and Integration                      9855000516
+
 Aryan Chaudhary - Fetchign details and user prompt             7014244450
+
 Vanshika Sedhara - Integration                                 8700275866
