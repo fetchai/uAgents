@@ -7,16 +7,6 @@ A Decentralised Agent based Medical Assistance System built on top of the [fetch
 
 
 
-
-
-
-
-
- 
-
-
-
-
 ## 🤖 Megalo Agents Overview
 ### `Checkup Agent - Using API Medic`    
 Entry point of the System where user checks up providing set of symptoms. 
@@ -64,6 +54,29 @@ Store resulting Institutions and records for logging, and later use
 - Register for [API key here](https://apimedic.com/apikeys)
 - Add in the token section of `Checkup` Agent
 
+
+
+
+
+## Setting up Agents 
+### Setting up on Agentverse
+![image](https://github.com/ShubhamTiwary914/uAgents/assets/67773966/271ea199-752a-4372-9f5c-f8d59466e975)
+
+- Go to [Agentverse -> agents](https://agentverse.ai/agents) and start the individual agents
+- These active agents are listen on the Agentverse via the Alamanac Contract
+
+
+### Setting up a Service
+![image](https://github.com/ShubhamTiwary914/uAgents/assets/67773966/7f70d3c2-984d-4928-b96a-eb4552c97e83)
+
+- Then create services for the created Agents
+
+
+### Run Service on DeltaV
+
+![image](https://github.com/ShubhamTiwary914/uAgents/assets/67773966/ba4a99f2-79b5-4b3c-baf3-755d6608cfc2)
+
+- Finally, Interact with the Service on DeltaV
 
 ### `Register for Bing`    
 - Visit the [Bing Maps API Site](https://www.microsoft.com/en-us/maps/bing-maps/choose-your-bing-maps-api)
