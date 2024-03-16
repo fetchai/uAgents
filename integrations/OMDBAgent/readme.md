@@ -12,3 +12,11 @@ The system offers filtering options based on both genres and reviews. Users can 
 Users are prompted to provide sentiments and reviews in a concise format. The sentiment prompt asks users whether they liked or disliked the movie, allowing for the collection of binary sentiment data (0 for dislike, 1 for like). Additionall, users are encouraged to provide short reviews that succinctly describe their impressions of the movie. These reviews help enrich the recommendation process by capturing subjective insights and preferences beyond simple genre preferences.
 
 With the integration of OMDB API and uAgents, this project aims to offer users a more personalized and insightful movie recommendation experience. Whether users are seeking specific genre recommendations, looking for movies with certain characteristics, or sharing their sentiments and reviews, the system strives to cater to their preferences and enhance their movie-watching journey.
+
+
+**Team Details**
+Asmi Manhas - Prompt and user Reviews                          9888824043
+Ritesh Chandel - Fetching Details and Filtering                8755060825
+Tanishq Khera - Filtering and Integration                      9855000516
+Aryan Chaudhary - Fetchign details and user prompt             7014244450
+Vanshika Sedhara - Integration                                 8700275866
