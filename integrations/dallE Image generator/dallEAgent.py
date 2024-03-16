@@ -28,8 +28,8 @@ dallEAgent = Agent(
 
 dallE_protocol = Protocol("Etherscan Protocol")
 
-
-
+OPENAI_API_KEY="YOUR_OPEN_API_KEY"
+os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
 
 @dallE_protocol.on_message(model=DallERequest, replies={UAgentResponse})
