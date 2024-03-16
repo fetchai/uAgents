@@ -1,0 +1,3 @@
+poetry
+uagents
+requests
