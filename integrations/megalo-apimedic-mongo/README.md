@@ -91,4 +91,11 @@ Store resulting Institutions and records for logging, and later use <br />
 
 
 
+# Team Details
+
+`Team Name` : Akatsuki
+`Team Members` :
+- **Name :** Rajat Balyan, **Email :** balyanrajat1812@gmail.com
+- **Name :** Shubham Tiwary, **Email :** shubhamtiwary914@gmail.com
+
 
