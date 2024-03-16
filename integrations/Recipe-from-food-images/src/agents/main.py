@@ -1,14 +1,20 @@
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 import requests
 from uagents import Agent, Context
 import threading
 import pyttsx3
+import time
+import asyncio
+import signal
+import sys
 from dotenv import load_dotenv
 import os
 load_dotenv()
 
+
+speech_thread = None
 
 API_TOKEN = os.getenv("API_TOKEN_huggingface")
 API_URL = "https://api-inference.huggingface.co/models/nateraw/food"
@@ -82,20 +88,48 @@ def query_recipe(para):
     return result
 
 
-def display_output(filename, result_text, label):
-    output = query(filename)
-    if output and isinstance(output, list) and len(output) > 0 and 'label' in output[0]:
-        label = output[0]['label']
-        response = query_recipe(label)
+
+
+def display_output(filename, result_text, label, food_item=None):
+    global speech_thread
+
+    # Terminate the previous speech thread if it exists
+    if speech_thread and speech_thread.is_alive():
+        speech_thread.terminate()
+        speech_thread = None
+
+    if food_item:
+        label.config(text=food_item)  # Update label with the food item
+        response = query_recipe(food_item)
         result_text.config(state=tk.NORMAL)
         result_text.delete('1.0', tk.END)
         result_text.insert(tk.END, format_response(response))
         result_text.config(state=tk.DISABLED)
-        
-        # Speak the recipe steps
-        speak_recipe(response)
+
+        # Start speaking the recipe steps in a separate thread
+        speech_thread = threading.Thread(target=lambda: speak_recipe(response))
+        speech_thread.start()
+
+    elif filename:
+        output = query(filename)
+        if output and isinstance(output, list) and len(output) > 0 and 'label' in output[0]:
+            label.config(text=output[0]['label'])  # Update label with the detected food item from the image
+            response = query_recipe(output[0]['label'])
+            result_text.config(state=tk.NORMAL)
+            result_text.delete('1.0', tk.END)
+            result_text.insert(tk.END, format_response(response))
+            result_text.config(state=tk.DISABLED)
+
+            # Start speaking the recipe steps in a separate thread
+            speech_thread = threading.Thread(target=lambda: speak_recipe(response))
+            speech_thread.start()
+        else:
+            print("Error: Invalid response from API")
     else:
-        print("Error: Invalid response from API")
+        print("Error: No input provided")
+
+
+
 
 def speak_recipe(response):
     global paused
@@ -126,7 +160,6 @@ def format_response(response):
             formatted_response += f"{section}\n"
     return formatted_response
 
-
 def toggle_pause():
     global paused
     paused = not paused
@@ -143,6 +176,36 @@ def open_image(result_text, label, image_label):
 
         # Call the API and display the output using a separate thread
         threading.Thread(target=display_output, args=(file_path, result_text, label)).start()
+
+def generate_additional_gui():
+    url = "https://spoonacular-recipe-food-nutrition-v1.p.rapidapi.com/recipes/findByIngredients"
+    querystring = {"ingredients": "apples,flour,sugar", "number": "10", "ignorePantry": "true", "ranking": "1"}
+
+    headers = {
+        "X-RapidAPI-Key": "3e1379795bmsh3cf2935ce6503a2p1c31f7jsn3c0c70db34dd",
+        "X-RapidAPI-Host": "spoonacular-recipe-food-nutrition-v1.p.rapidapi.com"
+    }
+
+    response = requests.get(url, headers=headers, params=querystring)
+
+    if response.status_code == 200:
+        data = response.json()
+        recipes = ""
+        for recipe in data:
+            recipes += f"Title: {recipe['title']}\n"
+            recipes += f"Ingredients:\n"
+            for ingredient in recipe['missedIngredients']:
+                recipes += f"- {ingredient['original']}\n"
+            recipes += "\n"
+        
+        additional_window = tk.Toplevel()
+        additional_window.title("Additional Recipes")
+        
+        additional_text = tk.Text(additional_window, wrap=tk.WORD, height=20, width=80, padx=10, pady=10)
+        additional_text.pack()
+        additional_text.insert(tk.END, recipes)
+    else:
+        messagebox.showerror("Error", "Failed to fetch additional recipes.")
 
 def run_gui():
     # Create the main window
@@ -182,13 +245,43 @@ def run_gui():
     pause_play_button = tk.Button(button_frame, text="Play/Pause", command=toggle_pause, bg="black", fg="white", font=("Helvetica", 12, "bold"))
     pause_play_button.pack(side="left", padx=10, pady=10)
 
+    # Create "Additional Recipes" button
+    additional_button = tk.Button(button_frame, text="Additional Recipes", command=generate_additional_gui, bg="black", fg="white", font=("Helvetica", 12, "bold"))
+    additional_button.pack(side="left", padx=10, pady=10)
+    
+    # Create a frame for search input
+    search_frame = tk.Frame(root)
+    search_frame.pack()
+
+    # Create a label and input box for searching recipes by food item
+    search_label = tk.Label(search_frame, text="Search by Food Item:")
+    search_label.pack(side="left", padx=10, pady=10)
+
+    input_text = tk.Entry(search_frame, width=30)
+    input_text.pack(side="left", padx=10, pady=10)
+
+    # Create a button to trigger the search
+    search_button = tk.Button(search_frame, text="Search", command=lambda: display_output(None, result_text, label, input_text.get()), bg="black", fg="white", font=("Helvetica", 12, "bold"))
+    search_button.pack(side="left", padx=10, pady=10)
+
     root.mainloop()
+
+def shutdown_handler(signal, frame):
+    print("Shutting down...")
+    sys.exit(0)
 
 if __name__ == "__main__":
     alice = Agent(name="alice", seed="alice recovery phrase")
     
     @alice.on_event("startup")
-    def start_gui(ctx: Context):
-        run_gui()
+    async def start_gui(ctx: Context):
+        await asyncio.to_thread(run_gui)
+
+    # Register signal handler for Ctrl+C
+    def shutdown_handler(signal, frame):
+        print("Shutting down...")
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, shutdown_handler)
 
     alice.run()
