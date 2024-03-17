@@ -1,18 +1,103 @@
 import os
+import re
 
 from git import Repo
 from langchain.chains.conversational_retrieval.base import ConversationalRetrievalChain
 from langchain.memory import ConversationSummaryMemory
+from langchain_community.document_loaders.generic import GenericLoader
+from langchain_community.document_loaders.parsers.language import LanguageParser
 from langchain_community.vectorstores.chroma import Chroma
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import Language, RecursiveCharacterTextSplitter
 
-from utils import GenericLoader, LanguageParser
-
-OPENAI_API_KEY = "OPENAI_API_KEY"
+OPENAI_API_KEY = "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"
 
 
-def get_lines(repository: str, prompt: str):
+def find_snippet_locations(
+    repository: str, repo_path: str, code_snippets: list[str], main_branch: str = "main"
+) -> list[str]:
+    """
+    Find the files and line numbers for each of the code snippets.
+
+    Args:
+        repository (str): The repository URL.
+        repo_path (str): The local repository path to search.
+        code_snippets (list[str]): The code snippets to search where each snippet is in the form:
+            ```{language}
+            {code snippet}
+            ```
+            Example:
+            ```python
+            def foo():
+                print('Hello, world!')
+            ```
+
+    Returns:
+        list[str]: The snippet locations in the form of GitHub links:
+            https://github.com/{repo}/blob/main/{file_path}#L{start_line}-L{end_line}
+    """
+    snippet_locations: list[str] = []
+
+    for root, _, files in os.walk(repo_path):
+        for file in files:
+            if file.endswith(".py"):
+                file_path = os.path.join(root, file)
+                repo_file_path = file_path[len(repo_path) + 1 :]
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    for snippet in code_snippets:
+                        # extract the pure code condent of the snippet:
+                        snippet_lines = snippet.split("\n")[1:-1]
+                        snippet_length = len(snippet_lines)
+                        snippet = "\n".join(snippet_lines)
+                        escaped_snippet = re.escape(snippet)
+                        escaped_snippet = escaped_snippet.replace(
+                            r"\n", r"(?:\s*\\n\s*|\s+)"
+                        )  # Allow for flexible newlines and spaces
+                        pattern = re.compile(escaped_snippet)
+
+                        for match in pattern.finditer(content):
+                            start_line = content.count("\n", 0, match.start()) + 1
+                            end_line = start_line + snippet_length - 1
+                            github_link = (
+                                f"<a href=https://{repository}/blob/{main_branch}/{repo_file_path}"
+                                f"#L{start_line}-L{end_line}>{repo_file_path}#L{start_line}-L{end_line}</a>"
+                            )
+                            snippet_locations.append(github_link)
+
+    return snippet_locations
+
+
+def extract_code_snippets_from_response(response: str) -> list[str]:
+    """
+    Extract the code snippets from the AI model response.
+
+    Args:
+        response (str): The AI model's response containing the code snippets.
+
+    Returns:
+        list[str]: The code snippets in the form:
+            ```{language}
+            {code snippet}
+            ```
+            Example:
+            ```python
+            def foo():
+                print('Hello, world!')
+            ```
+    """
+    code_snippets: list[str] = []
+
+    snippet_start = response.find("```")
+    while snippet_start != -1:
+        snippet_end = response.find("```", snippet_start + 3)
+        code_snippets.append(response[snippet_start : snippet_end + 3])
+        snippet_start = response.find("```", snippet_end + 3)
+
+    return code_snippets
+
+
+def get_code_snippets(repository: str, prompt: str):
     repo_only = "/".join(repository.split("/")[:3])
     deeper_path = "/".join(repository.split("/")[3:])
     repo_path = "/home/james/Code/code-navigator/projects/" + repo_only.split("/")[-1]
@@ -48,24 +133,37 @@ def get_lines(repository: str, prompt: str):
     qa = ConversationalRetrievalChain.from_llm(llm, retriever=retriever, memory=memory)
 
     full_prompt = [
-        "Find the most relevant code for the supplied prompt along with the estimated line numbers. "
-        "You will find the starting lines for each code chunk document in metadata['start_line'], "
-        "so you just need to add this number to the relative position of the function in the code chunk."
-        "You will find the source-file in metadata['source']."
-        "Finally, attempt to compile the results as a list of github links to the code chunks in the form: "
-        f"https://{repository}/blob/main/<source-file>#L<start>-L<end>."
-        "It's okay if the line numbers are not perfectly accurate, just do your best to get close."
-        "Prompt: " + prompt,
+        f"Your task is to find the most relevant code snippets for the query: {prompt}."
+        "You have been provided with a document retriever that contains all the "
+        "source code in the relevant repoistory."
+        "Return each code snippet in the following format: \n"
+        "<description of the code snippet and why it is relevant> \n"
+        "```<langauge>\n"
+        "<code snippet>\n"
+        "```"
     ]
 
     result = qa.invoke(full_prompt)
+    print(result["answer"])
 
-    return result
+    code_snippets = extract_code_snippets_from_response(result["answer"])
+
+    snippet_locations = find_snippet_locations(
+        repo_only, repo_path, code_snippets, main_branch="main"
+    )
+
+    # Append the snippet locations to the response
+    response = result["answer"]
+    response += "\n\nFound the following relevant code:\n" + "\n".join(
+        snippet_locations
+    )
+
+    return response
 
 
 if __name__ == "__main__":
-    result = get_lines(
+    result = get_code_snippets(
         "github.com/fetchai/uAgents/python/src/uagents",
-        "Find all the functions where context appears in the code.",
+        "Find all the instances where the class `Protocol` is used",
     )
     print(result)
