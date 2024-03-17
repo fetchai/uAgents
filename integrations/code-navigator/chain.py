@@ -10,7 +10,7 @@ from langchain_community.vectorstores.chroma import Chroma
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import Language, RecursiveCharacterTextSplitter
 
-OPENAI_API_KEY = "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"
+OPENAI_API_KEY = "YOUR_API_KEY"
 
 
 def find_snippet_locations(
