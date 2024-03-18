@@ -1,6 +1,7 @@
 import os
+import asyncio
 
-from google.protobuf import message
+from asyncio.tasks import concurrent
 from pydantic import Field
 
 from dotenv import load_dotenv
@@ -29,24 +30,30 @@ class SeoRequest(Model):
         description="The url of the website the user wants to have analyzed for its SEO ranking and performance and to get recommendations how to improve it"
     )
 
+async def asyncCall(url: str):
+    # ugly hack
+    with concurrent.futures.ProcessPoolExecutor() as exec:
+        return await asyncio.get_event_loop().run_in_executor(exec, startProcess, url)
+
 @seo_deltav_protocol.on_message(SeoRequest, replies={UAgentResponse})
 async def handle_agent_message(ctx: Context, sender: str, msg: SeoRequest):
     ctx.logger.info(
         f"Received message from DeltaV: {msg.url}"
     )
     try:
-        result = startProcess(msg.url)
+        result = await asyncCall(msg.url)
         ctx.logger.info(f"Sending result to DV: {result}")
         await ctx.send(
             sender,
             UAgentResponse(message=result, type=UAgentResponseType.FINAL))
-    except:
+    except Exception as e:
+        print(e.__traceback__)
         await ctx.send(sender, UAgentResponse(message="Unexpected Error", type=UAgentResponseType.ERROR))
 
 
 agent.include(seo_deltav_protocol, publish_manifest=True)
 
 if __name__ == "__main__":
-    print(seo_deltav_protocol.manifest())
-    print(agent.address)
+    # print(seo_deltav_protocol.manifest())
+    # print(agent.address)
     agent.run()

@@ -1,7 +1,7 @@
 import os
 
 from langchain_core.documents import Document
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from dotenv import load_dotenv, find_dotenv
 from typing import Dict, List
 
@@ -92,7 +92,8 @@ def compare_websites_for_keywords(superior_page: Document, inferior_page: Docume
 	llm = ChatOpenAI(model="gpt-3.5-turbo")
 	# Use the LLM to generate the comparison
 	comparison_result = llm.invoke(prompt)
-	return comparison_result
+	print(comparison_result)
+	return comparison_result.content
 
 # tools = [getSERP, crawlPage, extractKeywords]
 
