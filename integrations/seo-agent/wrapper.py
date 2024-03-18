@@ -72,9 +72,7 @@ def extractKeywords(text: str):
 	llm = OpenAI()
 	chain = prompt | llm | parser
 	response = chain.invoke({"subject": prompt_string})
-	# response = llm.generate(prompt, max_tokens=100)
-	# Assuming the response is a string of keywords, possibly comma-separated or as a simple list
-	# You might need to adjust parsing based on the actual format of your LLM's response
+	
 	return response
 
 def compare_websites_for_keywords(superior_page: Document, inferior_page: Document, keywords: List[str]) -> str:
@@ -109,7 +107,6 @@ def startProcess(url: str):
 	subject_keywords = extractKeywords(subject_page.page_content)
 	top_pages = getSERP(subject_keywords)
 	top_1 = crawlPage(top_pages[0])
-	# print(top_1)
 	result = compare_websites_for_keywords(subject_page, top_1, subject_keywords)
 
 	# print(result)
