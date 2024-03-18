@@ -1,4 +1,6 @@
 import os
+
+from langchain_core.messages import HumanMessage
 from dotenv import load_dotenv, find_dotenv
 from typing import Dict, List
 
@@ -79,17 +81,17 @@ def compare_websites_for_keywords(superior_page: str, inferior_page: str, keywor
 	Compares 2 websites based on keywords and return a assesment why one is better ranked than the other
 	"""
    
-	prompt = [f"""
+	prompt = f"""
 	You are a SEO expert agent advising website owners how to improve their content. 
 	For this you will compare a superior ranked website 'SUPERIOR' with the website to be evaluated 'ORIGINAL'
 	and summarize why the superior website ranks better for the given 'KEYWORDS'.\n\n
-	SUPERIOR:\n\n{superior_page}\n\n ---
-	ORIGINAL:\n\n{inferior_page}\n\n ---
-	KEYWORDS:\n\n{keywords}\n\n
-	"""]
-	llm = OpenAI()
+	# SUPERIOR\n{superior_page[:8000]}\n 
+	# ORIGINAL\n{inferior_page[:8000]}\n 
+	# KEYWORDS\n{keywords}\n
+	"""
+	llm = ChatOpenAI(model="gpt-3.5-turbo")
 	# Use the LLM to generate the comparison
-	comparison_result = llm.generate(prompt)  # Adjust max_tokens as needed
+	comparison_result = llm.invoke(prompt)
 	return comparison_result
 
 tools = [getSERP, crawlPage, extractKeywords]
@@ -110,6 +112,7 @@ def startProcess(url: str):
 	subject_keywords = extractKeywords(subject_page)
 	top_pages = getSERP(subject_keywords)
 	top_1 = crawlPage(top_pages[0])
+	# print(top_1)
 	result = compare_websites_for_keywords(subject_page, top_1, subject_keywords)
 
 	print(result)
