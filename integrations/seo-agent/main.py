@@ -24,7 +24,7 @@ agent = Agent(
     mailbox=f"{MAILBOX_API_KEY}@https://agentverse.ai",
 )
 
-seo_deltav_protocol = Protocol(name="seo-dv", version="0.1.0")
+seo_deltav_protocol = Protocol(name="seo-dv", version="0.2.0")
 class SeoRequest(Model):
     url: str = Field(
         description="The url of the website the user wants to have analyzed for its SEO ranking and performance and to get recommendations how to improve it. It needs to start with 'https://'"
