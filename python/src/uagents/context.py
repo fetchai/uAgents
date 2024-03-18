@@ -18,12 +18,14 @@ from typing import (
     Optional,
     Set,
     Type,
+    Union,
 )
 
 import aiohttp
 import requests
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet
+from pydantic import ValidationError
 from typing_extensions import deprecated
 from uagents.config import (
     ALMANAC_API_URL,
@@ -87,6 +89,11 @@ class MsgStatus:
 
 
 ERROR_MESSAGE_DIGEST = Model.build_schema_digest(ErrorMessage)
+
+
+def log(logger: Optional[logging.Logger], level: str, message: str):
+    if logger:
+        logger.log(level, message)
 
 
 class Context:
@@ -320,7 +327,9 @@ class Context:
         self,
         destination: str,
         message: Model,
-        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+        session_id: Optional[uuid.UUID] = None,
+        sync: bool = False,
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
         """
         Send a message to the specified destination.
@@ -339,6 +348,8 @@ class Context:
             message.json(),
             schema_digest,
             message_type=type(message),
+            session_id=session_id,
+            sync=sync,
             timeout=timeout,
         )
 
@@ -406,7 +417,9 @@ class Context:
         json_message: JsonStr,
         schema_digest: str,
         message_type: Optional[Type[Model]] = None,
-        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+        session_id: Optional[uuid.UUID] = None,
+        sync: bool = False,
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
         """
         Send a raw message to the specified destination.
@@ -537,7 +550,7 @@ class Context:
                     endpoint="",
                 )
 
-        return await self.send_raw_exchange_envelope(
+        result = await self.send_raw_exchange_envelope(
             self._identity,
             destination,
             self._resolver,
@@ -547,7 +560,13 @@ class Context:
             logger=self._logger,
             timeout=timeout,
             session_id=current_session,
+            sync=sync,
         )
+
+        if isinstance(result, Envelope):
+            return await self.dispatch_sync_response_envelope(result)
+
+        return result
 
     @staticmethod
     async def send_raw_exchange_envelope(
@@ -560,14 +579,16 @@ class Context:
         logger: Optional[logging.Logger] = None,
         timeout: int = 5,
         session_id: Optional[uuid.UUID] = None,
-    ) -> MsgStatus:
+        sync: bool = False,
+    ) -> Union[MsgStatus, Envelope]:
         # Resolve the destination address and endpoint ('destination' can be a name or address)
         destination_address, endpoints = await resolver.resolve(destination)
         if len(endpoints) == 0:
-            if logger:
-                logger.exception(
-                    f"Unable to resolve destination endpoint for address {destination}"
-                )
+            log(
+                logger,
+                logging.ERROR,
+                f"Unable to resolve destination endpoint for address {destination}",
+            )
 
             return MsgStatus(
                 status=DeliveryStatus.FAILED,
@@ -592,45 +613,74 @@ class Context:
         env.encode_payload(json_message)
         env.sign(sender)
 
+        headers = {"content-type": "application/json"}
+        if sync:
+            headers["x-uagents-connection"] = "sync"
+
         for endpoint in endpoints:
             try:
                 async with aiohttp.ClientSession() as session:
                     async with session.post(
                         endpoint,
-                        headers={"content-type": "application/json"},
+                        headers=headers,
                         data=env.json(),
                     ) as resp:
                         success = resp.status == 200
-                    if success:
-                        return MsgStatus(
-                            status=DeliveryStatus.DELIVERED,
-                            detail="Message successfully delivered via HTTP",
-                            destination=destination,
-                            endpoint=endpoint,
-                        )
+                        if success:
+                            if sync:
+                                return Envelope.parse_obj(await resp.json())
 
-                    if logger:
-                        logger.warning(
-                            f"Failed to send message to {destination_address} @ {endpoint}: "
-                            + (await resp.text())
-                        )
+                            return MsgStatus(
+                                status=DeliveryStatus.SENT,
+                                detail="Message successfully sent via HTTP",
+                                destination=destination_address,
+                                endpoint=endpoint,
+                            )
+                    log(
+                        logger,
+                        logging.WARNING,
+                        f"Failed to send message to {destination_address} @ {endpoint}: "
+                        + (await resp.text()),
+                    )
             except aiohttp.ClientConnectorError as ex:
-                if logger:
-                    logger.warning(f"Failed to connect to {endpoint}: {ex}")
+                log(logger, logging.WARNING, f"Failed to connect to {endpoint}: {ex}")
+
+            except ValidationError as ex:
+                log(
+                    logger,
+                    logging.WARNING,
+                    f"Sync message to {destination} @ {endpoint} got invalid response: {ex}",
+                )
 
             except Exception as ex:
-                if logger:
-                    logger.warning(
-                        f"Failed to send message to {destination} @ {endpoint}: {ex}"
-                    )
+                log(
+                    logger,
+                    logging.WARNING,
+                    f"Failed to send message to {destination} @ {endpoint}: {ex}",
+                )
 
-        if logger:
-            logger.exception(f"Failed to deliver message to {destination}")
+        log(logger, logging.ERROR, f"Failed to deliver message to {destination}")
 
         return MsgStatus(
             status=DeliveryStatus.FAILED,
             detail="Message delivery failed",
             destination=destination,
+            endpoint="",
+        )
+
+    @staticmethod
+    async def dispatch_sync_response_envelope(env: Envelope) -> MsgStatus:
+        await dispatcher.dispatch(
+            env.sender,
+            env.target,
+            env.schema_digest,
+            env.decode_payload(),
+            env.session,
+        )
+        return MsgStatus(
+            status=DeliveryStatus.DELIVERED,
+            detail="Sync message successfully delivered via HTTP",
+            destination=env.target,
             endpoint="",
         )
 
