@@ -46,15 +46,22 @@ def find_snippet_locations(
                 with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
                     for snippet in code_snippets:
-                        # extract the pure code condent of the snippet:
+                        # extract the first 2 lines of code from the snippet:
                         snippet_lines = snippet.split("\n")[1:-1]
                         snippet_length = len(snippet_lines)
-                        snippet = "\n".join(snippet_lines)
-                        escaped_snippet = re.escape(snippet)
-                        escaped_snippet = escaped_snippet.replace(
-                            r"\n", r"(?:\s*\\n\s*|\s+)"
-                        )  # Allow for flexible newlines and spaces
-                        pattern = re.compile(escaped_snippet)
+                        if snippet_length < 2:
+                            pattern = re.compile(
+                                r"\s*" + re.escape(snippet_lines[0]) + r"\s*"
+                            )
+                        else:
+                            pattern = re.compile(
+                                r"\s*"
+                                + "\n\s*".join(
+                                    [re.escape(line) for line in snippet_lines[0:2]]
+                                )
+                                + r"\s*",
+                                re.DOTALL,
+                            )
 
                         for match in pattern.finditer(content):
                             start_line = content.count("\n", 0, match.start()) + 1
@@ -133,30 +140,47 @@ def get_code_snippets(repository: str, prompt: str):
     qa = ConversationalRetrievalChain.from_llm(llm, retriever=retriever, memory=memory)
 
     full_prompt = [
-        f"Your task is to find the most relevant code snippets for the query: {prompt}."
-        "You have been provided with a document retriever that contains all the "
-        "source code in the relevant repoistory."
-        "Return each code snippet in the following format: \n"
-        "<description of the code snippet and why it is relevant> \n"
-        "```<langauge>\n"
-        "<code snippet>\n"
-        "```"
+        f"""
+        Your task is to find the most relevant code snippets for the query: {prompt}.
+        You have been provided with a document retriever that contains all the 
+        source code in the relevant repository."
+        Return each code snippet in the following format: \n
+        <description of the code snippet and why it is relevant> \n
+        ```<language>
+        <code snippet>
+        ```
+        For example, let's consider the prompt:
+          "Find me all places where something is printed to the console."
+        An appropriate response might be:
+        This code snippet is relevant because "Hello, world!" is printed to the console. \n
+        ```python
+        def foo():
+            print('Hello, world!')
+        ```
+        Please ensure that each code snippet is provided exactly as it appears in the source code
+        without "..." or other modifications.
+        """
     ]
 
     result = qa.invoke(full_prompt)
-    print(result["answer"])
-
-    code_snippets = extract_code_snippets_from_response(result["answer"])
-
-    snippet_locations = find_snippet_locations(
-        repo_only, repo_path, code_snippets, main_branch="main"
-    )
-
-    # Append the snippet locations to the response
     response = result["answer"]
-    response += "\n\nFound the following relevant code:\n" + "\n".join(
-        snippet_locations
-    )
+
+    code_snippets = extract_code_snippets_from_response(response)
+
+    for code_snippet in code_snippets:
+        snippet_locations = find_snippet_locations(
+            repo_only, repo_path, [code_snippet], main_branch="main"
+        )
+
+        # Insert the snippet location just above the code snippet in the response
+        if snippet_locations:
+            response = response.replace(
+                code_snippet,
+                code_snippet
+                + "\n\nGithub links:\n"
+                + "\n".join(snippet_locations)
+                + "\n\n",
+            )
 
     return response
 
@@ -164,6 +188,6 @@ def get_code_snippets(repository: str, prompt: str):
 if __name__ == "__main__":
     result = get_code_snippets(
         "github.com/fetchai/uAgents/python/src/uagents",
-        "Find all the instances where the class `Protocol` is used",
+        "Move some logic from `_process_message_queue` to `Dialogue` class",
     )
     print(result)
