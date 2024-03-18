@@ -314,8 +314,9 @@ class ASGIServer:
                 if datetime.now() > datetime.fromtimestamp(env.expires):
                     response_msg = ErrorMessage(error="Query envelope expired")
             sender = env.target
+            target = env.sender
             response = enclose_response_raw(
-                response_msg, schema_digest, sender, str(env.session)
+                response_msg, schema_digest, sender, str(env.session), target=target
             )
         else:
             response = "{}"
