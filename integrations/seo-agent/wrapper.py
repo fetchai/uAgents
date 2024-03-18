@@ -54,13 +54,13 @@ def crawlPage(url: str) -> Document:
 	return docs_transformed[0]
 
 # @tool 
-def extractKeywords(text: str):
+def extractKeywords(text: str, url: str):
 	"""
 	Extracts keywords from the provided text using a language model asynchronously.
 	"""
 	parser = CommaSeparatedListOutputParser()
 	# Define the prompt to guide the LLM for keyword extraction
-	prompt_string = f"Given the following text extracted from a web page, identify and list the three most relevant keywords the present them as a Python list. Return the keywords as a comma separated list.:\n\n{text}"
+	prompt_string = f"Given the following text extracted from {url}, identify and list the three most relevant keywords the present them as a Python list. Exclude brandname, the page title or parts from the url from the keywords. Return the keywords as a comma separated list.:\n\n{text}"
 	format_instructions = parser.get_format_instructions()
 	prompt = PromptTemplate(
 		template="{subject}.\n{format_instructions}",
@@ -84,7 +84,9 @@ def compare_websites_for_keywords(superior_page: Document, inferior_page: Docume
 	You are a SEO expert agent advising website owners how to improve their content. 
 	For this you will compare a superior ranked website 'SUPERIOR' ({superior_page.metadata['source']}) 
 	with the website to be evaluated 'ORIGINAL' ({inferior_page.metadata['source']})
-	and summarize why the superior website ranks better for the given 'KEYWORDS'.\n\n
+	and summarize why the superior website ranks better for the given 'KEYWORDS'.
+	Refer to SUPERIOR and ORIGINAL by their urls or page titles.
+	You can include 1 or 2 concrete examples of what superior is doing better, or inferior is not doing good.\n
 	# SUPERIOR\n{superior_page.page_content[:8000]}\n 
 	# ORIGINAL\n{inferior_page.page_content[:8000]}\n 
 	# KEYWORDS\n{keywords}\n
@@ -104,11 +106,14 @@ def startProcess(url: str):
 	# agent = create_openai_tools_agent(model, tools, prompt)
 	# agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 	
+	print(f"crawling page: {url}")
 	subject_page = crawlPage(url)
-	subject_keywords = extractKeywords(subject_page.page_content)
+	print(f"content length: {len(subject_page.page_content)}")
+	subject_keywords = extractKeywords(subject_page.page_content, url)
+	print(f"found keywords: {subject_keywords}")
 	top_pages = getSERP(subject_keywords)
 	top_1 = crawlPage(top_pages[0])
-	result = compare_websites_for_keywords(subject_page, top_1, subject_keywords)
+	result = compare_websites_for_keywords(top_1, subject_page, subject_keywords)
 
 	# print(result)
 	return result
