@@ -161,9 +161,7 @@ class ASGIServer:
         )
         await self._server.serve()
 
-    async def __call__(
-        self, scope, receive, send
-    ):  #  pylint: disable=too-many-branches
+    async def __call__(self, scope, receive, send):  #  pylint: disable=too-many-branches
         """
         Handle an incoming ASGI message, dispatching the envelope to the appropriate handler,
         and waiting for any queries to be resolved.
