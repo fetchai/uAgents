@@ -11,7 +11,7 @@ You'll also be able to have multiple databases configured in your agent and the 
 How it works:
 
 1. The user provides a prompt through either DeltaV or another agent.
-2. An LLM will pick the correct database based on the users' prompt.
+2. An LLM will pick the correct database based on the users' prompt. The key point here is to provide a detailed description of the database, so the LLM can match the prompt to the database easily.
 3. Another LLM then analyses the prompt and transforms it into a SQL query, which will then be used to query the database.
 4. The result of the SQL query will again be chained through the LLM to generate a natural language response.
 5. The Response is sent back to the requesting agent and then forwarded to the user.
@@ -50,6 +50,7 @@ INFO:     [project]: Mailbox access token acquired
 #######################################################
 
 INFO:     [project]: How many agents do you have?
+
 ---------------------------------------
 Using the following database:  agentverse
 ---------------------------------------
@@ -67,6 +68,7 @@ I currently have 4 agents.
 #######################################################
 
 INFO:     [project]: Give me all agent names, please.
+
 ---------------------------------------
 Using the following database:  agentverse
 ---------------------------------------
@@ -83,9 +85,11 @@ Here are all the agent names: Near Restaurant Booking, Spam Agent Alice, Flight 
 #######################################################
 
 INFO:     [project]: How many mailboxes do you have?
+
 ---------------------------------------
 Using the following database:  mailbox
 ---------------------------------------
+
 QUERY:
 SELECT COUNT(*) AS total_mailboxes
 FROM mailboxes;
@@ -98,10 +102,10 @@ I have 1 mailbox.
 #######################################################
 
 INFO:     [project]: How many users do you have?
+
 ---------------------------------------
 Using the following database:  mailbox
 ---------------------------------------
-
 
 QUERY:
 SELECT COUNT(*) AS total_users
@@ -115,6 +119,7 @@ I currently have 1 user.
 #######################################################
 
 INFO:     [project]: Which agents have no description?
+
 ---------------------------------------
 Using the following database:  agentverse
 ---------------------------------------
@@ -155,6 +160,8 @@ docker run -p 5499:5432 hackathon-sample
 docker build -t hackathon-mailbox-sample -f Dockerfile-mailbox .
 docker run -p 5498:5432 hackathon-mailbox-sample
 ```
+
+The initial connection settings of the databases are configured [here](./project/databases.json_). If you want to use other sql databases, just change the settings there. Make sure that you also provide a detailed description of the purpose of the database, as the LLM will pick the correct databsae based on this description.
 
 ## Run main agent
 
