@@ -5,9 +5,10 @@ from uagents import Agent, Context, Model, Protocol
 
 from chain import get_code_snippets
 
-SEED_PHRASE = os.environ.get("SEED_PHRASE", "code navigator mailbox seed phrase")
+
+SEED_PHRASE = os.environ.get("SEED_PHRASE")
 ENDPOINT = os.environ.get("ENDPOINT", "http://localhost:8000/submit")
-MAILBOX_KEY = os.environ.get("MAILBOX_KEY", "1153406c-7575-4c54-a7d6-7f2a2c8c0b50")
+MAILBOX_KEY = os.environ.get("MAILBOX_KEY")
 PORT = 8000
 
 

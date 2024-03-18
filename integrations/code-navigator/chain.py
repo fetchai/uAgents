@@ -10,7 +10,10 @@ from langchain_community.vectorstores.chroma import Chroma
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import Language, RecursiveCharacterTextSplitter
 
-OPENAI_API_KEY = "YOUR_API_KEY"
+
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+if OPENAI_API_KEY is None:
+    raise ValueError("OPENAI_API_KEY environment variable is not set.")
 
 
 def find_snippet_locations(
