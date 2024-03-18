@@ -7,6 +7,7 @@ authors = ["David Noack <david.noack@fetch.ai>", "Jiri <jiri.vestfal@fetch.ai>",
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
 uagents = "^0.11.0"
+uagents-ai-engine = "^0.1.2"
 langchain = "^0.1.12"
 langchain-community = "^0.0.28"
 langchain-openai = ">=0.0.6"

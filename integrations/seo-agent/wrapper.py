@@ -1,5 +1,6 @@
 import os
 
+from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage
 from dotenv import load_dotenv, find_dotenv
 from typing import Dict, List
@@ -41,7 +42,7 @@ def getSERP(keywords: List[str], count: int = 4) -> List[str]:
 	return top_webpages
 
 # @tool
-def crawlPage(url: str) -> str:
+def crawlPage(url: str) -> Document:
 	"""Returns the content of a website"""
 	loader = AsyncChromiumLoader([url])
 	html = loader.load()
@@ -50,7 +51,7 @@ def crawlPage(url: str) -> str:
 	bs_transformer = BeautifulSoupTransformer()
 	docs_transformed = bs_transformer.transform_documents(html, tags_to_extract=["body"])
 
-	return docs_transformed[0].page_content
+	return docs_transformed[0]
 
 # @tool 
 def extractKeywords(text: str):
@@ -76,17 +77,18 @@ def extractKeywords(text: str):
 	# You might need to adjust parsing based on the actual format of your LLM's response
 	return response
 
-def compare_websites_for_keywords(superior_page: str, inferior_page: str, keywords: List[str]) -> str:
+def compare_websites_for_keywords(superior_page: Document, inferior_page: Document, keywords: List[str]) -> str:
 	"""
 	Compares 2 websites based on keywords and return a assesment why one is better ranked than the other
 	"""
    
 	prompt = f"""
 	You are a SEO expert agent advising website owners how to improve their content. 
-	For this you will compare a superior ranked website 'SUPERIOR' with the website to be evaluated 'ORIGINAL'
+	For this you will compare a superior ranked website 'SUPERIOR' ({superior_page.metadata['source']}) 
+	with the website to be evaluated 'ORIGINAL' ({inferior_page.metadata['source']})
 	and summarize why the superior website ranks better for the given 'KEYWORDS'.\n\n
-	# SUPERIOR\n{superior_page[:8000]}\n 
-	# ORIGINAL\n{inferior_page[:8000]}\n 
+	# SUPERIOR\n{superior_page.page_content[:8000]}\n 
+	# ORIGINAL\n{inferior_page.page_content[:8000]}\n 
 	# KEYWORDS\n{keywords}\n
 	"""
 	llm = ChatOpenAI(model="gpt-3.5-turbo")
@@ -94,28 +96,24 @@ def compare_websites_for_keywords(superior_page: str, inferior_page: str, keywor
 	comparison_result = llm.invoke(prompt)
 	return comparison_result
 
-tools = [getSERP, crawlPage, extractKeywords]
+# tools = [getSERP, crawlPage, extractKeywords]
 
 def startProcess(url: str):
-	# Get the prompt to use - you can modify this!
+
 	# prompt = hub.pull("hwchase17/openai-tools-agent")
-	# # prompt.ins
-
 	# model = ChatOpenAI(model="gpt-3.5-turbo-1106", temperature=0)
-
-	# # Construct the OpenAI Tools agent
 	# agent = create_openai_tools_agent(model, tools, prompt)
-	# # Create an agent executor by passing in the agent and tools
 	# agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 	
 	subject_page = crawlPage(url)
-	subject_keywords = extractKeywords(subject_page)
+	subject_keywords = extractKeywords(subject_page.page_content)
 	top_pages = getSERP(subject_keywords)
 	top_1 = crawlPage(top_pages[0])
 	# print(top_1)
 	result = compare_websites_for_keywords(subject_page, top_1, subject_keywords)
 
-	print(result)
+	# print(result)
+	return result
 
 if __name__ == "__main__":
 	startProcess("https://fetch.ai")
