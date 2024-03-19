@@ -66,27 +66,34 @@ def get_gpt_response(emails_content: List[Dict[str, str]]):
                 context=str(emails_content)
             ).to_messages()
         )
-        answer = answer.content
-        if(str(answer).startswith("[") and str(answer).endswith("]")):
-            list_answer = ast.literal_eval(answer)
+    except Exception as e:
+        print(e)
+        return []
+    
+    answer = answer.content
+    if(str(answer).startswith("[") and str(answer).endswith("]")):
+        list_answer = ast.literal_eval(answer)
+    else:
+        possible_init_answer = str(answer).find("[") 
+        possible_end_answer = str(answer).find("]")
+        if(possible_init_answer != -1 and possible_end_answer != -1):
+            list_answer = ast.literal_eval(answer[possible_init_answer : possible_end_answer+1])
         else:
-            possible_init_answer = str(answer).find("[") 
-            possible_end_answer = str(answer).find("]")
-            if(possible_init_answer != -1 and possible_end_answer != -1):
-                list_answer = ast.literal_eval(answer[possible_init_answer : possible_end_answer+1])
-            else:
-                #retry
+            #retry
+            try:
                 answer = chat.invoke(
                     chat_prompt.format_prompt(
                         context=str(emails_content)
                     ).to_messages()
                 )
-                if(str(answer).startswith("[") and str(answer).endswith("]")):
-                    list_answer = ast.literal_eval(answer)
-                else:
-                    list_answer = []
-    except:
-        list_answer = []
+            except Exception as e:
+                print(e)
+                return []
+
+            if(str(answer).startswith("[") and str(answer).endswith("]")):
+                list_answer = ast.literal_eval(answer)
+            else:
+                list_answer = []
 
     return list_answer
 
