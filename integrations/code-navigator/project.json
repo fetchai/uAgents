@@ -1,0 +1,6 @@
+{
+    "title": "Code Navigator",
+    "description": "Find relevant source code in a repository for a given natural language query.",
+    "categories":    ["Code Analysis", "LangChain"],
+    "deltav": true
+}
