@@ -1,4 +1,5 @@
 import os
+import sys
 
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, HumanMessage
@@ -119,4 +120,4 @@ def startProcess(url: str):
 	return result
 
 if __name__ == "__main__":
-	startProcess("https://fetch.ai")
+	startProcess(sys.argv[1])

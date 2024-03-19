@@ -19,17 +19,32 @@ given webpage with that of a superior-ranked webpage, providing insights on why
 the latter ranks better.
 
 
-# Requirements
-Python 3.7+
-requests
-dotenv
-langchain
-langchain_openai
-langchain_community
-uagents
-uagents-ai-engine
-playwright
-beautifulsoup4
+# Getting started
+Install dependencies and virtual environment
+```
+poetry install
+```
+
+Create a .env file with the following keys/variables:
+
+```
+OPENAI_API_KEY = "sk-...
+GOOGLE_SEARCH_CSE_ID = "..."
+MAILBOX_API_KEY = "..."
+GOOGLE_SEARCH_API_KEY = "..."
+AGENT_SEED = ""
+```
+(For configuring the mailbox key, run the agent a first time, copy the agend address from command line output, create mailbox on agentverse, paste mailbox key in `.env` file)
+
+Start the agent
+```
+poetry run python main.py
+```
+
+Trigger the seo process directly (without routing through deltav and a uagent)
+```
+poetry run python wrapper.py <url to analyze>
+```
 
 # Overview
 A Langchain based wrapper acts as the interface for receiving SEO analysis

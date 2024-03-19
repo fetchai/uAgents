@@ -55,5 +55,5 @@ agent.include(seo_deltav_protocol, publish_manifest=True)
 
 if __name__ == "__main__":
     # print(seo_deltav_protocol.manifest())
-    # print(agent.address)
+    print(agent.address)
     agent.run()
