@@ -1,0 +1,36 @@
+name: Lint PR Title
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - synchronize
+
+jobs:
+  main:
+    name: PR Title Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5.1.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Optionally, you can provide options for further constraints.
+        with:
+          types: |
+            chore
+            docs
+            feat
+            fix
+            refactor
+            style
+            perf
+            ci
+            test
+            revert
+          # core scope should be replaced by language specific scopes later
+          scopes: |
+            core
+            example
+            integration
+          requireScope: false
