@@ -1,6 +1,6 @@
 from uagents import Agent, Context
 
-agent = Agent(name="bob", log_level="DEBUG")
+agent = Agent(name="bob")
 
 
 @agent.on_event("startup")
