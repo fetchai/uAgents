@@ -12,8 +12,8 @@ agent = Agent(
     seed="9876543210000000000",
     port=8001,
     endpoint="http://127.0.0.1:8001/submit",
+    log_level="DEBUG",
 )
-agent._logger.setLevel("DEBUG")  # pylint: disable=protected-access
 
 
 # define dialogue messages; each transition needs a separate message

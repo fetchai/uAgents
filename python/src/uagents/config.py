@@ -104,10 +104,10 @@ def parse_agentverse_config(
     }
 
 
-def get_logger(logger_name):
+def get_logger(logger_name, level=logging.INFO):
     """Get a logger with the given name using uvicorn's default formatter."""
     logger = logging.getLogger(logger_name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(level)
     log_handler = logging.StreamHandler(sys.stdout)
     log_handler.setFormatter(
         DefaultFormatter(fmt="%(levelprefix)s [%(name)5s]: %(message)s")
