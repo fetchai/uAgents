@@ -25,7 +25,7 @@ The Food Recipe Finder enhances the capabilities of an AI agent using Python GUI
         cd src/agents
 5. *Env Settings*:
     - create .env file and add your api keys in it
-   ```API_TOKEN_higgingface="xxxxx"
+   ```API_TOKEN_huggingface="xxxxx"
     API_TOKEN_RapidAPI="xxxxx"
     
 5. *Run the Script*:
