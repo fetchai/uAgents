@@ -297,6 +297,13 @@ class Dialogue(Protocol):
         """Get the current state of the dialogue for a given session."""
         return self._states.get(session_id, "")
 
+    def is_finished(self, session_id: UUID) -> bool:
+        """
+        Return True if the current state is (one of) the ending state(s).
+        False otherwise.
+        """
+        return self.is_ender(self.get_current_state(session_id))
+
     def _auto_add_message_handler(self) -> None:
         """Automatically add message handlers for edges with models."""
         for edge in self._edges:
