@@ -5,7 +5,7 @@ from typing import Type
 from uagents import Model
 from uagents.experimental.dialogues import Dialogue
 
-from .dialogue import create_node, create_edge
+from .dialogue import create_edge, create_node
 
 
 # Node definition for the dialogue states
@@ -88,14 +88,15 @@ class ChitChatDialogue(Dialogue):
 
     def __init__(
         self,
-        version: str | None = None,
-        agent_address: str | None = None,
+        version: str,
+        agent_address: str,
     ) -> None:
         super().__init__(
             name="ChitChatDialogue",
             version=version,
             agent_address=agent_address,
             nodes=[
+                default_state,
                 init_state,
                 chatting_state,
                 end_state,
