@@ -62,11 +62,35 @@ class AgentJSONMessage(BaseMessage):
     agent_json: AgentJSON
 
 
+class EndDialogue(BaseModel):
+    """End dialogue message"""
+
+    # type
+    type: Literal["end_dialogue"] = "end_dialogue"
+
 # Annotated message type to allow for different types of messages
 AgentMessage = Annotated[
     Union[
         AgentTextMessage,
         AgentJSONMessage,
+        EndDialogue,
+    ],
+    Field(discriminator="type"),
+]
+
+
+### User messages
+
+# Simple text message from the user
+class UserTextMessage(BaseMessage):
+    type: Literal["user_message"] = "user_message"
+    user_message: str
+
+
+UserMessage = Annotated[
+    Union[
+        UserTextMessage,
+        EndDialogue,
     ],
     Field(discriminator="type"),
 ]
