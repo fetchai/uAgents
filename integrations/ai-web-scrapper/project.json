@@ -1,0 +1,6 @@
+{
+    "title": "AI Web Scraper and Summarizer",
+    "description": "This project implements a web scraper and summarizer API integrated with a question answering system. It utilizes Flask for creating the API endpoints and integrates with langchain for web scraping, summarization, and for question answering tasks it utilizes the Hugging Face model",
+    "categories":    ["Text summarization", "Hugging Face", "Question & Answering"],
+    "deltav": true
+}
