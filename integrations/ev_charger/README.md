@@ -1,6 +1,6 @@
-# 🌎 EV integrations examples 🚗
+# 🌎 EV charger example 🚗
 
-## geocode
+
 
 This agent returns EV Chargers from the open chargemap API, requires lat/lon to get distance to EV charger. 
 

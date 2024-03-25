@@ -1,0 +1,6 @@
+{
+    "title": "Top 5 Priorities Emails",
+    "description": "The agent retrieves the top 5 priorities emails from the user's inbox.",
+    "categories":   ["Text Classification","LangChain"],
+    "deltav": true
+}
