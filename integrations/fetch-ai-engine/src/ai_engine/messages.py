@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field, Field
+from uagents import Model
 from uuid import UUID, uuid4
 from datetime import datetime, UTC
 from typing import Optional, List, Annotated, Optional, Literal, Union
@@ -7,7 +8,7 @@ from typing import Optional, List, Annotated, Optional, Literal, Union
 # here are some message types that is currently supported by DeltaV
 
 
-class BaseMessage(BaseModel):
+class BaseMessage(Model):
     """Base message model for all messages"""
 
     # message id, for each new message it should be a unique id
@@ -62,7 +63,7 @@ class AgentJSONMessage(BaseMessage):
     agent_json: AgentJSON
 
 
-class EndDialogue(BaseModel):
+class EndDialogue(BaseMessage):
     """End dialogue message"""
 
     # type

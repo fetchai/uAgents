@@ -92,7 +92,6 @@ def create_edge(
     return Edge(
         name=name,
         description=structured_description.json(),
-        metadata=metadata,
         parent=parent,
         child=child,
     )

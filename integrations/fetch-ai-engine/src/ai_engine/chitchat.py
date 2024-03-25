@@ -36,7 +36,7 @@ end_state = create_node(
 
 # Edge definition for the dialogue transitions
 init_session = create_edge(
-    name="initiate_session",
+    name="Initiate session",
     description="Every dialogue starts with this transition.",
     target="user",
     observable=True,
@@ -44,7 +44,7 @@ init_session = create_edge(
     child=init_state,
 )
 reject_session = create_edge(
-    name="reject_session",
+    name="Reject dialogue",
     description=("This is the transition for when the dialogue is rejected"),
     target="user",
     observable=True,
@@ -52,7 +52,7 @@ reject_session = create_edge(
     child=end_state,
 )
 start_dialogue = create_edge(
-    name="start_dialogue",
+    name="Start dialogue",
     description="This is the transition from initiated to chit chatting.",
     target="user",
     observable=True,
