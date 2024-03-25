@@ -1,0 +1,41 @@
+[tool.poetry]
+name = "video-rag"
+version = "0.0.1"
+description = ""
+authors = ["Attila <attila.bagoly@fetch.ai>"]
+readme = "README.md"
+packages = [{include = "video_rag"}]
+
+[tool.poetry.scripts]
+agent = "video_rag.agent:run"
+
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+tenacity = "^8.2.3"
+structlog = "^24.1.0"
+rich = "^13.7.0"
+tomli = "^2.0.1"
+langchain-core = "^0.1.30"
+langgraph = "^0.0.26"
+langchain-openai = "^0.0.8"
+tavily-python = "^0.3.1"
+langchain = "^0.1.12"
+langchainhub = "^0.1.15"
+langchain-anthropic = "^0.1.4"
+youtube-transcript-api = "^0.6.2"
+tiktoken = "0.5.2"
+spacy = "^3.7.4"
+uagents = "^0.11.0"
+uagents-ai-engine = "^0.1.2"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.2.0"
+pre-commit = "^3.6.2"
+pytest = "^7.4.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
