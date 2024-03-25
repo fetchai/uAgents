@@ -68,6 +68,7 @@ class EndDialogue(BaseModel):
     # type
     type: Literal["end_dialogue"] = "end_dialogue"
 
+
 # Annotated message type to allow for different types of messages
 AgentMessage = Annotated[
     Union[
@@ -80,6 +81,7 @@ AgentMessage = Annotated[
 
 
 ### User messages
+
 
 # Simple text message from the user
 class UserTextMessage(BaseMessage):
