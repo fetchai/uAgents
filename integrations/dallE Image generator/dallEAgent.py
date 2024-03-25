@@ -17,7 +17,7 @@ SEED_PHRASE = "DallE Agent Secret Phrasep"
 # Copy the address shown below
 print(f"Your agent's address is: {Agent(seed=SEED_PHRASE).address}")
 
-AGENT_MAILBOX_KEY = "b65e8de2-339c-4b5c-9ea5-400759a3fb08"
+AGENT_MAILBOX_KEY = "YOUR_MAILBOX_ID_HERE"
 
 # Now your agent is ready to join the agentverse!
 dallEAgent = Agent(
