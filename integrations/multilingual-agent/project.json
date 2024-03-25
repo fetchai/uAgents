@@ -1,0 +1,6 @@
+{
+    "title": "Multilingual-agent",
+    "description": "Agent with multilingual capabilities to summarize a youtube video, translate the summary to a different language, and generate a text response in the target language.",
+    "categories":    ["Text Summarization", "Hugging Face"], 
+    "deltav": false
+}
