@@ -273,7 +273,9 @@ class Dialogue(Protocol):
         edges_without_entry = list(filter(lambda e: e.parent is None, self._edges))
         if len(edges_without_entry) > 1:
             raise ValueError("Dialogue has more than one entry point!")
-        return edges_without_entry[0].name if edges_without_entry else ""
+        if edges_without_entry:
+            return edges_without_entry[0].name
+        raise ValueError("Dialogue has no entry point!")
 
     def _build_ender(self) -> set[str]:
         """Build the last message(s) of the dialogue."""
