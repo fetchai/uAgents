@@ -1,0 +1,472 @@
+@font-face {
+	font-family: 'poller_oneregular';
+	src: url('../fonts/pollerone/pollerone-webfont.eot');
+	src: url('../fonts/pollerone/pollerone-webfont.eot?#iefix') format('embedded-opentype'),
+		 url('../fonts/pollerone/pollerone-webfont.woff') format('woff'),
+		 url('../fonts/pollerone/pollerone-webfont.ttf') format('truetype'),
+		 url('../fonts/pollerone/pollerone-webfont.svg#poller_oneregular') format('svg');
+}
+@font-face {
+	font-family: 'leckerli_oneregular';
+	src: url('../fonts/leckerlione/leckerlione-regular-webfont.eot');
+	src: url('../fonts/leckerlione/leckerlione-regular-webfont.eot?#iefix') format('embedded-opentype'),
+		 url('../fonts/leckerlione/leckerlione-regular-webfont.woff') format('woff'),
+		 url('../fonts/leckerlione/leckerlione-regular-webfont.ttf') format('truetype'),
+		 url('../fonts/leckerlione/leckerlione-regular-webfont.svg#leckerli_oneregular') format('svg');
+}
+
+body {
+	background: #fff;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 14px;
+	font-weight: normal;
+	line-height: 1;
+	margin: 0;
+	min-width: 960px;
+	padding: 0;
+}
+#body ul li {
+	box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* Adjust the values as needed */
+	transition: 0.3s; /* Add transition for smoother effect */
+}
+
+/* Adjustments for hover effect */
+#body ul li:hover {
+	box-shadow: 0 8px 16px rgba(0,0,0,0.2); /* Adjust the values for hover state */
+}
+p {
+	color: #252525;
+	line-height: 24px;
+	margin: 0;
+	padding: 0;
+}
+p a {
+	color: #252525;
+	text-decoration: underline;
+}
+p a:hover {
+	color: #898989;
+}
+#header {
+	margin: 0 auto;
+	padding: 44px 0 50px;
+	text-align: center;
+	width: 960px;
+}
+#header a.logo {
+    display: block;
+    margin: 0 auto;
+    padding: 0;
+    width: 200px; /* Adjust the width according to your preference */
+}
+
+#header a.logo img {
+    display: block;
+    width: 100%; /* Make sure the image fills the container */
+    height: auto; /* Maintain aspect ratio */
+    max-width: 100%; /* Ensure the image does not exceed its container */
+}
+#header ul {
+	margin: 0;
+	padding: 56px 0 0;
+}
+#header ul li {
+	display: inline;
+	list-style: none;
+	margin: 0;
+	padding: 0 19px;
+}
+#header ul li a {
+	color: #252525;
+	display: inline-block;
+	font-family: "Arial Black", Gadget, sans-serif;
+	font-size: 14px;
+	font-weight: normal;
+	margin: 0;
+	padding: 0 0 3px;
+	text-decoration: none;
+	text-transform: uppercase;
+}
+#header ul li a:hover, #header ul li.selected a {
+	color: #ff0000;
+}
+#body {
+	margin: 0;
+	padding: 0 0 30px;
+	text-align: justify;
+}
+#body h1 {
+	color: #fff;
+	display: inline;
+	font-family: poller_oneregular;
+	font-size: 35px;
+	font-weight: normal;
+	margin: 0;
+	padding: 0;
+	text-transform: uppercase;
+}
+/* #bg-video {
+    position: fixed;
+    top: 0;
+    left: 0;
+    min-width: 100%;
+    min-height: 100%;
+    width: auto;
+    height: auto;
+    z-index: -1;
+    object-fit: cover; Ensures the video covers the entire container */
+}
+#body h1 span {
+	background: #252525;
+	display: inline-block;
+	padding: 15px 28px 12px;
+}
+#body > div {
+	margin: 0 auto;
+	padding: 0;
+	width: 960px;
+}
+#body > div img {
+	border: 2px solid #292929;
+	margin-left: 10px;
+	padding: 0;
+}
+#body > div .article {
+	margin: 0 auto;
+	padding: 30px 30px 0;
+	width: 560px;
+}
+.justify-text{
+	text-align: justify;
+}
+#body > div .article h2 {
+	font-family: "Arial Black", Gadget, sans-serif;
+	font-size: 25px;
+	font-weight: normal;
+	margin-left: 0px;
+}
+#body > div .article h3 {
+	color: #252525;
+	line-height: 24px;
+	margin-left: 0px;
+	padding: 0;
+}
+#body > div .article h4 {
+	background: #252525;
+	color: #fff;
+	display: inline-block;
+	font-family: "Arial Black", Gadget, sans-serif;
+	font-size: 25px;
+	font-weight: normal;
+	margin: 0 0 30px;
+	padding: 8px 27px 10px;
+}
+#body > div .article p {
+	margin: 0 0 30px;
+}
+#body div ul {
+	margin: 0;
+	padding: 24px 10px 0;
+	width: 940px;
+}
+#body div ul li {
+	border: 2px solid #1a1a1a;
+	display: block;
+	list-style: none;
+	margin: 0 0 13px;
+	overflow: hidden;
+	padding: 0;
+}
+#body div ul li .figure {
+	border-right: 2px solid #1a1a1a;
+	float: left;
+	margin: 0;
+	padding: 0;
+	width: 376px;
+}
+#body div ul li img {
+	border: 0;
+	display: block;
+	margin: 0;
+	padding: 0;
+	opacity: 0.8;
+	transition: 0.5s ease-in-out;
+}
+#body div ul li .figure:hover img {
+	opacity: 1;
+}
+#body div ul li div {
+	float: left;
+	margin: 0;
+	padding: 63px 0 20px;
+	width: 558px;
+}
+#body > ul li {
+    display: inline-block;
+    margin: 0 10px 20px;
+    padding: 0;
+    width: 300px;
+    vertical-align: top;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+#body > ul li img {
+    width: 100%;
+    height: auto;
+    border: 2px solid #1a1a1a;
+    opacity: .8;
+    transition: 0.5s ease-in-out;
+}
+
+#body > ul li:hover img {
+    opacity: 1;
+}
+
+#body > ul li a {
+    display: block;
+    color: white;
+    font-family: poller_oneregular;
+    font-size: 20px;
+    font-weight: normal;
+    margin: 0;
+    padding: 10px 0; /* Add padding to vertically center the text */
+    text-decoration: none;
+    text-transform: uppercase;
+}
+#body div ul li div h3 {
+	color: #252525;
+	font-family: "Arial Black", Gadget, sans-serif;
+	font-size: 25px;
+	font-weight: normal;
+	margin: 0;
+	padding: 0;
+	text-transform: uppercase;
+	text-align: center;
+}
+#body div ul li div p {
+	padding: 30px 30px 18px;
+}
+#body div ul li div a.more {
+	background: #000;
+	color: #fff;
+	display: inline-block;
+	font-family: "Arial Black", Gadget, sans-serif;
+	font-size: 18px;
+	font-weight: normal;
+	margin: 0;
+	padding: 8px 28px;
+	text-decoration: none;
+	text-transform: uppercase;
+	text-align: center;
+margin-left: 200px;
+}
+#body div ul li div a.more:hover {
+	color: #252525;
+	background: #fff;
+	border: 2px solid #252525;
+}
+#body #featured {
+	margin: 0 0 13px;
+	padding: 0;
+	position: relative;
+	width: 100%;
+}
+#body #featured img {
+	border: 0;
+	display: block;
+	margin: 0;
+	padding: 0;
+	width: 100%;
+}
+#body #featured div {
+	left: 50%;
+	margin-left: -480px;
+	margin-top: -171px;
+	padding: 0 0 0 470px;
+	position: absolute;
+	top: 50%;
+	text-align: left;
+	width: 490px;
+}
+#body #featured div h2 {
+	background: #fff;
+	color: #000;
+	display: inline-block;
+	font-family: poller_oneregular;
+	font-size: 40px;
+	font-weight: normal;
+	margin: 0 0 18px;
+	padding: 23px 27px 20px;
+	text-transform: uppercase;
+}
+#body #featured div span {
+	/* background: #252525; */
+	color: #ffffff;
+	display: inline-block;
+	font-size: 35px;
+	margin: 7px 0;
+	padding: 12px 27px;
+	font-weight: 700;
+}
+#body #featured div a {
+	background: #000000;
+	color: #fff;
+	display: inline-block;
+	font-size: 16px;
+	margin: 15px 0 0;
+	padding: 26px 27px 22px;
+	text-align: center;
+	text-decoration: none;
+	text-transform: uppercase;
+}
+#body #featured div a:hover {
+	background: #ef0202;
+	transition: 1s;
+}
+#body > ul {
+	margin: 0 auto;
+	overflow: hidden;
+	padding: 24px 0 0;
+	width: 960px;
+}
+#body > ul li {
+	display: block;
+	float: left;
+	margin: 0 10px 20px;
+	padding: 0;
+	width: 300px;
+}
+#body > ul li a {
+	color: rgb(0, 0, 0);
+	display: block;
+	font-family: poller_oneregular;
+	font-size: 20px;
+	font-weight: normal;
+	margin: 0;
+	padding: 0;
+	text-align: center;
+	text-decoration: none;
+	text-transform: uppercase;
+}
+#body > ul li a img {
+	border: 2px solid #1a1a1a;
+	display: block;
+	margin: 0;
+	padding: 0;
+	opacity: .8;
+	transition: 0.5s ease-in-out;
+}
+#body > ul li a:hover img {
+	opacity: 1;
+	border: 5px solid rgb(43, 255, 0);
+}
+#body > ul li a span {
+	display: block;
+	margin: 0;
+	padding: 33px 0 0;
+}
+#body form {
+	margin: 0 auto;
+	padding: 24px 0 0;
+	width: 620px;
+}
+#body form input, #body form textarea {
+	border: 2px solid #252525;
+	color: #252525;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 15px;
+	font-weight: normal;
+	margin: 0 0 37px;
+	padding: 20px 10px;
+	text-align: center;
+	text-transform: uppercase;
+	width: 596px;
+}
+#body form textarea {
+	height: 175px;
+	overflow: auto;
+	resize: none;
+}
+#body form #send {
+	background: #252525;
+	color: #fff;
+	font-family: "Arial Black", Gadget, sans-serif;
+	font-size: 15px;
+	font-weight: normal;
+	display: inline-block;
+	padding: 20px 28px;
+	width: auto;
+}
+#body form #send:hover {
+	background: #fff;
+	color: #252525;
+	cursor: pointer;
+}
+#footer {
+	background: #252525;
+	margin: 0;
+	padding: 36px 0 42px;
+}
+#footer div {
+	margin: 0 auto;
+	overflow: hidden;
+	padding: 0;
+	width: 960px;
+}
+#footer div p {
+	color: #fff;
+	float: left;
+	line-height: 44px;
+	margin: 0 0 0 10px;
+	padding: 0;
+}
+#footer div ul {
+	display: block;
+	float: right;
+	margin: 0;
+	overflow: hidden;
+	padding: 0;
+	width: 256px;
+}
+#footer div ul li {
+	display: block;
+	float: left;
+	list-style: none;
+	margin: 0 10px;
+	padding: 0;
+	width: 44px;
+}
+#footer div ul li a {
+	background: url(../images/icons.jpg) no-repeat 0 0;
+	display: block;
+	height: 44px;
+	margin: 0;
+	padding: 0;
+	text-indent: -99999px;
+	width: 44px;
+}
+#footer div ul li #twitter {
+	background-position: 0 0;
+}
+#footer div ul li #twitter:hover {
+	background-position: -44px 0;
+}
+#footer div ul li #facebook {
+	background-position: 0 -44px;
+}
+#footer div ul li #facebook:hover {
+	background-position: -44px -44px;
+}
+#footer div ul li #googleplus {
+	background-position: 0 -88px;
+}
+#footer div ul li #googleplus:hover {
+	background-position: -44px -88px;
+}
+#footer div ul li #pinterest {
+	background-position: 0 -132px;
+}
+#footer div ul li #pinterest:hover {
+	background-position: -44px -132px;
+}
