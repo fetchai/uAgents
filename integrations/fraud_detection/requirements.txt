@@ -1,0 +1,5 @@
+streamlit
+pandas
+scikit-learn==1.2.2
+feature_engine==1.5.2
+altair==4.2.2

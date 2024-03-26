@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "fraud detection"
+version = "0.1.0"
+description = ""
+authors = ["Aleen Dhar <86429480+AleenDhar@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11.1"
+scikit-learn = "1.2.2"
+feature-engine = "1.5.2"
+altair = "4.2.2"
+streamlit = "^1.32.2"
+pandas = "^2.2.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
