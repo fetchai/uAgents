@@ -1,0 +1,21 @@
+{
+    "service": {
+      "title": "AI Language Translator Service",
+      "description": "This service helps user to translate sentence or query from one language to another. Both the languages are provided by user.",
+      "service_group": "Use cases",
+      "agent": {
+        "mailroom": "agent1qgvszylzavpnnvzryfhzk484w6u049ty3ylq39q0xa5c2wy76qfk64up5cg",
+        "name": "languagetranslatoragent"
+      },
+      "task_type": "Task",
+      "protocol": "Translator Protocol",
+      "model": {
+        "name": "TrnRequest",
+        "fields": {
+          "lang1": "What is the language to which you want from translate? This is always provided by user.",
+          "lang2": "What is the language to which you want to translate? This is always provided by user.",
+          "sentence": "This is always provided by user. Ask user when it is not provided in objective. This is sentence to be translated."
+        }
+      }
+    }
+  }
