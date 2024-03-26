@@ -189,6 +189,7 @@ class Context:
         self._wallet_messaging_client = wallet_messaging_client
         self._protocols = protocols or {}
         self._logger = logger
+        self._state = None
 
     @property
     def name(self) -> str:
@@ -231,6 +232,33 @@ class Context:
             logging.Logger: The logger instance.
         """
         return self._logger
+
+    @property
+    def state(self) -> Optional[str]:
+        """
+        Get the state of the context
+
+        Returns:
+            str: The state of the context
+        """
+        return self._state
+
+    @state.setter
+    def state(self, state: Optional[str]):
+        """
+        Set the state of the context
+
+        Args:
+            state (Optional[str]): The state to set
+        """
+        self._state = state
+
+    @state.deleter
+    def state(self):
+        """
+        Delete the state of the context
+        """
+        self._state = None
 
     @property
     def protocols(self) -> Optional[Dict[str, Protocol]]:

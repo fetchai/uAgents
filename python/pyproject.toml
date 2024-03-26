@@ -65,7 +65,7 @@ select = [
     # pylint
     "PL",
 ]
-ignore = ["PLR0913", "PLR0912", "PLR0911", "PLR2004"]
+ignore = ["PLR0913", "PLR0912", "PLR0911", "PLR2004", "PLR0915"]
 
 [tool.ruff.lint.pycodestyle]
 max-line-length = 100
