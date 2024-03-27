@@ -1,0 +1,6 @@
+{
+    "title": "AI Business Analyst",
+    "description": "This integration helps user to analyse a business based on their financial records and latest News",
+    "categories":    ["OpenAI", "GPT-3.5 turbo", "AI", "LLM", "Business Analyst", "Finance Tracker", "News"],
+    "deltav": true
+}
