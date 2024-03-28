@@ -9,20 +9,13 @@ from .dialogue import create_edge, create_node
 
 
 # Node definition for the dialogue states
-default_state = create_node(
-    name="Default State",
-    description=(
-        "This is the default state of the dialogue. Every session starts in "
-        "this state and is automatically updated once ."
-    ),
-    initial=True,
-)
 init_state = create_node(
     name="Initiated",
     description=(
         "This is the initial state of the dialogue that is only available at "
         "the receiving agent."
     ),
+    initial=True,
 )
 chatting_state = create_node(
     name="Chit Chatting",
@@ -40,7 +33,7 @@ init_session = create_edge(
     description="Every dialogue starts with this transition.",
     target="user",
     observable=True,
-    parent=default_state,
+    parent=None,
     child=init_state,
 )
 reject_session = create_edge(
@@ -60,7 +53,7 @@ start_dialogue = create_edge(
     child=chatting_state,
 )
 cont_dialogue = create_edge(
-    name="continue_dialogue",
+    name="Continue dialogue",
     description=(
         "This is the transition from one dialogue message to the next, "
         "i.e. for when the dialogue continues."
@@ -71,7 +64,7 @@ cont_dialogue = create_edge(
     child=chatting_state,
 )
 end_session = create_edge(
-    name="end_session",
+    name="End dialogue",
     description="This is the transition for when the session is ended.",
     target="user",
     observable=True,
@@ -96,7 +89,6 @@ class ChitChatDialogue(Dialogue):
             version=version,
             agent_address=agent_address,
             nodes=[
-                default_state,
                 init_state,
                 chatting_state,
                 end_state,

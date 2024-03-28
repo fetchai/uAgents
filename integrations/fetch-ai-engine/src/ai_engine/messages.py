@@ -1,4 +1,5 @@
-from pydantic import BaseModel, Field, Field
+from pydantic import BaseModel, Field, Extra
+from typing import Optional
 from uagents import Model
 from uuid import UUID, uuid4
 from datetime import datetime, UTC
@@ -6,16 +7,6 @@ from typing import Optional, List, Annotated, Optional, Literal, Union
 
 
 # here are some message types that is currently supported by DeltaV
-
-
-class BaseMessage(Model):
-    """Base message model for all messages"""
-
-    # message id, for each new message it should be a unique id
-    message_id: UUID = Field(default_factory=uuid4)
-
-    # timestamp of the message creation
-    timestamp: datetime = Field(default_factory=datetime.now(UTC))
 
 
 class KeyValue(BaseModel):
@@ -43,57 +34,45 @@ class AgentJSON(BaseModel):
     options: Optional[List[KeyValue]] = None
 
 
-class AgentTextMessage(BaseMessage):
-    """Agent text message"""
+class BaseMessage(Model):
+    """Base message model for all messages"""
+
+    # message id, for each new message it should be a unique id
+    message_id: UUID = Field(
+        default_factory=uuid4,
+        description="Unique message ID, never ask for this. Ignore this field! It's set automatically.",
+    )
+
+    # timestamp of the message creation
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        description="Timestamp of the message creation. Ignore this field! It's set automatically.",
+    )
+
+    class Config:
+        extra = Extra.allow
+
+
+class DialogueMessage(BaseMessage):
+    """Generic dialogue message"""
 
     # type
-    type: Literal["agent_message"] = "agent_message"
+    type: Literal["agent_message", "agent_json", "user_message"] = Field(
+        default="user_message",
+        description="Type of message, don't ask for this. Ignore this field! It's set automatically.",
+    )
 
-    # agent message, this is the text that the agent wants to send to the user
-    agent_message: str
+    # agent messages, this is the text that the agent wants to send to the user
+    agent_message: Optional[str] = Field(
+        default=None, description="The message that the agent wants to send to the user"
+    )
+    agent_json: Optional[AgentJSON] = Field(
+        default=None,
+        description="Agent JSON message, to map to UI elements. Ignore this field! It's set automatically.",
+    )
 
-
-class AgentJSONMessage(BaseMessage):
-    """Agent JSON message, to map to UI elements"""
-
-    # type
-    type: Literal["agent_json"] = "agent_json"
-
-    # agent JSON message
-    agent_json: AgentJSON
-
-
-class EndDialogue(BaseMessage):
-    """End dialogue message"""
-
-    # type
-    type: Literal["end_dialogue"] = "end_dialogue"
-
-
-# Annotated message type to allow for different types of messages
-AgentMessage = Annotated[
-    Union[
-        AgentTextMessage,
-        AgentJSONMessage,
-        EndDialogue,
-    ],
-    Field(discriminator="type"),
-]
-
-
-### User messages
-
-
-# Simple text message from the user
-class UserTextMessage(BaseMessage):
-    type: Literal["user_message"] = "user_message"
-    user_message: str
-
-
-UserMessage = Annotated[
-    Union[
-        UserTextMessage,
-        EndDialogue,
-    ],
-    Field(discriminator="type"),
-]
+    # user messages, this is the text that the user wants to send to the agent
+    user_message: Optional[str] = Field(
+        default=None,
+        description="The message that the user sent to the agent. Always Ask the user what message they want to send to the agent!",
+    )
