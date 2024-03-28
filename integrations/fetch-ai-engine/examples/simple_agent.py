@@ -103,7 +103,8 @@ async def continue_chitchat(
         await ctx.send(
             sender,
             ChitChatDialogueMessage(
-                type="agent_message", agent_message=f"I've received your message: {msg.user_message}!"
+                type="agent_message",
+                agent_message=f"I've received your message: {msg.user_message}!",
             ),
         )
     except EOFError:
