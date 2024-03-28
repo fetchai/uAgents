@@ -100,11 +100,10 @@ async def continue_chitchat(
     # do something when the dialogue continues
     ctx.logger.info(f"Received message: {msg.user_message} from: {sender}")
     try:
-        # my_msg = input("Please enter your message:\n> ")
         await ctx.send(
             sender,
             ChitChatDialogueMessage(
-                type="agent_message", agent_message="Hi from Agent!"
+                type="agent_message", agent_message=f"I've received your message: {msg.user_message}!"
             ),
         )
     except EOFError:
