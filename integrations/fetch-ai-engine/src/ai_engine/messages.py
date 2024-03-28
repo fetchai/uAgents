@@ -34,6 +34,13 @@ class AgentJSON(BaseModel):
     options: Optional[List[KeyValue]] = None
 
 
+
+
+### IMPORTANT NOTE ###
+# If the expected model doesn't have any field -> AI Engine automatically send the expected empty message (if there are more edges user will select which edge to go next)
+# If there are fields in the expected model, there is two case:
+#   1. Generic Model: AI Engine is going to trigger context building and build the required JSON
+#   2. Model inherits BaseMessage: if message_id: UUID, timestamp: datetime fields are present, AI Engine is going to wait for the user to send UserMessage via API / DeltaV UI
 class BaseMessage(Model):
     """Base message model for all messages"""
 
