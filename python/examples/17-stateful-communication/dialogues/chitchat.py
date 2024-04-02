@@ -12,7 +12,7 @@ default_state = Node(
         "This is the default state of the dialogue. Every session starts in "
         "this state and is automatically updated once the dialogue starts."
     ),
-    starter=True,
+    initial=True,
 )
 init_state = Node(
     name="Initiated",
