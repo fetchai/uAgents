@@ -2,6 +2,7 @@
 
 import functools
 import graphlib
+import warnings
 from datetime import datetime, timedelta
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Type
 from uuid import UUID
@@ -24,7 +25,7 @@ class Node:
         self,
         name: str,
         description: str,
-        starter: bool = False,
+        starter: Optional[bool] = None,
     ) -> None:
         self.name = name
         self.description = description
@@ -270,7 +271,25 @@ class Dialogue(Protocol):
 
     def _build_starter(self) -> str:
         """Build the starting message of the dialogue."""
+        starter_nodes = list(filter(lambda n: n.starter, self._nodes))
+        # check if starter property has been set and if there is only one
+        if len(starter_nodes) > 1:
+            raise ValueError("Dialogue has more than one entry point!")
+
         edges_without_entry = list(filter(lambda e: e.parent is None, self._edges))
+        if not edges_without_entry and starter_nodes:
+            # if there is a starter node and no edge without parent we need to
+            # validate if the graph is correct
+            starters = list(filter(lambda e: e.parent is starter_nodes[0], self._edges))
+            if starters:
+                return starters[0].name
+        if starter_nodes and edges_without_entry:
+            warnings.warn(
+                "There is a starter node and an edge without parent present. "
+                "The edge without a parent takes precedence!",
+                SyntaxWarning,
+                stacklevel=2,
+            )
         if len(edges_without_entry) > 1:
             raise ValueError("Dialogue has more than one entry point!")
         if edges_without_entry:
