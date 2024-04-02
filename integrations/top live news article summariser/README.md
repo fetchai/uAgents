@@ -12,7 +12,7 @@ This project provides live summaries of the top news articles from a specified c
 ## 2. 🔄 Workflow
 The process begins by prompting the user for a country name. It then utilizes the News API to retrieve the top article URL and feeds it into Rapid API's extract news API for scraping and summarizing.
 
-## 3. ⚙️ How to setup the project in [Agentverse.ai](https://agentverse.ai/) and start chatting with [DeltaV](https://deltav.agentverse.ai/) ?
+## 3. ⚙️ How to setup the project in [Agentverse.ai](https://agentverse.ai/) and start chatting with [DeltaV](https://deltav.agentverse.ai/) ??
 * Obtain API keys for both [News-API](https://newsapi.org/) and [Rapid-AI's Article Data Extraction and Summarization](https://rapidapi.com/kotartemiy/api/extract-news)
 * Go to Agentverse Agents, select the `skeleton body`, and name it `scrapper and summarizer`. Copy and paste the code from `scrapper and summarizer.py` in the agents subfolder. Repeat this process for `top_country_article_url_retreiver_agent` and `top_country_article_url_retreiver_agent.py`.
 * Don't forget to replace your API keys in the agents. After creating the two agents, click on the run button.
