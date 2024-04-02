@@ -9,13 +9,7 @@
 
 See `chitchat.py` for an example.
 
-**Note:** You can design your graph to have a default state which represents the state that the agent is in when a dialogue with another agent hasn't been started yet. This state is not shared but exists for each potential dialogue instance with other agents. Since agents' interactions are message centric, this first / default state has no impact on the whole dialogue and is therefore optional.
-
-##### Options:
-
-| with default state | without default state |
-| --- | --- |
-| create a separate `Node` which has the `starter=True` property and make sure that the first `Edge` in your graph has this `Node` set as `parent` property | set the `parent` property of the first `Edge` in your graph to `None` |
+**Note:** The default state represents the state that the agent is in when a dialogue with another agent hasn't been started yet. This state is not shared but exists for each potential dialogue instance with other agents. The default state is included for completeness of the Dialogue graph and has no functional role.
 
 #### Implement a pattern (attach models to transitions)
 
