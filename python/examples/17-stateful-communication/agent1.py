@@ -2,8 +2,15 @@
 
 import json
 
-from dialogues.chitchat import ChitChatDialogue
-from uagents import Agent, Context, Model
+from dialogues.chitchat import (
+    AcceptChitChatDialogue,
+    ChitChatDialogue,
+    ChitChatDialogueMessage,
+    ConcludeChitChatDialogue,
+    InitiateChitChatDialogue,
+    RejectChitChatDialogue,
+)
+from uagents import Agent, Context
 
 CHAT_AGENT_ADDRESS = "agent1qgp7urkvx24a2gs8e7496fajzy78h4887vz7va4h7klzf7azzhthsz7zymu"
 
@@ -14,27 +21,6 @@ agent = Agent(
     endpoint="http://127.0.0.1:8001/submit",
     log_level="DEBUG",
 )
-
-
-# define dialogue messages; each transition needs a separate message
-class InitiateChitChatDialogue(Model):
-    pass
-
-
-class AcceptChitChatDialogue(Model):
-    pass
-
-
-class ChitChatDialogueMessage(Model):
-    text: str
-
-
-class ConcludeChitChatDialogue(Model):
-    pass
-
-
-class RejectChitChatDialogue(Model):
-    pass
 
 
 # instantiate the dialogues
@@ -49,6 +35,7 @@ print(json.dumps(chitchat_dialogue.get_overview(), indent=4))
 print("---")
 
 
+# overwrite default behaviour and accept the dialogue
 @chitchat_dialogue.on_initiate_session(InitiateChitChatDialogue)
 async def start_chitchat(
     ctx: Context,

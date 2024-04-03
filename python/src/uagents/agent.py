@@ -761,10 +761,11 @@ class Agent(Sink):
         self._interval_messages.update(protocol.interval_messages)
 
         for schema_digest in protocol.models:
-            if schema_digest in self._models:
-                raise RuntimeError("Unable to register duplicate model")
-            if schema_digest in self._signed_message_handlers:
-                raise RuntimeError("Unable to register duplicate message handler")
+            if not hasattr(protocol, "rules"):
+                if schema_digest in self._models:
+                    raise RuntimeError("Unable to register duplicate model")
+                if schema_digest in self._signed_message_handlers:
+                    raise RuntimeError("Unable to register duplicate message handler")
             if schema_digest in protocol.signed_message_handlers:
                 self._signed_message_handlers[schema_digest] = (
                     protocol.signed_message_handlers[schema_digest]

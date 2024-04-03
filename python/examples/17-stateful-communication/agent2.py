@@ -2,8 +2,15 @@
 
 from asyncio import sleep
 
-from dialogues.chitchat import ChitChatDialogue
-from uagents import Agent, Context, Model
+from dialogues.chitchat import (
+    AcceptChitChatDialogue,
+    ChitChatDialogue,
+    ChitChatDialogueMessage,
+    ConcludeChitChatDialogue,
+    InitiateChitChatDialogue,
+    RejectChitChatDialogue,
+)
+from uagents import Agent, Context
 
 CHIT_AGENT_ADDRESS = "agent1qvhlqy2a4lk9gge8ug7l65a6k07wc92hh2d5jhwtat0zakrtg08njmfn00j"
 
@@ -16,43 +23,11 @@ agent = Agent(
 )
 
 
-# define dialogue messages; each transition needs a separate message
-class InitiateChitChatDialogue(Model):
-    pass
-
-
-class AcceptChitChatDialogue(Model):
-    pass
-
-
-class ChitChatDialogueMessage(Model):
-    text: str
-
-
-class ConcludeChitChatDialogue(Model):
-    pass
-
-
-class RejectChitChatDialogue(Model):
-    pass
-
-
 # instantiate the dialogues
 chitchat_dialogue = ChitChatDialogue(
     version="0.1",
     agent_address=agent.address,
 )
-
-
-@chitchat_dialogue.on_initiate_session(InitiateChitChatDialogue)
-async def start_chitchat(
-    ctx: Context,
-    sender: str,
-    _msg: InitiateChitChatDialogue,
-):
-    ctx.logger.info(f"Received init message from {sender}")
-    # do something when the dialogue is initiated
-    await ctx.send(sender, AcceptChitChatDialogue())
 
 
 @chitchat_dialogue.on_start_dialogue(AcceptChitChatDialogue)
