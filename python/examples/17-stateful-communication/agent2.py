@@ -50,7 +50,7 @@ async def reject_chitchat(
     _msg: RejectChitChatDialogue,
 ):
     # do something when the dialogue is rejected and nothing has been sent yet
-    ctx.logger.info(f"Received conclude message from: {sender}")
+    ctx.logger.info(f"Received reject message from: {sender}")
 
 
 @chitchat_dialogue.on_continue_dialogue(ChitChatDialogueMessage)
