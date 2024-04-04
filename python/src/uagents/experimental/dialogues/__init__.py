@@ -175,7 +175,7 @@ class Dialogue(Protocol):
                     mark_for_deletion.append(session_id)
             if mark_for_deletion:
                 for session_id in mark_for_deletion:
-                    self.cleanup_session(session_id)
+                    self.cleanup_conversation(session_id)
 
         # radical but effective
         self.on_message = None
@@ -331,8 +331,8 @@ class Dialogue(Protocol):
         """Create a new session in the dialogue instance."""
         self._sessions[session_id] = []
 
-    def cleanup_session(self, session_id: UUID) -> None:
-        """Remove a session from the dialogue instance."""
+    def cleanup_conversation(self, session_id: UUID) -> None:
+        """Removes all messages related with the given session from the dialogue instance."""
         self._sessions.pop(session_id)
         self._remove_session_from_storage(session_id)
 
@@ -345,7 +345,7 @@ class Dialogue(Protocol):
         content: JsonStr,
         **kwargs,
     ) -> None:
-        """Add a message to a session within the dialogue instance."""
+        """Add a message to the conversation of the given session within the dialogue instance."""
         if session_id is None:
             raise ValueError("Session ID must not be None!")
         if session_id not in self._sessions:
@@ -363,9 +363,9 @@ class Dialogue(Protocol):
         )
         self._update_session_in_storage(session_id)
 
-    def get_session(self, session_id) -> List[Any]:
+    def get_conversation(self, session_id) -> List[Any]:
         """
-        Return a session from the dialogue instance.
+        Return the conversation of the given session from the dialogue instance.
 
         This includes all messages that were sent and received for the session.
         """

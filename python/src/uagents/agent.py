@@ -1005,7 +1005,7 @@ class Agent(Sink):
                             else:
                                 self._ctx.logger.debug("dialogue picked up")
 
-                            context.dialogue = protocol.get_session(
+                            context.dialogue = protocol.get_conversation(
                                 session
                             )  # add current dialogue messages to context
                             protocol.add_message(
