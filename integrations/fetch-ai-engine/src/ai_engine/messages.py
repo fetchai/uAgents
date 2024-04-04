@@ -2,8 +2,8 @@ from pydantic import BaseModel, Field, Extra
 from typing import Optional
 from uagents import Model
 from uuid import UUID, uuid4
-from datetime import datetime, UTC
-from typing import Optional, List, Annotated, Optional, Literal, Union
+from datetime import datetime
+from typing import Optional, List, Optional, Literal, Union
 
 
 # here are some message types that is currently supported by DeltaV
@@ -50,7 +50,7 @@ class BaseMessage(Model):
 
     # timestamp of the message creation
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=lambda: datetime.utcnow(),
         description="Timestamp of the message creation. Ignore this field! It's set automatically.",
     )
 
