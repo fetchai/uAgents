@@ -50,7 +50,7 @@ class BaseMessage(Model):
 
     # timestamp of the message creation
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.utcnow(),
+        default_factory=lambda: datetime.now(timezone.utc),
         description="Timestamp of the message creation. Ignore this field! It's set automatically.",
     )
 
