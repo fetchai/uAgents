@@ -1,66 +1,73 @@
-"""Specific dialogue class for the chit-chat dialogue."""
+"""Specific dialogue class for the AI enabled chit-chat dialogue."""
 
 from typing import Type
 
 from uagents import Model
-from uagents.experimental.dialogues import Dialogue, Edge, Node
+from uagents.experimental.dialogues import Dialogue
+
+from .dialogue import create_edge, create_node
+
 
 # Node definition for the dialogue states
-default_state = Node(
-    name="Default State",
-    description=(
-        "This is the default state of the dialogue. Every session starts in "
-        "this state and is automatically updated once the dialogue starts."
-    ),
-    initial=True,
-)
-init_state = Node(
+init_state = create_node(
     name="Initiated",
     description=(
         "This is the initial state of the dialogue that is only available at "
         "the receiving agent."
     ),
+    initial=True,
 )
-chatting_state = Node(
+chatting_state = create_node(
     name="Chit Chatting",
     description="This is the state in which messages are exchanged.",
 )
-end_state = Node(
+end_state = create_node(
     name="Concluded",
     description="This is the state after the dialogue has been concluded.",
+    terminal=True,
 )
 
 # Edge definition for the dialogue transitions
-init_session = Edge(
+init_session = create_edge(
     name="Initiate session",
     description="Every dialogue starts with this transition.",
-    parent=default_state,
+    target="user",
+    observable=True,
+    parent=None,
     child=init_state,
 )
-reject_session = Edge(
-    name="Reject session",
+reject_session = create_edge(
+    name="Reject dialogue",
     description=("This is the transition for when the dialogue is rejected"),
+    target="user",
+    observable=True,
     parent=init_state,
     child=end_state,
 )
-start_dialogue = Edge(
+start_dialogue = create_edge(
     name="Start dialogue",
     description="This is the transition from initiated to chit chatting.",
+    target="user",
+    observable=True,
     parent=init_state,
     child=chatting_state,
 )
-cont_dialogue = Edge(
+cont_dialogue = create_edge(
     name="Continue dialogue",
     description=(
         "This is the transition from one dialogue message to the next, "
         "i.e. for when the dialogue continues."
     ),
+    target="user",
+    observable=True,
     parent=chatting_state,
     child=chatting_state,
 )
-end_session = Edge(
-    name="End session",
+end_session = create_edge(
+    name="End dialogue",
     description="This is the transition for when the session is ended.",
+    target="user",
+    observable=True,
     parent=chatting_state,
     child=end_state,
 )
@@ -74,15 +81,14 @@ class ChitChatDialogue(Dialogue):
 
     def __init__(
         self,
-        version: str | None = None,
-        agent_address: str | None = None,
+        version: str,
+        agent_address: str,
     ) -> None:
         super().__init__(
             name="ChitChatDialogue",
             version=version,
             agent_address=agent_address,
             nodes=[
-                default_state,
                 init_state,
                 chatting_state,
                 end_state,

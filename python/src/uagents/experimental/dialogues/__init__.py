@@ -2,6 +2,7 @@
 
 import functools
 import graphlib
+import warnings
 from datetime import datetime, timedelta
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Type
 from uuid import UUID
@@ -24,11 +25,12 @@ class Node:
         self,
         name: str,
         description: str,
-        starter: bool = False,
+        initial: bool = False,
     ) -> None:
         self.name = name
         self.description = description
-        self.starter = starter
+        self.initial = initial
+        self.final = False
 
 
 class Edge:
@@ -49,6 +51,8 @@ class Edge:
         self.child = child
         self._model = model
         self._func = func
+        self.starter = False
+        self.ender = False
 
     @property
     def model(self) -> Optional[Type[Model]]:
@@ -226,6 +230,8 @@ class Dialogue(Protocol):
                         "parent": edge.parent.name if edge.parent else None,
                         "child": edge.child.name,
                         "model": edge.model.__name__ if edge.model else None,
+                        "starter": edge.starter,
+                        "ender": edge.ender,
                     }
                     for edge in self._edges
                 ],
@@ -270,16 +276,46 @@ class Dialogue(Protocol):
 
     def _build_starter(self) -> str:
         """Build the starting message of the dialogue."""
+        starter_nodes = list(filter(lambda n: n.initial, self._nodes))
+        # check if starter property has been set and if there is only one
+        if len(starter_nodes) > 1:
+            raise ValueError("Dialogue has more than one entry point!")
+
         edges_without_entry = list(filter(lambda e: e.parent is None, self._edges))
+        if not edges_without_entry and starter_nodes:
+            # if there is a starter node and no edge without parent we need to
+            # validate if the graph is correct
+            starters = list(filter(lambda e: e.parent is starter_nodes[0], self._edges))
+            if starters:
+                self._edges[self._edges.index(starters[0])].starter = True
+                return starters[0].name
+        if starter_nodes and edges_without_entry:
+            warnings.warn(
+                "There is a starter node and an edge without parent present. "
+                "The edge without a parent takes precedence!",
+                SyntaxWarning,
+                stacklevel=2,
+            )
         if len(edges_without_entry) > 1:
             raise ValueError("Dialogue has more than one entry point!")
         if edges_without_entry:
+            self._edges[self._edges.index(edges_without_entry[0])].starter = True
             return edges_without_entry[0].name
         raise ValueError("Dialogue has no entry point!")
 
     def _build_ender(self) -> set[str]:
-        """Build the last message(s) of the dialogue."""
-        return set(edge for edge in self._rules if not self._rules[edge])
+        """Build the last message(s) of the dialogue and set final state."""
+        for node, edges in self._graph.items():
+            if not edges:
+                self._nodes[
+                    self._nodes.index(next(n for n in self._nodes if n.name == node))
+                ].final = True
+        enders = set()
+        for edge in self._edges:
+            if edge.child.final:
+                enders.add(edge.name)
+                edge.ender = True
+        return enders
 
     def is_starter(self, digest: str) -> bool:
         """
@@ -522,6 +558,8 @@ class Dialogue(Protocol):
                     "parent": edge.parent.name if edge.parent else None,
                     "child": edge.child.name,
                     "model": edge.model.__name__ if edge.model else None,
+                    "starter": edge.starter,
+                    "ender": edge.ender,
                 }
                 for edge in self._edges
             ],

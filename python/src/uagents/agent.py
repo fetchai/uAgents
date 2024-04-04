@@ -997,7 +997,7 @@ class Agent(Sink):
                             if protocol.is_starter(schema_digest):
                                 self._ctx.logger.debug("dialogue started")
                             elif protocol.is_ender(schema_digest):
-                                # no more messages will follow, hence set the dialogue state to finished
+                                # no more messages will follow -> set the dialogue state to finished
                                 protocol.update_state(schema_digest, session)
                                 self._ctx.logger.debug(
                                     "dialogue ended, cleaning up session"
