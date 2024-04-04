@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field, Extra
 from typing import Optional
 from uagents import Model
 from uuid import UUID, uuid4
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Optional, Literal, Union
 
 
