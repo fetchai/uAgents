@@ -301,9 +301,7 @@ class Dialogue(Protocol):
         """Automatically add message handlers for edges with models."""
         for edge in self._edges:
             if edge.model and edge.func:
-                model_digest = Model.build_schema_digest(edge.model)
-                self._models[model_digest] = edge.model
-                self._signed_message_handlers[model_digest] = edge.func
+                self._add_message_handler(edge.model, edge.func, None, False)
 
     def update_state(self, digest: str, session_id: UUID) -> None:
         """
