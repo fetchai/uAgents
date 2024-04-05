@@ -9,7 +9,6 @@ the messages that are expected to be exchanged.
 from typing import Type
 
 from uagents import Model
-from uagents.context import Context
 from uagents.experimental.dialogues import Dialogue, Edge, Node
 
 
@@ -93,20 +92,6 @@ end_session = Edge(
     parent=chatting_state,
     child=end_state,
 )
-
-
-# define default behaviour for individual dialogue edges
-async def reject_dialogue(
-    ctx: Context,
-    sender: str,
-    _msg: InitiateChitChatDialogue,
-):
-    """This function is the default behaviour of this specific step in the diaglogue."""
-    ctx.logger.debug("Automatically reject Dialogue request.")
-    await ctx.send(sender, RejectChitChatDialogue())
-
-
-init_session.set_default_behaviour(InitiateChitChatDialogue, reject_dialogue)
 
 
 class ChitChatDialogue(Dialogue):

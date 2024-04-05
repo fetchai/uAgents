@@ -30,6 +30,17 @@ chitchat_dialogue = ChitChatDialogue(
 )
 
 
+@chitchat_dialogue.on_initiate_session(InitiateChitChatDialogue)
+async def start_chitchat(
+    ctx: Context,
+    sender: str,
+    _msg: InitiateChitChatDialogue,
+):
+    ctx.logger.info(f"Received init message from {sender}")
+    # do something when the dialogue is initiated
+    await ctx.send(sender, AcceptChitChatDialogue())
+
+
 @chitchat_dialogue.on_start_dialogue(AcceptChitChatDialogue)
 async def accept_chitchat(
     ctx: Context,

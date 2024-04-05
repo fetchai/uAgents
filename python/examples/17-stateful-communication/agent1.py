@@ -35,7 +35,6 @@ print(json.dumps(chitchat_dialogue.get_overview(), indent=4))
 print("---")
 
 
-# overwrite default behaviour and accept the dialogue
 @chitchat_dialogue.on_initiate_session(InitiateChitChatDialogue)
 async def start_chitchat(
     ctx: Context,
