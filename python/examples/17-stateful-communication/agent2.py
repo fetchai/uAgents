@@ -7,6 +7,14 @@ from uagents import Agent, Context, Model
 
 CHIT_AGENT_ADDRESS = "agent1qvhlqy2a4lk9gge8ug7l65a6k07wc92hh2d5jhwtat0zakrtg08njmfn00j"
 
+agent = Agent(
+    name="chat_agent",
+    seed="9876543210000000001",
+    port=8002,
+    endpoint="http://127.0.0.1:8002/submit",
+    log_level="DEBUG",
+)
+
 
 # define dialogue messages; each transition needs a separate message
 class InitiateChitChatDialogue(Model):
@@ -27,15 +35,6 @@ class ConcludeChitChatDialogue(Model):
 
 class RejectChitChatDialogue(Model):
     pass
-
-
-agent = Agent(
-    name="chat_agent",
-    seed="9876543210000000001",
-    port=8002,
-    endpoint="http://127.0.0.1:8002/submit",
-    log_level="DEBUG",
-)
 
 
 # instantiate the dialogues
