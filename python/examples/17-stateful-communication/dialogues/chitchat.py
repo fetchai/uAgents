@@ -11,28 +11,6 @@ from typing import Type
 from uagents import Model
 from uagents.experimental.dialogues import Dialogue, Edge, Node
 
-
-# define dialogue messages; each transition needs a separate message
-class InitiateChitChatDialogue(Model):
-    pass
-
-
-class AcceptChitChatDialogue(Model):
-    pass
-
-
-class ChitChatDialogueMessage(Model):
-    text: str
-
-
-class ConcludeChitChatDialogue(Model):
-    pass
-
-
-class RejectChitChatDialogue(Model):
-    pass
-
-
 # Node definition for the dialogue states
 default_state = Node(
     name="Default State",
