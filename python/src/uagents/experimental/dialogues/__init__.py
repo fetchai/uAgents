@@ -47,6 +47,8 @@ class Edge:
         self.description = description
         self.parent = parent
         self.child = child
+        self.starter = False
+        self.ender = False
         self._model = None
         self._func = None
 

@@ -41,7 +41,7 @@ default_state = Node(
         "This is the default state of the dialogue. Every session starts in "
         "this state and is automatically updated once ."
     ),
-    starter=True,
+    initial=True,
 )  # currently not used as states are measured by the edges
 init_state = Node(
     name="Initiated",

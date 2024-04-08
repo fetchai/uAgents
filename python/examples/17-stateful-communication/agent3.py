@@ -17,7 +17,6 @@ agent = Agent(
     seed="9876543210000000003",
     port=8001,
     endpoint="http://127.0.0.1:8001/submit",
-    log_level="DEBUG",
 )
 
 
