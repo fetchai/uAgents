@@ -16,10 +16,10 @@ default_state = Node(
     name="Default State",
     description=(
         "This is the default state of the dialogue. Every session starts in "
-        "this state and is automatically updated once ."
+        "this state and is automatically updated once the dialogue starts."
     ),
-    starter=True,
-)  # currently not used as states are measured by the edges
+    initial=True,
+)
 init_state = Node(
     name="Initiated",
     description=(
@@ -38,25 +38,25 @@ end_state = Node(
 
 # Edge definition for the dialogue transitions
 init_session = Edge(
-    name="initiate_session",
+    name="Initiate session",
     description="Every dialogue starts with this transition.",
-    parent=None,
+    parent=default_state,
     child=init_state,
 )
 reject_session = Edge(
-    name="reject_session",
+    name="Reject session",
     description=("This is the transition for when the dialogue is rejected"),
     parent=init_state,
     child=end_state,
 )
 start_dialogue = Edge(
-    name="start_dialogue",
+    name="Start dialogue",
     description="This is the transition from initiated to chit chatting.",
     parent=init_state,
     child=chatting_state,
 )
 cont_dialogue = Edge(
-    name="continue_dialogue",
+    name="Continue dialogue",
     description=(
         "This is the transition from one dialogue message to the next, "
         "i.e. for when the dialogue continues."
@@ -65,7 +65,7 @@ cont_dialogue = Edge(
     child=chatting_state,
 )
 end_session = Edge(
-    name="end_session",
+    name="End session",
     description="This is the transition for when the session is ended.",
     parent=chatting_state,
     child=end_state,
@@ -88,6 +88,7 @@ class ChitChatDialogue(Dialogue):
             version=version,
             agent_address=agent_address,
             nodes=[
+                default_state,
                 init_state,
                 chatting_state,
                 end_state,

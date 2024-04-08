@@ -9,6 +9,8 @@
 
 See `chitchat.py` for an example.
 
+**Note:** The default state represents the state that the agent is in when a dialogue with another agent hasn't been started yet. This state is not shared but exists for each potential dialogue instance with other agents. The default state is included for completeness of the Dialogue graph and has no functional role.
+
 #### Implement a pattern (attach models to transitions)
 
 1. Instantiate a dialogue (e.g., `ChitChatDialogue`) with your agents address.

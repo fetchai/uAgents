@@ -128,3 +128,5 @@ jobs:
         run: poetry install -E all --no-interaction
       - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
         run: poetry run ruff check .
+      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+        run: poetry run ruff format --check .
