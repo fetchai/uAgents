@@ -20,3 +20,13 @@ See `chitchat.py` for an example.
 See `agent1.py` and `agent2.py` for an example implementation of the `ChitChatDialogue` defined in `chitchat.py`.
 
 To use the example start `agent1` first, then `agent2` which will initiate the dialogue after 5 seconds. To exit the dialogue press `ctrl + d` on your keyboard.
+
+### Examples
+
+#### Open Dialogue (Agent 1 & 2)
+
+Agent 1 and 2 make use of an implementation of the ChitChat Dialogue in which each step of the graph is exposed to the user. Both agents will be able to communicate as long as both define the same Models for the predefined graph (ChitChatDialogue class).
+
+#### Predefined Dialogue (Agent 3 & 4)
+
+Agent 3 and 4 are given a graph of the same ChitChat Dialogue but most of the interactions are automated and not exposed to the user. Only one interaction to start the dialogue and the cyclic ChitChat message is required to use the graph.

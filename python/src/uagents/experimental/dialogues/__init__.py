@@ -42,17 +42,15 @@ class Edge:
         description: str,
         parent: Optional[Node],  # tail
         child: Node,  # head
-        model: Optional[Type[Model]] = None,
-        func: MessageCallback = lambda *args, **kwargs: None,
     ) -> None:
         self.name = name
         self.description = description
         self.parent = parent
         self.child = child
-        self._model = model
-        self._func = func
         self.starter = False
         self.ender = False
+        self._model = None
+        self._func = None
 
     @property
     def model(self) -> Optional[Type[Model]]:
@@ -61,6 +59,7 @@ class Edge:
 
     @model.setter
     def model(self, model: Type[Model]) -> None:
+        """Set the message model type for the edge."""
         self._model = model
 
     @property
@@ -68,8 +67,9 @@ class Edge:
         """The message handler that is associated with the edge."""
         return self._func
 
-    @func.setter
-    def func(self, func: MessageCallback) -> None:
+    def set_default_behaviour(self, model: Type[Model], func: MessageCallback):
+        """Set the default behaviour for the edge."""
+        self._model = model
         self._func = func
 
 
@@ -345,10 +345,8 @@ class Dialogue(Protocol):
     def _auto_add_message_handler(self) -> None:
         """Automatically add message handlers for edges with models."""
         for edge in self._edges:
-            if edge.model:
-                model_digest = Model.build_schema_digest(edge.model)
-                self._models[model_digest] = edge.model
-                self._signed_message_handlers[model_digest] = edge.func
+            if edge.model and edge.func:
+                self._add_message_handler(edge.model, edge.func, None, False)
 
     def update_state(self, digest: str, session_id: UUID) -> None:
         """

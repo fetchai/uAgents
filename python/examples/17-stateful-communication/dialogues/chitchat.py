@@ -1,4 +1,10 @@
-"""Specific dialogue class for the chit-chat dialogue."""
+"""
+Specific dialogue class for the chit-chat dialogue.
+
+The contents of this file are to be shared between the agents that want to
+use this dialogue. This defines the structure of the specific dialogue and
+the messages that are expected to be exchanged.
+"""
 
 from typing import Type
 
