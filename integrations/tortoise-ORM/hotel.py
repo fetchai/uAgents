@@ -12,6 +12,8 @@ hotel = Agent(
     endpoint=["http://127.0.0.1:8001/submit"],
 )
 
+print(f"hotel's agent address: {hotel.address}")
+
 @hotel.on_event("startup")
 async def startup(_ctx: Context):
     await Tortoise.init(

@@ -18,7 +18,7 @@ DOMAIN = "example.agent"
 
 
 @alice.on_interval(period=5)
-async def alice_interval_handler(ctx: Context):
+async def send_message(ctx: Context):
     bob_name = "bob-0" + "." + DOMAIN
     await ctx.send(bob_name, Message(message="Hello there bob"))
 

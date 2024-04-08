@@ -23,7 +23,7 @@ async def say_hello(ctx: Context):
 
 
 @charles.on_message(model=Response)
-async def handle_response(ctx: Context, sender: str, msg: Response):
+async def response_handler(ctx: Context, sender: str, msg: Response):
     ctx.logger.info(f"Received response from {sender}: {msg.message}")
 
 

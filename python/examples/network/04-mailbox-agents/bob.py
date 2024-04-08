@@ -26,7 +26,7 @@ async def send_message(ctx: Context):
 
 
 @bob.on_message(model=Message, replies=set())
-async def on_message(ctx: Context, sender: str, msg: Message):
+async def message_handler(ctx: Context, sender: str, msg: Message):
     ctx.logger.info(f"Received message from {sender}: {msg.message}")
 
 

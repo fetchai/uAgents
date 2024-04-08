@@ -1,7 +1,7 @@
 from uagents import Agent, Context
 from models import RoomRequest, RoomResponse
 
-HOTEL_ADDRESS = "put_HOTEL_ADDRESS_here"
+HOTEL_ADDRESS = "agent1qvsmzq0awkv0mptpuw4fgr4a4fqqdejsxuju4auk08aqmq98hzuhgcgfspp"
 GUEST_SEED = "put_guest_seed_phrase_here"
 
 guest = Agent(
@@ -28,7 +28,7 @@ async def send_message(ctx: Context):
 
 
 @guest.on_message(RoomResponse, replies=set())
-async def handle_book_response(ctx: Context, _sender: str, msg: RoomResponse):
+async def booking_handler(ctx: Context, _sender: str, msg: RoomResponse):
     if msg.success:
         ctx.logger.info("Booking was successful")
     else:

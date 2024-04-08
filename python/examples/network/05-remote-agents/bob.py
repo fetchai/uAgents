@@ -17,8 +17,7 @@ bob = Agent(
 
 
 @bob.on_interval(period=5.0)
-async def send_to_alice(ctx: Context):
-    """Send a message to alice every 5 seconds."""
+async def send_message(ctx: Context):
     ctx.logger.info("Sending message to alice")
     await ctx.send(ALICE_ADDRESS, Message(message="hello there alice"))
 

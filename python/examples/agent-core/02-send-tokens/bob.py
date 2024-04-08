@@ -21,7 +21,7 @@ fund_agent_if_low(bob.wallet.address(), min_balance=AMOUNT)
 
 
 @bob.on_message(model=PaymentRequest, replies=TransactionInfo)
-async def send_payment(ctx: Context, sender: str, msg: PaymentRequest):
+async def payment_handler(ctx: Context, sender: str, msg: PaymentRequest):
     ctx.logger.info(f"Received payment request from {sender}: {msg}")
 
     transaction = ctx.ledger.send_tokens(

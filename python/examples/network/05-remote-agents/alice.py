@@ -22,7 +22,7 @@ alice = Agent(
 
 
 @alice.on_message(model=Message)
-async def act_on_message(ctx: Context, sender: str, msg: Message):
+async def message_handler(ctx: Context, sender: str, msg: Message):
     ctx.logger.info(f"Received message from {sender[-8:]}: {msg.message}")
 
 
