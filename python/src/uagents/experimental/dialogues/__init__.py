@@ -50,7 +50,7 @@ class Edge:
         self.starter = False
         self.ender = False
         self._model = None
-        self._func = Optional[tuple[MessageCallback, bool]]
+        self._func: Optional[tuple[MessageCallback, bool]] = None
 
     @property
     def model(self) -> Optional[Type[Model]]:
