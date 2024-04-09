@@ -15,8 +15,8 @@ jobs:
     outputs:
       uagents: ${{ steps.files-changed.outputs.uagents }}
     steps:
-      - uses: actions/checkout@v3
-      - uses: dorny/paths-filter@v2
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
         id: files-changed
         with:
           filters: |
@@ -35,7 +35,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
         include:
           - os: macos-latest
             python-version: "3.10.10"
@@ -45,11 +45,11 @@ jobs:
 
     steps:
       - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
         name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -58,12 +58,11 @@ jobs:
         with:
           virtualenvs-create: true
           virtualenvs-in-project: true
-          version: 1.3.2
 
       - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
         name: Load cached venv
         id: cached-poetry-dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
@@ -96,11 +95,11 @@ jobs:
 
     steps:
       - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
         name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -113,7 +112,7 @@ jobs:
       - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
         name: Load cached venv
         id: cached-poetry-dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
@@ -128,3 +127,5 @@ jobs:
         run: poetry install -E all --no-interaction
       - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
         run: poetry run ruff check .
+      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+        run: poetry run ruff format --check .
