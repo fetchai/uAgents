@@ -10,7 +10,7 @@ from uuid import UUID
 from uagents import Context, Model, Protocol
 from uagents.storage import KeyValueStore
 
-DEFAULT_SESSION_TIMEOUT_IN_SECONDS = 100
+DEFAULT_SESSION_TIMEOUT_IN_SECONDS = 60
 TARGET_UUID_VERSION = 4
 
 JsonStr = str
@@ -50,7 +50,7 @@ class Edge:
         self.starter = False
         self.ender = False
         self._model = None
-        self._func = None
+        self._func = Optional[tuple[MessageCallback, bool]]
 
     @property
     def model(self) -> Optional[Type[Model]]:
@@ -67,10 +67,17 @@ class Edge:
         """The message handler that is associated with the edge."""
         return self._func
 
-    def set_default_behaviour(self, model: Type[Model], func: MessageCallback):
-        """Set the default behaviour for the edge."""
+    def set_default_behaviour(
+        self, model: Type[Model], func: MessageCallback, persist: bool = False
+    ):
+        """
+        Set the default behaviour for the edge that will be overwritten if
+        a decorator defines a new function to be called.
+        """
+        if self._model:
+            raise ValueError("Functionality already set for edge!")
         self._model = model
-        self._func = func
+        self._func = func, persist
 
 
 class Dialogue(Protocol):
@@ -326,7 +333,7 @@ class Dialogue(Protocol):
 
     def is_ender(self, digest: str) -> bool:
         """
-        Return True if the digest is the last message of the dialogue.
+        Return True if the digest is one of the last messages of the dialogue.
         False otherwise.
         """
         return digest in [self._digest_by_edge[edge] for edge in self._ender]
@@ -346,7 +353,7 @@ class Dialogue(Protocol):
         """Automatically add message handlers for edges with models."""
         for edge in self._edges:
             if edge.model and edge.func:
-                self._add_message_handler(edge.model, edge.func, None, False)
+                self._add_message_handler(edge.model, edge.func[0], None, False)
 
     def update_state(self, digest: str, session_id: UUID) -> None:
         """
@@ -504,17 +511,22 @@ class Dialogue(Protocol):
         if edge_name not in self._digest_by_edge:
             raise ValueError("Edge does not exist in the dialogue!")
 
+        persisting_function = None
+        edge = self.get_edge(edge_name)
+        if edge.func[1]:
+            persisting_function = edge.func[0]
+
         def decorator_on_state_transition(func: MessageCallback):
             @functools.wraps(func)
-            def handler(*args, **kwargs):
-                return func(*args, **kwargs)
+            async def handler(*args, **kwargs):
+                if persisting_function:
+                    await persisting_function(*args, **kwargs)
+                return await func(*args, **kwargs)
 
-            edge = self.get_edge(edge_name)
             self._update_transition_model(edge, model)
-            self._add_message_handler(model, func, None, False)
+            self._add_message_handler(model, handler, None, False)
             return handler
 
-        # NOTE: recalculate manifest after each update and re-register /w agent
         return decorator_on_state_transition
 
     @property

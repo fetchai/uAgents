@@ -6,6 +6,7 @@ use this dialogue. This defines the structure of the specific dialogue and
 the messages that are expected to be exchanged.
 """
 
+from typing import Type
 from warnings import warn
 
 from uagents import Model
@@ -95,7 +96,7 @@ end_session = Edge(
 async def start_chitchat(
     ctx: Context,
     sender: str,
-    _msg: type[Model],
+    _msg: Type[Model],
 ):
     ctx.logger.info(f"Received init message from {sender}. Accepting Dialogue.")
     await ctx.send(sender, AcceptChitChatDialogue())
@@ -104,7 +105,7 @@ async def start_chitchat(
 async def accept_chitchat(
     ctx: Context,
     sender: str,
-    _msg: type[Model],
+    _msg: Type[Model],
 ):
     ctx.logger.info(
         f"Dialogue session with {sender} was accepted. "
@@ -116,7 +117,7 @@ async def accept_chitchat(
 async def conclude_chitchat(
     ctx: Context,
     sender: str,
-    _msg: type[Model],
+    _msg: Type[Model],
 ):
     ctx.logger.info(f"Received conclude message from: {sender}; accessing history:")
     ctx.logger.info(ctx.dialogue)
@@ -125,7 +126,7 @@ async def conclude_chitchat(
 async def default(
     _ctx: Context,
     _sender: str,
-    _msg: type[Model],
+    _msg: Type[Model],
 ):
     warn(
         "There is no handler for this message, please add your own logic by "
@@ -135,9 +136,20 @@ async def default(
     )
 
 
+async def persisting_function(
+    ctx: Context,
+    _sender: str,
+    _msg: Type[Model],
+):
+    ctx.logger.info("I was not overwritten, hehe.")
+
+
 init_session.set_default_behaviour(InitiateChitChatDialogue, start_chitchat)
 start_dialogue.set_default_behaviour(AcceptChitChatDialogue, accept_chitchat)
-cont_dialogue.set_default_behaviour(ChitChatDialogueMessage, default)
+# cont_dialogue.set_default_behaviour(ChitChatDialogueMessage, default, persist=False)
+cont_dialogue.set_default_behaviour(
+    ChitChatDialogueMessage, persisting_function, persist=True
+)
 end_session.set_default_behaviour(ConcludeChitChatDialogue, conclude_chitchat)
 
 
