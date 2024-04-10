@@ -1,6 +1,6 @@
+from bob import bob
 from uagents import Agent, Context, Model
 from uagents.network import wait_for_tx_to_complete
-from bob import bob
 
 
 class PaymentRequest(Model):

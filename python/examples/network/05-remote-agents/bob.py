@@ -5,7 +5,7 @@ class Message(Model):
     message: str
 
 
-ALICE_ADDRESS = "put_ALICE_ADDRESS_here"
+ALICE_ADDRESS = "put_alice_address_here"
 BOB_SEED = "put_your_seed_phrase_here"
 
 bob = Agent(

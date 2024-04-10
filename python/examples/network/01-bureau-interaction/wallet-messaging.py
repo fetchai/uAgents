@@ -1,7 +1,6 @@
 from uagents import Agent, Bureau, Context
 from uagents.wallet_messaging import WalletMessage
 
-
 ALICE_SEED = "put_alices_seed_phrase_here"
 BOB_SEED = "put_bobs_seed_phrase_here"
 
@@ -16,13 +15,13 @@ async def send_message(ctx: Context):
 
 
 @bob.on_wallet_message()
-async def wallet_message_handler(ctx: Context, msg: WalletMessage):
+async def bob_wallet_message_handler(ctx: Context, msg: WalletMessage):
     ctx.logger.info(f"Received wallet message from {msg.sender}: {msg.text}")
     await ctx.send_wallet_message(msg.sender, f"Hello there {alice.name}.")
 
 
 @alice.on_wallet_message()
-async def wallet_message_handler(ctx: Context, msg: WalletMessage):
+async def alice_wallet_message_handler(ctx: Context, msg: WalletMessage):
     ctx.logger.info(f"Received wallet message from: {msg.sender}: {msg.text}")
 
 

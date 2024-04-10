@@ -1,6 +1,5 @@
+from protocol.protocol import Request, Response, proto
 from uagents import Agent, Bureau, Context
-from protocol.protocol import proto, Request, Response
-
 
 ALICE_SEED = "put_alices_seed_here"
 BOB_SEED = "put_bobs_seed_here"
@@ -14,7 +13,6 @@ charles = Agent(name="charles", seed=CHARLES_SEED)
 alice.include(proto)
 bob.include(proto)
 
-print(proto.digest)
 
 
 @charles.on_interval(period=10)

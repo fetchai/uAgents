@@ -1,6 +1,6 @@
-from uagents import Bureau
 from alice import alice
 from bob import bob
+from uagents import Bureau
 
 bureau = Bureau()
 bureau.add(alice)

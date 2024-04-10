@@ -1,4 +1,4 @@
-from pyngrok import conf, ngrok, conf
+from pyngrok import conf, ngrok
 from uagents import Agent, Context, Model
 
 
@@ -8,6 +8,8 @@ class Message(Model):
 
 PORT = 8000
 
+
+ngrok.set_auth_token("put_your_NGROK_AUTH_TOKEN_here")
 conf.get_default().monitor_thread = False  # reduce console output
 http_tunnel = ngrok.connect(addr=PORT, proto="http", name="remote_agent")
 

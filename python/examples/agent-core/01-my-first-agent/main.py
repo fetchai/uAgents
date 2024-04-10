@@ -8,6 +8,10 @@ async def introduce_agent(ctx: Context):
     ctx.logger.info(f"Hello, I'm agent {ctx.name} and my address is {ctx.address}.")
     ctx.storage.set("count", 0)
 
+@agent.on_event("shutdown")
+async def goodbye(ctx: Context):
+    ctx.logger.info("Agent process finished!")
+
 
 @agent.on_interval(period=2.0)
 async def counter(ctx: Context):

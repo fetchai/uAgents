@@ -19,14 +19,14 @@ async def send_message(ctx: Context):
 
 
 @bob.on_message(model=Message)
-async def message_handler(ctx: Context, sender: str, msg: Message):
+async def bob_message_handler(ctx: Context, sender: str, msg: Message):
     ctx.logger.info(f"Received message from {sender}: {msg.text}")
     msg = f"Hello there {alice.name}."
     await ctx.send(sender, Message(text=msg))
 
 
 @alice.on_message(model=Message)
-async def message_handler(ctx: Context, sender: str, msg: Message):
+async def alice_message_handler(ctx: Context, sender: str, msg: Message):
     ctx.logger.info(f"Received message from {sender}: {msg.text}")
 
 

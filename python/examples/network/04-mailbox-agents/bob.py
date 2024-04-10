@@ -5,7 +5,7 @@ class Message(Model):
     message: str
 
 
-ALICE_ADDRESS = "paste_alice_address_here"
+ALICE_ADDRESS = "put_alice_address_here"
 BOB_SEED = "put_your_seed_phrase_here"
 
 print(f"Your agent's address is: {Agent(seed=BOB_SEED).address}")
