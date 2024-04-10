@@ -144,13 +144,13 @@ async def persisting_function(
     ctx.logger.info("I was not overwritten, hehe.")
 
 
-init_session.set_default_behaviour(InitiateChitChatDialogue, start_chitchat)
-start_dialogue.set_default_behaviour(AcceptChitChatDialogue, accept_chitchat)
-# cont_dialogue.set_default_behaviour(ChitChatDialogueMessage, default, persist=False)
-cont_dialogue.set_default_behaviour(
-    ChitChatDialogueMessage, persisting_function, persist=True
-)
-end_session.set_default_behaviour(ConcludeChitChatDialogue, conclude_chitchat)
+init_session.set_message_handler(InitiateChitChatDialogue, start_chitchat)
+start_dialogue.set_message_handler(AcceptChitChatDialogue, accept_chitchat)
+
+cont_dialogue.set_message_handler(ChitChatDialogueMessage, default)
+cont_dialogue.set_edge_handler(ChitChatDialogueMessage, persisting_function)
+
+end_session.set_message_handler(ConcludeChitChatDialogue, conclude_chitchat)
 
 
 class ChitChatDialogue(Dialogue):
