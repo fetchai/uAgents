@@ -14,7 +14,6 @@ alice.include(proto)
 bob.include(proto)
 
 
-
 @charles.on_interval(period=10)
 async def say_hello(ctx: Context):
     await ctx.broadcast(proto.digest, message=Request())

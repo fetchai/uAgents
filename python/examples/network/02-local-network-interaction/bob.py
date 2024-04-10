@@ -16,6 +16,7 @@ bob = Agent(
 
 print(f"bob's address: {bob.address}")
 
+
 @bob.on_message(model=Message)
 async def message_handler(ctx: Context, sender: str, msg: Message):
     ctx.logger.info(f"Received message from {sender}: {msg.message}")
