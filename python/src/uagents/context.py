@@ -36,7 +36,7 @@ from uagents.crypto import Identity
 from uagents.dispatch import JsonStr, dispatcher
 from uagents.envelope import Envelope
 from uagents.models import ErrorMessage, Model
-from uagents.resolver import Resolver, parse_identifier
+from uagents.resolver import GlobalResolver, Resolver, parse_identifier
 from uagents.storage import KeyValueStore
 
 if TYPE_CHECKING:
@@ -417,7 +417,6 @@ class Context:
         json_message: JsonStr,
         schema_digest: str,
         message_type: Optional[Type[Model]] = None,
-        session_id: Optional[uuid.UUID] = None,
         sync: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
@@ -683,6 +682,31 @@ class Context:
             destination=env.target,
             endpoint="",
         )
+
+    @staticmethod
+    async def send_sync_message(
+        destination: str,
+        message: Model,
+        response_type: Type[Model] = None,
+        sender: Identity = None,
+        resolver: Resolver = None,
+        timeout: int = 30,
+    ) -> Union[Model, Envelope]:
+        env: Envelope = await Context.send_raw_exchange_envelope(
+            sender or Identity.generate(),
+            destination,
+            resolver or GlobalResolver(),
+            Model.build_schema_digest(message),
+            protocol_digest=None,
+            json_message=message.json(),
+            timeout=timeout,
+            sync=True,
+        )
+
+        if response_type:
+            return response_type.parse_raw(env.decode_payload())
+
+        return env
 
     async def send_wallet_message(
         self,
