@@ -1,0 +1,6 @@
+{
+    "title": "Exchequer dialogue integration",
+    "description": "Enables your agent to interact with the Exchequer system.",
+    "categories":   ["Exchequer", "Finance", "Integration"],
+    "deltav": false
+}

@@ -1,0 +1,57 @@
+"""Client library constants."""
+
+clients = {
+    "client_1": {
+        "id": "c7b2f63425c54a6730eb9d282dc1bc370624e7223bfd2598",
+        "token": "eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE3MDkyNTEyMDAsImdycCI6InRlc3QiLCJpYXQiOjE3MDAwNjcxODksImlzcyI6ImZldGNoLmFpIiwianRpIjoiYWQ1NDAzNDgyMWE1NDM2ZjBlODk2MTBhIiwic3ViIjoiYzdiMmY2MzQyNWM1NGE2NzMwZWI5ZDI4MmRjMWJjMzcwNjI0ZTcyMjNiZmQyNTk4In0.ZjKQJn_Zwh1z2f1vLOddHFmml8DWbdJWgzvRoe-1DEZws_W8ryQ0AWQ3SBTvXcHZHIJxrqNX3oGxbs8OXFPI4yYoWJImbCJPXkX7HwkuFqzuhPZa0JXlo5fj73qg5hAbEGzOOrOkGiBbRWAPGj11UHfNm39790JFZInS_qGlBCiH6EaSWneTyT_Ek5zql_nftdDd2IetKi7LXf1QwVEkqKc220mw8pLnS6L6wvYksSc9Z4vQN5L0pyezMaZrQmxD8hsOl5ZqP3amXtCeXNUD3n--cEqx3T4w01eN69QAhP6JBPx2EvEzvF0NHKPKVv6tsUGpBrSbJe-sQGkAJWDJPA",
+    },
+    "client_2": {
+        "id": "372f97ed7c0ef77cb9397ac210c51d5bf91f4de5c4657b58",
+        "token": "eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE3MDkyNTEyMDAsImdycCI6InRlc3QiLCJpYXQiOjE3MDAwNjcxOTAsImlzcyI6ImZldGNoLmFpIiwianRpIjoiZTQ0ZjZmMmQ5NWE0NzczM2M0ZTc3YjQ1Iiwic3ViIjoiMzcyZjk3ZWQ3YzBlZjc3Y2I5Mzk3YWMyMTBjNTFkNWJmOTFmNGRlNWM0NjU3YjU4In0.EEgBM-pMVLjow9WwiEOzweUboX0Re0_U7k8iKlwcuRIh3oum2sTvsHXnRE6nTLLDavyM80dDQyoWkKJ-dkh8-wrQV9vfLb2c9ANoI0FbZnqAsBrzvXeBG0dGGVmL63M8T4V4Gw6ZWHOCHEYphs3g_6UmElTDK-Xl88hDSdCfvv2lGTKOGfLKE6V4cQOFBW7vddrtWIprQUVsEqYvQU__Q_skq3-CeYrPhYjsmu1bYRNBreovjNiBfK6EZPHmEdFYcIaRvaJcopZN0ut6MH2MxLI1BnQwfUA__eowDOYb7MfJrpU7C4KdFMw4ogWh6SADWdY61bxWhOkWvuCBUVlywA",
+    },
+    "client_3": {
+        "id": "c3a52cf0dbcab83f5837e05a2f950968af31c1b72e09dad8",
+        "token": "eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE3MDkyNTEyMDAsImdycCI6InRlc3QiLCJpYXQiOjE3MDAwNjcxOTAsImlzcyI6ImZldGNoLmFpIiwianRpIjoiNjY1YWRmYzYxMjA1NjU0ZmJhYzExYTg4Iiwic3ViIjoiYzNhNTJjZjBkYmNhYjgzZjU4MzdlMDVhMmY5NTA5NjhhZjMxYzFiNzJlMDlkYWQ4In0.Yx-VKuAQNyJVc7Yn4LgNuaTI-coMi4yKtb8AwqFY1TPbD2tjINpbHWseeLn8r2AdsamDMwiK7rnSXqUwDtB9duTR2Op2p25235YRqsvEtpki_C0gLmn1glO_smf6iW1nBzuMA0esfLgWxOH8xOrSH8UzP4IU1kjcCUomHrzcT02q4BNXNrQpLSHp96oAn-WgrUMgkokv5uj18bh4Z8VVV87ClXzRyX1mPlu4Odl2W-f9fg9Pw_Bg9YlmuWNYU-TnhzTs9oav7jCmoVZyFHfhsupzQibDA4GOqi9AznCdKrhNaoc2Aic7MV264pgCC1GH70tLBdUlfR8maD3UMPMtEA",
+    },
+    "client_4": {
+        "id": "27cf3378da4131ac53f68624fc75ef54939d5f85cb0e987d",
+        "token": "eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE3MDkyNTEyMDAsImdycCI6InRlc3QiLCJpYXQiOjE3MDAwNjcxOTAsImlzcyI6ImZldGNoLmFpIiwianRpIjoiZTgwZjQ0NTNkYTVhZTE2MGZlYzMwNWZhIiwic3ViIjoiMjdjZjMzNzhkYTQxMzFhYzUzZjY4NjI0ZmM3NWVmNTQ5MzlkNWY4NWNiMGU5ODdkIn0.YB4q3VNeCbfIPKk6DWp8_WmJ0v7D8-Djlqu6kAeaYzjSUO9gorz3l_Wb0y-hEy0qqzEBSe4-EyeQHfLApW5R16BT39y4J_IYU6yC5ZRamL0278mojKRr3DZEsWELzLktXp_nXER5qxjHgRJsc17m68CsYmvSrgMGAgnm4NMgRSGGA-L5mZMiVZqC-1p3Ml-FKPm4ihFbPDbY6IO-Dj3c2gAJw-e8lBnH5GBX0XYJ39zMu_KmiSIA-q4nzLJJf-hh3kncNeUtVD8PP6yATSjW2v7Hvs09_FrhSVf6bP7CeKaxRzqPviRQhMOeaXvFbDdPi_xPZg38bVdK-UvsliQroA",
+    },
+    "client_5": {
+        "id": "6327532019a045b526257d70e80f5bb7dc571a48cf66dfd8",
+        "token": "eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE3MDkyNTEyMDAsImdycCI6InRlc3QiLCJpYXQiOjE3MDAwNjcxOTEsImlzcyI6ImZldGNoLmFpIiwianRpIjoiYzI3ODY1YzEyZjhhZjIzNDVmYTllMDE5Iiwic3ViIjoiNjMyNzUzMjAxOWEwNDViNTI2MjU3ZDcwZTgwZjViYjdkYzU3MWE0OGNmNjZkZmQ4In0.NQmOSeSj5Jq6zmSJTWpCINvAswMFQeLbmtTNkyWp_rLW7j_qR-l68dmwPeymcv__o8kL508LS_FUW64I74i086C8zZMp2-Kx9i07Q52XUgJnrdtjVAnyZlyNfOpDStizbZzHKq4Bxha0o9Ugmpj5uOZFVr42T0-Wf4HcVUaBtLsQOSAy9nGM8VlN1jTFWHS0HQ--SnGzJF9vDtsCiqnrmNVjeqfqKtJCsGrWKTpFfsFONNa8h-AjugisTyWMWiaJCNLdMcijgvpGxu597DlTL8ACJvRDSdq06kbcX9xsZ4cQmEzSt6Qvs-tSFAzs-s0DYV80EOqbOr9vys1LC1klFg",
+    },
+    "client_6": {
+        "id": "c13f737af2a0cc71205a34ac5ee342458fbe58736383e8be",
+        "token": "eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE3MDkyNTEyMDAsImdycCI6InRlc3QiLCJpYXQiOjE3MDAwNjcxOTEsImlzcyI6ImZldGNoLmFpIiwianRpIjoiZGRlZjM3NmMzY2EwOTM2OTUyMGQ5ODdlIiwic3ViIjoiYzEzZjczN2FmMmEwY2M3MTIwNWEzNGFjNWVlMzQyNDU4ZmJlNTg3MzYzODNlOGJlIn0.eQGweuHuEUGvO_8lZ9mQx-v6PryRf3LCiQimSGd5R8taexwpyiW1jwW6TN470Agl3TAu6oZUp-m-ky_PlJzhJBnUHTDQMxTgB7ERDmZnkgZ5k3-7_6v2xmnQaSbFc5RLB1V3I3pUZtQG-5x5Gvi4jTY6CfdiiNUEMSlQzd4Q89AsRyB75nTf3P9uXU8QI2V5GJZNPJcswVY1-z3Z51nEQJG1vEt2e2UoxICa87An11clMOsc6KO0nuNEnnP1YnZ9cyw4tu38wKO2gUs00q3ehq03hajfMpGpQvlmwiH4fUhlMdP863z3-WxiIrioeTsVhvHuzhaRfJWXwcKvUot3ig",
+    },
+    "client_7": {
+        "id": "076442c5cf0928ebfdfd28c3bf7047dfb47ef7d38826ec4f",
+        "token": "eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE3MDkyNTEyMDAsImdycCI6InRlc3QiLCJpYXQiOjE3MDAwNjcxOTIsImlzcyI6ImZldGNoLmFpIiwianRpIjoiY2MzMmU0NWUxZjE3NzMyMWIyOGVkOTgwIiwic3ViIjoiMDc2NDQyYzVjZjA5MjhlYmZkZmQyOGMzYmY3MDQ3ZGZiNDdlZjdkMzg4MjZlYzRmIn0.DiTGc6boPj8bi-k6cl-ylrO5a53UzxUBcubTujwr1dsJZ1uaaovtcyt0th7Cbn57lE4x8gVi9pdB0Iim3oIZ2ePabKDS7eZNAf7Dp9xUaSJBmfgp1xzlbl_iGfJzGZ7F_1cjViGa34yZERGfz_c4L9ByBiy3oi69Nvpj1CNNalcocyl-8YiG4TSFgC7WNtsKGfVs5FcStflZJo7k4a8aiEz0XDtg944WxxSvvOvaNn7NMnmpBC2KttQTy1_gp5t6gqOGT-4UPA2yZG9z5JNL4cwDAfZNNXb2KuBSTK7bRAFaTdDDyajCcgoT2ciKYYqoXuzh-J2ZSt5tB3pjQtZseg",
+    },
+    "client_8": {
+        "id": "44bced081e49a0bda805c092033e6a26e479685395ff2176",
+        "token": "eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE3MDkyNTEyMDAsImdycCI6InRlc3QiLCJpYXQiOjE3MDAwNjcxOTIsImlzcyI6ImZldGNoLmFpIiwianRpIjoiY2FhOTk2NDgyODQ4MTU0MGU3OTkwNzg4Iiwic3ViIjoiNDRiY2VkMDgxZTQ5YTBiZGE4MDVjMDkyMDMzZTZhMjZlNDc5Njg1Mzk1ZmYyMTc2In0.duGTTpktKcTplB9W_8bqfs1S5X--ZtV7wV2dJ_56guU3P-BGVq1lNz511PfjQz5RsPFX0eAXsP3AfI8zXlH2PW-0mVsgA0mFHgC-T30wjuyweGg5iBihLUvdYPQq2totIj2yOYWt6fymn7FxRO3Kq1uff2I0KL6INK-LAaDvFMabF0kLD3sgquxr7Q8sUOFjCNMproQRwymJCUzg9E3skxRKE72Mly-ZaiRkngvnAohaYQRRiUO_4xzDIps4-fK3JqjQBouSmdSu1gpPnJHA_eS8m9yeY34mFUkv8Guon7dEF89XBJH5YTgs9TQ8p0TyqlOqCZJvwgOwogHybFMptg",
+    },
+    "client_9": {
+        "id": "4b3467e830fae1d22b31e454e1c8999e7bb08631e32d4891",
+        "token": "eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE3MDkyNTEyMDAsImdycCI6InRlc3QiLCJpYXQiOjE3MDAwNjcxOTIsImlzcyI6ImZldGNoLmFpIiwianRpIjoiNTFmOTM5MGQwOGEzNTE3Y2Y5NDk1Y2M5Iiwic3ViIjoiNGIzNDY3ZTgzMGZhZTFkMjJiMzFlNDU0ZTFjODk5OWU3YmIwODYzMWUzMmQ0ODkxIn0.J959lrURMUDEcV-QOakW3UjRPbTFzhyA1_5F3BknFT_9RS2FSIxWxSfQVZslMm4wyGnX0Gj6E0bPh7cn5jtknLS8eUNzLp_hdEt0kXFnYEpTDEMcE-KMsOCC2WPz6RgSU-6KF8vlYscdERJz_XhxMYywmlB9uUMj1Z22V2KBanjonzfY9zXgCAxQVGJNbgGqDPcKcT78N8PuHiRvtKjEi10T8U1yqmpqWX6ZwWMhN-foFVAzpMa31w3tHxbeKNwvgKaaQnyZV5LZZUap59ECbFZXOWr5VPmFj4Y_scLV6xS77xZ8sBRIZrxjQzzdk0vE63qzMQ9RGidLXuq5cX0flQ",
+    },
+    "client_10": {
+        "id": "1cdcc30cb2aecf8d4e02b6b9162686e3ddf01dc9ed78df94",
+        "token": "eyJhbGciOiJSUzI1NiJ9.eyJleHAiOjE3MDkyNTEyMDAsImdycCI6InRlc3QiLCJpYXQiOjE3MDAwNjcxOTMsImlzcyI6ImZldGNoLmFpIiwianRpIjoiZTU3MDJhMTM5MjcyMWEyODZjM2ZmN2FkIiwic3ViIjoiMWNkY2MzMGNiMmFlY2Y4ZDRlMDJiNmI5MTYyNjg2ZTNkZGYwMWRjOWVkNzhkZjk0In0.RveiW-3PIblFYIQ3I2egCr6zQFzR0_W9LHIlR0Pw3IoVVAGtZdIowshuVrEbMIKBzU5rpPhIIoubFkkTOIEtux-zZiP1UAvXVIEAp5RNPIwj5CupJ9K_v9VxylixY6n9brKw5zBo_vkIXFLImsnNETPw8UifWEuLYFU5eldbcII-ShV5sfoh5hskbadDbwrvFwDVd0qlYEZNU7BvDcuknhSQDnA7vfXufq6DBu63wNWv5UFaFR7HqGEv8yj7EtO6FM2JRVO44ydNE0McXiXMNhiCH78XYKSLyS_3Vnw8evTZIWPHiQ5R7WVexBJlQ5qDF4rluT38LYmBujihnBmeVw",
+    },
+}
+
+
+def get_client(name: str) -> dict:
+    """
+    Get the client ID and token by name.
+
+    Args:
+        name (str): Identifier of the client
+
+    Returns:
+        dict: Dict containing the ID and token of an account
+    """
+    return clients[name]
