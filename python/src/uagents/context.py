@@ -691,7 +691,7 @@ class Context:
         sender: Identity = None,
         resolver: Resolver = None,
         timeout: int = 30,
-    ) -> Union[Model, Envelope]:
+    ) -> Union[Model, JsonStr]:
         env: Envelope = await Context.send_raw_exchange_envelope(
             sender or Identity.generate(),
             destination,
@@ -703,10 +703,11 @@ class Context:
             sync=True,
         )
 
+        json_message = env.decode_payload()
         if response_type:
-            return response_type.parse_raw(env.decode_payload())
+            return response_type.parse_raw(json_message)
 
-        return env
+        return json_message
 
     async def send_wallet_message(
         self,
