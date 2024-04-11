@@ -12,8 +12,8 @@ agent = Agent(
     seed="9876543210000000001",
     port=8002,
     endpoint="http://127.0.0.1:8002/submit",
+    log_level="DEBUG",
 )
-agent._logger.setLevel("DEBUG")  # pylint: disable=protected-access
 
 
 # define dialogue messages; each transition needs a separate message
@@ -75,7 +75,7 @@ async def reject_chitchat(
     _msg: RejectChitChatDialogue,
 ):
     # do something when the dialogue is rejected and nothing has been sent yet
-    ctx.logger.info(f"Received conclude message from: {sender}")
+    ctx.logger.info(f"Received reject message from: {sender}")
 
 
 @chitchat_dialogue.on_continue_dialogue(ChitChatDialogueMessage)

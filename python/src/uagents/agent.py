@@ -2,6 +2,7 @@
 
 import asyncio
 import functools
+import logging
 import uuid
 from typing import Any, Coroutine, Dict, List, Optional, Set, Tuple, Type, Union
 
@@ -161,6 +162,7 @@ class Agent(Sink):
         version: Optional[str] = None,
         test: Optional[bool] = True,
         loop: Optional[asyncio.AbstractEventLoop] = None,
+        log_level: Union[int, str] = logging.INFO,
     ):
         """
         Initialize an Agent instance.
@@ -179,6 +181,9 @@ class Agent(Sink):
             wallet_key_derivation_index (Optional[int]): The index used for deriving the wallet key.
             max_resolver_endpoints (Optional[int]): The maximum number of endpoints to resolve.
             version (Optional[str]): The version of the agent.
+            test (Optional[bool]): True if the agent will register and transact on the testnet.
+            loop (Optional[asyncio.AbstractEventLoop]): The asyncio event loop to use.
+            log_level (Union[int, str]): The logging level for the agent.
         """
         self._name = name
         self._port = port if port is not None else 8000
@@ -196,7 +201,7 @@ class Agent(Sink):
 
         # initialize wallet and identity
         self._initialize_wallet_and_identity(seed, name, wallet_key_derivation_index)
-        self._logger = get_logger(self.name)
+        self._logger = get_logger(self.name, level=log_level)
 
         # configure endpoints and mailbox
         self._endpoints = parse_endpoint_config(endpoint)
@@ -992,13 +997,15 @@ class Agent(Sink):
                             if protocol.is_starter(schema_digest):
                                 self._ctx.logger.debug("dialogue started")
                             elif protocol.is_ender(schema_digest):
+                                # no more messages will follow -> set the dialogue state to finished
+                                protocol.update_state(schema_digest, session)
                                 self._ctx.logger.debug(
                                     "dialogue ended, cleaning up session"
                                 )
                             else:
                                 self._ctx.logger.debug("dialogue picked up")
 
-                            context.dialogue = protocol.get_session(
+                            context.dialogue = protocol.get_conversation(
                                 session
                             )  # add current dialogue messages to context
                             protocol.add_message(
@@ -1060,6 +1067,7 @@ class Bureau:
         self,
         port: Optional[int] = None,
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
+        log_level: Union[int, str] = logging.INFO,
     ):
         """
         Initialize a Bureau instance.
@@ -1074,7 +1082,7 @@ class Bureau:
         self._endpoints = parse_endpoint_config(endpoint)
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
-        self._logger = get_logger("bureau")
+        self._logger = get_logger("bureau", log_level)
         self._server = ASGIServer(self._port, self._loop, self._queries, self._logger)
         self._use_mailbox = False
 

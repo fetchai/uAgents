@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "fetch-hackathon"
+version = "0.1.0"
+description = ""
+authors = ["mjdev-1 <146714932+mjdev-1@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.12"
+langchain = {extras = ["llms"], version = "^0.1.12"}
+python-dotenv = "^1.0.1"
+langchain-openai = "^0.0.8"
+chromadb = "^0.4.24"
+unstructured = "^0.12.6"
+uagents = "^0.11.0"
+uagents-ai-engine = "^0.1.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
