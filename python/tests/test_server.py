@@ -150,7 +150,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                 ),
                 asyncio.create_task(self.mock_process_sync_message(user, reply)),
             )
-        response = enclose_response(reply, self.agent.address, session)
+        response = enclose_response(reply, self.agent.address, session, user)
         mock_send.assert_has_calls(
             [
                 call(
@@ -169,7 +169,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             ]
         )
 
-    async def test_message_success_sync_unsigned(self):
+    async def test_message_success_sync_signed(self):
         message = Message(message="hello")
         reply = Message(message="hey")
         session = uuid.uuid4()
@@ -205,7 +205,9 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                     self.mock_process_sync_message(self.bob.address, reply)
                 ),
             )
-        response = enclose_response(reply, self.agent.address, session)
+        response = enclose_response(
+            reply, self.agent.address, session, self.bob.address
+        )
         mock_send.assert_has_calls(
             [
                 call(
