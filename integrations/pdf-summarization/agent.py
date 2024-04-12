@@ -15,7 +15,7 @@ def upload_pdf(url, ctx):
     """Uploads a PDF from a URL and returns the document ID."""
     endpoint = "https://pdf.ai/api/v1/upload/url"
     headers = {
-        "X-API-Key": API_KEY
+        "X-API-Key":wxstp16d0amkq9sbp
     }
     payload = {
         "url": url,
