@@ -348,7 +348,6 @@ class Context:
             message.json(),
             schema_digest,
             message_type=type(message),
-            session_id=session_id,
             sync=sync,
             timeout=timeout,
         )
@@ -428,6 +427,7 @@ class Context:
             json_message (JsonStr): The JSON-encoded message to be sent.
             schema_digest (str): The schema digest of the message.
             message_type (Optional[Type[Model]]): The optional type of the message being sent.
+            sync (bool): Whether to send the message synchronously or asynchronously.
             timeout (Optional[int]): The optional timeout for sending the message, in seconds.
 
         Returns:
@@ -683,32 +683,6 @@ class Context:
             endpoint="",
         )
 
-    @staticmethod
-    async def send_sync_message(
-        destination: str,
-        message: Model,
-        response_type: Type[Model] = None,
-        sender: Identity = None,
-        resolver: Resolver = None,
-        timeout: int = 30,
-    ) -> Union[Model, JsonStr]:
-        env: Envelope = await Context.send_raw_exchange_envelope(
-            sender or Identity.generate(),
-            destination,
-            resolver or GlobalResolver(),
-            Model.build_schema_digest(message),
-            protocol_digest=None,
-            json_message=message.json(),
-            timeout=timeout,
-            sync=True,
-        )
-
-        json_message = env.decode_payload()
-        if response_type:
-            return response_type.parse_raw(json_message)
-
-        return json_message
-
     async def send_wallet_message(
         self,
         destination: str,
@@ -719,3 +693,45 @@ class Context:
             await self._wallet_messaging_client.send(destination, text, msg_type)
         else:
             self.logger.warning("Cannot send wallet message: no client available")
+
+
+async def send_sync_message(
+    destination: str,
+    message: Model,
+    response_type: Type[Model] = None,
+    sender: Identity = None,
+    resolver: Resolver = None,
+    timeout: int = 30,
+) -> Union[Model, JsonStr, MsgStatus]:
+    """
+    Standalone function to send a synchronous message to an agent.
+
+    Args:
+        destination (str): The destination address to send the message to.
+        message (Model): The message to be sent.
+        response_type (Type[Model]): The optional type of the response message.
+        sender (Identity): The optional sender identity (defaults to a generated identity).
+        resolver (Resolver): The optional resolver for address-to-endpoint resolution.
+        timeout (int): The optional timeout for the message response in seconds.
+
+    Returns:
+        Union[Model, JsonStr, MsgStatus]: On success, if the response type is provided, the response
+        message is returned with that type. Otherwise, the JSON message is returned. On failure, a
+        message status is returned.
+    """
+    response = await Context.send_raw_exchange_envelope(
+        sender or Identity.generate(),
+        destination,
+        resolver or GlobalResolver(),
+        Model.build_schema_digest(message),
+        protocol_digest=None,
+        json_message=message.json(),
+        timeout=timeout,
+        sync=True,
+    )
+    if isinstance(response, Envelope):
+        json_message = response.decode_payload()
+        if response_type:
+            return response_type.parse_raw(json_message)
+        return json_message
+    return response
