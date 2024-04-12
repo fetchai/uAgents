@@ -153,8 +153,8 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
         # Define the expected message status
         exp_msg_status = MsgStatus(
-            status=DeliveryStatus.DELIVERED,
-            detail="Message successfully delivered via HTTP",
+            status=DeliveryStatus.SENT,
+            detail="Message successfully sent via HTTP",
             destination=clyde.address,
             endpoint=endpoints[0],
         )
@@ -196,8 +196,8 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
         # Define the expected message status
         exp_msg_status = MsgStatus(
-            status=DeliveryStatus.DELIVERED,
-            detail="Message successfully delivered via HTTP",
+            status=DeliveryStatus.SENT,
+            detail="Message successfully sent via HTTP",
             destination=clyde.address,
             endpoint=endpoints[0],
         )
@@ -225,8 +225,8 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
         # Define the expected message status
         exp_msg_status = MsgStatus(
-            status=DeliveryStatus.DELIVERED,
-            detail="Message successfully delivered via HTTP",
+            status=DeliveryStatus.SENT,
+            detail="Message successfully sent via HTTP",
             destination=clyde.address,
             endpoint=endpoints[1],
         )
