@@ -649,8 +649,8 @@ class Context:
                                 return Envelope.parse_obj(await resp.json())
 
                             return MsgStatus(
-                                status=DeliveryStatus.SENT,
-                                detail="Message successfully sent via HTTP",
+                                status=DeliveryStatus.DELIVERED,
+                                detail="Message successfully delivered via HTTP",
                                 destination=destination_address,
                                 endpoint=endpoint,
                             )
