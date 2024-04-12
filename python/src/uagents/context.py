@@ -327,7 +327,6 @@ class Context:
         self,
         destination: str,
         message: Model,
-        session_id: Optional[uuid.UUID] = None,
         sync: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
