@@ -336,6 +336,7 @@ class Context:
         Args:
             destination (str): The destination address to send the message to.
             message (Model): The message to be sent.
+            sync (bool): Whether to send the message synchronously or asynchronously.
             timeout (Optional[int]): The optional timeout for sending the message, in seconds.
 
         Returns:
@@ -579,6 +580,25 @@ class Context:
         session_id: Optional[uuid.UUID] = None,
         sync: bool = False,
     ) -> Union[MsgStatus, Envelope]:
+        """
+        Standalone function to send a raw exchange envelope to an agent.
+
+        Args:
+            sender (Identity): The sender identity.
+            destination (str): The destination address to send the message to.
+            resolver (Resolver): The resolver for address-to-endpoint resolution.
+            schema_digest (str): The schema digest of the message.
+            protocol_digest (Optional[str]): The protocol digest of the message.
+            json_message (JsonStr): The JSON-encoded message to be sent.
+            logger (Optional[logging.Logger]): The optional logger instance.
+            timeout (int): The timeout for sending the message, in seconds.
+            session_id (Optional[uuid.UUID]): The optional session ID.
+            sync (bool): Whether to send the message synchronously or asynchronously.
+
+        Returns:
+            Union[MsgStatus, Envelope]: The delivery status of the message, or in the case of a
+            successful synchronous message, the response envelope.
+        """
         # Resolve the destination address and endpoint ('destination' can be a name or address)
         destination_address, endpoints = await resolver.resolve(destination)
         if len(endpoints) == 0:
