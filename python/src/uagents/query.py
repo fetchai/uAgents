@@ -101,6 +101,7 @@ def enclose_response(
         message (Model): The response message to enclose.
         sender (str): The sender's address.
         session (str): The session identifier.
+        target (str): The target address.
 
     Returns:
         str: The JSON representation of the response envelope.
@@ -123,8 +124,8 @@ def enclose_response_raw(
         json_message (JsonStr): The JSON-formatted response message to enclose.
         schema_digest (str): The schema digest of the message.
         sender (str): The sender's address.
-        target (str): The target address.
         session (str): The session identifier.
+        target (str): The target address.
 
     Returns:
         str: The JSON representation of the response envelope.
