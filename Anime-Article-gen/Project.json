@@ -1,0 +1,6 @@
+{
+    "name": "Anime Article Generation",
+    "description": "A project that integrates Anilist API with a generative AI model to generate brief descriptions for the top 10 most popular anime or manga titles based on user input.",
+    "categories":    ["Gemini"], 
+    "deltav": true
+  }
