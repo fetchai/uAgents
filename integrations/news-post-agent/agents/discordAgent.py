@@ -9,6 +9,7 @@ class AgentReq(Model):
 
     
 MAILBOX_KEY = ''
+DISCORD_WEBHOOK_URL = ''
 Discord_agent = Agent(
     name="Gemini Agent",
     port=8001,
@@ -25,7 +26,7 @@ def send_image_with_caption(caption, title, image_url):
     image_file = response.content
 
     # Example usage
-    webhook_url = "https://discord.com/api/webhooks/1224638855693598740/tYlgTloYXdYVkvNonUQdmg5TU1GFOhKXRPxBDNp-jqSulNeyhXzgcPQ7vnPEiJCzD-y6"
+    webhook_url = DISCORD_WEBHOOK_URL
     title = title + '\n\n' + caption
     files = {
         'file': ('image.png', image_file, 'image/png')
