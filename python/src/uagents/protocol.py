@@ -32,8 +32,8 @@ class Protocol:
         """
         self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
         self._interval_messages: Set[str] = set()
-        self._signed_message_handlers: Dict[str, MessageCallback] = {}
-        self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
+        self._signed_message_handlers: Dict[str, tuple[MessageCallback, str]] = {}
+        self._unsigned_message_handlers: Dict[str, tuple[MessageCallback, str]] = {}
         self._models: Dict[str, Type[Model]] = {}
         self._replies: Dict[str, Dict[str, Type[Model]]] = {}
         self._name = name or ""
@@ -94,7 +94,8 @@ class Protocol:
         Property to access the signed message handlers.
 
         Returns:
-            Dict[str, MessageCallback]: Dictionary mapping message schema digests to their handlers.
+            Dict[str, tuple[MessageCallback, str]]: Dictionary mapping message schema digests
+            and desired state to their handlers.
         """
         return self._signed_message_handlers
 
@@ -104,7 +105,8 @@ class Protocol:
         Property to access the unsigned message handlers.
 
         Returns:
-            Dict[str, MessageCallback]: Dictionary mapping message schema digests to their handlers.
+            Dict[str, tuple[MessageCallback, str]]: Dictionary mapping message schema digests
+            and desired state to their handlers.
         """
         return self._unsigned_message_handlers
 
@@ -152,6 +154,7 @@ class Protocol:
         self,
         period: float,
         messages: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
+        state: Optional[str] = None,
     ):
         """
         Decorator to register an interval handler for the protocol.
@@ -170,7 +173,7 @@ class Protocol:
             def handler(*args, **kwargs):
                 return func(*args, **kwargs)
 
-            self._add_interval_handler(period, func, messages)
+            self._add_interval_handler(period, func, messages, state)
 
             return handler
 
@@ -181,6 +184,7 @@ class Protocol:
         period: float,
         func: IntervalCallback,
         messages: Optional[Union[Type[Model], Set[Type[Model]]]],
+        state: Optional[str] = None,
     ):
         """
         Add an interval handler to the protocol.
@@ -191,7 +195,7 @@ class Protocol:
             messages (Optional[Union[Type[Model], Set[Type[Model]]]]): The associated message types.
         """
         # store the interval handler for later
-        self._interval_handlers.append((func, period))
+        self._interval_handlers.append((func, period, state))
 
         # if message types are specified, store these for validation
         if messages is not None:
@@ -224,6 +228,7 @@ class Protocol:
         model: Type[Model],
         replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
         allow_unverified: Optional[bool] = False,
+        state: Optional[str] = None,
     ):
         """
         Decorator to register a message handler for the protocol.
@@ -244,7 +249,7 @@ class Protocol:
             def handler(*args, **kwargs):
                 return func(*args, **kwargs)
 
-            self._add_message_handler(model, func, replies, allow_unverified)
+            self._add_message_handler(model, func, replies, allow_unverified, state)
 
             return handler
 
@@ -256,6 +261,7 @@ class Protocol:
         func: MessageCallback,
         replies: Optional[Union[Type[Model], Set[Type[Model]]]],
         allow_unverified: Optional[bool] = False,
+        state: Optional[str] = None,
     ):
         """
         Add a message handler to the protocol.
@@ -272,9 +278,9 @@ class Protocol:
         # update the model database
         self._models[model_digest] = model
         if allow_unverified:
-            self._unsigned_message_handlers[model_digest] = func
+            self._unsigned_message_handlers[model_digest] = (func, state)
         else:
-            self._signed_message_handlers[model_digest] = func
+            self._signed_message_handlers[model_digest] = (func, state)
         if replies is not None:
             if not isinstance(replies, set):
                 replies = {replies}

@@ -1,6 +1,6 @@
 # pylint: disable=protected-access
 import unittest
-from typing import Callable
+from typing import Callable, Tuple
 
 from uagents import Agent, Model, Protocol
 
@@ -52,7 +52,7 @@ class TestAgent(unittest.TestCase):
         self.assertEqual(len(models), 1)
         self.assertEqual(len(unsigned_msg_handlers), 0)
         self.assertEqual(len(signed_msg_handlers), 1)
-        self.assertTrue(isinstance(signed_msg_handlers[MESSAGE_DIGEST], Callable))
+        self.assertTrue(isinstance(signed_msg_handlers[MESSAGE_DIGEST], Tuple))
         self.assertTrue(MESSAGE_DIGEST in self.protocol.models)
 
     def test_protocol_on_unsigned_message(self):
@@ -67,8 +67,8 @@ class TestAgent(unittest.TestCase):
         self.assertEqual(len(models), 2)
         self.assertEqual(len(unsigned_msg_handlers), 1)
         self.assertEqual(len(signed_msg_handlers), 1)
-        self.assertTrue(isinstance(signed_msg_handlers[MESSAGE_DIGEST], Callable))
-        self.assertTrue(isinstance(unsigned_msg_handlers[QUERY_DIGEST], Callable))
+        self.assertTrue(isinstance(signed_msg_handlers[MESSAGE_DIGEST], Tuple))
+        self.assertTrue(isinstance(unsigned_msg_handlers[QUERY_DIGEST], Tuple))
         self.assertTrue(QUERY_DIGEST in self.protocol.models)
 
     def test_protocol_to_include(self):
