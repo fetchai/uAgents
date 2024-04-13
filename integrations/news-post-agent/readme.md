@@ -1,7 +1,8 @@
-Overview
+**Overview**
+
 The News Post Generator crafts dynamic social media content tailored for creators. It generates captivating titles, engaging descriptions, and relevant story URLs, accompanied by visually stunning images created using stable diffusion techniques. Once generated, the content is seamlessly posted on the desired social media platform.
 
-Functionality
+**Functionality**
 
 The system operates through a series of structured steps:
 
@@ -15,7 +16,13 @@ The system operates through a series of structured steps:
 4. The resulting image, along with all pertinent information, is transferred to the offline uagent.
 5. The uagent autonomously crafts a post tailored for the selected social media platform."
 
-Steps to Run:
+**Screenshots**
+![WhatsApp Image 2024-04-13 at 07 04 14_5ea6b1de](https://github.com/TOXiC-G/uAgents/assets/71013216/404b87f8-5b35-490c-a713-fd7e1ebfed36)
+![WhatsApp Image 2024-04-13 at 07 04 27_af9c9cc7](https://github.com/TOXiC-G/uAgents/assets/71013216/0f8558a5-9e49-4fd0-ad42-bbe5f4b595b1)
+![WhatsApp Image 2024-04-13 at 07 04 47_268144ff](https://github.com/TOXiC-G/uAgents/assets/71013216/79a9a2fd-d219-486b-aebf-564d82b2a5d8)
+![WhatsApp Image 2024-04-13 at 07 12 05_279104a1](https://github.com/TOXiC-G/uAgents/assets/71013216/31769f8a-3acd-4732-b5af-c8889c097706)
+
+**Steps to Run:**
 
 1. Set up an agent and execute agent.py on the agentverse platform.
 2. Configure the necessary variables in agents.py and services.py.
