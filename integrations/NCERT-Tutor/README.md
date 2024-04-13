@@ -37,9 +37,9 @@ Our project, NCERT Tutor, is designed to simplify the learning process by provid
 5. Note Creator creates notes based on the summary and presents them to the user.
 
 ## Content of PPt:
-attached ppt here 
+attached ppt [[here](https://drive.google.com/file/d/1iGu_jOVT7fEgck_SGkd_uoLkFQtYrsbZ/view?usp=sharing)] 
 
-file:///C:/Users/91876/Downloads/450+%20Figma%20Presentation%20Slides%20(Community)%20(3).pdf
+
 
 ## Technology Stack
 - Python
@@ -52,10 +52,11 @@ file:///C:/Users/91876/Downloads/450+%20Figma%20Presentation%20Slides%20(Communi
 ### Installation
 1. Clone the repository:
 
- ```git clone https://github.com/Quantaindew/NCERT-Tutor.git```
+```
+git clone https://github.com/Quantaindew/NCERT-Tutor.git
+```
 
 2. Install the required dependencies:
-
 ```
 cd NCERT-Tutor
 ```
@@ -66,21 +67,29 @@ cd NCERT-Tutor
 poetry install
 poetry shell
 ```
-
 4.Running the ecosystem of the agent :
 
 ```
-cd src/conversation
+cd src/uagents/conversation
+poetry shell
 python question.py
 ```
 
 ```
-cd src/ncert
+cd src/uagents/ncert
+poetry shell
 python ncertagent.py
+```
+```
+cd src/uagents/openai
+poetry shell
+python openai.py 
 ```
 
 ```
-cd src/openai
+cd src/uagents/ending
+poetry shell
 python openai.py 
 ```
+
 Run the above commands in order in different terminals
