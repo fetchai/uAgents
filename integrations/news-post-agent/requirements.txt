@@ -1,0 +1,7 @@
+django
+djangorestframework
+djangorestframework-jsonapi
+python-dotenv
+psycopg2
+python-decouple
+uagents
