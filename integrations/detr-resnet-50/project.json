@@ -1,0 +1,6 @@
+{
+    "title": "StrawHats",
+    "description": "Building Fetch.AI agents utilizing API integrations 'vit-gpt2-image-captioning' and 'facebook/detr-resnet-50' for image captioning and object detection tasks.",
+    "categories":   ["Text Classification", "Text Generation","Hugging Face"],
+    "deltav": false
+}
