@@ -24,11 +24,3 @@ def get_movie_id(title):
             return data['results'][0]['id']
     # If something went wrong, return None
     return None
-
-# Example usage
-title = input("Enter the title of the movie: ")
-movie_id = get_movie_id(title)
-if movie_id:
-    print(f"The ID of the movie '{title}' is: {movie_id}")
-else:
-    print("Movie not found or error occurred.")
