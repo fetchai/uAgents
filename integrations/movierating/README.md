@@ -1,6 +1,6 @@
 # uAgent Movie Database Integration
 
-This repository contains example of movie database integration using three entities: agent1, agent2, and user
+This repository contains example of movie database integration using 2 entities: agent and user
 
 1. user: Takes movie title searched by the user in DeltaV.
 
