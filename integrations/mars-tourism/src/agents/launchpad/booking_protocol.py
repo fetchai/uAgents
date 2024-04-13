@@ -1,34 +1,36 @@
-# Import necessary modules and classes from external libraries
+# Importing necessary classes from modules
 from ai_engine import UAgentResponse, UAgentResponseType, BookingRequest
-from uagents import Context, Protocol
+from uagents import Protocol, Context
 
-# Define a function to create a booking protocol
+# Function to define a booking protocol
 def booking_proto():
-    # Create a new protocol instance
+    # Creating a protocol object with the name "BookingProtocol"
     protocol = Protocol("BookingProtocol")
 
-    # Define behavior when receiving a booking request message
+    # Defining a message handler for booking requests
     @protocol.on_message(model=BookingRequest, replies={UAgentResponse})
     async def booking_handler(ctx: Context, sender: str, msg: BookingRequest):
-        # Log the booking request
+        # Logging information about the received booking request
         ctx.logger.info(f"Received booking request from {sender}")
+
         try:
-            # Retrieve the options from context storage using the request ID
+            # Retrieving option from storage based on the request ID
             option = ctx.storage.get(msg.request_id)
-            # Store the chosen option in context storage
-            ctx.storage.set("chosen_options", option[msg.user_response])
-            # Send a response acknowledging the chosen option
+            # Setting the chosen option in storage
+            ctx.storage.set("choosen_options", option[msg.user_response])
+            # Sending a response to the sender acknowledging the choice
             await ctx.send(
                 sender,
                 UAgentResponse(
-                    message=f"Thanks for choosing an option - {option[msg.user_response]}.",
+                    message=f"Thanks for choosing an option - {option[msg.user_response]}",
                     type=UAgentResponseType.FINAL,
                     request_id=msg.request_id
                 )
             )
         except Exception as exc:
-            # Handle any exceptions and send an error response
+            # Handling any exceptions that occur during the process
             ctx.logger.error(exc)
+            # Sending an error response to the sender
             await ctx.send(
                 sender,
                 UAgentResponse(
@@ -37,4 +39,4 @@ def booking_proto():
                 )
             )
 
-    return protocol  # Return the created protocol
+    return protocol

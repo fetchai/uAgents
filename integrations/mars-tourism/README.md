@@ -26,9 +26,9 @@ You can watch a Video Demo of Our project at: [Video Link](https://drive.google.
 
 5. **Agent Descriptions**:
 
-   5.1 **SpaceTrip Agent**:
+   5.1 **Space Trip Planner**:
 
-   - Interacts with the Launchpad and Rocket Chooser agents which act as subtasks and get the selected launchpad and rocket and weight from them and display.
+   - Interacts with the Launchpad Selector service (to get launchpad)  Rocket Selector service (to get rocket and weight) which acts as subtasks, then it also interacts with NASA API by getting start date from the user. Finally it will make request to another API to get the payment link
 
    | Field      | Description                                                                                                                                   |
    | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -37,17 +37,17 @@ You can watch a Video Demo of Our project at: [Video Link](https://drive.google.
    | start_date | Date of the day you want to go for the trip. Ask from the user using a calendar interface allowing users to enter future (format=YYYY-MM-DD). |
    | weight     | Weight of the person retrieved from the subtask. DO NOT ASK THIS FROM THE USER.                                                               |
 
-   5.2 **Launchpad Agent**:
+   5.2 **Launchpad Selector**:
 
-   - Interacts with SpaceX API to get the launchpads and allows booking them and sends the selected launchpad back to the main task.
+   - This subtask IS ONLY relevant for the objective of selecting a launchpad and it IS NOT relevant for the objective of selecting a rocket. This subtask interacts with SpaceX api to get the launchpads and allow to book them and sends the selected launchpad back to main task
 
    | Field | Description                                                                                                                                      |
    | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-   | query | Weight of the person retrieved from the subtask. DO NOT ASK THIS FROM DO NOT TAKE THIS INPUT FROM THE USER, DEFAULT IT TO "trip in outer space". |
+   | query | DO NOT TAKE THIS INPUT FROM THE USER, DEFAULT IT TO "trip in outer space"". |
 
-   5.3 **Rocket Selector Agent**:
+   5.3 **Rocket Selector**:
 
-   - Interacts with SpaceX API to get the rockets and allows booking them and sends the selected rocket back to the main task.
+   - Interacts with SpaceX api to get the rockets and allow to book them and send the selected rocket back to main task
 
    | Field  | Description                                                           |
    | ------ | --------------------------------------------------------------------- |
