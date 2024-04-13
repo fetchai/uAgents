@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "ncert-tutor"
+version = "0.1.0"
+description = "NCERT Tutor integration for uagents"
+authors = ["Your Name <you@example.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.11, <3.13"
+requests = "^2.31.0"
+uagents-ai-engine = "^0.1.6"
+uagents = "^0.11.0"
+flask = "^3.0.3"
+fastapi = "^0.110.1"
+pypdf2 = "^3.0.1"
+pypdf4 = "^1.27.0"
+pymongo = "^4.6.3"
+cloudinary = "^1.39.1"
+
+[tool.poetry.group.dev.dependencies]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
