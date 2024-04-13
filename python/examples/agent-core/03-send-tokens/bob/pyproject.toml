@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "my-agent"
+version = "0.1.0"
+description = ""
+authors = ["Alejandro-Morales <alejandro.morales.mad@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10,<3.13"
+uagents = "^0.11.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,11 +1,14 @@
-from uagents import Agent, Bureau, Context, Model, Protocol
+from uagents import Agent, Model, Protocol
 
-ALICE_SEED = "put_alice_seed_here"
-BOB_SEED = "put_bobs_seed_here"
 
-alice = Agent(name="alice", seed=ALICE_SEED)
-bob = Agent(name="bob", seed=BOB_SEED)
+BOB_SEED = "put_bobs_seed_phrase_here"
 
+bob = Agent(
+    name="bob",
+    port=8001,
+    seed=BOB_SEED,
+    endpoint=["http://127.0.0.1:8001/submit"],
+)
 
 class Request(Model):
     number: int
@@ -32,20 +35,7 @@ async def response_handler(ctx, sender: str, msg: Response):
     )
 
 
-alice.include(proto)
 bob.include(proto)
 
-
-@alice.on_interval(period=10)
-async def request_square(ctx: Context):
-    num = 7
-    ctx.logger.info(f"What is {num} squared?")
-    await ctx.send(bob.address, Request(number=num))
-
-
-bureau = Bureau()
-bureau.add(alice)
-bureau.add(bob)
-
 if __name__ == "__main__":
-    bureau.run()
+    bob.run()

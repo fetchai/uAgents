@@ -16,7 +16,7 @@ async def goodbye(ctx: Context):
 
 @agent.on_interval(period=2.0)
 async def counter(ctx: Context):
-    current_count = ctx.storage.get("count")
+    current_count = ctx.storage.get("count") or 0
     ctx.logger.info(f"My count is: {current_count}")
     ctx.storage.set("count", current_count + 1)
 
