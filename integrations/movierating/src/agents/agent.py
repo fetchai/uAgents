@@ -7,7 +7,7 @@ MY_WALLET_ADDRESS = "fetch1___"
 
 from user import get_movie_id
 
-# movie_id= str(movie_id)
+
 
 
 # Movie Database API URL and headers
@@ -17,8 +17,6 @@ headers = {
     'x-rapidapi-host': "moviesdatabase.p.rapidapi.com"
 }
 
-# Threshold rating for movie alerts
-THRESHOLD_RATING = 2.0
 
 # Function to fetch the top rated movie
 def get_top_rated_movie(url):
@@ -32,15 +30,15 @@ def get_top_rated_movie(url):
         return None
 
 # Initialize the agent
-# agent2 = Agent(name="agent2")
+
 proto = Protocol("movie")
-# Function to handle movie alerts based on threshold rating
+
 
 @proto.on_message(model = Movie, replies={UAgentResponse})
 async def get_movie_data(ctx: Context, sender: str, msg: Movie):
     ctx.logger.info(f"{msg}")
     movie_id = await get_movie_id(msg.title)
-    # global MOVIES_API_URL
+    
     MOVIES_API_URL = f"https://moviesdatabase.p.rapidapi.com/titles/{movie_id}/ratings"
     if movie_id:
         ctx.logger.info(f"The ID of the movie '{msg.title}' is: {movie_id}")
