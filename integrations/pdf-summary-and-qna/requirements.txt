@@ -1,0 +1,4 @@
+streamlit==1.33.0
+pdfplumber==0.11.0
+nltk==3.8.1
+uagents==0.11.0
