@@ -226,7 +226,6 @@ async def handle_request(ctx: Context, sender: str, request: Text):
     await ctx.send(sender,Response(summary = data["summary"], question_bank = data["question_bank"], answer_key = data["answer_key"], sender = request.sender))
 
     return
-if __name__ == "__main__":
-    agent.run()
+    
 if __name__ == "__main__":
     agent.run()
