@@ -37,11 +37,15 @@ Game Buddy can be leveraged as a service for generating custom images and associ
 
 ## Screenshots
 
-![Screenshot 1](1.jpeg)
-![Screenshot 2](2.jpeg)
-![Screenshot 3](3.jpeg)
-![Screenshot 4](4.jpeg)
-![Screenshot 5](5.jpeg)
+<img width="1440" alt="Screenshot 2024-04-13 at 11 50 58 AM" src="https://github.com/Rounaknyk/uAgents/assets/90258162/e98ec35e-82af-4ced-9b90-be5685227920">
+
+<img width="1440" alt="Screenshot 2024-04-13 at 11 51 54 AM" src="https://github.com/Rounaknyk/uAgents/assets/90258162/8653ed10-6f08-497e-8706-a38bb34ea092">
+<img width="1440" alt="Screenshot 2024-04-13 at 11 51 29 AM" src="https://github.com/Rounaknyk/uAgents/assets/90258162/a018b595-c97f-4484-a1af-bc44bef7d488">
+<img width="1440" alt="Screenshot 2024-04-13 at 11 51 18 AM" src="https://github.com/Rounaknyk/uAgents/assets/90258162/ca583f2c-5f89-46d6-87fc-886bae653933">
+<img width="1440" alt="Screenshot 2024-04-13 at 11 52 03 AM" src="https://github.com/Rounaknyk/uAgents/assets/90258162/7573b5c4-3d7b-4b9b-819a-9afa2b42552f">
+<img width="1440" alt="Screenshot 2024-04-13 at 11 52 45 AM" src="https://github.com/Rounaknyk/uAgents/assets/90258162/92844621-e270-4483-be6e-ac6ca386a239">
+<img width="1440" alt="Screenshot 2024-04-13 at 11 52 55 AM" src="https://github.com/Rounaknyk/uAgents/assets/90258162/fd8b49b7-aa39-4d38-9357-02f51d890854">
+
 
 
 
