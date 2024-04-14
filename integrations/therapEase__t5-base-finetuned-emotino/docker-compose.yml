@@ -1,0 +1,13 @@
+# version: '3.8'
+# services:
+#   ngrok:
+#     image: wernight/ngrok
+#     ports:
+#       - "4040:4040"  # Ngrok web interface
+#     command: ["http", "flask:8000"]
+  # flask:
+  #   build:
+  #     context: ./server/
+  #     dockerfile: Dockerfile  # Path to your Dockerfile for Flask app
+  #   ports:
+  #     - "8000:8000"

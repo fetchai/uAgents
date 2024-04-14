@@ -1,0 +1,10 @@
+uagents
+langchain 
+python-dotenv
+google-generativeai 
+langchain-google-genai
+transformers
+sentencepiece
+torch
+pandas
+flask
