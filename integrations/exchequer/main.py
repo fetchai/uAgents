@@ -36,7 +36,7 @@ async def start_payee(ctx: Context):
     await ctx.send(
         agent1.address,
         PaymentRequest(
-            requester_id=get_client("client_2")["id"],
+            requester_id=get_client("client_3")["id"],
             amount=50,
             subject="Invoice #2984537817894 for ebook",
         ),

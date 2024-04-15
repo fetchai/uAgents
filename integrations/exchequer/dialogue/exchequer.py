@@ -6,7 +6,8 @@ use this dialogue. This defines the structure of the specific dialogue and
 the messages that are expected to be exchanged.
 """
 
-from typing import Type
+from datetime import datetime
+from typing import Optional, Type
 from warnings import warn
 
 import requests
@@ -21,8 +22,8 @@ EXCHEQUER_URL = "http://localhost:8000/v1/payments/"
 EXCHEQUER_ACCOUNTS = "accounts"
 EXCHEQUER_EXCHANGE = "exchanges"
 
-PAYER_TOKEN = get_client("client_1")["token"]
-PAYEE_TOKEN = get_client("client_2")["token"]
+PAYER_TOKEN = get_client("client_2")["token"]
+PAYEE_TOKEN = get_client("client_3")["token"]
 
 
 # define dialogue messages; each transition needs a separate message
@@ -100,6 +101,12 @@ reject_payment = Edge(
     name="Reject Payment",
     description="",
     parent=payment_requested,
+    child=exchequer_concluded,
+)
+reject_payment = Edge(
+    name="Reject Payment",
+    description="",
+    parent=payment_committed,
     child=exchequer_concluded,
 )
 
@@ -183,9 +190,10 @@ async def complete_exchange(exchange_id: str):
 async def default(
     ctx: Context,
     _sender: str,
-    msg: Type[Model],
+    _msg: Type[Model],
 ):
-    ctx.logger.debug(msg)
+    ctx.logger.info("<<do your own stuff here>>")
+    # ctx.logger.debug(msg)
     # warn(
     #     "There is no handler for this message, please add your own logic.",
     #     RuntimeWarning,
@@ -193,42 +201,62 @@ async def default(
     # )
 
 
+class Balance(Model):
+    total: int = 0
+    locked: int = 0
+    available: int = 0
+    currency: str = "CRE"
+    updated_at: Optional[datetime] = None
+
+
 async def handle_payment_request(ctx: Context, sender: str, msg: PaymentRequest):
-    ctx.logger.debug("received payment request")
-    balance = await get_balance(PAYER_TOKEN)
-    ctx.logger.debug(f"account balance: {balance}")
-    if not balance or balance < msg.amount:
-        ctx.logger.debug("Insufficient funds")
+    ctx.logger.debug("Exchequer: Received payment request")
+    bal = await get_balance(PAYER_TOKEN)
+    if not bal:
+        ctx.logger.debug("Exchequer: Failed to get account balance")
+        await ctx.send(sender, PaymentRejected(subject="Failed to get account balance"))
+        return
+    balance = Balance(**bal)
+    ctx.logger.debug(f"Exchequer: Account balance: {balance}")
+    if not balance or balance.available < msg.amount:
+        ctx.logger.debug("Exchequer: Insufficient funds")
         await ctx.send(sender, PaymentRejected(subject=msg.subject))
         return
 
     exchange_id = await lock_funds(PAYER_TOKEN, msg.requester_id, msg.amount)
-    ctx.logger.debug(f"Created exchange with id: {exchange_id}")
+    ctx.logger.debug(f"Exchequer: Created exchange with id: {exchange_id}")
 
     await ctx.send(sender, PaymentCommitment(exchange_id=exchange_id))
 
 
 async def handle_payment_commitment(ctx: Context, sender: str, msg: PaymentCommitment):
-    ctx.logger.debug(f"received payment commitment for exchange_id: {msg.exchange_id}")
+    ctx.logger.debug(
+        f"Exchequer: Received payment commitment for exchange_id: {msg.exchange_id}"
+    )
 
     # check lock, verify IDs and amounts
     exchange = await get_exchange(msg.exchange_id)
-    ctx.logger.debug(f"exchange state: {exchange['state']}")
+    ctx.logger.debug(f"Exchequer: Exchange state: {exchange['state']}")
+
+    if not exchange:
+        ctx.logger.debug("Exchequer: Failed to get exchange")
+        await ctx.send(sender, PaymentRejected(subject="Failed to get exchange"))
+        return
 
     if exchange["state"] != "locked":
-        ctx.logger.debug("Exchange is not locked")
+        ctx.logger.debug("Exchequer: Exchange is not locked")
         await ctx.send(sender, PaymentRejected(subject="Exchange is not locked"))
         return
 
     # confirm & trust that Exchequer will work as intended
-    ctx.logger.debug("executing confirm")
+    ctx.logger.debug("Exchequer: Executing confirm")
     await confirm_exchange(msg.exchange_id)
 
     # complete
-    ctx.logger.debug("<<< providing service >>>")
+    ctx.logger.debug("Exchequer: <<< providing service >>>")
     warn("Service provided here as well", RuntimeWarning, stacklevel=2)
 
-    ctx.logger.debug("executing complete: taking 40, refunding 10")
+    ctx.logger.debug("Exchequer: Executing complete: taking 40, refunding 10")
     await complete_exchange(msg.exchange_id)  # payment done at this point
 
     # notify about complete
@@ -236,14 +264,14 @@ async def handle_payment_commitment(ctx: Context, sender: str, msg: PaymentCommi
 
 
 async def handle_payment_complete(ctx: Context, sender: str, msg: PaymentComplete):
-    ctx.logger.debug(f"payment completed for exchange_id: {msg.exchange_id}")
+    ctx.logger.debug(f"Exchequer: Payment completed for exchange_id: {msg.exchange_id}")
 
     # check complete and do some cleanup here on payer side
     exchange = await get_exchange(msg.exchange_id)
-    ctx.logger.debug(f"exchange state: {exchange['state']}")
+    ctx.logger.debug(f"Exchequer: Exchange state: {exchange['state']}")
 
     balance = await get_balance(PAYER_TOKEN)
-    ctx.logger.debug(f"account balance: {balance}")
+    ctx.logger.debug(f"Exchequer: Account balance: {balance}")
 
     # wait till exchange is settled and funds are released
     await ctx.send(sender, PaymentSettled(exchange_id=msg.exchange_id))
@@ -251,7 +279,7 @@ async def handle_payment_complete(ctx: Context, sender: str, msg: PaymentComplet
 
 async def handle_payment_settled(ctx: Context, _sender: str, msg: PaymentSettled):
     ctx.logger.debug(
-        f"payment should be settled now for exchange_id: {msg.exchange_id}"
+        f"Exchequer: Payment should be settled now for exchange_id: {msg.exchange_id}"
     )
     # do some cleanup on payee side
 
