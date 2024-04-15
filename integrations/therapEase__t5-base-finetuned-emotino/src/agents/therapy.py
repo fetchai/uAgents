@@ -44,7 +44,7 @@ def get_top_5_therapists(city):
 
 
 llm = ChatGoogleGenerativeAI(
-    model="gemini-pro", google_api_key="AIzaSyA0SThtOf3QoNJLr12CiDwkiTtUafL1rXE"
+    model="gemini-pro", google_api_key="YOUR_API_KEY"
 )
 
 
@@ -109,7 +109,8 @@ async def user_message_handler(ctx: Context, sender: str, message: ai_message_ci
     ctx.logger.info("generating final report")
 
     therapists = await get_top_5_therapists(message.city)
-    ctx.logger.info(f"Here are top 5 therapists in {message.city} : \n {therapists}")
+    ctx.logger.info(
+        f"Here are top 5 therapists in {message.city} : \n {therapists}")
 
     await ctx.send(
         sender,

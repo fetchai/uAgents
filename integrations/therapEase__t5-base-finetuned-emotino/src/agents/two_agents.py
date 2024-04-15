@@ -1,3 +1,5 @@
+from langchain_google_genai import ChatGoogleGenerativeAI
+import pandas as pd
 from uagents import Model, Agent, Bureau, Context
 
 # import os
@@ -20,7 +22,8 @@ tokenizer = AutoTokenizer.from_pretrained(
     "mrm8488/t5-base-finetuned-emotion", use_fast=False, legacy=False
 )
 
-model = AutoModelWithLMHead.from_pretrained("mrm8488/t5-base-finetuned-emotion")
+model = AutoModelWithLMHead.from_pretrained(
+    "mrm8488/t5-base-finetuned-emotion")
 
 
 def get_emotion(text):
@@ -34,8 +37,6 @@ def get_emotion(text):
     # return label
     return label
 
-
-import pandas as pd
 
 df = pd.read_csv("src/agents/data.csv")
 
@@ -56,10 +57,8 @@ def get_top_5_therapists(city):
     return top_5_therapists
 
 
-from langchain_google_genai import ChatGoogleGenerativeAI
-
 llm = ChatGoogleGenerativeAI(
-    model="gemini-pro", google_api_key="AIzaSyA0SThtOf3QoNJLr12CiDwkiTtUafL1rXE"
+    model="gemini-pro", google_api_key="YOUR_API_KEY"
 )
 # conversation_history=""
 
@@ -72,7 +71,8 @@ def append_to_file(filename, value):
         value: The value to be appended (can be any data type that can be converted to a string).
     """
     with open(filename, "a") as file:
-        file.write(str(value) + "\n")  # Convert value to string and add newline
+        # Convert value to string and add newline
+        file.write(str(value) + "\n")
 
 
 def read_file_as_string(filename):
@@ -228,7 +228,8 @@ async def user_message_handler(ctx: Context, sender: str, message: ai_message):
         )
         city = input("City: ")
         therapists = get_top_5_therapists(city)
-        ctx.logger.info(f"Here are top 5 therapists in {city} : \n {therapists}")
+        ctx.logger.info(
+            f"Here are top 5 therapists in {city} : \n {therapists}")
 
     else:
         ctx.logger.info(
