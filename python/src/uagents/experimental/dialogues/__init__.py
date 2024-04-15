@@ -400,7 +400,7 @@ class Dialogue(Protocol):
             print("valid dialogue event, proceeding")
 
             # hook into context to get the final response msg
-            ctx._queries[sender] = asyncio.Future()
+            ctx.set_dialogue_handle(sender, asyncio.Future())
 
             if edge.efunc:
                 await edge.efunc(ctx, sender, message)
@@ -408,7 +408,9 @@ class Dialogue(Protocol):
 
             print("finished message handler")
 
-            response_msg, response_schema_digest = await ctx._queries[sender]
+            response_msg, response_schema_digest, session = await ctx.dialogue_handle(
+                sender
+            )
             if not self.is_valid_reply(schema_digest, response_schema_digest):
                 return MsgStatus(
                     status=DeliveryStatus.FAILED,
@@ -421,14 +423,14 @@ class Dialogue(Protocol):
 
             message_name = self._resolve_mapping(response_schema_digest)
             self.add_message(
-                session_id=ctx.session,
+                session_id=session,
                 message_type=message_name,
                 sender=ctx.address,
                 receiver=sender,
                 content=response_msg,
             )
 
-            self.update_state(response_schema_digest, ctx.session)
+            self.update_state(response_schema_digest, session)
 
             # TODO ERROR above:
 
@@ -664,3 +666,28 @@ class Dialogue(Protocol):
         new_digest = Protocol.compute_digest(updated_manifest)
         updated_manifest["metadata"]["digest"] = new_digest
         return updated_manifest
+
+    async def start_dialogue(self, ctx: Context, destination: str, message: Model):
+        if not self.is_starter(Model.build_schema_digest(message)):
+            raise ValueError(
+                "A dialogue can only be started with the specified starting message"
+            )
+
+        ctx.set_dialogue_handle(destination, asyncio.Future())
+
+        await ctx.send(destination, message)
+
+        response_msg, response_schema_digest, session = await ctx.dialogue_handle(
+            destination
+        )
+
+        message_name = self._resolve_mapping(response_schema_digest)
+        self.add_message(
+            session_id=session,
+            message_type=message_name,
+            sender=ctx.address,
+            receiver=destination,
+            content=response_msg,
+        )
+
+        self.update_state(response_schema_digest, session)

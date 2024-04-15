@@ -189,6 +189,7 @@ class Context:
         self._wallet_messaging_client = wallet_messaging_client
         self._protocols = protocols or {}
         self._logger = logger
+        self._dialogue_handle: Dict[str, asyncio.Future] = {}
 
     @property
     def name(self) -> str:
@@ -251,6 +252,21 @@ class Context:
             uuid.UUID: The session UUID.
         """
         return self._session
+
+    def dialogue_handle(self, sender: str) -> asyncio.Future:
+        """Get the handle for the given sender address, if availalbe
+
+        Returns:
+            asyncio.Future: Future object that can be unpacked to a tuple of
+            message: str, message_digest: str
+        """
+        return self._dialogue_handle[sender]
+
+    def set_dialogue_handle(self, sender: str, handle: asyncio.Future):
+        self._dialogue_handle[sender] = handle
+
+    def remove_dialogue_handle(self, sender: str):
+        del self._dialogue_handle[sender]
 
     def reset_session(self) -> None:
         """
@@ -529,12 +545,17 @@ class Context:
                 self._queries[destination_address].set_result(
                     (json_message, schema_digest)
                 )
-                # del self._queries[destination_address]
+                del self._queries[destination_address]
                 return MsgStatus(
                     status=DeliveryStatus.DELIVERED,
                     detail="Sync message resolved",
                     destination=destination_address,
                     endpoint="",
+                )
+
+            if destination_address in self._dialogue_handle:
+                self._dialogue_handle[destination_address].set_result(
+                    (json_message, schema_digest, current_session)
                 )
 
         return await self.send_raw_exchange_envelope(

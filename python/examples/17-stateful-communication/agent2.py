@@ -112,7 +112,11 @@ agent.include(chitchat_dialogue)
 async def start_cycle(ctx: Context):
     await sleep(5)
     # use 'chitchat_dialogue.set_custom_session_id()' to set a custom session id (UUID4)
-    await ctx.send(CHIT_AGENT_ADDRESS, InitiateChitChatDialogue())
+    # chitchat_dialogue.set_custom_session_id(uuid.uuid4())
+    # await ctx.send(CHIT_AGENT_ADDRESS, InitiateChitChatDialogue())
+    await chitchat_dialogue.start_dialogue(
+        ctx, CHIT_AGENT_ADDRESS, InitiateChitChatDialogue()
+    )
 
 
 if __name__ == "__main__":
