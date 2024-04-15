@@ -48,3 +48,7 @@ Follow the documentations of-<br>
 [Fetch ai](https://fetch.ai/docs)<br>
 [Agent Verse](https://fetch.ai/docs/guides/agentverse/creating-a-hosted-agent)<br>
 <b>Happy Coding 🤖🖇 </b>
+
+## Here is the video explanation of the project
+
+ Video (https://youtu.be/kKgl_2NaiK8?si=U7HoK5pCe8YDi24t)
