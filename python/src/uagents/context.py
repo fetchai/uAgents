@@ -461,48 +461,48 @@ class Context:
             )
 
         # if the message is part of a Dialogue, update the Dialogue state accordingly
-        current_protocol_digest = self.get_message_protocol(schema_digest)
-        if current_protocol_digest is not None:
-            current_protocol = self.protocols[current_protocol_digest]
-            if hasattr(current_protocol, "rules"):
-                if self._message_received and not current_protocol.is_valid_reply(
-                    self._message_received.schema_digest, schema_digest
-                ):
-                    message_received_name = current_protocol.models[
-                        self._message_received.schema_digest
-                    ].__name__
-                    self._logger.exception(
-                        f"Outgoing message {message_type.__name__} is not a valid "
-                        f"response to {message_received_name} "
-                        f"for a {current_protocol.name}"
-                    )
-                    return MsgStatus(
-                        status=DeliveryStatus.FAILED,
-                        detail="Invalid dialogue reply",
-                        destination=destination,
-                        endpoint="",
-                    )
+        # current_protocol_digest = self.get_message_protocol(schema_digest)
+        # if current_protocol_digest is not None:
+        #     current_protocol = self.protocols[current_protocol_digest]
+        #     if hasattr(current_protocol, "rules"):
+        #         if self._message_received and not current_protocol.is_valid_reply(
+        #             self._message_received.schema_digest, schema_digest
+        #         ):
+        #             message_received_name = current_protocol.models[
+        #                 self._message_received.schema_digest
+        #             ].__name__
+        #             self._logger.exception(
+        #                 f"Outgoing message {message_type.__name__} is not a valid "
+        #                 f"response to {message_received_name} "
+        #                 f"for a {current_protocol.name}"
+        #             )
+        #             return MsgStatus(
+        #                 status=DeliveryStatus.FAILED,
+        #                 detail="Invalid dialogue reply",
+        #                 destination=destination,
+        #                 endpoint="",
+        #             )
 
-                if (
-                    self._session is None
-                    and current_protocol.custom_session
-                    and current_protocol.is_starter(schema_digest)
-                ):
-                    current_session = current_protocol.custom_session
-                    current_protocol.reset_custom_session_id()
+        #         if (
+        #             self._session is None
+        #             and current_protocol.custom_session
+        #             and current_protocol.is_starter(schema_digest)
+        #         ):
+        #             current_session = current_protocol.custom_session
+        #             current_protocol.reset_custom_session_id()
 
-                message_name = current_protocol.models[schema_digest].__name__
-                current_protocol.add_message(
-                    session_id=current_session,
-                    message_type=message_name,
-                    sender=self.address,
-                    receiver=destination,
-                    content=json_message,
-                )
-                current_protocol.update_state(schema_digest, current_session)
-                self.logger.debug(
-                    f"update state to: {message_name} for session {current_session}"
-                )
+        #         message_name = current_protocol.models[schema_digest].__name__
+        #         current_protocol.add_message(
+        #             session_id=current_session,
+        #             message_type=message_name,
+        #             sender=self.address,
+        #             receiver=destination,
+        #             content=json_message,
+        #         )
+        #         current_protocol.update_state(schema_digest, current_session)
+        #         self.logger.debug(
+        #             f"update state to: {message_name} for session {current_session}"
+        #         )
 
         # Extract address from destination agent identifier if present
         _, _, destination_address = parse_identifier(destination)
@@ -529,7 +529,7 @@ class Context:
                 self._queries[destination_address].set_result(
                     (json_message, schema_digest)
                 )
-                del self._queries[destination_address]
+                # del self._queries[destination_address]
                 return MsgStatus(
                     status=DeliveryStatus.DELIVERED,
                     detail="Sync message resolved",

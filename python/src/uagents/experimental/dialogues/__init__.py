@@ -1,5 +1,6 @@
 """Dialogue class aka. blueprint for protocols."""
 
+import asyncio
 import functools
 import graphlib
 import warnings
@@ -8,6 +9,8 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Type
 from uuid import UUID
 
 from uagents import Context, Model, Protocol
+from uagents.context import DeliveryStatus, MsgStatus
+from uagents.models import ErrorMessage
 from uagents.storage import KeyValueStore
 
 DEFAULT_SESSION_TIMEOUT_IN_SECONDS = 60
@@ -373,9 +376,65 @@ class Dialogue(Protocol):
 
         @functools.wraps(edge.func)
         async def handler(ctx: Context, sender: str, message: Any):
+            # validate message first then execute handlers, finally update state
+            print("handling dialogue")
+            schema_digest = Model.build_schema_digest(message)
+            is_valid = self.is_valid_message(ctx.session, schema_digest)
+            if not is_valid:
+                return await ctx.send(
+                    sender,
+                    ErrorMessage(error=f"Unexpected message in dialogue: {message}"),
+                )
+            if self.is_ender(schema_digest):
+                self.update_state(schema_digest, ctx.session)
+
+            message_name = self._resolve_mapping(schema_digest)
+            self.add_message(
+                session_id=ctx.session,
+                message_type=message.__class__.__name__,
+                sender=ctx.address,
+                receiver=sender,
+                content=message.json(),
+            )
+
+            print("valid dialogue event, proceeding")
+
+            # hook into context to get the final response msg
+            ctx._queries[sender] = asyncio.Future()
+
             if edge.efunc:
                 await edge.efunc(ctx, sender, message)
-            return await edge.func(ctx, sender, message)
+            result = await edge.func(ctx, sender, message)
+
+            print("finished message handler")
+
+            response_msg, response_schema_digest = await ctx._queries[sender]
+            if not self.is_valid_reply(schema_digest, response_schema_digest):
+                return MsgStatus(
+                    status=DeliveryStatus.FAILED,
+                    detail="Invalid dialogue reply",
+                    destination=sender,
+                    endpoint="",
+                )
+
+            # TODO custom session handling
+
+            message_name = self._resolve_mapping(response_schema_digest)
+            self.add_message(
+                session_id=ctx.session,
+                message_type=message_name,
+                sender=ctx.address,
+                receiver=sender,
+                content=response_msg,
+            )
+
+            self.update_state(response_schema_digest, ctx.session)
+
+            # TODO ERROR above:
+
+            print("finished dialogue handling")
+
+            return result
 
         return handler
 
@@ -457,14 +516,15 @@ class Dialogue(Protocol):
 
     def is_valid_message(self, session_id: UUID, msg_digest: str) -> bool:
         """
-        Check if a message is valid for a given session.
+        Check if an incoming message is valid for a given session.
 
         Args:
             session_id (UUID): The ID of the session to check the message for.
             msg_digest (str): The digest of the message to check.
 
         Returns:
-            bool: True if the message is valid, False otherwise.
+            bool: True if the message is valid,
+            False otherwise.
         """
         if session_id not in self._sessions or len(self._sessions[session_id]) == 0:
             return self.is_starter(msg_digest)
