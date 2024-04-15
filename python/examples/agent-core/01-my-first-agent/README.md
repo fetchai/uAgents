@@ -34,7 +34,7 @@ poetry shell
 To start the agent and see the above-mentioned functionalities in action, simply run:
 
 ```
-python main.py
+python agent.py
 ```
 
 You'll see logs corresponding to the agent's startup process, periodic counter updates, and the shutdown message if you terminate the process. This will give you a practical view of how the agent operates and responds to events and intervals as described.

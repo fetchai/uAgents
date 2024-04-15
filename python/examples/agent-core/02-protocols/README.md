@@ -25,22 +25,26 @@ poetry shell
 - **Description**: A seed can be used to generate a unique identity for an agent. This is crucial in scenarios where agents need to be distinguishable from each other, for example, in a network of agents communicating over a protocol.
 - **Example Usage**: Alice and Bob are given unique seeds (`ALICE_SEED` and `BOB_SEED`), ensuring their identities are distinct in the system.
 
-### Running Multiple Agents with Bureau
+## Running the Agents
 
-- **Description**: The `Bureau` is a container for running multiple agents simultaneously. It facilitates the management and execution of several agents, allowing them to operate concurrently within the same environment.
-- **Example Usage**: A bureau is created and both Alice and Bob agents are added to it. Running the bureau starts both agents, allowing them to communicate with each other using the defined protocol.
+To observe the interaction between the agents, follow these steps:
 
-## Starting the Agents
+### 1. Start Agent Bob
+- Navigate to the directory named `bob`.
+- Run the command:
+  ```
+  python agent.py 
+  ```
+- Upon starting, agent bob can print its address using `bob.address`. Make sure to copy this address.
 
-To run the agents and observe the protocol in action, set your agents seeds and execute:
-
-```
-python main.py
-```
-
-
-This command starts the bureau, which in turn runs both Alice and Bob agents. You will see logs indicating that Alice is asking Bob what 7 squared is, and Bob responding with the answer. 
-
+### 2. Start Agent Alice
+- Open the file alice/agent.py.
+- Paste the copied address of agent bob into the specified location in the file to set up the communication link between Alice and Bob.
+- Inside alice directory, run the command:
+  ```
+  python agent.py
+  ```
+Following these instructions will initiate agent alice, which will then connect to agent bob using the provided address. You will see logs indicating their communication, you will see logs indicating that Alice is asking Bob what 7 squared is, and Bob responding with the answer. 
 ## Experimentation
 
 Now that you understand how the protocol works and how it's incorporated into agents, try reversing the roles. Instead of Alice asking Bob to square a number, modify the code to have Bob ask Alice. This change will help you grasp the flexibility of protocols

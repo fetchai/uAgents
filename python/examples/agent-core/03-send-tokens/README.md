@@ -27,16 +27,26 @@ poetry shell
 
 ## Running the Agents
 
-To see how agents interact and perform token transactions, run the following command in your terminal:
+To observe the interaction between the agents, follow these steps:
 
-```
-python main.py
-```
+### 1. Start Agent Bob
+- Navigate to the directory named `bob`.
+- Run the command:
+  ```
+  python agent.py 
+  ```
+- Upon starting, agent bob can print its address using `bob.address`. Make sure to copy this address.
 
-
-This command starts both Alice and Bob agents within a `Bureau`, allowing them to communicate and execute token transactions as defined in the example. Observing the logs will show you the payment request from Alice, the transaction initiation by Bob, and the successful transaction confirmation.
+### 2. Start Agent Alice
+- Open the file alice/agent.py.
+- Paste the copied address of agent bob into the specified location in the file to set up the communication link between Alice and Bob.
+- Inside alice directory, run the command:
+  ```
+  python agent.py
+  ```
+Following these instructions will initiate agent alice, which will then connect to agent bob using the provided address. You will see them to communicate and execute token transactions as defined in the example. Observing the logs will show you the payment request from Alice, the transaction initiation by Bob, and the successful transaction confirmation.
 
 ## Experimentation
 
-This example sets a foundation for exploring more complex economic interactions between agents. Consider modifying the amount of tokens requested, experimenting with different intervals for payment requests, or introducing more agents into the system to simulate a more dynamic economic environment.
+This example sets a foundation for exploring more economic interactions between agents. Consider modifying the amount of tokens requested, experimenting with different intervals for payment requests, or introducing more agents into the system to simulate a more dynamic economic environment.
 
