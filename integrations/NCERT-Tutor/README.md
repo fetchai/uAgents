@@ -1,6 +1,7 @@
 # Incognito Tab - Goa College of Engineering NCERT Tutor Video Demo
 
 ### You can watch a video demo of our project: [demo video](https://drive.google.com/drive/folders/175eGJjyQfFjJ36Qk0ACPx_CXWFQbdVnE?usp=drive_link)
+- delta v compatible demo [here](https://github.com/fetchai/uAgents/pull/342)
 
 ## Vision of our project
 - To simplify and improve learning attitude and aptitude
