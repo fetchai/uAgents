@@ -1,6 +1,5 @@
 """Dialogue class aka. blueprint for protocols."""
 
-import asyncio
 import functools
 import graphlib
 import warnings
@@ -10,13 +9,12 @@ from uuid import UUID
 
 from uagents import Context, Model, Protocol
 from uagents.context import DeliveryStatus, MsgStatus
+from uagents.dispatch import JsonStr
 from uagents.models import ErrorMessage
 from uagents.storage import KeyValueStore
 
 DEFAULT_SESSION_TIMEOUT_IN_SECONDS = 60
 TARGET_UUID_VERSION = 4
-
-JsonStr = str
 
 MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
 
@@ -179,7 +177,6 @@ class Dialogue(Protocol):
         self._states: Dict[
             UUID, str
         ] = {}  # current state of the dialogue (as edge digest) per session
-        self._custom_session: UUID | None = None
 
         super().__init__(name=self._name, version=version)
 
@@ -371,8 +368,7 @@ class Dialogue(Protocol):
         """
         return self.is_ender(self.get_current_state(session_id))
 
-    async def pre_handle_hook(self, ctx: Context, sender: str, message: Any) -> bool:
-        print("handling dialogue")
+    def _pre_handle_hook(self, ctx: Context, sender: str, message: Type[Model]) -> bool:
         schema_digest = Model.build_schema_digest(message)
         is_valid = self.is_valid_message(ctx.session, schema_digest)
         if is_valid:
@@ -380,35 +376,30 @@ class Dialogue(Protocol):
                 self.update_state(schema_digest, ctx.session)
             self.add_message(
                 session_id=ctx.session,
-                message_type=message.__class__.__name__,
+                message_type=self.models[schema_digest].__name__,
                 sender=ctx.address,
                 receiver=sender,
                 content=message.json(),
             )
-            # hook into context to get the final response msg
-            ctx.set_dialogue_handle(sender, asyncio.Future())
         return is_valid
 
-    async def post_handle_hook(self, ctx: Context, sender: str, msg_in: Any) -> bool:
-        schema_digest = Model.build_schema_digest(msg_in)
-        response_msg, response_schema_digest, session = await ctx.dialogue_handle(
-            sender
-        )
-        if not self.is_valid_reply(schema_digest, response_schema_digest):
+    def _post_handle_hook(self, ctx: Context, sender: str, msg_in: Type[Model]) -> bool:
+        if self.is_finished(ctx.session):
+            return True
+        inbound_schema_digest = Model.build_schema_digest(msg_in)
+        outbound_message_content, outbound_schema_digest = ctx.outbound_messages[sender]
+        if not self.is_valid_reply(inbound_schema_digest, outbound_schema_digest):
             return False
 
-        # TODO custom session handling
-
-        message_name = self._resolve_mapping(response_schema_digest)
         self.add_message(
-            session_id=session,
-            message_type=message_name,
+            session_id=ctx.session,
+            message_type=self.models[outbound_schema_digest].__name__,
             sender=ctx.address,
             receiver=sender,
-            content=response_msg,
+            content=outbound_message_content,
         )
 
-        self.update_state(response_schema_digest, session)
+        self.update_state(outbound_schema_digest, ctx.session)
 
         return True
 
@@ -416,31 +407,25 @@ class Dialogue(Protocol):
         """Build the function handler for a message."""
 
         @functools.wraps(edge.func)
-        async def handler(ctx: Context, sender: str, message: Any):
+        async def handler(ctx: Context, sender: str, message: Type[Model]):
             # validate message first then execute handlers, finally update state
-            valid = await self.pre_handle_hook(ctx, sender, message)
-            if not valid:
+            if not self._pre_handle_hook(ctx, sender, message):
                 return await ctx.send(
                     sender,
                     ErrorMessage(error=f"Unexpected message in dialogue: {message}"),
                 )
-            print("dialogue message valid. proceeding with transition handler")
 
             if edge.efunc:
                 await edge.efunc(ctx, sender, message)
             result = await edge.func(ctx, sender, message)
 
-            print("finished message handler")
-            valid = await self.post_handle_hook(ctx, sender, message)
-            if not valid:
+            if not self._post_handle_hook(ctx, sender, message):
                 return MsgStatus(
                     status=DeliveryStatus.FAILED,
                     detail="Invalid dialogue reply",
                     destination=sender,
                     endpoint="",
                 )
-
-            print("finished dialogue handling")
 
             return result
 
@@ -624,30 +609,6 @@ class Dialogue(Protocol):
 
         return decorator_on_state_transition
 
-    @property
-    def custom_session(self) -> UUID | None:
-        """Return the custom session ID."""
-        return self._custom_session
-
-    def set_custom_session_id(self, uuid: UUID) -> None:
-        """
-        Start a new session with the given ID.
-
-        This method will create a session with the given UUID and uses that
-        ID the next time that a starter message is sent.
-        """
-        if uuid.version != TARGET_UUID_VERSION:
-            raise ValueError("Session ID must be of type UUID v4!")
-        if uuid in self._sessions:
-            raise ValueError("Session ID already exists!")
-        if self._custom_session:
-            raise ValueError("Custom session ID already set!")
-        self._custom_session = uuid
-
-    def reset_custom_session_id(self) -> None:
-        """Reset the custom session ID."""
-        self._custom_session = None
-
     def manifest(self) -> Dict[str, Any]:
         """
         This method will add the dialogue structure to the original manifest
@@ -674,26 +635,30 @@ class Dialogue(Protocol):
         return updated_manifest
 
     async def start_dialogue(self, ctx: Context, destination: str, message: Model):
-        if not self.is_starter(Model.build_schema_digest(message)):
+        """
+        Start a dialogue with a message.
+
+        Args:
+            ctx (Context): The current message context
+            destination (str): Agent address of the receiver
+            message (Model): The current message to send
+
+        Raises:
+            ValueError: If the dialogue is not started with the specified starting message.
+        """
+        message_schema_digest = Model.build_schema_digest(message)
+        if not self.is_starter(message_schema_digest):
             raise ValueError(
                 "A dialogue can only be started with the specified starting message"
             )
 
-        ctx.set_dialogue_handle(destination, asyncio.Future())
-
         await ctx.send(destination, message)
 
-        response_msg, response_schema_digest, session = await ctx.dialogue_handle(
-            destination
-        )
-
-        message_name = self._resolve_mapping(response_schema_digest)
         self.add_message(
-            session_id=session,
-            message_type=message_name,
+            session_id=ctx.session,
+            message_type=self.models[message_schema_digest].__name__,
             sender=ctx.address,
             receiver=destination,
-            content=response_msg,
+            content=message.json(),
         )
-
-        self.update_state(response_schema_digest, session)
+        self.update_state(message_schema_digest, ctx.session)

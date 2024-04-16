@@ -17,6 +17,7 @@ from typing import (
     List,
     Optional,
     Set,
+    Tuple,
     Type,
 )
 
@@ -189,7 +190,7 @@ class Context:
         self._wallet_messaging_client = wallet_messaging_client
         self._protocols = protocols or {}
         self._logger = logger
-        self._dialogue_handle: Dict[str, asyncio.Future] = {}
+        self._outbound_messages: Dict[str, Tuple[JsonStr, str]] = {}
 
     @property
     def name(self) -> str:
@@ -253,26 +254,15 @@ class Context:
         """
         return self._session
 
-    def dialogue_handle(self, sender: str) -> asyncio.Future:
-        """Get the handle for the given sender address, if availalbe
+    @property
+    def outbound_messages(self) -> Dict[str, Tuple[JsonStr, str]]:
+        """
+        Get the dictionary of outbound messages associated with the context.
 
         Returns:
-            asyncio.Future: Future object that can be unpacked to a tuple of
-            message: str, message_digest: str
+            Dict[str, Tuple[JsonStr, str]]: The dictionary of outbound messages.
         """
-        return self._dialogue_handle[sender]
-
-    def set_dialogue_handle(self, sender: str, handle: asyncio.Future):
-        self._dialogue_handle[sender] = handle
-
-    def remove_dialogue_handle(self, sender: str):
-        del self._dialogue_handle[sender]
-
-    def reset_session(self) -> None:
-        """
-        Reset the session UUID associated with the context.
-        """
-        self._session = None
+        return self._outbound_messages
 
     def get_message_protocol(self, message_schema_digest) -> Optional[str]:
         """
@@ -437,7 +427,7 @@ class Context:
         Returns:
             MsgStatus: The delivery status of the message.
         """
-        current_session = self._session or uuid.uuid4()
+        self._session = self._session or uuid.uuid4()
 
         # Check if this message is a reply
         if (
@@ -476,50 +466,6 @@ class Context:
                 endpoint="",
             )
 
-        # if the message is part of a Dialogue, update the Dialogue state accordingly
-        # current_protocol_digest = self.get_message_protocol(schema_digest)
-        # if current_protocol_digest is not None:
-        #     current_protocol = self.protocols[current_protocol_digest]
-        #     if hasattr(current_protocol, "rules"):
-        #         if self._message_received and not current_protocol.is_valid_reply(
-        #             self._message_received.schema_digest, schema_digest
-        #         ):
-        #             message_received_name = current_protocol.models[
-        #                 self._message_received.schema_digest
-        #             ].__name__
-        #             self._logger.exception(
-        #                 f"Outgoing message {message_type.__name__} is not a valid "
-        #                 f"response to {message_received_name} "
-        #                 f"for a {current_protocol.name}"
-        #             )
-        #             return MsgStatus(
-        #                 status=DeliveryStatus.FAILED,
-        #                 detail="Invalid dialogue reply",
-        #                 destination=destination,
-        #                 endpoint="",
-        #             )
-
-        #         if (
-        #             self._session is None
-        #             and current_protocol.custom_session
-        #             and current_protocol.is_starter(schema_digest)
-        #         ):
-        #             current_session = current_protocol.custom_session
-        #             current_protocol.reset_custom_session_id()
-
-        #         message_name = current_protocol.models[schema_digest].__name__
-        #         current_protocol.add_message(
-        #             session_id=current_session,
-        #             message_type=message_name,
-        #             sender=self.address,
-        #             receiver=destination,
-        #             content=json_message,
-        #         )
-        #         current_protocol.update_state(schema_digest, current_session)
-        #         self.logger.debug(
-        #             f"update state to: {message_name} for session {current_session}"
-        #         )
-
         # Extract address from destination agent identifier if present
         _, _, destination_address = parse_identifier(destination)
 
@@ -531,7 +477,7 @@ class Context:
                     destination_address,
                     schema_digest,
                     json_message,
-                    current_session,
+                    self._session,
                 )
                 return MsgStatus(
                     status=DeliveryStatus.DELIVERED,
@@ -553,10 +499,7 @@ class Context:
                     endpoint="",
                 )
 
-            if destination_address in self._dialogue_handle:
-                self._dialogue_handle[destination_address].set_result(
-                    (json_message, schema_digest, current_session)
-                )
+            self._outbound_messages[destination_address] = (json_message, schema_digest)
 
         return await self.send_raw_exchange_envelope(
             self._identity,
@@ -567,7 +510,7 @@ class Context:
             json_message,
             logger=self._logger,
             timeout=timeout,
-            session_id=current_session,
+            session_id=self._session,
         )
 
     @staticmethod
