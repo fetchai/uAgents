@@ -50,8 +50,17 @@ python alice.py
 - Start the receiving agent (Bob) first to ensure his address is available for configuring the sending agent (Alice).
 - Update the sender's (Alice's) code with the receiver's (Bob's) address before starting the sender agent.
 
-This example demonstrates a foundational setup for local network interactions between agents, enabling a wide range of distributed agent-based applications.
 
 
+## Sending Synchronous Messages
 
+The Synchronous Messages example showcases the ease of sending synchronous messages, which can be essential for applications requiring immediate message delivery and response.
 
+To run the synchronous message sending example, you will need to execute the sync_sender.py script. This script utilizes asyncio to send a synchronous message and wait for a response. Here is a brief explanation of what happens in the script:
+
+- For applications requiring immediate delivery and responses, use the sync_sender.py script.
+- It utilizes asyncio to send synchronous messages and awaits responses.
+- To use, replace `RECIPIENT_ADDRESS` in the script with Bob's address, and then run:
+```
+python sync_sender.py
+```
