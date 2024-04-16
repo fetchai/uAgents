@@ -20,7 +20,7 @@ async def message_handler(ctx: Context, sender: str, msg: Message):
     ctx.logger.info(f"Received message from {sender}: {msg.message}")
 
     # send the response
-    await ctx.send(sender, Message(message="Hello there alice."))
+    await ctx.send(sender, Message(message="Hello there."))
 
 
 if __name__ == "__main__":
