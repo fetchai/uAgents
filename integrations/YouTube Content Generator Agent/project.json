@@ -1,0 +1,6 @@
+{
+    "title": "Youtube Shorts Content Generation",
+    "description": "This integration helps the user get image created by Stable diffusion, Stroy based on the image and Audio file of the story",
+    "categories":    ["StableDiffusion", "Gemini", "Eleveblabs"], 
+    "deltav": true
+}
