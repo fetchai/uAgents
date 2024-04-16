@@ -39,21 +39,18 @@ async def request_funds(ctx: Context):
 async def transaction_handler(ctx: Context, sender: str, msg: TransactionInfo):
     ctx.logger.info(f"Received transaction info from {sender}: {msg}")
 
-    try:
-        tx_resp = ctx.ledger.query_tx(msg.tx_hash)
-        coin_received = tx_resp.events["coin_received"]
+    tx_resp = ctx.ledger.query_tx(msg.tx_hash)
+    coin_received = tx_resp.events["coin_received"]
 
-        if (
-            coin_received["receiver"] == str(ctx.wallet.address())
-            and coin_received["amount"] == f"{AMOUNT}{DENOM}"
-        ):
-            ctx.logger.info(f"Transaction {msg.tx_hash} was successful: {coin_received}")
+    if (
+        coin_received["receiver"] == str(ctx.wallet.address())
+        and coin_received["amount"] == f"{AMOUNT}{DENOM}"
+    ):
+        ctx.logger.info(f"Transaction {msg.tx_hash} was successful: {coin_received}")
 
-        else:
-            ctx.logger.info(f"Transaction {msg.tx_hash} was NOT successful")
+    else:
+        ctx.logger.info(f"Transaction {msg.tx_hash} was NOT successful")
 
-    except:
-        ctx.logger.info(f"There was an error while attempting to confirm the transaction.")
 
 if __name__ == "__main__":
     alice.run()

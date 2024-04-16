@@ -1,6 +1,5 @@
 from uagents import Agent, Model, Protocol
 
-
 BOB_SEED = "put_bobs_seed_phrase_here"
 
 bob = Agent(
