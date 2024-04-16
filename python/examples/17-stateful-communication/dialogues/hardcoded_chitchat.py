@@ -120,7 +120,6 @@ async def conclude_chitchat(
     _msg: Type[Model],
 ):
     ctx.logger.info(f"Received conclude message from: {sender}; accessing history:")
-    ctx.logger.info(ctx.dialogue)
 
 
 async def default(
