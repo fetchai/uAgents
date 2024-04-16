@@ -371,24 +371,13 @@ class Dialogue(Protocol):
         """
         return self.is_ender(self.get_current_state(session_id))
 
-    def _build_function_handler(self, edge: Edge) -> MessageCallback:
-        """Build the function handler for a message."""
-
-        @functools.wraps(edge.func)
-        async def handler(ctx: Context, sender: str, message: Any):
-            # validate message first then execute handlers, finally update state
-            print("handling dialogue")
-            schema_digest = Model.build_schema_digest(message)
-            is_valid = self.is_valid_message(ctx.session, schema_digest)
-            if not is_valid:
-                return await ctx.send(
-                    sender,
-                    ErrorMessage(error=f"Unexpected message in dialogue: {message}"),
-                )
+    async def pre_handle_hook(self, ctx: Context, sender: str, message: Any) -> bool:
+        print("handling dialogue")
+        schema_digest = Model.build_schema_digest(message)
+        is_valid = self.is_valid_message(ctx.session, schema_digest)
+        if is_valid:
             if self.is_ender(schema_digest):
                 self.update_state(schema_digest, ctx.session)
-
-            message_name = self._resolve_mapping(schema_digest)
             self.add_message(
                 session_id=ctx.session,
                 message_type=message.__class__.__name__,
@@ -396,43 +385,60 @@ class Dialogue(Protocol):
                 receiver=sender,
                 content=message.json(),
             )
-
-            print("valid dialogue event, proceeding")
-
             # hook into context to get the final response msg
             ctx.set_dialogue_handle(sender, asyncio.Future())
+        return is_valid
+
+    async def post_handle_hook(self, ctx: Context, sender: str, msg_in: Any) -> bool:
+        schema_digest = Model.build_schema_digest(msg_in)
+        response_msg, response_schema_digest, session = await ctx.dialogue_handle(
+            sender
+        )
+        if not self.is_valid_reply(schema_digest, response_schema_digest):
+            return False
+
+        # TODO custom session handling
+
+        message_name = self._resolve_mapping(response_schema_digest)
+        self.add_message(
+            session_id=session,
+            message_type=message_name,
+            sender=ctx.address,
+            receiver=sender,
+            content=response_msg,
+        )
+
+        self.update_state(response_schema_digest, session)
+
+        return True
+
+    def _build_function_handler(self, edge: Edge) -> MessageCallback:
+        """Build the function handler for a message."""
+
+        @functools.wraps(edge.func)
+        async def handler(ctx: Context, sender: str, message: Any):
+            # validate message first then execute handlers, finally update state
+            valid = await self.pre_handle_hook(ctx, sender, message)
+            if not valid:
+                return await ctx.send(
+                    sender,
+                    ErrorMessage(error=f"Unexpected message in dialogue: {message}"),
+                )
+            print("dialogue message valid. proceeding with transition handler")
 
             if edge.efunc:
                 await edge.efunc(ctx, sender, message)
             result = await edge.func(ctx, sender, message)
 
             print("finished message handler")
-
-            response_msg, response_schema_digest, session = await ctx.dialogue_handle(
-                sender
-            )
-            if not self.is_valid_reply(schema_digest, response_schema_digest):
+            valid = await self.post_handle_hook(ctx, sender, message)
+            if not valid:
                 return MsgStatus(
                     status=DeliveryStatus.FAILED,
                     detail="Invalid dialogue reply",
                     destination=sender,
                     endpoint="",
                 )
-
-            # TODO custom session handling
-
-            message_name = self._resolve_mapping(response_schema_digest)
-            self.add_message(
-                session_id=session,
-                message_type=message_name,
-                sender=ctx.address,
-                receiver=sender,
-                content=response_msg,
-            )
-
-            self.update_state(response_schema_digest, session)
-
-            # TODO ERROR above:
 
             print("finished dialogue handling")
 

@@ -101,7 +101,7 @@ async def conclude_chitchat(
 ):
     # do something when the dialogue is concluded after messages have been exchanged
     ctx.logger.info(f"Received conclude message from: {sender}; accessing history:")
-    ctx.logger.info(ctx.dialogue)
+    ctx.logger.info(chitchat_dialogue.get_conversation(ctx.session))
 
 
 agent.include(chitchat_dialogue)
@@ -112,7 +112,6 @@ agent.include(chitchat_dialogue)
 async def start_cycle(ctx: Context):
     await sleep(5)
     # use 'chitchat_dialogue.set_custom_session_id()' to set a custom session id (UUID4)
-    # chitchat_dialogue.set_custom_session_id(uuid.uuid4())
     # await ctx.send(CHIT_AGENT_ADDRESS, InitiateChitChatDialogue())
     await chitchat_dialogue.start_dialogue(
         ctx, CHIT_AGENT_ADDRESS, InitiateChitChatDialogue()
