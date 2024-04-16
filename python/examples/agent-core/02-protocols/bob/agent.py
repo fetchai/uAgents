@@ -9,6 +9,7 @@ bob = Agent(
     endpoint=["http://127.0.0.1:8001/submit"],
 )
 
+
 class Request(Model):
     number: int
 

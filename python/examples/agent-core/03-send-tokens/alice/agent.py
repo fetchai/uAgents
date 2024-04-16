@@ -24,7 +24,6 @@ alice = Agent(
 )
 
 
-
 @alice.on_interval(period=10.0)
 async def request_funds(ctx: Context):
     await ctx.send(

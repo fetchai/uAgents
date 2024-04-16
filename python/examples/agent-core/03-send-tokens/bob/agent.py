@@ -31,5 +31,6 @@ async def payment_handler(ctx: Context, sender: str, msg: PaymentRequest):
 
     await ctx.send(sender, TransactionInfo(tx_hash=transaction.tx_hash))
 
+
 if __name__ == "__main__":
     bob.run()

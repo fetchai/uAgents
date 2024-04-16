@@ -15,6 +15,7 @@ alice = Agent(
 class Request(Model):
     number: int
 
+
 class Response(Model):
     square: int
     original_number: int
