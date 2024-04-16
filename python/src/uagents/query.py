@@ -91,7 +91,9 @@ async def query(
     LOGGER.exception(f"Failed to send sync message to {destination}")
 
 
-def enclose_response(message: Model, sender: str, session: str) -> str:
+def enclose_response(
+    message: Model, sender: str, session: str, target: str = ""
+) -> str:
     """
     Enclose a response message within an envelope.
 
@@ -99,16 +101,21 @@ def enclose_response(message: Model, sender: str, session: str) -> str:
         message (Model): The response message to enclose.
         sender (str): The sender's address.
         session (str): The session identifier.
+        target (str): The target address.
 
     Returns:
         str: The JSON representation of the response envelope.
     """
     schema_digest = Model.build_schema_digest(message)
-    return enclose_response_raw(message.json(), schema_digest, sender, session)
+    return enclose_response_raw(message.json(), schema_digest, sender, session, target)
 
 
 def enclose_response_raw(
-    json_message: JsonStr, schema_digest: str, sender: str, session: str
+    json_message: JsonStr,
+    schema_digest: str,
+    sender: str,
+    session: str,
+    target: str = "",
 ) -> str:
     """
     Enclose a raw response message within an envelope.
@@ -118,6 +125,7 @@ def enclose_response_raw(
         schema_digest (str): The schema digest of the message.
         sender (str): The sender's address.
         session (str): The session identifier.
+        target (str): The target address.
 
     Returns:
         str: The JSON representation of the response envelope.
@@ -125,7 +133,7 @@ def enclose_response_raw(
     response_env = Envelope(
         version=1,
         sender=sender,
-        target="",
+        target=target,
         session=session,
         schema_digest=schema_digest,
     )

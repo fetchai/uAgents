@@ -22,6 +22,5 @@ async def message_handler(ctx: Context, sender: str, msg: Message):
     ctx.logger.info(f"Received message from {sender}: {msg.message}")
     await ctx.send(sender, Message(message="Hello there alice."))
 
-
 if __name__ == "__main__":
     bob.run()
