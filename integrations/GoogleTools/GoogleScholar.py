@@ -38,7 +38,7 @@ class GoogleScholarRequest(Model):
 
 # Initialize your agent
 SEED_PHRASE = "Google Scholar Seed Phrase"
-AGENT_MAILBOX_KEY = "ff20b0ce-7c24-4c93-bcc5-feb3ba70067c"
+AGENT_MAILBOX_KEY = "<Your_mailbox_api_key>"
 googleScholarAgent = Agent(
     name="Google Scholar Agent",
     seed=SEED_PHRASE,
@@ -55,7 +55,7 @@ googleScholarProtocol = Protocol("Google Scholar Protocol")
 @googleScholarProtocol.on_message(model=GoogleScholarRequest, replies={UAgentResponse})
 async def handle_business_analysis_request(ctx: Context, sender: str, msg: GoogleScholarRequest):
     ctx.logger.info(f'User has requested details for {msg.query}')
-    api_key = "02b5b4017b9b6ffa28303f94b2c2d6ac4e62a3e4f61f88e0242c533fe6142619"
+    api_key =  os.getenv('google_scholar_api_key')
     details = get_concise_scholar_info(msg.query,api_key)
     ctx.logger.info(str(details))
     await ctx.send(sender, UAgentResponse(message=str(details), type=UAgentResponseType.FINAL))
