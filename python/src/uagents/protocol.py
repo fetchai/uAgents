@@ -334,7 +334,6 @@ class Protocol:
                 }
             )
 
-        # print(schema_digest)
         encoded = json.dumps(manifest, indent=None, sort_keys=True).encode("utf8")
         metadata["digest"] = f"proto:{hashlib.sha256(encoded).digest().hex()}"
 
