@@ -22,7 +22,7 @@ class EdgeMetadata(BaseModel):
     """Metadata for the edges"""
 
     # what is the target of this transition, user means direct message to the user, ai, system involves AI Engine processing
-    target: Literal["user", "ai", "system"]
+    target: Literal["user", "ai", "system", "agent"]
 
     # can the AI Engine observe this transition, and process the information
     observable: bool
@@ -75,7 +75,7 @@ def create_node(
 def create_edge(
     name: str,
     description: str,
-    target: Literal["user", "ai", "system"],
+    target: Literal["user", "ai", "system", "agent"],
     observable: bool,
     parent: Node,
     child: Node,

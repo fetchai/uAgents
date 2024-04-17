@@ -8,12 +8,13 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Type
 from uuid import UUID
 
 from uagents import Context, Model, Protocol
+from uagents.context import DeliveryStatus, MsgStatus
+from uagents.dispatch import JsonStr
+from uagents.models import ErrorMessage
 from uagents.storage import KeyValueStore
 
-DEFAULT_SESSION_TIMEOUT_IN_SECONDS = 100
+DEFAULT_SESSION_TIMEOUT_IN_SECONDS = 60
 TARGET_UUID_VERSION = 4
-
-JsonStr = str
 
 MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
 
@@ -47,10 +48,11 @@ class Edge:
         self.description = description
         self.parent = parent
         self.child = child
-        self.starter = False
-        self.ender = False
-        self._model = None
-        self._func = None
+        self.starter: bool = False
+        self.ender: bool = False
+        self._model: Type[Model] = None
+        self._func: Optional[MessageCallback] = None
+        self._efunc: Optional[MessageCallback] = None
 
     @property
     def model(self) -> Optional[Type[Model]]:
@@ -63,12 +65,37 @@ class Edge:
         self._model = model
 
     @property
-    def func(self) -> MessageCallback:
+    def func(self) -> Optional[MessageCallback]:
         """The message handler that is associated with the edge."""
         return self._func
 
-    def set_default_behaviour(self, model: Type[Model], func: MessageCallback):
-        """Set the default behaviour for the edge."""
+    @func.setter
+    def func(self, func: MessageCallback) -> None:
+        """Set the message handler that will be called when a message is received."""
+        self._func = func
+
+    @property
+    def efunc(self) -> MessageCallback:
+        """The edge handler that is associated with the edge."""
+        return self._efunc
+
+    def set_edge_handler(self, model: Type[Model], func: MessageCallback):
+        """
+        Set the edge handler that will be called when a message is received
+        This handler can not be overwritten by a decorator.
+        """
+        if self._model and self._model is not model:
+            raise ValueError("Functionality already set with a different model!")
+        self._model = model
+        self._efunc = func
+
+    def set_message_handler(self, model: Type[Model], func: MessageCallback):
+        """
+        Set the default message handler for the edge that will be overwritten if
+        a decorator defines a new function to be called.
+        """
+        if self._model and self._model is not model:
+            raise ValueError("Functionality already set with a different model!")
         self._model = model
         self._func = func
 
@@ -150,7 +177,6 @@ class Dialogue(Protocol):
         self._states: Dict[
             UUID, str
         ] = {}  # current state of the dialogue (as edge digest) per session
-        self._custom_session: UUID | None = None
 
         super().__init__(name=self._name, version=version)
 
@@ -326,7 +352,7 @@ class Dialogue(Protocol):
 
     def is_ender(self, digest: str) -> bool:
         """
-        Return True if the digest is the last message of the dialogue.
+        Return True if the digest is one of the last messages of the dialogue.
         False otherwise.
         """
         return digest in [self._digest_by_edge[edge] for edge in self._ender]
@@ -342,11 +368,79 @@ class Dialogue(Protocol):
         """
         return self.is_ender(self.get_current_state(session_id))
 
+    def _pre_handle_hook(self, ctx: Context, sender: str, message: Type[Model]) -> bool:
+        schema_digest = Model.build_schema_digest(message)
+        is_valid = self.is_valid_message(ctx.session, schema_digest)
+        if is_valid:
+            if self.is_ender(schema_digest):
+                self.update_state(schema_digest, ctx.session)
+            self.add_message(
+                session_id=ctx.session,
+                message_type=self.models[schema_digest].__name__,
+                sender=ctx.address,
+                receiver=sender,
+                content=message.json(),
+            )
+        return is_valid
+
+    def _post_handle_hook(self, ctx: Context, sender: str, msg_in: Type[Model]) -> bool:
+        if self.is_finished(ctx.session):
+            return True
+        inbound_schema_digest = Model.build_schema_digest(msg_in)
+        outbound_message_content, outbound_schema_digest = ctx.outbound_messages[sender]
+        if not self.is_valid_reply(inbound_schema_digest, outbound_schema_digest):
+            return False
+
+        self.add_message(
+            session_id=ctx.session,
+            message_type=self.models[outbound_schema_digest].__name__,
+            sender=ctx.address,
+            receiver=sender,
+            content=outbound_message_content,
+        )
+
+        self.update_state(outbound_schema_digest, ctx.session)
+
+        return True
+
+    def _build_function_handler(self, edge: Edge) -> MessageCallback:
+        """Build the function handler for a message."""
+
+        @functools.wraps(edge.func)
+        async def handler(ctx: Context, sender: str, message: Type[Model]):
+            # validate message first then execute handlers, finally update state
+            if not self._pre_handle_hook(ctx, sender, message):
+                return await ctx.send(
+                    sender,
+                    ErrorMessage(error=f"Unexpected message in dialogue: {message}"),
+                )
+
+            if edge.efunc:
+                await edge.efunc(ctx, sender, message)
+            result = await edge.func(ctx, sender, message)
+
+            if not self._post_handle_hook(ctx, sender, message):
+                return MsgStatus(
+                    status=DeliveryStatus.FAILED,
+                    detail="Invalid dialogue reply",
+                    destination=sender,
+                    endpoint="",
+                )
+
+            return result
+
+        return handler
+
     def _auto_add_message_handler(self) -> None:
         """Automatically add message handlers for edges with models."""
         for edge in self._edges:
             if edge.model and edge.func:
-                self._add_message_handler(edge.model, edge.func, None, False)
+                self._add_message_handler(
+                    edge.model,
+                    self._build_function_handler(edge),
+                    None,  # no replies
+                    False,  # only verified
+                )
 
     def update_state(self, digest: str, session_id: UUID) -> None:
         """
@@ -415,14 +509,15 @@ class Dialogue(Protocol):
 
     def is_valid_message(self, session_id: UUID, msg_digest: str) -> bool:
         """
-        Check if a message is valid for a given session.
+        Check if an incoming message is valid for a given session.
 
         Args:
             session_id (UUID): The ID of the session to check the message for.
             msg_digest (str): The digest of the message to check.
 
         Returns:
-            bool: True if the message is valid, False otherwise.
+            bool: True if the message is valid,
+            False otherwise.
         """
         if session_id not in self._sessions or len(self._sessions[session_id]) == 0:
             return self.is_starter(msg_digest)
@@ -505,41 +600,14 @@ class Dialogue(Protocol):
             raise ValueError("Edge does not exist in the dialogue!")
 
         def decorator_on_state_transition(func: MessageCallback):
-            @functools.wraps(func)
-            def handler(*args, **kwargs):
-                return func(*args, **kwargs)
-
             edge = self.get_edge(edge_name)
+            edge.func = func
+            handler = self._build_function_handler(edge)
             self._update_transition_model(edge, model)
-            self._add_message_handler(model, func, None, False)
+            self._add_message_handler(model, handler, None, False)
             return handler
 
-        # NOTE: recalculate manifest after each update and re-register /w agent
         return decorator_on_state_transition
-
-    @property
-    def custom_session(self) -> UUID | None:
-        """Return the custom session ID."""
-        return self._custom_session
-
-    def set_custom_session_id(self, uuid: UUID) -> None:
-        """
-        Start a new session with the given ID.
-
-        This method will create a session with the given UUID and uses that
-        ID the next time that a starter message is sent.
-        """
-        if uuid.version != TARGET_UUID_VERSION:
-            raise ValueError("Session ID must be of type UUID v4!")
-        if uuid in self._sessions:
-            raise ValueError("Session ID already exists!")
-        if self._custom_session:
-            raise ValueError("Custom session ID already set!")
-        self._custom_session = uuid
-
-    def reset_custom_session_id(self) -> None:
-        """Reset the custom session ID."""
-        self._custom_session = None
 
     def manifest(self) -> Dict[str, Any]:
         """
@@ -565,3 +633,32 @@ class Dialogue(Protocol):
         new_digest = Protocol.compute_digest(updated_manifest)
         updated_manifest["metadata"]["digest"] = new_digest
         return updated_manifest
+
+    async def start_dialogue(self, ctx: Context, destination: str, message: Model):
+        """
+        Start a dialogue with a message.
+
+        Args:
+            ctx (Context): The current message context
+            destination (str): Agent address of the receiver
+            message (Model): The current message to send
+
+        Raises:
+            ValueError: If the dialogue is not started with the specified starting message.
+        """
+        message_schema_digest = Model.build_schema_digest(message)
+        if not self.is_starter(message_schema_digest):
+            raise ValueError(
+                "A dialogue can only be started with the specified starting message"
+            )
+
+        await ctx.send(destination, message)
+
+        self.add_message(
+            session_id=ctx.session,
+            message_type=self.models[message_schema_digest].__name__,
+            sender=ctx.address,
+            receiver=destination,
+            content=message.json(),
+        )
+        self.update_state(message_schema_digest, ctx.session)

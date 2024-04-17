@@ -1,0 +1,10 @@
+[tool.poetry]
+name = "blip-image-captioning-large"
+version = "0.1.0"
+description = "Integrating BLIP image captioning into UAgent Ecosystem"
+authors = ["Gaurav Kumar"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+uagents = "*"
+requests = "^2.31.0"
