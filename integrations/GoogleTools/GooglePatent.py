@@ -38,7 +38,7 @@ class GoogleTrendRequest(Model):
 
 # Initialize your agent
 SEED_PHRASE = "Google Trend Seed Phrase"
-AGENT_MAILBOX_KEY = "66b880dc-4805-4c73-b345-850984d7b443"
+AGENT_MAILBOX_KEY = "<Your_mailbox_api_key>"
 googleTrendAgent = Agent(
     name="Google Trend Agent",
     seed=SEED_PHRASE,
@@ -55,7 +55,7 @@ googleTrendProtocol = Protocol("Google Trends Protocol")
 @googleTrendProtocol.on_message(model=GoogleTrendRequest, replies={UAgentResponse})
 async def handle_business_analysis_request(ctx: Context, sender: str, msg: GoogleTrendRequest):
     ctx.logger.info(f'User has requested details for {msg.trend}')
-    api_key = "02b5b4017b9b6ffa28303f94b2c2d6ac4e62a3e4f61f88e0242c533fe6142619"
+    api_key = os.getenv('google_patent_api_key')
     details = get_concise_patent_info(msg.trend, api_key)
     ctx.logger.info(details)
     await ctx.send(sender, UAgentResponse(message=details, type=UAgentResponseType.FINAL))
