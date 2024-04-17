@@ -46,7 +46,7 @@ class GoogleJobsRequest(Model):
 
 # Initialize your agent
 SEED_PHRASE = "Google Jobs Seed Phrase"
-AGENT_MAILBOX_KEY = "41a4ad0f-0a28-4021-9740-d716488f28e8"
+AGENT_MAILBOX_KEY = "<your_mailbox_key_here>"
 googleJobsAgent = Agent(
     name="Google Jobs Agent",
     seed=SEED_PHRASE,
@@ -63,7 +63,7 @@ googleJobsProtocol = Protocol("Google Jobs Protocol")
 @googleJobsProtocol.on_message(model=GoogleJobsRequest, replies={UAgentResponse})
 async def handle_business_analysis_request(ctx: Context, sender: str, msg: GoogleJobsRequest):
     ctx.logger.info(f'User has requested details for {msg.job_query}')
-    api_key = "02b5b4017b9b6ffa28303f94b2c2d6ac4e62a3e4f61f88e0242c533fe6142619"
+    api_key = os.getenv('google_jobs_api_key')
     response = get_job_summary(msg.job_query,api_key)
     ctx.logger.info(str(response))
     await ctx.send(sender, UAgentResponse(message=str(response), type=UAgentResponseType.FINAL))
