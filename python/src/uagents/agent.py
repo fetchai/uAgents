@@ -967,56 +967,7 @@ class Agent(Sink):
             )
             if handler is None:
                 if not is_user_address(sender):
-                    is_valid = True  # always valid unless considered invalid as part of a dialogue
-                    for protocol in context.protocols.values():
-                        if hasattr(protocol, "rules") and protocol.is_included(
-                            schema_digest
-                        ):
-                            state = protocol.get_current_state(session)
-                            context.logger.debug(
-                                "current state: "
-                                f"{(protocol.models[state].__name__ if state else 'n/a')}"
-                            )
-                            is_valid = protocol.is_valid_message(session, schema_digest)
-                            context.logger.debug(
-                                f"message {self._models[schema_digest].__name__} "
-                                f"allowed: {is_valid}"
-                            )
-
-                            if not is_valid:
-                                context.reset_session()
-                                await _send_error_message(
-                                    context,
-                                    sender,
-                                    ErrorMessage(
-                                        error=f"Unexpected message in dialogue: {message}"
-                                    ),
-                                )
-                                break
-
-                            if protocol.is_starter(schema_digest):
-                                self._ctx.logger.debug("dialogue started")
-                            elif protocol.is_ender(schema_digest):
-                                # no more messages will follow -> set the dialogue state to finished
-                                protocol.update_state(schema_digest, session)
-                                self._ctx.logger.debug(
-                                    "dialogue ended, cleaning up session"
-                                )
-                            else:
-                                self._ctx.logger.debug("dialogue picked up")
-
-                            context.dialogue = protocol.get_conversation(
-                                session
-                            )  # add current dialogue messages to context
-                            protocol.add_message(
-                                session_id=session,
-                                message_type=self._models[schema_digest].__name__,
-                                sender=sender,
-                                receiver=self.address,
-                                content=message,
-                            )
-                    if is_valid:
-                        handler = self._signed_message_handlers.get(schema_digest)
+                    handler = self._signed_message_handlers.get(schema_digest)
                 elif schema_digest in self._signed_message_handlers:
                     await _send_error_message(
                         context,
