@@ -1,4 +1,5 @@
 import requests
+import os
 from uagents.setup import fund_agent_if_low
 from uagents import Agent, Context, Protocol, Model
 from pydantic import Field
@@ -39,7 +40,7 @@ class GoogleLensRequest(Model):
 
 # Initialize your agent
 SEED_PHRASE = "Google Lens Seed Phrase"
-AGENT_MAILBOX_KEY = "2f7153f0-07df-4647-a407-984fa14e8af"
+AGENT_MAILBOX_KEY = "<your_agent_mailbox_address>"
 googleLensAgent = Agent(
     name="Google Lens Agent",
     seed=SEED_PHRASE,
@@ -56,7 +57,7 @@ googleLensProtocol = Protocol("Google Lens Protocol")
 @googleLensProtocol.on_message(model=GoogleLensRequest, replies={UAgentResponse})
 async def handle_business_analysis_request(ctx: Context, sender: str, msg: GoogleLensRequest):
     ctx.logger.info(f'User has requested details for {msg.image_url}')
-    api_key = "02b5b4017b9b6ffa28303f94b2c2d6ac4e62a3e4f61f88e0242c533fe6142619"
+    api_key = os.getenv('google_Lens_api_key')
     response = get_concise_google_lens_info(msg.image_url, api_key)
     ctx.logger.info(str(response))
     await ctx.send(sender, UAgentResponse(message=str(response), type=UAgentResponseType.FINAL))
