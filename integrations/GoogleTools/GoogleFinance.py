@@ -7,14 +7,12 @@ from serpapi import GoogleSearch
 
 
 def get_stock_summary(company_name, api_key):
-    # Construct the URL with the API key and company query
+    # Defining params for query
     params = {
         "engine": "google_finance",
         "q": company_name,
         "api_key": api_key
-    }
-    url = f"https://serpapi.com/search.json?engine=google_finance&q={company_name}&api_key={api_key}"
-    
+    }    
     # Send the GET request
     search = GoogleSearch(params)
     results = search.get_dict()
@@ -71,7 +69,7 @@ googleFinanceProtocol = Protocol("Google Finance Protocol")
 @googleFinanceProtocol.on_message(model=GoogleFinanceRequest, replies={UAgentResponse})
 async def handle_business_analysis_request(ctx: Context, sender: str, msg: GoogleFinanceRequest):
     ctx.logger.info(f'User has requested details for {msg.company_name}')
-    api_key = "02b5b4017b9b6ffa28303f94b2c2d6ac4e62a3e4f61f88e0242c533fe6142619"
+    api_key = os.getenv('MY_API_KEY')
     details = get_stock_summary(msg.company_name, api_key)
     ctx.logger.info(details)
     await ctx.send(sender, UAgentResponse(message=details, type=UAgentResponseType.FINAL))
