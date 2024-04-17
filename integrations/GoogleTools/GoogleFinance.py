@@ -1,4 +1,5 @@
 import requests
+import os
 from uagents.setup import fund_agent_if_low
 from uagents import Agent, Context, Protocol, Model
 from pydantic import Field
