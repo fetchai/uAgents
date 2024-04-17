@@ -18,8 +18,6 @@ def get_stock_summary(company_name, api_key):
     results = search.get_dict()
     # Check if the request was successful
     if results:
-        # Convert the response to JSON
-        total_results = results
         if not total_results:
             return "Nothing was found for the query: " + company_name
 
@@ -45,14 +43,13 @@ def get_stock_summary(company_name, api_key):
         
         return res
 
-
 # Define the request model for your business analysis
 class GoogleFinanceRequest(Model):
     company_name: str = Field(description="Enter the company name for which you want to get stock details")
 
 # Initialize your agent
 SEED_PHRASE = "Google Finance Seed Phrase"
-AGENT_MAILBOX_KEY = "8e1eb39a-3ea9-4896-8f99-3041392ceae7"
+AGENT_MAILBOX_KEY = "<Your_agent_mailbox_key_here"
 googleFinanceAgent = Agent(
     name="Google Finance Agent",
     seed=SEED_PHRASE,
