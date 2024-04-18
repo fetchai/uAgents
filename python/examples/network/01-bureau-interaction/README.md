@@ -1,49 +1,55 @@
 # Bureau Interaction Example
-Welcome to the Bureau Interaction example! here we cover two examples demonstrating how agents can communicate using messaging systems. The first example focuses on sending custom messages between agents in a bureau, while the second example introduces Fetch.ai wallet messaging
 
-To set up your environment for running the examples, navigate to the example directory and execute the following commands:
+Welcome to the Bureau Interaction example! This guide demonstrates how a `Bureau` can host multiple agents, allowing them to interact and simulate economic transactions on a network. Each agent is initialized with a unique seed to secure their identity and wallet on the blockchain. This setup facilitates complex simulations with numerous agents interacting in a dynamic environment. Before proceeding, navigate to the example directory and set up your environment with:
 
 ```
-poetry install --extras wallet
+poetry install
 poetry shell
 ```
 
-## Standard Agent Messaging
 
-### Key Concepts
+## Key Concepts
 
-#### Sending Custom Messages
+### Multiple Agent Hosting with Bureau
 
-- **Description**: Agents can send and receive custom messages, allowing for flexible communication between them. This is achieved by defining a model to structure the content and utilizing event handlers to process incoming and outgoing messages.
-- **Example Usage**: Alice sends a greeting to Bob every 3 seconds. Bob, upon receiving this message, sends a greeting back to Alice. This interaction is facilitated by the `send_message` and `message_handler` functions defined in both agents.
+- **Description**: This example showcases a `Bureau` that manages multiple agents. The Bureau acts as a central node where each agent is registered and managed, facilitating interactions and transactions among them.
+- **Example Usage**: Agents such as Alice, Bob, Charles, Diana, Ean, and Fabian are registered in the Bureau. Each agent has unique characteristics like minimum acceptable prices for transactions.
 
-#### Bureau for Agent Management
+### Agent Uniqueness with Seeds
 
-- **Description**: A `Bureau` is used to manage and run multiple agents concurrently. It enables the agents to operate within the same environment and communicate with each other as defined by their message handlers.
-- **Example Usage**: Both Alice and Bob agents are added to a bureau and run, facilitating the exchange of messages between them as per the defined intervals and handlers.
+- **Description**: Agents are initialized with unique seeds, which are essential for creating secure and identifiable wallets on the blockchain. This feature ensures that transactions are secure and that they occur between the correct parties.
+- **Example Usage**: Each agent, is initialized with a `seed` linked to distinct identities.
 
-## Fetch.ai Wallet Messaging
+### Inter-agent Communication and Transactions
 
-### Wallet Messaging
+- **Description**: Agents communicate using a defined protocol (`seller_protocol`) where they can send and respond to offers based on predefined minimum prices.
+- **Example Usage**: Alice might send an offer to Bob, and if the offer meets or exceeds Bob's minimum price, Bob will accept the offer.
 
-- **Description**: Wallet messaging is a feature of Fetch.ai that allows agents to send messages via their Fetch wallets. This method offers an additional layer of security and integration, leveraging the blockchain infrastructure for communication.
-- **Example Usage**: Alice and Bob, with `enable_wallet_messaging` set to `True`, exchange greetings using their Fetch wallets. This is managed through the `send_wallet_message` and `on_wallet_message` event handlers, showcasing how agents can communicate securely using their blockchain identities.
+## Running the Simulation
 
-### Running the Examples
+To observe the agents' interactions within the Bureau, follow these steps:
 
-To observe how agents interact through standard messaging, run:
-
-```
-python messaging.py
-```
-Or run:
+### 1. Start the Bureau and Agents
+- Navigate to the `seller.py` directory.
+- Run the command:
 
 ```
-python wallet-messaging.py
+python sellers.py
+```
+- Each agent's address is printed at startup. Copy these addresses for further interactions.
+
+### 2. Interact with Agents
+- Open the file `buyer.py`.
+- Paste the copied addresses into the specified location in the file to set up communication links between buyers and sellers.
+- Inside the directory, run the command:
+
+```
+python buyer.py
 ```
 
-for wallet messaging interaction
+
+Following these instructions will initiate the agents, and they will start to interact based on the offers sent and received. Observing the logs will provide insight into the negotiation process and the transactions executed.
 
 ## Experimentation
 
-These examples serve as a foundation for exploring the capabilities of agent-based messaging. Consider experimenting with different model structures or message contents, altering the timing of message exchanges, or incorporating additional agents to simulate complex interactions and communication networks.
+This example lays the groundwork for more complex simulations involving multiple agents. Consider modifying the agents' minimum prices, changing the intervals of offer submissions, or adding more agents to simulate a more dynamic economic environment.
