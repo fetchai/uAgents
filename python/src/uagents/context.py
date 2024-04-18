@@ -197,7 +197,7 @@ class Context:
         self._wallet_messaging_client = wallet_messaging_client
         self._protocols = protocols or {}
         self._logger = logger
-        self._outbound_messages: Dict[str, Tuple[JsonStr, str]] = {}
+        self._outbound_messages: Dict[str, MsgDigest] = {}
 
     @property
     def name(self) -> str:
@@ -511,7 +511,9 @@ class Context:
                     endpoint="",
                 )
 
-            self._outbound_messages[destination_address] = (json_message, schema_digest)
+            self._outbound_messages[destination_address] = MsgDigest(
+                json_message, schema_digest
+            )
 
         result = await self.send_raw_exchange_envelope(
             self._identity,

@@ -8,7 +8,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Type
 from uuid import UUID
 
 from uagents import Context, Model, Protocol
-from uagents.context import DeliveryStatus, MsgStatus
+from uagents.context import DeliveryStatus, MsgDigest, MsgStatus
 from uagents.dispatch import JsonStr
 from uagents.models import ErrorMessage
 from uagents.storage import KeyValueStore
@@ -387,19 +387,20 @@ class Dialogue(Protocol):
         if self.is_finished(ctx.session):
             return True
         inbound_schema_digest = Model.build_schema_digest(msg_in)
-        outbound_message_content, outbound_schema_digest = ctx.outbound_messages[sender]
-        if not self.is_valid_reply(inbound_schema_digest, outbound_schema_digest):
+        outbound_message: MsgDigest = ctx.outbound_messages[sender]
+        if not self.is_valid_reply(
+            inbound_schema_digest, outbound_message.schema_digest
+        ):
             return False
 
         self.add_message(
             session_id=ctx.session,
-            message_type=self.models[outbound_schema_digest].__name__,
+            message_type=self.models[outbound_message.schema_digest].__name__,
             sender=ctx.address,
             receiver=sender,
-            content=outbound_message_content,
+            content=outbound_message.message,
         )
-
-        self.update_state(outbound_schema_digest, ctx.session)
+        self.update_state(outbound_message.schema_digest, ctx.session)
 
         return True
 

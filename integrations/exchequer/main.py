@@ -33,7 +33,8 @@ agent2.include(ex_dialogue_2)
 @agent2.on_event("startup")
 async def start_payee(ctx: Context):
     await sleep(5)
-    await ctx.send(
+    await ex_dialogue_2.start_dialogue(
+        ctx,
         agent1.address,
         PaymentRequest(
             requester_id=get_client("client_3")["id"],
