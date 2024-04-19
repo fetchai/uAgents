@@ -32,6 +32,7 @@ from uagents.config import (
     ALMANAC_API_URL,
     DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     DEFAULT_SEARCH_LIMIT,
+    TESTNET_PREFIX,
 )
 from uagents.crypto import Identity
 from uagents.dispatch import JsonStr, dispatcher
@@ -89,115 +90,45 @@ class MsgStatus:
     endpoint: str
 
 
-ERROR_MESSAGE_DIGEST = Model.build_schema_digest(ErrorMessage)
-
-
-def log(logger: Optional[logging.Logger], level: str, message: str):
-    if logger:
-        logger.log(level, message)
-
-
-class Context:
+class AgentRepresentation:
     """
-    Represents the context in which messages are handled and processed.
+    Represents an agent in the context of a message.
 
     Attributes:
-        storage (KeyValueStore): The key-value store for storage operations.
-        wallet (LocalWallet): The agent's wallet for transacting on the ledger.
-        ledger (LedgerClient): The client for interacting with the blockchain ledger.
-        _name (Optional[str]): The name of the agent.
         _address (str): The address of the agent.
-        _resolver (Resolver): The resolver for address-to-endpoint resolution.
-        _identity (Identity): The agent's identity.
-        _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their
-        response Futures.
-        _session (Optional[uuid.UUID]): The session UUID.
-        _replies (Optional[Dict[str, Dict[str, Type[Model]]]]): Dictionary of allowed reply digests
-        for each type of incoming message.
-        _interval_messages (Optional[Set[str]]): Set of message digests that may be sent by
-        interval tasks.
-        _message_received (Optional[MsgDigest]): The message digest received.
-        _protocols (Optional[Dict[str, Protocol]]): Dictionary mapping all supported protocol
-        digests to their corresponding protocols.
-        _logger (Optional[logging.Logger]): The optional logger instance.
+        _name (Optional[str]): The name of the agent.
+        _signing_callback (Callable): The callback for signing messages.
+        wallet (LocalWallet): The agent's wallet for transacting on the ledger.
 
     Properties:
         name (str): The name of the agent.
         address (str): The address of the agent.
-        logger (logging.Logger): The logger instance.
-        protocols (Optional[Dict[str, Protocol]]): Dictionary mapping all supported protocol
-        digests to their corresponding protocols.
-        session (uuid.UUID): The session UUID.
+        identifier (str): The agent's address and network prefix.
 
     Methods:
-        get_message_protocol(message_schema_digest): Get the protocol digest associated
-        with a message schema digest.
-        send(destination, message, timeout): Send a message to a destination.
-        send_raw(destination, json_message, schema_digest, message_type, timeout): Send a message
-        with the provided schema digest to a destination.
-        broadcast(destination_protocol, message, limit, timeout): Broadcast a message
-        to agents with a specific protocol.
-
+        sign_digest(data: bytes) -> str: Sign the provided data with the agent's identity.
     """
 
     def __init__(
         self,
         address: str,
-        identifier: str,
         name: Optional[str],
-        storage: KeyValueStore,
-        resolve: Resolver,
-        identity: Identity,
+        signing_callback: Callable,
         wallet: LocalWallet,
-        ledger: LedgerClient,
-        queries: Dict[str, asyncio.Future],
-        session: Optional[uuid.UUID] = None,
-        replies: Optional[Dict[str, Dict[str, Type[Model]]]] = None,
-        interval_messages: Optional[Set[str]] = None,
-        message_received: Optional[MsgDigest] = None,
-        wallet_messaging_client: Optional[Any] = None,
-        protocols: Optional[Dict[str, Protocol]] = None,
-        logger: Optional[logging.Logger] = None,
     ):
         """
-        Initialize the Context instance.
+        Initialize the AgentRepresentation instance.
 
         Args:
             address (str): The address of the context.
             name (Optional[str]): The optional name associated with the context.
-            storage (KeyValueStore): The key-value store for storage operations.
-            resolve (Resolver): The resolver for name-to-address resolution.
-            identity (Identity): The identity associated with the context.
+            signing_callback (Callable): The callback for signing messages.
             wallet (LocalWallet): The local wallet instance for managing identities.
-            ledger (LedgerClient): The ledger client for interacting with distributed ledgers.
-            queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their response
-            Futures.
-            session (Optional[uuid.UUID]): The optional session UUID.
-            replies (Optional[Dict[str, Dict[str, Type[Model]]]]): Dictionary of allowed replies
-            for each type of incoming message.
-            interval_messages (Optional[Set[str]]): The optional set of interval messages.
-            message_received (Optional[MsgDigest]): The optional message digest received.
-            wallet_messaging_client (Optional[Any]): The optional wallet messaging client.
-            protocols (Optional[Dict[str, Protocol]]): The optional dictionary of protocols.
-            logger (Optional[logging.Logger]): The optional logger instance.
         """
-        self.storage = storage
-        self.wallet = wallet
-        self.ledger = ledger
+        self._address = address
         self._name = name
-        self._address = str(address)
-        self._identifier = str(identifier)
-        self._resolver = resolve
-        self._identity = identity
-        self._queries = queries
-        self._session = session or None
-        self._replies = replies
-        self._interval_messages = interval_messages
-        self._message_received = message_received
-        self._wallet_messaging_client = wallet_messaging_client
-        self._protocols = protocols or {}
-        self._logger = logger
-        self._outbound_messages: Dict[str, Tuple[JsonStr, str]] = {}
+        self._signing_callback = signing_callback
+        self.wallet = wallet
 
     @property
     def name(self) -> str:
@@ -229,7 +160,112 @@ class Context:
         Returns:
             str: The agent's address and network prefix.
         """
-        return self._identifier
+        return TESTNET_PREFIX + "://" + self._address
+
+    def sign_digest(self, data: bytes) -> str:
+        """
+        Sign the provided data with the callback of the agent's identity.
+
+        Args:
+            data (bytes): The data to sign.
+
+        Returns:
+            str: The signature of the data.
+        """
+        return self._signing_callback(data)
+
+
+ERROR_MESSAGE_DIGEST = Model.build_schema_digest(ErrorMessage)
+
+
+def log(logger: Optional[logging.Logger], level: str, message: str):
+    if logger:
+        logger.log(level, message)
+
+
+class Context:
+    """
+    Represents the context in which messages are handled and processed.
+
+    Attributes:
+        storage (KeyValueStore): The key-value store for storage operations.
+        ledger (LedgerClient): The client for interacting with the blockchain ledger.
+        _resolver (Resolver): The resolver for address-to-endpoint resolution.
+        _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their
+            response Futures.
+        _session (Optional[uuid.UUID]): The session UUID.
+        _replies (Optional[Dict[str, Dict[str, Type[Model]]]]): Dictionary of allowed reply digests
+            for each type of incoming message.
+        _interval_messages (Optional[Set[str]]): Set of message digests that may be sent by
+            interval tasks.
+        _message_received (Optional[MsgDigest]): The message digest received.
+        _protocols (Optional[Dict[str, Protocol]]): Dictionary mapping all supported protocol
+            digests to their corresponding protocols.
+        _logger (Optional[logging.Logger]): The optional logger instance.
+
+    Properties:
+        logger (logging.Logger): The logger instance.
+        protocols (Optional[Dict[str, Protocol]]): Dictionary mapping all supported protocol
+            digests to their corresponding protocols.
+        session (uuid.UUID): The session UUID.
+
+    Methods:
+        get_message_protocol(message_schema_digest): Get the protocol digest associated
+            with a message schema digest.
+        send(destination, message, timeout): Send a message to a destination.
+        send_raw(destination, json_message, schema_digest, message_type, timeout):
+            Send a message with the provided schema digest to a destination.
+        broadcast(destination_protocol, message, limit, timeout): Broadcast a message
+            to agents with a specific protocol.
+
+    """
+
+    def __init__(
+        self,
+        agent: AgentRepresentation,
+        storage: KeyValueStore,
+        resolve: Resolver,
+        ledger: LedgerClient,
+        queries: Dict[str, asyncio.Future],
+        session: Optional[uuid.UUID] = None,
+        replies: Optional[Dict[str, Dict[str, Type[Model]]]] = None,
+        interval_messages: Optional[Set[str]] = None,
+        message_received: Optional[MsgDigest] = None,
+        wallet_messaging_client: Optional[Any] = None,
+        protocols: Optional[Dict[str, Protocol]] = None,
+        logger: Optional[logging.Logger] = None,
+    ):
+        """
+        Initialize the Context instance.
+
+        Args:
+            storage (KeyValueStore): The key-value store for storage operations.
+            resolve (Resolver): The resolver for name-to-address resolution.
+            ledger (LedgerClient): The ledger client for interacting with distributed ledgers.
+            queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their
+                response Futures.
+            session (Optional[uuid.UUID]): The optional session UUID.
+            replies (Optional[Dict[str, Dict[str, Type[Model]]]]): Dictionary of allowed replies
+                for each type of incoming message.
+            interval_messages (Optional[Set[str]]): The optional set of interval messages.
+            message_received (Optional[MsgDigest]): The optional message digest received.
+            wallet_messaging_client (Optional[Any]): The optional wallet messaging client.
+            protocols (Optional[Dict[str, Protocol]]): The optional dictionary of protocols.
+            logger (Optional[logging.Logger]): The optional logger instance.
+        """
+        self.agent = agent
+        self.storage = storage
+        self.ledger = ledger
+        self._resolver = resolve
+        self._queries = queries
+        self._session = session or None
+        self._replies = replies
+        self._interval_messages = interval_messages
+        self._message_received = message_received
+        self._wallet_messaging_client = wallet_messaging_client
+        self._protocols = protocols or {}
+        self._logger = logger
+        self._outbound_messages: Dict[str, Tuple[JsonStr, str]] = {}
 
     @property
     def logger(self) -> logging.Logger:
@@ -485,7 +521,7 @@ class Context:
             # Handle local dispatch of messages
             if dispatcher.contains(destination_address):
                 await dispatcher.dispatch(
-                    self.address,
+                    self.agent.address,
                     destination_address,
                     schema_digest,
                     json_message,
@@ -514,7 +550,7 @@ class Context:
             self._outbound_messages[destination_address] = (json_message, schema_digest)
 
         result = await self.send_raw_exchange_envelope(
-            self._identity,
+            self.agent,
             destination,
             self._resolver,
             schema_digest,
@@ -533,7 +569,7 @@ class Context:
 
     @staticmethod
     async def send_raw_exchange_envelope(
-        sender: Identity,
+        sender: AgentRepresentation,
         destination: str,
         resolver: Resolver,
         schema_digest: str,
@@ -548,7 +584,7 @@ class Context:
         Standalone function to send a raw exchange envelope to an agent.
 
         Args:
-            sender (Identity): The sender identity.
+            sender (AgentRepresentation): The representation of an agent.
             destination (str): The destination address to send the message to.
             resolver (Resolver): The resolver for address-to-endpoint resolution.
             schema_digest (str): The schema digest of the message.
@@ -593,7 +629,7 @@ class Context:
             expires=expires,
         )
         env.encode_payload(json_message)
-        env.sign(sender)
+        env.sign(sender.sign_digest)
 
         headers = {"content-type": "application/json"}
         if sync:

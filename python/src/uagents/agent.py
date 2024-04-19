@@ -25,6 +25,7 @@ from uagents.config import (
     parse_endpoint_config,
 )
 from uagents.context import (
+    AgentRepresentation,
     Context,
     EventCallback,
     IntervalCallback,
@@ -255,16 +256,19 @@ class Agent(Sink):
         # keep track of supported protocols
         self.protocols: Dict[str, Protocol] = {}
 
+        agent_representation = AgentRepresentation(
+            address=self.address,
+            name=self._name,
+            signing_callback=self._identity.sign_digest,
+            wallet=self._wallet,
+        )
+
         self._ctx = Context(
-            self._identity.address,
-            self.identifier,
-            self._name,
-            self._storage,
-            self._resolver,
-            self._identity,
-            self._wallet,
-            self._ledger,
-            self._queries,
+            agent=agent_representation,
+            storage=self._storage,
+            resolve=self._resolver,
+            ledger=self._ledger,
+            queries=self._queries,
             replies=self._replies,
             interval_messages=self._interval_messages,
             wallet_messaging_client=self._wallet_messaging_client,

@@ -64,14 +64,17 @@ class Envelope(BaseModel):
 
         return base64.b64decode(self.payload).decode()
 
-    def sign(self, identity: Identity):
+    def sign(self, signing_fn: callable):
         """
-        Sign the envelope using the provided identity.
+        Sign the envelope using the provided signing function.
 
         Args:
-            identity (Identity): The identity used for signing.
+            signing_fn (callback): The callback used for signing.
         """
-        self.signature = identity.sign_digest(self._digest())
+        try:
+            self.signature = signing_fn(self._digest())
+        except Exception as err:
+            raise ValueError(f"Failed to sign envelope: {err}") from err
 
     def verify(self) -> bool:
         """
