@@ -1,5 +1,6 @@
 # Career Craft
-
+## User Flow Diagram
+![User Flow Diagram](https://github.com/FireFeast7/uAgents/blob/a47c3349cd3ee9617d7da5e179bbdab8b3900f8a/integrations/career-craft/images/workflow.png)
 ## Video Demo
 Drive Links : 
 1. [Resume Creation](https://drive.google.com/file/d/1cedJPCkFWvkHznjmg6EzZhquIfc5qsC2/view?usp=drive_link)
