@@ -9,7 +9,7 @@ Drive Links :
 
 ## Mail Output
 
-![Output]()
+![Output](https://github.com/FireFeast7/uAgents/blob/1c070209d8d68f117351ea07bd35e6cd5d236cae/integrations/career-craft/images/ouptut.jpg)
 
 ## Abstract
 
