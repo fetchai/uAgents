@@ -81,3 +81,15 @@ You can get the TogetherAI API from their [website](https://www.together.ai/)
 3. Create 4 services for each agent and interact with them on DeltaV.
 
 4. For the main service, label it as "Task Service" with the 4 other services as sub-tasks, thus integrating the 4 agents.
+
+## Contact Us
+
+If you have any questions, suggestions, or feedback, feel free to reach out to us! We'd love to hear from you.
+
+### Team Members
+
+- Ameya Surana - [Email](mailto:ameyasurana10@gmail.com)
+- Riya Wani - [Email](mailto:riyawani26@gmail.com)
+- Mustafa Trunkwala - [Email](mailto:mustafatrunkwala8@gmail.com)
+- Shantanu Wable - [Email](mailto:shantanuwable2003@gmail.com)
+
