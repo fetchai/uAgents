@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "block-time-agent"
+version = "0.1.0"
+description = ""
+authors = ["Fetch>AI <info@fetch.ai>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+uagents = "^0.10.0"
+uagents-ai-engine = "^0.1.2"
+google-cloud-storage = "^2.14.0"
+pandas = "^2.2.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
