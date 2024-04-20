@@ -91,5 +91,5 @@ If you have any questions, suggestions, or feedback, feel free to reach out to u
 - Ameya Surana - [Email](mailto:ameyasurana10@gmail.com)
 - Riya Wani - [Email](mailto:riyawani26@gmail.com)
 - Mustafa Trunkwala - [Email](mailto:mustafatrunkwala8@gmail.com)
-- Shantanu Wable - [Email](mailto:shantanuwable2003@gmail.com)
+- Tejas Thorat - [Email](mailto:tejaspthorat@gmail.com)
 
