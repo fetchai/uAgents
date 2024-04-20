@@ -6,6 +6,8 @@ Our project aims to bridge the gap between non-technical users and databases by 
 
 Our project's data dialogue utilizes *DeltaV* to power the user interface, bridging users and registered agents within the Agentverse. Users input two fields: the query and the database link they wish to query. This information is then processed by the fetch.ai *uagent, which invokes an API equipped with the logic to extract data from the specified database. The API leverages **Gemini LLM* to translate the user's query into the appropriate syntax. Additionally, *SQL Alchemy* facilitates querying across various database types such as MYSQL, PostgreSQL, etc. The resulting query output is then formatted back into human-readable language using Gemini LLM before being sent back to the user interface via the uagent. This system empowers users to interact with databases without requiring expertise in Query Languages.
 
+## Workflow Diagram
+<img src="./images/Workflow.png">
 
 ## Install Requirements for app.py
 
