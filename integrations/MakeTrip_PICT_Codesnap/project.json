@@ -1,0 +1,6 @@
+{
+    "title": "MakeTrip - Automated Travel Planning",
+    "description": "Integration based service made using several API's providing automation using detlav's chat.",
+    "categories":    ["Travel Planning", "Tourist Guide", "Chatbot", "Automated Booking"], 
+    "deltav": true
+}
