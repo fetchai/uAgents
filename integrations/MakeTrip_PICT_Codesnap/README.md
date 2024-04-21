@@ -13,11 +13,11 @@ Feeling overwhelmed by the myriad of options when planning your next adventure a
  ## Getting Started
       To get started with the Travel Advisor Agent, follow these steps:
 
-      1. Install the required dependencies: pip install ai-engine requests pydantic
+      1. Create Agents on agentverse 
 
       2. Obtain your RapidAPI key:
                -Sign up or log in to your RapidAPI account.
-               -Subscribe to the Maps Data API and obtain your API key.
+               -Subscribe to the Maps Data API/TravelAdvisor/SkyScrapper and obtain your API key.
 
       3. Set up the project:
                Replace "YOUR_RAPIDAPI_KEY" in the code with your actual RapidAPI key.
