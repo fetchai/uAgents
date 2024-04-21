@@ -1,4 +1,4 @@
-# Integrating with DeltaV
+# MakeTrip - Automated Travel Planner
 
 ## Project Information
 
