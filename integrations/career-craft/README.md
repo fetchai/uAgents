@@ -3,11 +3,12 @@
 ![User Flow Diagram](https://github.com/FireFeast7/uAgents/blob/a47c3349cd3ee9617d7da5e179bbdab8b3900f8a/integrations/career-craft/images/workflow.png)
 ## Video Demo
 Drive Links : 
-1. [Resume Creation](https://drive.google.com/file/d/1cedJPCkFWvkHznjmg6EzZhquIfc5qsC2/view?usp=drive_link)
-2. [Resume Optimizer](https://drive.google.com/file/d/1B37y9_t_w2iU4J5pe8bFOrut7-_UZIE_/view?usp=drive_link)
-3. [Resume Analysis Matching Job Description](https://drive.google.com/file/d/1EsL0Abt31LHm2IqnXuo6LxLsthKp17QH/view?usp=drive_link)
-4. [Cold Mailing to Recruiters](https://drive.google.com/file/d/1dNyU557DA7P99wNsc36lYhiow830RzJu/view?usp=drive_link)
-5. [Choice Agent](https://drive.google.com/file/d/1pbT1T1ZX-r_7mGpdTv1qV6mVl62U7ONe/view?usp=drive_link)
+1. [Choice Agent](https://drive.google.com/file/d/1pbT1T1ZX-r_7mGpdTv1qV6mVl62U7ONe/view?usp=drive_link)
+2. [Resume Creation](https://drive.google.com/file/d/1cedJPCkFWvkHznjmg6EzZhquIfc5qsC2/view?usp=drive_link)
+3. [Resume Optimizer](https://drive.google.com/file/d/1B37y9_t_w2iU4J5pe8bFOrut7-_UZIE_/view?usp=drive_link)
+4. [Resume Analysis Matching Job Description](https://drive.google.com/file/d/1EsL0Abt31LHm2IqnXuo6LxLsthKp17QH/view?usp=drive_link)
+5. [Cold Mailing to Recruiters](https://drive.google.com/file/d/1dNyU557DA7P99wNsc36lYhiow830RzJu/view?usp=drive_link)
+
 ## Mail Output
 
 ![Output](https://github.com/FireFeast7/uAgents/blob/1c070209d8d68f117351ea07bd35e6cd5d236cae/integrations/career-craft/images/ouptut.jpg)
