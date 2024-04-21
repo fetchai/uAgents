@@ -2,7 +2,17 @@
 
 import asyncio
 import functools
-from typing import Dict, List, Optional, Set, Union, Type, Tuple, Any, Coroutine
+from typing import (
+    Dict,
+    List,
+    Optional,
+    Set,
+    Union,
+    Type,
+    Tuple,
+    Any,
+    Coroutine,
+)
 import uuid
 from pydantic import ValidationError
 import requests
@@ -24,6 +34,7 @@ from uagents.dispatch import Sink, dispatcher, JsonStr
 from uagents.models import Model, ErrorMessage
 from uagents.protocol import Protocol
 from uagents.resolver import Resolver, GlobalResolver
+from uagents.rest import RestMethod, RestHandler, RestHandlerMap
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.network import (
     get_ledger,
@@ -273,7 +284,7 @@ class Agent(Sink):
 
         if not self._use_mailbox:
             self._server = ASGIServer(
-                self._port, self._loop, self._queries, logger=self._logger
+                self._port, self._ctx, self._loop, self._queries, logger=self._logger
             )
 
         # define default error message handler
@@ -708,6 +719,32 @@ class Agent(Sink):
             return handler
 
         return decorator_on_event
+
+    def _on_rest(
+        self,
+        method: RestMethod,
+        endpoint: str,
+        request: Optional[Type[Model]],
+        response: Type[Model],
+    ):
+        def decorator_on_rest(func: RestHandler):
+            @functools.wraps(func)
+            def handler(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            self._server.add_rest_endpoint(method, endpoint, handler, request, response)
+
+            return handler
+
+        return decorator_on_rest
+
+    def on_rest_get(self, endpoint: str, response: Type[Model]):
+        return self._on_rest("GET", endpoint, None, response)
+
+    def on_rest_post(
+        self, endpoint: str, request: Optional[Type[Model]], response: Type[Model]
+    ):
+        return self._on_rest("POST", endpoint, request, response)
 
     def _add_event_handler(
         self,
