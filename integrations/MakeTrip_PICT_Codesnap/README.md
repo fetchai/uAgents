@@ -35,12 +35,11 @@ Feeling overwhelmed by the myriad of options when planning your next adventure a
 
 ## Video DEMO
 
-Watch the video Demo [here](https://drive.google.com/file/d/1xH976Ajet30avUT9fPgKSk48y-JHufdp/view?usp=sharing).
+Watch the video Demo [here](https://drive.google.com/file/d/1xRtWltMACHMjIhsLsiReNxpvKO6CTkIa/view?usp=drive_link).
 
 OR
 
-(https://drive.google.com/file/d/1xH976Ajet30avUT9fPgKSk48y-JHufdp/view?usp=sharing)
-
+(https://drive.google.com/file/d/1xRtWltMACHMjIhsLsiReNxpvKO6CTkIa/view?usp=drive_link)
 
 ## Agents Used in our Project
 
