@@ -89,12 +89,6 @@ def format_data(data):
 
     return [f"{carrier} - {src_airports} to {des_airports} cost {stopprices}\n" for carrier in carriers]
 
-    # return "Source Airports: {}\nDestination Airports: {}\nDuration: {}\nPrice: {}".format(
-    #     ", ".join(src_airports),
-    #     ", ".join(des_airports),
-    #     duration,
-    #     price
-    # ) + "\ncarriers=>\n" + "\n".join(carriers)
 
 @flights_protocol.on_message(model=Flights, replies={UAgentResponse})
 async def flight_offers(ctx: Context, sender: str, msg: Flights):
