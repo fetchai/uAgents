@@ -1,5 +1,6 @@
 # Career Craft
-
+## User Flow Diagram
+![User Flow Diagram](https://github.com/FireFeast7/uAgents/blob/a47c3349cd3ee9617d7da5e179bbdab8b3900f8a/integrations/career-craft/images/workflow.png)
 ## Video Demo
 Drive Links : 
 1. [Resume Creation](https://drive.google.com/file/d/1cedJPCkFWvkHznjmg6EzZhquIfc5qsC2/view?usp=drive_link)
@@ -9,7 +10,7 @@ Drive Links :
 5. [Choice Agent](https://drive.google.com/file/d/1pbT1T1ZX-r_7mGpdTv1qV6mVl62U7ONe/view?usp=drive_link)
 ## Mail Output
 
-![Output]()
+![Output](https://github.com/FireFeast7/uAgents/blob/1c070209d8d68f117351ea07bd35e6cd5d236cae/integrations/career-craft/images/ouptut.jpg)
 
 ## Abstract
 
@@ -80,3 +81,15 @@ You can get the TogetherAI API from their [website](https://www.together.ai/)
 3. Create 4 services for each agent and interact with them on DeltaV.
 
 4. For the main service, label it as "Task Service" with the 4 other services as sub-tasks, thus integrating the 4 agents.
+
+## Contact Us
+
+If you have any questions, suggestions, or feedback, feel free to reach out to us! We'd love to hear from you.
+
+### Team Members
+
+- Ameya Surana - [Email](mailto:ameyasurana10@gmail.com)
+- Riya Wani - [Email](mailto:riyawani26@gmail.com)
+- Mustafa Trunkwala - [Email](mailto:mustafatrunkwala8@gmail.com)
+- Tejas Thorat - [Email](mailto:tejaspthorat@gmail.com)
+
