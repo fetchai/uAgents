@@ -1,0 +1,6 @@
+{
+    "title": "Career Craft",
+    "description": "This integration allows user to choose a subtask out of the 4 subtasks: Resume Creation, Resume Optimiser, Job Description Matching with Resume, Cold Mailing to recruiters and generate the desired output.",
+    "categories":    ["Productivity", "Career", "Resume", "Job Description", "Cold Mailing", "AI","RapidAPI"], 
+    "deltav": true
+}
