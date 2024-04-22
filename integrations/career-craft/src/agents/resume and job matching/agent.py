@@ -41,6 +41,3 @@ async def handle_message(ctx: Context, sender: str, msg: Request):
 
 agent.include(simples)
 
-
-# async def handle_query_request(ctx: Context, sender: str, msg: BookEventRequest):
-#     ctx.logger.info(f"Received message from {sender}, session: {ctx.session}")

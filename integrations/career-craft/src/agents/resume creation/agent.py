@@ -17,17 +17,6 @@ class Request(Model):
 
 
 
-# class UserProfile(BaseModel):
-    # name: str = Field(description="Full name of the person.")
-    # email: str = Field(description="Email address of the person.")
-    # phone: str = Field(description="Contact phone number.")
-    # address: str = Field(description="Physical address of the person.")
-    # skills: str = Field(description="Comma-separated list of skills the person has acquired.")
-    # certifications: str = Field(description="Comma-separated list of certifications the person holds.")
-    # awards: str = Field(description="Comma-separated list of awards the person has received.")
-    # experiences: str = Field(description="Comma-separated list of professional experiences.")
-
-
 
 simples = Protocol(name="Resume Creation Agent", version="1.1")
 
@@ -71,6 +60,3 @@ async def handle_message(ctx: Context, sender: str, msg: Request):
 
 agent.include(simples)
 
-
-# async def handle_query_request(ctx: Context, sender: str, msg: BookEventRequest):
-#     ctx.logger.info(f"Received message from {sender}, session: {ctx.session}")

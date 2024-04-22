@@ -70,5 +70,3 @@ async def handle_message(ctx: Context, sender: str, msg: Request):
             type=UAgentResponseType.FINAL)
     )
 
-
-agent.include(simples)
