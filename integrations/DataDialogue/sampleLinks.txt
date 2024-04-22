@@ -1,0 +1,3 @@
+db uri = mysql://uzmlb4perntogszn:mAP5gcyyooHnwjZgMUUS@byzsjz6wlt6zdtg0nx3u-mysql.services.clever-cloud.com:3306/byzsjz6wlt6zdtg0nx3u
+
+query = Give me name of users whose name start with letter R
