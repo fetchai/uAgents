@@ -256,15 +256,12 @@ class Agent(Sink):
         # keep track of supported protocols
         self.protocols: Dict[str, Protocol] = {}
 
-        agent_representation = AgentRepresentation(
-            address=self.address,
-            name=self._name,
-            signing_callback=self._identity.sign_digest,
-            wallet=self._wallet,
-        )
-
         self._ctx = Context(
-            agent=agent_representation,
+            agent=AgentRepresentation(
+                address=self.address,
+                name=self._name,
+                signing_callback=self._identity.sign_digest,
+            ),
             storage=self._storage,
             resolve=self._resolver,
             ledger=self._ledger,
@@ -936,7 +933,6 @@ class Agent(Sink):
                     address=self._identity.address,
                     name=self._name,
                     signing_callback=self._identity.sign_digest,
-                    wallet=self._wallet,
                 ),
                 storage=self._storage,
                 resolve=self._resolver,

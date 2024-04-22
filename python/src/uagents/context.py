@@ -25,7 +25,6 @@ from typing import (
 import aiohttp
 import requests
 from cosmpy.aerial.client import LedgerClient
-from cosmpy.aerial.wallet import LocalWallet
 from pydantic import ValidationError
 from typing_extensions import deprecated
 from uagents.config import (
@@ -98,7 +97,6 @@ class AgentRepresentation:
         _address (str): The address of the agent.
         _name (Optional[str]): The name of the agent.
         _signing_callback (Callable): The callback for signing messages.
-        wallet (LocalWallet): The agent's wallet for transacting on the ledger.
 
     Properties:
         name (str): The name of the agent.
@@ -114,7 +112,6 @@ class AgentRepresentation:
         address: str,
         name: Optional[str],
         signing_callback: Callable,
-        wallet: LocalWallet,
     ):
         """
         Initialize the AgentRepresentation instance.
@@ -123,12 +120,10 @@ class AgentRepresentation:
             address (str): The address of the context.
             name (Optional[str]): The optional name associated with the context.
             signing_callback (Callable): The callback for signing messages.
-            wallet (LocalWallet): The local wallet instance for managing identities.
         """
         self._address = address
         self._name = name
         self._signing_callback = signing_callback
-        self.wallet = wallet
 
     @property
     def name(self) -> str:
