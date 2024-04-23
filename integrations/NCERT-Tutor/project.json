@@ -3,4 +3,5 @@
     "description": "NCERT Tutor is designed to simplify the learning process by providing a personalized tutoring experience. It automates fetching chapter PDFs from the NCERT website, summarizing content, and creating notes and questions. This interaction is enabled via Delta V on the Agentverse platform, allowing for a seamless educational experience.",
     "categories": ["Education", "E-Learning", "AI Tutor"],
     "deltav": true
+    
 }
