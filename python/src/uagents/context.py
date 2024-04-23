@@ -178,9 +178,71 @@ def log(logger: Optional[logging.Logger], level: str, message: str):
         logger.log(level, message)
 
 
-class Context:
+class InternalContext:
     """
-    Represents the context in which messages are handled and processed.
+    Represents the agent internal context for proactive behaviour.
+
+    Raises:
+        ValueError: _description_
+
+    Returns:
+        _type_: _description_
+    """
+
+    def __init__(
+        self,
+        agent: AgentRepresentation,
+        storage: KeyValueStore,
+        resolve: Resolver,  # may be outsourced
+        ledger: LedgerClient,
+        interval_messages: Optional[Set[str]] = None,
+        wallet_messaging_client: Optional[Any] = None,
+        logger: Optional[logging.Logger] = None,
+    ):
+        self.agent = agent
+        self.storage = storage
+        self._resolver = resolve
+        self.ledger = ledger
+        self._session = None
+        self._interval_messages = interval_messages
+        self._wallet_messaging_client = wallet_messaging_client
+        self._logger = logger
+        self._outbound_messages: Dict[str, Tuple[JsonStr, str]] = {}
+
+    @property
+    def logger(self) -> logging.Logger:
+        """
+        Get the logger instance associated with the context.
+
+        Returns:
+            logging.Logger: The logger instance.
+        """
+        return self._logger
+
+    @property
+    def session(self) -> uuid.UUID:
+        """
+        Get the session UUID associated with the context.
+
+        Returns:
+            uuid.UUID: The session UUID.
+        """
+        return self._session
+
+    @property
+    def outbound_messages(self) -> Dict[str, Tuple[JsonStr, str]]:
+        """
+        Get the dictionary of outbound messages associated with the context.
+
+        Returns:
+            Dict[str, Tuple[JsonStr, str]]: The dictionary of outbound messages.
+        """
+        return self._outbound_messages
+
+
+class Context(InternalContext):
+    """
+    Represents the reactive context in which messages are handled and processed.
 
     Attributes:
         storage (KeyValueStore): The key-value store for storage operations.
@@ -212,23 +274,17 @@ class Context:
             Send a message with the provided schema digest to a destination.
         broadcast(destination_protocol, message, limit, timeout): Broadcast a message
             to agents with a specific protocol.
-
     """
 
     def __init__(
         self,
-        agent: AgentRepresentation,
-        storage: KeyValueStore,
-        resolve: Resolver,
-        ledger: LedgerClient,
-        queries: Dict[str, asyncio.Future],
         session: Optional[uuid.UUID] = None,
+        queries: Dict[str, asyncio.Future] = None,
         replies: Optional[Dict[str, Dict[str, Type[Model]]]] = None,
-        interval_messages: Optional[Set[str]] = None,
         message_received: Optional[MsgDigest] = None,
-        wallet_messaging_client: Optional[Any] = None,
         protocols: Optional[Dict[str, Protocol]] = None,
-        logger: Optional[logging.Logger] = None,
+        protocol: Optional[Tuple[str, Protocol]] = None,
+        **kwargs,
     ):
         """
         Initialize the Context instance.
@@ -248,29 +304,14 @@ class Context:
             protocols (Optional[Dict[str, Protocol]]): The optional dictionary of protocols.
             logger (Optional[logging.Logger]): The optional logger instance.
         """
-        self.agent = agent
-        self.storage = storage
-        self.ledger = ledger
-        self._resolver = resolve
-        self._queries = queries
+        super().__init__(**kwargs)
         self._session = session or None
+        if queries is None:
+            self._queries = {}
         self._replies = replies
-        self._interval_messages = interval_messages
         self._message_received = message_received
-        self._wallet_messaging_client = wallet_messaging_client
         self._protocols = protocols or {}
-        self._logger = logger
-        self._outbound_messages: Dict[str, Tuple[JsonStr, str]] = {}
-
-    @property
-    def logger(self) -> logging.Logger:
-        """
-        Get the logger instance associated with the context.
-
-        Returns:
-            logging.Logger: The logger instance.
-        """
-        return self._logger
+        self._protocol = protocol or ("", None)
 
     @property
     def protocols(self) -> Optional[Dict[str, Protocol]]:
@@ -283,42 +324,16 @@ class Context:
         return self._protocols
 
     @property
-    def session(self) -> uuid.UUID:
+    def protocol(self) -> Tuple[str, Protocol]:
         """
-        Get the session UUID associated with the context.
+        Get the protocol associated with the context.
 
         Returns:
-            uuid.UUID: The session UUID.
+            Tuple[str, Protocol]: The protocol associated with the context.
         """
-        return self._session
+        return self._protocol
 
-    @property
-    def outbound_messages(self) -> Dict[str, Tuple[JsonStr, str]]:
-        """
-        Get the dictionary of outbound messages associated with the context.
-
-        Returns:
-            Dict[str, Tuple[JsonStr, str]]: The dictionary of outbound messages.
-        """
-        return self._outbound_messages
-
-    def get_message_protocol(self, message_schema_digest) -> Optional[str]:
-        """
-        Get the protocol digest associated with a given message schema digest.
-
-        Args:
-            message_schema_digest (str): The schema digest of the message.
-
-        Returns:
-            Optional[str]: The protocol digest associated with the message schema digest,
-            or None if not found.
-        """
-        for protocol_digest, protocol in self._protocols.items():
-            for model in protocol.models:
-                if message_schema_digest == model:
-                    return protocol_digest
-        return None
-
+    # is this still needed?
     def update_protocols(self, protocol: Protocol) -> None:
         """
         Register a protocol with the context.
@@ -549,7 +564,7 @@ class Context:
             destination,
             self._resolver,
             schema_digest,
-            self.get_message_protocol(schema_digest),
+            self.protocol[0],
             json_message,
             logger=self._logger,
             timeout=timeout,
