@@ -267,8 +267,6 @@ class Context(InternalContext):
         session (uuid.UUID): The session UUID.
 
     Methods:
-        get_message_protocol(message_schema_digest): Get the protocol digest associated
-            with a message schema digest.
         send(destination, message, timeout): Send a message to a destination.
         send_raw(destination, json_message, schema_digest, message_type, timeout):
             Send a message with the provided schema digest to a destination.
@@ -333,18 +331,11 @@ class Context(InternalContext):
         """
         return self._protocol
 
-    # is this still needed?
-    def update_protocols(self, protocol: Protocol) -> None:
-        """
-        Register a protocol with the context.
-
-        Args:
-            protocol (Protocol): The protocol to register.
-        """
-        self._protocols[protocol.digest] = protocol
-
+    @staticmethod
     def get_agents_by_protocol(
-        self, protocol_digest: str, limit: Optional[int] = None
+        protocol_digest: str,
+        limit: Optional[int] = None,
+        logger: Optional[logging.Logger] = None,
     ) -> List[str]:
         """Retrieve a list of agent addresses using a specific protocol digest.
 
@@ -362,8 +353,8 @@ class Context(InternalContext):
         if not isinstance(protocol_digest, str) or not protocol_digest.startswith(
             "proto:"
         ):
-            self.logger.error(f"Invalid protocol digest: {protocol_digest}")
-            raise ValueError("Invalid protocol digest")
+            log(logger, logging.ERROR, f"Invalid protocol digest: {protocol_digest}")
+            return []
         response = requests.post(
             url=ALMANAC_API_URL + "search",
             json={"text": protocol_digest[6:]},
@@ -441,7 +432,9 @@ class Context(InternalContext):
         Returns:
             List[MsgStatus]: A list of message delivery statuses.
         """
-        agents = self.get_agents_by_protocol(destination_protocol, limit=limit)
+        agents = self.get_agents_by_protocol(
+            destination_protocol, limit=limit, logger=self.logger
+        )
         if not agents:
             self.logger.error(f"No active agents found for: {destination_protocol}")
             return []

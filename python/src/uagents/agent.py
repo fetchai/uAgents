@@ -28,6 +28,7 @@ from uagents.context import (
     AgentRepresentation,
     Context,
     EventCallback,
+    InternalContext,
     IntervalCallback,
     MessageCallback,
     MsgDigest,
@@ -256,7 +257,7 @@ class Agent(Sink):
         # keep track of supported protocols
         self.protocols: Dict[str, Protocol] = {}
 
-        self._ctx = Context(
+        self._ctx = InternalContext(
             agent=AgentRepresentation(
                 address=self.address,
                 name=self._name,
@@ -265,11 +266,8 @@ class Agent(Sink):
             storage=self._storage,
             resolve=self._resolver,
             ledger=self._ledger,
-            queries=self._queries,
-            replies=self._replies,
             interval_messages=self._interval_messages,
             wallet_messaging_client=self._wallet_messaging_client,
-            protocols=self.protocols,
             logger=self._logger,
         )
 
@@ -784,8 +782,6 @@ class Agent(Sink):
 
         if protocol.digest is not None:
             self.protocols[protocol.digest] = protocol
-            if self._ctx is not None:
-                self._ctx.update_protocols(protocol)
 
         if publish_manifest:
             self.publish_manifest(protocol.manifest())
@@ -929,23 +925,15 @@ class Agent(Sink):
                 continue
 
             context = Context(
-                agent=AgentRepresentation(
-                    address=self._identity.address,
-                    name=self._name,
-                    signing_callback=self._identity.sign_digest,
-                ),
+                **self._ctx,
                 storage=self._storage,
-                resolve=self._resolver,
-                ledger=self._ledger,
                 queries=self._queries,
                 session=session,
                 replies=self._replies,
-                interval_messages=None,
                 message_received=MsgDigest(
                     message=message, schema_digest=schema_digest
                 ),
-                protocols=self.protocols,
-                logger=self._logger,
+                protocol=self.protocols.get(schema_digest),
             )
 
             # parse the received message
