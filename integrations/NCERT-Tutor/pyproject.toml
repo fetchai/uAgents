@@ -18,6 +18,7 @@ pypdf4 = "^1.27.0"
 pymongo = "^4.6.3"
 cloudinary = "^1.39.1"
 python-dotenv = "^1.0.1"
+black = "^24.4.0"
 
 [tool.poetry.group.dev.dependencies]
 
