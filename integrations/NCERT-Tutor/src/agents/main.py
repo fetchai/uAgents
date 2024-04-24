@@ -1,6 +1,9 @@
+### testing code
+
 from uagents import Agent, Context, Model, Protocol
 from pydantic import Field
 from ai_engine import UAgentResponse, UAgentResponseType
+
 
 class TestRequest(Model):
     message: str
@@ -9,8 +12,9 @@ class TestRequest(Model):
 class Response(Model):
     text: str
 
+
 class Message(Model):
-    message: str = Field(description="Your Message.") 
+    message: str = Field(description="Your Message.")
 
 
 agent = Agent(
@@ -28,21 +32,8 @@ agent_protocol = Protocol(
 
 @agent.on_event("startup")
 async def startup(ctx: Context):
-    ctx.logger.info(f'Hello World')
-    # ctx.logger.info(f"Starting up {agent.name}")
-    # ctx.logger.info(f"With address: {agent.address}")
-    # ctx.logger.info(f"And wallet address: {agent.wallet.address()}")
+    ctx.logger.info(f"Hello World")
 
-
-# @agent.on_query(model=TestRequest, replies={Response})
-# async def query_handler(ctx: Context, sender: str, query: TestRequest):
-#     ctx.logger.info("Query received")
-#     try:
-#         res = await send_whatsapp_message(f'Did you just say {query.message}')
-#         ctx.logger.info(res)
-#         await ctx.send(sender, Response(text=f"query: {query.message}"))
-#     except Exception:
-#         await ctx.send(sender, Response(text="fail"))
 
 @agent_protocol.on_message(model=Message, replies={UAgentResponse})
 async def message_handler(ctx: Context, sender: str, query: Message):
@@ -50,13 +41,19 @@ async def message_handler(ctx: Context, sender: str, query: Message):
     try:
         ctx.logger.info(res)
         await ctx.send(
-        sender,
-        UAgentResponse(message=(f":Sent message {query.message}"), type=UAgentResponseType.FINAL),
+            sender,
+            UAgentResponse(
+                message=(f":Sent message {query.message}"),
+                type=UAgentResponseType.FINAL,
+            ),
         )
     except Exception:
         await ctx.send(
-        sender,
-        UAgentResponse(message=(f":Failed to send message {query.message}"), type=UAgentResponseType.FINAL),
+            sender,
+            UAgentResponse(
+                message=(f":Failed to send message {query.message}"),
+                type=UAgentResponseType.FINAL,
+            ),
         )
 
 
