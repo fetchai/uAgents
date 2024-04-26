@@ -4,7 +4,18 @@ import asyncio
 import functools
 import logging
 import uuid
-from typing import Any, Coroutine, Dict, List, Optional, Set, Tuple, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Coroutine,
+    Dict,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
 
 import requests
 from cosmpy.aerial.client import LedgerClient
@@ -12,7 +23,7 @@ from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
 from pydantic import ValidationError
 from uagents.asgi import ASGIServer
-from uagents.communication import dispenser
+from uagents.communication import MsgDigest, dispenser
 from uagents.config import (
     AVERAGE_BLOCK_INTERVAL,
     LEDGER_PREFIX,
@@ -27,13 +38,12 @@ from uagents.config import (
     parse_endpoint_config,
 )
 from uagents.context import (
-    AgentRepresentation,
     Context,
     EventCallback,
+    ExternalContext,
     InternalContext,
     IntervalCallback,
     MessageCallback,
-    MsgDigest,
 )
 from uagents.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents.dispatch import JsonStr, Sink, dispatcher
@@ -94,6 +104,87 @@ async def _send_error_message(ctx: Context, destination: str, msg: ErrorMessage)
         msg (ErrorMessage): The error message to send.
     """
     await ctx.send(destination, msg)
+
+
+class AgentRepresentation:
+    """
+    Represents an agent in the context of a message.
+
+    Attributes:
+        _address (str): The address of the agent.
+        _name (Optional[str]): The name of the agent.
+        _signing_callback (Callable): The callback for signing messages.
+
+    Properties:
+        name (str): The name of the agent.
+        address (str): The address of the agent.
+        identifier (str): The agent's address and network prefix.
+
+    Methods:
+        sign_digest(data: bytes) -> str: Sign the provided data with the agent's identity.
+    """
+
+    def __init__(
+        self,
+        address: str,
+        name: Optional[str],
+        signing_callback: Callable,
+    ):
+        """
+        Initialize the AgentRepresentation instance.
+
+        Args:
+            address (str): The address of the context.
+            name (Optional[str]): The optional name associated with the context.
+            signing_callback (Callable): The callback for signing messages.
+        """
+        self._address = address
+        self._name = name
+        self._signing_callback = signing_callback
+
+    @property
+    def name(self) -> str:
+        """
+        Get the name associated with the context or a truncated address if name is None.
+
+        Returns:
+            str: The name or truncated address.
+        """
+        if self._name is not None:
+            return self._name
+        return self._address[:10]
+
+    @property
+    def address(self) -> str:
+        """
+        Get the address of the context.
+
+        Returns:
+            str: The address of the context.
+        """
+        return self._address
+
+    @property
+    def identifier(self) -> str:
+        """
+        Get the address of the agent used for communication including the network prefix.
+
+        Returns:
+            str: The agent's address and network prefix.
+        """
+        return TESTNET_PREFIX + "://" + self._address
+
+    def sign_digest(self, data: bytes) -> str:
+        """
+        Sign the provided data with the callback of the agent's identity.
+
+        Args:
+            data (bytes): The data to sign.
+
+        Returns:
+            str: The signature of the data.
+        """
+        return self._signing_callback(data)
 
 
 class Agent(Sink):
@@ -932,7 +1023,7 @@ class Agent(Sink):
                 )
                 continue
 
-            context = Context(
+            context = ExternalContext(
                 **self._ctx,
                 storage=self._storage,
                 queries=self._queries,

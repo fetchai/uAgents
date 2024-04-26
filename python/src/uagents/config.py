@@ -119,6 +119,11 @@ def get_logger(logger_name, level=logging.INFO):
     return logger
 
 
+def log(logger: Optional[logging.Logger], level: str, message: str):
+    if logger:
+        logger.log(level, message)
+
+
 def add_task(
     loop: asyncio.AbstractEventLoop, task_list: Set[asyncio.Task], func: Callable
 ):
