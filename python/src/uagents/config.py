@@ -1,6 +1,7 @@
+import asyncio
 import logging
 import sys
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Union
 
 from uvicorn.logging import DefaultFormatter
 
@@ -42,6 +43,7 @@ RESPONSE_TIME_HINT_SECONDS = 5
 DEFAULT_ENVELOPE_TIMEOUT_SECONDS = 30
 DEFAULT_MAX_ENDPOINTS = 10
 DEFAULT_SEARCH_LIMIT = 100
+DEFAULT_DISPENSER_INTERVAL = 1
 
 
 def parse_endpoint_config(
@@ -115,3 +117,19 @@ def get_logger(logger_name, level=logging.INFO):
     logger.addHandler(log_handler)
     logger.propagate = False
     return logger
+
+
+def add_task(
+    loop: asyncio.AbstractEventLoop, task_list: Set[asyncio.Task], func: Callable
+):
+    """
+    Create a task and add it to the agents event loop and task list.
+
+    Args:
+        loop (asyncio.AbstractEventLoop): Agent event loop.
+        task_list (Set[asyncio.Task]): Agent internal task list.
+        func (Callable): Function to be executed as a task.
+    """
+    task = loop.create_task(func)
+    task_list.add(task)
+    task.add_done_callback(task_list.discard)

@@ -1,3 +1,4 @@
+# ruff: noqa: F821
 """Agent Context and Message Handling"""
 
 from __future__ import annotations
@@ -7,7 +8,6 @@ import logging
 import uuid
 from dataclasses import dataclass
 from enum import Enum
-from time import time
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -19,24 +19,21 @@ from typing import (
     Set,
     Tuple,
     Type,
-    Union,
 )
 
-import aiohttp
 import requests
 from cosmpy.aerial.client import LedgerClient
-from pydantic import ValidationError
+from uagents.communication import dispenser, send_local_message
 from uagents.config import (
     ALMANAC_API_URL,
     DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     DEFAULT_SEARCH_LIMIT,
     TESTNET_PREFIX,
 )
-from uagents.crypto import Identity
 from uagents.dispatch import JsonStr, dispatcher
 from uagents.envelope import Envelope
 from uagents.models import ErrorMessage, Model
-from uagents.resolver import GlobalResolver, Resolver, parse_identifier
+from uagents.resolver import Resolver, parse_identifier
 from uagents.storage import KeyValueStore
 
 if TYPE_CHECKING:
@@ -207,6 +204,7 @@ class InternalContext:
         self._wallet_messaging_client = wallet_messaging_client
         self._logger = logger
         self._outbound_messages: Dict[str, Tuple[JsonStr, str]] = {}
+        self._envelopes: List[Envelope] = []
 
     @property
     def logger(self) -> logging.Logger:
@@ -302,13 +300,12 @@ class InternalContext:
             self.logger.error(f"No active agents found for: {destination_protocol}")
             return []
 
-        schema_digest = Model.build_schema_digest(message)
         futures = await asyncio.gather(
             *[
-                self.send_raw(
+                self.send(
                     address,
-                    message.json(),
-                    schema_digest,
+                    message,
+                    sync=False,
                     timeout=timeout,
                 )
                 for address in agents
@@ -352,6 +349,7 @@ class InternalContext:
         """
         schema_digest = Model.build_schema_digest(message)
         message_type = type(message)
+        message_body = message.json()
 
         # this is the internal send method
         # interval messages are set but we don't have access to replies,
@@ -368,13 +366,62 @@ class InternalContext:
                 endpoint="",
             )
 
-        return await self.send_raw(
+        # return await self.send_raw(
+        #     destination,
+        #     message.json(),
+        #     schema_digest,
+        #     sync=sync,
+        #     timeout=timeout,
+        # )
+
+        self._session = self._session or uuid.uuid4()
+
+        # Extract address from destination agent identifier if present
+        _, _, destination_address = parse_identifier(destination)
+
+        if destination_address:
+            # Handle local dispatch of messages
+            if dispatcher.contains(destination_address):
+                return send_local_message(
+                    self.agent.address,
+                    destination_address,
+                    schema_digest,
+                    message_body,
+                    self._session,
+                )
+
+            # Handle queries waiting for a response
+            if destination_address in self._queries:
+                self._queries[destination_address].set_result(
+                    (message_body, schema_digest)
+                )
+                del self._queries[destination_address]
+                return MsgStatus(
+                    status=DeliveryStatus.DELIVERED,
+                    detail="Sync message resolved",
+                    destination=destination_address,
+                    endpoint="",
+                )
+
+            self._outbound_messages[destination_address] = (message_body, schema_digest)
+
+        result = await send_raw_exchange_envelope(
+            self.agent,
             destination,
-            message.json(),
+            self._resolver,
             schema_digest,
-            sync=sync,
+            self.protocol[0],
+            message_body,
+            logger=self._logger,
             timeout=timeout,
+            session_id=self._session,
+            sync=sync,
         )
+
+        if isinstance(result, Envelope):
+            return await dispatch_sync_response_envelope(result)
+
+        return result
 
     async def send_raw(
         self,
@@ -406,18 +453,12 @@ class InternalContext:
         if destination_address:
             # Handle local dispatch of messages
             if dispatcher.contains(destination_address):
-                await dispatcher.dispatch(
+                return send_local_message(
                     self.agent.address,
                     destination_address,
                     schema_digest,
                     json_message,
                     self._session,
-                )
-                return MsgStatus(
-                    status=DeliveryStatus.DELIVERED,
-                    detail="Message dispatched locally",
-                    destination=destination_address,
-                    endpoint="",
                 )
 
             # Handle queries waiting for a response
@@ -452,6 +493,18 @@ class InternalContext:
             return await dispatch_sync_response_envelope(result)
 
         return result
+
+    def queue_envelope(self, envelope: Envelope):
+        """
+        Queue an envelope for processing.
+
+        Args:
+            envelope (Envelope): The envelope to queue.
+        """
+        dispenser.add_envelope(envelope)
+
+        # the following would happen in agentverse instead
+        # self._envelopes.append(envelope)
 
 
 class Context(InternalContext):
@@ -611,180 +664,3 @@ class Context(InternalContext):
             await self._wallet_messaging_client.send(destination, text, msg_type)
         else:
             self.logger.warning("Cannot send wallet message: no client available")
-
-
-async def send_raw_exchange_envelope(
-    sender: AgentRepresentation,
-    destination: str,
-    resolver: Resolver,
-    schema_digest: str,
-    protocol_digest: Optional[str],
-    json_message: JsonStr,
-    logger: Optional[logging.Logger] = None,
-    timeout: int = 5,
-    session_id: Optional[uuid.UUID] = None,
-    sync: bool = False,
-) -> Union[MsgStatus, Envelope]:
-    """
-    Standalone function to send a raw exchange envelope to an agent.
-
-    Args:
-        sender (AgentRepresentation): The representation of an agent.
-        destination (str): The destination address to send the message to.
-        resolver (Resolver): The resolver for address-to-endpoint resolution.
-        schema_digest (str): The schema digest of the message.
-        protocol_digest (Optional[str]): The protocol digest of the message.
-        json_message (JsonStr): The JSON-encoded message to be sent.
-        logger (Optional[logging.Logger]): The optional logger instance.
-        timeout (int): The timeout for sending the message, in seconds.
-        session_id (Optional[uuid.UUID]): The optional session ID.
-        sync (bool): Whether to send the message synchronously or asynchronously.
-
-    Returns:
-        Union[MsgStatus, Envelope]: The delivery status of the message, or in the case of a
-        successful synchronous message, the response envelope.
-    """
-    # Resolve the destination address and endpoint ('destination' can be a name or address)
-    destination_address, endpoints = await resolver.resolve(destination)
-    if len(endpoints) == 0:
-        log(
-            logger,
-            logging.ERROR,
-            f"Unable to resolve destination endpoint for address {destination}",
-        )
-
-        return MsgStatus(
-            status=DeliveryStatus.FAILED,
-            detail="Unable to resolve destination endpoint",
-            destination=destination,
-            endpoint="",
-        )
-
-    # Calculate when the envelope expires
-    expires = int(time()) + timeout
-
-    # Handle external dispatch of messages
-    env = Envelope(
-        version=1,
-        sender=sender.address,
-        target=destination_address,
-        session=session_id or uuid.uuid4(),
-        schema_digest=schema_digest,
-        protocol_digest=protocol_digest,
-        expires=expires,
-    )
-    env.encode_payload(json_message)
-    env.sign(sender.sign_digest)
-
-    headers = {"content-type": "application/json"}
-    if sync:
-        headers["x-uagents-connection"] = "sync"
-
-    for endpoint in endpoints:
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    endpoint,
-                    headers=headers,
-                    data=env.json(),
-                ) as resp:
-                    success = resp.status == 200
-                    if success:
-                        if sync:
-                            return Envelope.parse_obj(await resp.json())
-
-                        return MsgStatus(
-                            status=DeliveryStatus.DELIVERED,
-                            detail="Message successfully delivered via HTTP",
-                            destination=destination_address,
-                            endpoint=endpoint,
-                        )
-                log(
-                    logger,
-                    logging.WARNING,
-                    f"Failed to send message to {destination_address} @ {endpoint}: "
-                    + (await resp.text()),
-                )
-        except aiohttp.ClientConnectorError as ex:
-            log(logger, logging.WARNING, f"Failed to connect to {endpoint}: {ex}")
-
-        except ValidationError as ex:
-            log(
-                logger,
-                logging.WARNING,
-                f"Sync message to {destination} @ {endpoint} got invalid response: {ex}",
-            )
-
-        except Exception as ex:
-            log(
-                logger,
-                logging.WARNING,
-                f"Failed to send message to {destination} @ {endpoint}: {ex}",
-            )
-
-    log(logger, logging.ERROR, f"Failed to deliver message to {destination}")
-
-    return MsgStatus(
-        status=DeliveryStatus.FAILED,
-        detail="Message delivery failed",
-        destination=destination,
-        endpoint="",
-    )
-
-
-async def dispatch_sync_response_envelope(env: Envelope) -> MsgStatus:
-    await dispatcher.dispatch(
-        env.sender,
-        env.target,
-        env.schema_digest,
-        env.decode_payload(),
-        env.session,
-    )
-    return MsgStatus(
-        status=DeliveryStatus.DELIVERED,
-        detail="Sync message successfully delivered via HTTP",
-        destination=env.target,
-        endpoint="",
-    )
-
-
-async def send_sync_message(
-    destination: str,
-    message: Model,
-    response_type: Type[Model] = None,
-    sender: Identity = None,
-    resolver: Resolver = None,
-    timeout: int = 30,
-) -> Union[Model, JsonStr, MsgStatus]:
-    """
-    Standalone function to send a synchronous message to an agent.
-
-    Args:
-        destination (str): The destination address to send the message to.
-        message (Model): The message to be sent.
-        response_type (Type[Model]): The optional type of the response message.
-        sender (Identity): The optional sender identity (defaults to a generated identity).
-        resolver (Resolver): The optional resolver for address-to-endpoint resolution.
-        timeout (int): The optional timeout for the message response in seconds.
-
-    Returns:
-        Union[Model, JsonStr, MsgStatus]: On success, if the response type is provided, the response
-        message is returned with that type. Otherwise, the JSON message is returned. On failure, a
-        message status is returned.
-    """
-    response = await send_raw_exchange_envelope(
-        sender or Identity.generate(),
-        destination,
-        resolver or GlobalResolver(),
-        Model.build_schema_digest(message),
-        protocol_digest=None,
-        json_message=message.json(),
-        timeout=timeout,
-        sync=True,
-    )
-    if isinstance(response, Envelope):
-        json_message = response.decode_payload()
-        if response_type:
-            return response_type.parse_raw(json_message)
-        return json_message
-    return response

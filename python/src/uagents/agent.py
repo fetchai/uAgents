@@ -12,6 +12,7 @@ from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
 from pydantic import ValidationError
 from uagents.asgi import ASGIServer
+from uagents.communication import dispenser
 from uagents.config import (
     AVERAGE_BLOCK_INTERVAL,
     LEDGER_PREFIX,
@@ -20,6 +21,7 @@ from uagents.config import (
     REGISTRATION_RETRY_INTERVAL_SECONDS,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     TESTNET_PREFIX,
+    add_task,
     get_logger,
     parse_agentverse_config,
     parse_endpoint_config,
@@ -123,7 +125,8 @@ class Agent(Sink):
         of incoming message.
         _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their response
         Futures.
-        _dispatcher: The dispatcher for message handling.
+        _dispatcher: The dispatcher for internal handling/sorting of messages.
+        _dispenser: The dispatcher for external message handling.
         _message_queue: Asynchronous queue for incoming messages.
         _on_startup (List[Callable]): List of functions to run on agent startup.
         _on_shutdown (List[Callable]): List of functions to run on agent shutdown.
@@ -243,11 +246,15 @@ class Agent(Sink):
         self._replies: Dict[str, Dict[str, Type[Model]]] = {}
         self._queries: Dict[str, asyncio.Future] = {}
         self._dispatcher = dispatcher
+        self._dispenser = dispenser
         self._message_queue = asyncio.Queue()
         self._on_startup = []
         self._on_shutdown = []
         self._test = test
         self._version = version or "0.1.0"
+
+        # configure the dispenser
+        self._dispenser.configure()
 
         self.initialize_wallet_messaging(enable_wallet_messaging)
 
@@ -873,14 +880,17 @@ class Agent(Sink):
         """
         # Start the interval tasks
         for func, period in self._interval_handlers:
-            task = self._loop.create_task(_run_interval(func, self._ctx, period))
-            self._background_tasks.add(task)
-            task.add_done_callback(self._background_tasks.discard)
+            add_task(
+                self._loop,
+                self._background_tasks,
+                _run_interval(func, self._ctx, period),
+            )
 
         # start the background message queue processor
-        task = self._loop.create_task(self._process_message_queue())
-        self._background_tasks.add(task)
-        task.add_done_callback(self._background_tasks.discard)
+        add_task(self._loop, self._background_tasks, self._process_message_queue())
+
+        # start the external message dispenser
+        add_task(self._loop, self._background_tasks, self._dispenser.run())
 
         # start the wallet messaging client if enabled
         if self._wallet_messaging_client is not None:
@@ -888,9 +898,7 @@ class Agent(Sink):
                 self._wallet_messaging_client.poll_server(),
                 self._wallet_messaging_client.process_message_queue(self._ctx),
             ]:
-                new_task = self._loop.create_task(task)
-                self._background_tasks.add(new_task)
-                new_task.add_done_callback(self._background_tasks.discard)
+                add_task(self._loop, self._background_tasks, task)
 
     def run(self):
         """
