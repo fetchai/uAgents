@@ -426,73 +426,84 @@ class InternalContext:
     async def send_raw(
         self,
         destination: str,
-        json_message: JsonStr,
-        schema_digest: str,
+        message_schema_digest: str,
+        message_body: JsonStr,
         sync: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
-        """
-        Send a raw message to the specified destination.
+        pass
+        # apparently we need to detach the message body from the schema digest
 
-        Args:
-            destination (str): The destination name or address to send the message to.
-            json_message (JsonStr): The JSON-encoded message to be sent.
-            schema_digest (str): The schema digest of the message.
-            message_type (Optional[Type[Model]]): The optional type of the message being sent.
-            sync (bool): Whether to send the message synchronously or asynchronously.
-            timeout (Optional[int]): The optional timeout for sending the message, in seconds.
+    # async def send_raw(
+    #     self,
+    #     destination: str,
+    #     json_message: JsonStr,
+    #     schema_digest: str,
+    #     sync: bool = False,
+    #     timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+    # ) -> MsgStatus:
+    #     """
+    #     Send a raw message to the specified destination.
 
-        Returns:
-            MsgStatus: The delivery status of the message.
-        """
-        self._session = self._session or uuid.uuid4()
+    #     Args:
+    #         destination (str): The destination name or address to send the message to.
+    #         json_message (JsonStr): The JSON-encoded message to be sent.
+    #         schema_digest (str): The schema digest of the message.
+    #         message_type (Optional[Type[Model]]): The optional type of the message being sent.
+    #         sync (bool): Whether to send the message synchronously or asynchronously.
+    #         timeout (Optional[int]): The optional timeout for sending the message, in seconds.
 
-        # Extract address from destination agent identifier if present
-        _, _, destination_address = parse_identifier(destination)
+    #     Returns:
+    #         MsgStatus: The delivery status of the message.
+    #     """
+    #     self._session = self._session or uuid.uuid4()
 
-        if destination_address:
-            # Handle local dispatch of messages
-            if dispatcher.contains(destination_address):
-                return send_local_message(
-                    self.agent.address,
-                    destination_address,
-                    schema_digest,
-                    json_message,
-                    self._session,
-                )
+    #     # Extract address from destination agent identifier if present
+    #     _, _, destination_address = parse_identifier(destination)
 
-            # Handle queries waiting for a response
-            if destination_address in self._queries:
-                self._queries[destination_address].set_result(
-                    (json_message, schema_digest)
-                )
-                del self._queries[destination_address]
-                return MsgStatus(
-                    status=DeliveryStatus.DELIVERED,
-                    detail="Sync message resolved",
-                    destination=destination_address,
-                    endpoint="",
-                )
+    #     if destination_address:
+    #         # Handle local dispatch of messages
+    #         if dispatcher.contains(destination_address):
+    #             return send_local_message(
+    #                 self.agent.address,
+    #                 destination_address,
+    #                 schema_digest,
+    #                 json_message,
+    #                 self._session,
+    #             )
 
-            self._outbound_messages[destination_address] = (json_message, schema_digest)
+    #         # Handle queries waiting for a response
+    #         if destination_address in self._queries:
+    #             self._queries[destination_address].set_result(
+    #                 (json_message, schema_digest)
+    #             )
+    #             del self._queries[destination_address]
+    #             return MsgStatus(
+    #                 status=DeliveryStatus.DELIVERED,
+    #                 detail="Sync message resolved",
+    #                 destination=destination_address,
+    #                 endpoint="",
+    #             )
 
-        result = await send_raw_exchange_envelope(
-            self.agent,
-            destination,
-            self._resolver,
-            schema_digest,
-            self.protocol[0],
-            json_message,
-            logger=self._logger,
-            timeout=timeout,
-            session_id=self._session,
-            sync=sync,
-        )
+    #         self._outbound_messages[destination_address] = (json_message, schema_digest)
 
-        if isinstance(result, Envelope):
-            return await dispatch_sync_response_envelope(result)
+    #     result = await send_raw_exchange_envelope(
+    #         self.agent,
+    #         destination,
+    #         self._resolver,
+    #         schema_digest,
+    #         self.protocol[0],
+    #         json_message,
+    #         logger=self._logger,
+    #         timeout=timeout,
+    #         session_id=self._session,
+    #         sync=sync,
+    #     )
 
-        return result
+    #     if isinstance(result, Envelope):
+    #         return await dispatch_sync_response_envelope(result)
+
+    #     return result
 
     def queue_envelope(self, envelope: Envelope):
         """
