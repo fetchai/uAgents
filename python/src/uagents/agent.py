@@ -43,6 +43,7 @@ from uagents.network import (
 )
 from uagents.protocol import Protocol
 from uagents.resolver import GlobalResolver, Resolver
+from uagents.rest import RestMethod, RestHandler
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 
 
@@ -277,7 +278,7 @@ class Agent(Sink):
 
         if not self._use_mailbox:
             self._server = ASGIServer(
-                self._port, self._loop, self._queries, logger=self._logger
+                self._port, self._ctx, self._loop, self._queries, logger=self._logger
             )
 
         # define default error message handler
@@ -713,6 +714,32 @@ class Agent(Sink):
 
         return decorator_on_event
 
+    def _on_rest(
+        self,
+        method: RestMethod,
+        endpoint: str,
+        request: Optional[Type[Model]],
+        response: Type[Model],
+    ):
+        def decorator_on_rest(func: RestHandler):
+            @functools.wraps(func)
+            def handler(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            self._server.add_rest_endpoint(method, endpoint, handler, request, response)
+
+            return handler
+
+        return decorator_on_rest
+
+    def on_rest_get(self, endpoint: str, response: Type[Model]):
+        return self._on_rest("GET", endpoint, None, response)
+
+    def on_rest_post(
+        self, endpoint: str, request: Optional[Type[Model]], response: Type[Model]
+    ):
+        return self._on_rest("POST", endpoint, request, response)
+
     def _add_event_handler(
         self,
         event_type: str,
@@ -766,13 +793,13 @@ class Agent(Sink):
             if schema_digest in self._signed_message_handlers:
                 raise RuntimeError("Unable to register duplicate message handler")
             if schema_digest in protocol.signed_message_handlers:
-                self._signed_message_handlers[schema_digest] = (
-                    protocol.signed_message_handlers[schema_digest]
-                )
+                self._signed_message_handlers[
+                    schema_digest
+                ] = protocol.signed_message_handlers[schema_digest]
             elif schema_digest in protocol.unsigned_message_handlers:
-                self._unsigned_message_handlers[schema_digest] = (
-                    protocol.unsigned_message_handlers[schema_digest]
-                )
+                self._unsigned_message_handlers[
+                    schema_digest
+                ] = protocol.unsigned_message_handlers[schema_digest]
             else:
                 raise RuntimeError("Unable to lookup up message handler in protocol")
 

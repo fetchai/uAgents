@@ -2,7 +2,7 @@ import asyncio
 import json
 from datetime import datetime
 from logging import Logger
-from typing import Dict, Optional
+from typing import Dict, Optional, Type
 
 import pydantic
 import uvicorn
@@ -11,8 +11,9 @@ from uagents.config import RESPONSE_TIME_HINT_SECONDS, get_logger
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
-from uagents.models import ErrorMessage
+from uagents.models import ErrorMessage, Model
 from uagents.query import enclose_response_raw
+from uagents.rest import RestHandlerDetails, RestHandlerMap, RestMethod, RestHandler
 
 HOST = "0.0.0.0"
 
@@ -40,6 +41,7 @@ class ASGIServer:
     def __init__(
         self,
         port: int,
+        ctx: "Context",
         loop: asyncio.AbstractEventLoop,
         queries: Dict[str, asyncio.Future],
         logger: Optional[Logger] = None,
@@ -56,8 +58,10 @@ class ASGIServer:
         self._port = int(port)
         self._loop = loop
         self._queries = queries
+        self._rest_handlers: RestHandlerMap = {}
         self._logger = logger or get_logger("server")
         self._server = None
+        self._ctx = ctx
 
     @property
     def server(self):
@@ -67,6 +71,20 @@ class ASGIServer:
         Returns: The server.
         """
         return self._server
+
+    def add_rest_endpoint(
+        self,
+        method: RestMethod,
+        endpoint: str,
+        handler: RestHandler,
+        request: Optional[Type[Model]],
+        response: Type[Model],
+    ):
+        self._rest_handlers[(method, endpoint)] = RestHandlerDetails(
+            handler=handler,
+            request_model=request,
+            response_model=response,
+        )
 
     async def handle_readiness_probe(self, headers: CaseInsensitiveDict, send):
         """
@@ -158,7 +176,42 @@ class ASGIServer:
         )
         await self._server.serve()
 
-    async def __call__(self, scope, receive, send):  #  pylint: disable=too-many-branches
+    async def _handle_rest(self, rest_handler: RestHandlerDetails, send, receive):
+        # read all the data
+        raw_contents = await _read_asgi_body(receive)
+
+        # generate the request if available
+        if rest_handler.request_model is not None:
+            req = rest_handler.request_model.parse_raw(raw_contents)
+        else:
+            req = None
+
+        # call the handler
+        if req is None:
+            response = await rest_handler.handler(self._ctx)
+        else:
+            response = await rest_handler.handler(self._ctx, req)
+
+        # ensure the response is parsed as valid
+        validated_response = rest_handler.response_model.parse_obj(response)
+
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [
+                    [b"content-type", b"application/json"],
+                ],
+            }
+        )
+        await send(
+            {"type": "http.response.body", "body": validated_response.json().encode()}
+        )
+        return
+
+    async def __call__(
+        self, scope, receive, send
+    ):  #  pylint: disable=too-many-branches
         """
         Handle an incoming ASGI message, dispatching the envelope to the appropriate handler,
         and waiting for any queries to be resolved.
@@ -168,7 +221,18 @@ class ASGIServer:
 
         assert scope["type"] == "http"
 
-        if scope["path"] != "/submit":
+        request_method = scope["method"]
+        rest_handler = self._rest_handlers.get((request_method, scope["path"]))
+
+        is_submit = scope["path"] == "/submit"
+        is_bad = not is_submit and rest_handler is None
+
+        # if this is a request handler then we should handle it as such
+        if rest_handler is not None:
+            await self._handle_rest(rest_handler, send, receive)
+            return
+
+        if is_bad:
             await send(
                 {
                     "type": "http.response.start",
@@ -185,7 +249,6 @@ class ASGIServer:
 
         headers = CaseInsensitiveDict(scope.get("headers", {}))
 
-        request_method = scope["method"]
         if request_method == "HEAD":
             await self.handle_readiness_probe(headers, send)
             return
