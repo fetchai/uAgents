@@ -1,0 +1,4 @@
+requests
+ai_engine
+uagents
+pydantic

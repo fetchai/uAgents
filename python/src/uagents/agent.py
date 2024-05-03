@@ -2,26 +2,28 @@
 
 import asyncio
 import functools
-from typing import (
-    Dict,
-    List,
-    Optional,
-    Set,
-    Union,
-    Type,
-    Tuple,
-    Any,
-    Coroutine,
-)
+import logging
 import uuid
-from pydantic import ValidationError
-import requests
+from typing import Any, Coroutine, Dict, List, Optional, Set, Tuple, Type, Union
 
+import requests
+from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
-from cosmpy.aerial.client import LedgerClient
-
+from pydantic import ValidationError
 from uagents.asgi import ASGIServer
+from uagents.config import (
+    AVERAGE_BLOCK_INTERVAL,
+    LEDGER_PREFIX,
+    MAINNET_PREFIX,
+    REGISTRATION_FEE,
+    REGISTRATION_RETRY_INTERVAL_SECONDS,
+    REGISTRATION_UPDATE_INTERVAL_SECONDS,
+    TESTNET_PREFIX,
+    get_logger,
+    parse_agentverse_config,
+    parse_endpoint_config,
+)
 from uagents.context import (
     Context,
     EventCallback,
@@ -30,31 +32,19 @@ from uagents.context import (
     MsgDigest,
 )
 from uagents.crypto import Identity, derive_key_from_seed, is_user_address
-from uagents.dispatch import Sink, dispatcher, JsonStr
-from uagents.models import Model, ErrorMessage
-from uagents.protocol import Protocol
-from uagents.resolver import Resolver, GlobalResolver
-from uagents.rest import RestMethod, RestHandler, RestHandlerMap
-from uagents.storage import KeyValueStore, get_or_create_private_keys
-from uagents.network import (
-    get_ledger,
-    get_almanac_contract,
-    add_testnet_funds,
-    InsufficientFundsError,
-)
+from uagents.dispatch import JsonStr, Sink, dispatcher
 from uagents.mailbox import MailboxClient
-from uagents.config import (
-    AVERAGE_BLOCK_INTERVAL,
-    REGISTRATION_FEE,
-    REGISTRATION_UPDATE_INTERVAL_SECONDS,
-    LEDGER_PREFIX,
-    REGISTRATION_RETRY_INTERVAL_SECONDS,
-    TESTNET_PREFIX,
-    MAINNET_PREFIX,
-    parse_endpoint_config,
-    parse_agentverse_config,
-    get_logger,
+from uagents.models import ErrorMessage, Model
+from uagents.network import (
+    InsufficientFundsError,
+    add_testnet_funds,
+    get_almanac_contract,
+    get_ledger,
 )
+from uagents.protocol import Protocol
+from uagents.resolver import GlobalResolver, Resolver
+from uagents.rest import RestMethod, RestHandler
+from uagents.storage import KeyValueStore, get_or_create_private_keys
 
 
 async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
@@ -173,6 +163,7 @@ class Agent(Sink):
         version: Optional[str] = None,
         test: Optional[bool] = True,
         loop: Optional[asyncio.AbstractEventLoop] = None,
+        log_level: Union[int, str] = logging.INFO,
     ):
         """
         Initialize an Agent instance.
@@ -191,6 +182,9 @@ class Agent(Sink):
             wallet_key_derivation_index (Optional[int]): The index used for deriving the wallet key.
             max_resolver_endpoints (Optional[int]): The maximum number of endpoints to resolve.
             version (Optional[str]): The version of the agent.
+            test (Optional[bool]): True if the agent will register and transact on the testnet.
+            loop (Optional[asyncio.AbstractEventLoop]): The asyncio event loop to use.
+            log_level (Union[int, str]): The logging level for the agent.
         """
         self._name = name
         self._port = port if port is not None else 8000
@@ -208,7 +202,7 @@ class Agent(Sink):
 
         # initialize wallet and identity
         self._initialize_wallet_and_identity(seed, name, wallet_key_derivation_index)
-        self._logger = get_logger(self.name)
+        self._logger = get_logger(self.name, level=log_level)
 
         # configure endpoints and mailbox
         self._endpoints = parse_endpoint_config(endpoint)
@@ -816,6 +810,8 @@ class Agent(Sink):
 
         if protocol.digest is not None:
             self.protocols[protocol.digest] = protocol
+            if self._ctx is not None:
+                self._ctx.update_protocols(protocol)
 
         if publish_manifest:
             self.publish_manifest(protocol.manifest())
@@ -922,9 +918,9 @@ class Agent(Sink):
                 self._wallet_messaging_client.poll_server(),
                 self._wallet_messaging_client.process_message_queue(self._ctx),
             ]:
-                task = self._loop.create_task(task)
-                self._background_tasks.add(task)
-                task.add_done_callback(self._background_tasks.discard)
+                new_task = self._loop.create_task(task)
+                self._background_tasks.add(new_task)
+                new_task.add_done_callback(self._background_tasks.discard)
 
     def run(self):
         """
@@ -1049,6 +1045,7 @@ class Bureau:
         self,
         port: Optional[int] = None,
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
+        log_level: Union[int, str] = logging.INFO,
     ):
         """
         Initialize a Bureau instance.
@@ -1063,7 +1060,7 @@ class Bureau:
         self._endpoints = parse_endpoint_config(endpoint)
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
-        self._logger = get_logger("bureau")
+        self._logger = get_logger("bureau", log_level)
         self._server = ASGIServer(self._port, self._loop, self._queries, self._logger)
         self._use_mailbox = False
 

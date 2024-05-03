@@ -8,7 +8,6 @@ from pathlib import Path
 import tomli
 from packaging.version import Version
 
-
 ROOT = Path(__file__).parent.parent
 
 
@@ -64,8 +63,8 @@ def push_tag(current_version) -> None:
 def make_release(current_version: Version) -> None:
     """Make release on Github."""
     subprocess.check_call(
-        f"""gh release create v{current_version} --title "v{current_version}"
-        --generate-notes --latest""",
+        f'gh release create v{current_version} --title "v{current_version}"'
+        " --generate-notes --latest",
         shell=True,
     )
 

@@ -2,12 +2,12 @@
 import asyncio
 import unittest
 import uuid
-from unittest.mock import patch, AsyncMock, call
+from unittest.mock import AsyncMock, call, patch
 
 from uagents import Agent, Model
-from uagents.envelope import Envelope
 from uagents.config import RESPONSE_TIME_HINT_SECONDS
-from uagents.crypto import generate_user_address, Identity
+from uagents.crypto import Identity, generate_user_address
+from uagents.envelope import Envelope
 from uagents.query import enclose_response
 
 
@@ -150,7 +150,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                 ),
                 asyncio.create_task(self.mock_process_sync_message(user, reply)),
             )
-        response = enclose_response(reply, self.agent.address, session)
+        response = enclose_response(reply, self.agent.address, session, user)
         mock_send.assert_has_calls(
             [
                 call(
@@ -169,7 +169,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             ]
         )
 
-    async def test_message_success_sync_unsigned(self):
+    async def test_message_success_sync_signed(self):
         message = Message(message="hello")
         reply = Message(message="hey")
         session = uuid.uuid4()
@@ -205,7 +205,9 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                     self.mock_process_sync_message(self.bob.address, reply)
                 ),
             )
-        response = enclose_response(reply, self.agent.address, session)
+        response = enclose_response(
+            reply, self.agent.address, session, self.bob.address
+        )
         mock_send.assert_has_calls(
             [
                 call(

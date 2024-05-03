@@ -1,0 +1,21 @@
+{
+    "service": {
+      "title": "cold mailing agent",
+      "description": "This agent is used to send cold emails to the recruiters. agent need to ask the user to add a job description , a recruiter's email to send email , the type of mail whether it is a enquiry mail or the user is sending a application and also ask the user his/her name .This is triggered always after the Choice Agent",
+      "service_group": "hero network",
+      "agent": {
+        "name": "cold mailing agent"
+      },
+      "task_type": "Subtask",
+      "protocol": "simples",
+      "model": {
+        "name": "Request",
+        "fields": {
+           "job_description":"Enter the Job Description",
+           "mail_type":"Do you want to Enquire or Apply",
+           "name":"Enter your Full Name",
+           "recruiterEmail":"Enter the Recruiter's Email"
+        }
+      }
+    }
+  }

@@ -1,8 +1,6 @@
 from cosmpy.aerial.wallet import LocalWallet
-
-from uagents.network import get_name_service_contract, get_faucet
 from uagents import Agent, Context, Model
-
+from uagents.network import get_faucet, get_name_service_contract
 
 # NOTE: Run agent1.py before running agent2.py
 

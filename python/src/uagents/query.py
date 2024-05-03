@@ -5,14 +5,12 @@ from time import time
 from typing import Optional
 
 import aiohttp
-
 from uagents.config import get_logger
 from uagents.crypto import generate_user_address
 from uagents.dispatch import JsonStr
 from uagents.envelope import Envelope
 from uagents.models import Model
-from uagents.resolver import Resolver, GlobalResolver
-
+from uagents.resolver import GlobalResolver, Resolver
 
 LOGGER = get_logger("query")
 
@@ -67,8 +65,9 @@ async def query(
 
     for endpoint in endpoints:
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
+            async with (
+                aiohttp.ClientSession() as session,
+                session.post(
                     endpoints[0],
                     headers={
                         "content-type": "application/json",
@@ -76,11 +75,12 @@ async def query(
                     },
                     data=env.json(),
                     timeout=timeout,
-                ) as resp:
-                    success = resp.status == 200
+                ) as response,
+            ):
+                success = response.status == 200
 
-                    if success:
-                        return Envelope.parse_obj(await resp.json())
+                if success:
+                    return Envelope.parse_obj(await response.json())
         except aiohttp.ClientConnectorError as ex:
             LOGGER.warning(f"Failed to connect to {endpoint}: {ex}")
         except Exception as ex:
@@ -91,7 +91,9 @@ async def query(
     LOGGER.exception(f"Failed to send sync message to {destination}")
 
 
-def enclose_response(message: Model, sender: str, session: str) -> str:
+def enclose_response(
+    message: Model, sender: str, session: str, target: str = ""
+) -> str:
     """
     Enclose a response message within an envelope.
 
@@ -99,16 +101,21 @@ def enclose_response(message: Model, sender: str, session: str) -> str:
         message (Model): The response message to enclose.
         sender (str): The sender's address.
         session (str): The session identifier.
+        target (str): The target address.
 
     Returns:
         str: The JSON representation of the response envelope.
     """
     schema_digest = Model.build_schema_digest(message)
-    return enclose_response_raw(message.json(), schema_digest, sender, session)
+    return enclose_response_raw(message.json(), schema_digest, sender, session, target)
 
 
 def enclose_response_raw(
-    json_message: JsonStr, schema_digest: str, sender: str, session: str
+    json_message: JsonStr,
+    schema_digest: str,
+    sender: str,
+    session: str,
+    target: str = "",
 ) -> str:
     """
     Enclose a raw response message within an envelope.
@@ -118,6 +125,7 @@ def enclose_response_raw(
         schema_digest (str): The schema digest of the message.
         sender (str): The sender's address.
         session (str): The session identifier.
+        target (str): The target address.
 
     Returns:
         str: The JSON representation of the response envelope.
@@ -125,7 +133,7 @@ def enclose_response_raw(
     response_env = Envelope(
         version=1,
         sender=sender,
-        target="",
+        target=target,
         session=session,
         schema_digest=schema_digest,
     )

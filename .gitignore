@@ -6,3 +6,5 @@ __pycache__
 dist/
 *.sqlite3
 .DS_Store
+.env
+.history/*

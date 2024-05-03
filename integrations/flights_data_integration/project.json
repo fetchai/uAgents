@@ -3,7 +3,8 @@
     "description": "This integration helps user to track current status of flights.",
     "categories": [
         "Live Flight Data",
-        "Flight Status"
+        "Flight Status",
+        "Mobility"
     ],
     "deltav": false
 }
