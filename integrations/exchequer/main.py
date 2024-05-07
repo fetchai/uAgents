@@ -33,6 +33,7 @@ agent2.include(ex_dialogue_2)
 @agent2.on_event("startup")
 async def start_payee(ctx: Context):
     await sleep(5)
+    # TODO start_dialogue handler to add custom code to be run when a dialogue is started
     await ex_dialogue_2.start_dialogue(
         ctx,
         agent1.address,
@@ -42,6 +43,7 @@ async def start_payee(ctx: Context):
             subject="Invoice #2984537817894 for ebook",
         ),
     )
+    ctx.storage.set(str(ctx.session), {"amount": 50})
 
 
 if __name__ == "__main__":

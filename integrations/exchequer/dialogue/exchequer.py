@@ -157,6 +157,7 @@ async def get_exchange(exchange_id: str):
             headers={"Authorization": f"bearer {PAYER_TOKEN}"},
             timeout=10,
         )
+        # TODO import exchange object for typing?
         if response.status_code == 200:
             return response.json()
     except requests.exceptions.RequestException as err:
@@ -247,6 +248,21 @@ async def handle_payment_commitment(ctx: Context, sender: str, msg: PaymentCommi
         ctx.logger.debug("Exchequer: Exchange is not locked")
         await ctx.send(sender, PaymentRejected(subject="Exchange is not locked"))
         return
+
+    amount_expected = ctx.storage.get(str(ctx.session))["amount"]
+    amount_actual = exchange["total_amount"]
+    if amount_actual != amount_expected:
+        ctx.logger.debug(
+            f"Exchequer: Unexpected amount in exchange: {amount_actual} (expected: {amount_expected}) "
+        )
+        await ctx.send(
+            sender,
+            PaymentRejected(subject="Exchange amount not equaling requested amount"),
+        )
+        return
+
+    # TODO check exchange.counterparty == requester id
+    # TODO check exchange.subject == requested subject
 
     # confirm & trust that Exchequer will work as intended
     ctx.logger.debug("Exchequer: Executing confirm")
