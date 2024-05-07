@@ -392,6 +392,7 @@ class InternalContext(Context):
         sync: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
         protocol_digest: Optional[str] = None,
+        queries: Optional[Dict[str, asyncio.Future]] = None,
     ) -> MsgStatus:
         self._session = self._session or uuid.uuid4()
 
@@ -409,19 +410,18 @@ class InternalContext(Context):
                     self._session,
                 )
 
-            # TODO: queries and sync messages
-            # Handle queries waiting for a response
-            # if destination_address in self._queries:
-            #     self._queries[destination_address].set_result(
-            #         (message_body, message_schema_digest)
-            #     )
-            #     del self._queries[destination_address]
-            #     return MsgStatus(
-            #         status=DeliveryStatus.DELIVERED,
-            #         detail="Sync message resolved",
-            #         destination=destination_address,
-            #         endpoint="",
-            #     )
+            # Handle sync dispatch of messages
+            if queries and destination_address in queries:
+                queries[destination_address].set_result(
+                    (message_body, message_schema_digest)
+                )
+                del queries[destination_address]
+                return MsgStatus(
+                    status=DeliveryStatus.DELIVERED,
+                    detail="Sync message resolved",
+                    destination=destination_address,
+                    endpoint="",
+                )
 
             self._outbound_messages[destination_address] = (
                 message_body,
@@ -595,4 +595,5 @@ class ExternalContext(InternalContext):
             sync=sync,
             timeout=timeout,
             protocol_digest=self._protocol[0],
+            queries=self._queries,
         )

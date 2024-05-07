@@ -14,6 +14,8 @@ bob = Agent(
     endpoint=["http://127.0.0.1:8001/submit"],
 )
 
+print(f"Bob started with address: {bob.address}")
+
 
 @bob.on_message(model=Message)
 async def message_handler(ctx: Context, sender: str, msg: Message):
