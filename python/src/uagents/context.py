@@ -17,7 +17,6 @@ from typing import (
     List,
     Optional,
     Set,
-    Tuple,
     Type,
     Union,
 )
@@ -262,7 +261,7 @@ class Context:
         return self._session
 
     @property
-    def outbound_messages(self) -> Dict[str, Tuple[JsonStr, str]]:
+    def outbound_messages(self) -> Dict[str, MsgDigest]:
         """
         Get the dictionary of outbound messages associated with the context.
 
