@@ -2,7 +2,6 @@
 
 ## Release details
 
-<!--
 Thank you for your contribution to uAgents! Please make sure that your pull request follows these guidelines:
 
 1. **Title**: Concisely describe the changes made in your pull request.
@@ -13,9 +12,8 @@ Thank you for your contribution to uAgents! Please make sure that your pull requ
 6. **Issues**: Link any related issues that are addressed or fixed by this pull request.
 
 Thanks again for your contribution! We appreciate your help in improving uAgents.
--->
 
-**Changes made in this pull request:**
+### Changes made in this pull request
 
 - [ ] New feature added.
 - [ ] Bug fix.
@@ -24,7 +22,7 @@ Thanks again for your contribution! We appreciate your help in improving uAgents
 
     **Description:**
     
-    [Provide a detailed description of the changes made in this pull request.]
+    [Provide a detailed description of the changes made in the pull request.]
     
     **Tests:**
     
@@ -36,7 +34,7 @@ Thanks again for your contribution! We appreciate your help in improving uAgents
     
     **Reviewers:**
     
-    [Provide the name of any reviewer (e.g., @reviewer1) any updates to the documentation or provide necessary information for reviewers.]
+    [Provide the name of any reviewer (e.g., @reviewer1)]
     
     **Issues:**
     
