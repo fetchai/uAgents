@@ -39,7 +39,7 @@ from uagents.config import (
 from uagents.dispatch import JsonStr, dispatcher
 from uagents.envelope import Envelope
 from uagents.models import ErrorMessage, Model
-from uagents.resolver import Resolver, parse_identifier
+from uagents.resolver import parse_identifier
 from uagents.storage import KeyValueStore
 
 if TYPE_CHECKING:
@@ -219,7 +219,6 @@ class InternalContext(Context):
         self,
         agent: AgentRepresentation,
         storage: KeyValueStore,
-        resolve: Resolver,
         ledger: LedgerClient,
         interval_messages: Optional[Set[str]] = None,
         wallet_messaging_client: Optional[Any] = None,
@@ -227,7 +226,6 @@ class InternalContext(Context):
     ):
         self._agent = agent
         self._storage = storage
-        self._resolver = resolve
         self._ledger = ledger
         self._session = None
         self._interval_messages = interval_messages
@@ -545,7 +543,7 @@ class ExternalContext(InternalContext):
             raise ValueError("No message received")
 
         if not self._replies:
-            raise ValueError("No replies configured")
+            return True
 
         received = self._message_received
         if received.schema_digest in self._replies:
@@ -594,8 +592,8 @@ class ExternalContext(InternalContext):
 
         return await self.send_raw(
             destination,
-            message.json(),
             schema_digest,
+            message.json(),
             sync=sync,
             timeout=timeout,
             protocol_digest=self._protocol[0],

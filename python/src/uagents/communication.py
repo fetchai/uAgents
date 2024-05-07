@@ -85,7 +85,6 @@ class Dispenser:
         while True:
             for env, sync in self._envelopes:
                 try:
-                    print(env, sync)
                     await send_exchange_envelope(
                         envelope=env,
                         resolver=self._resolver,

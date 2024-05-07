@@ -364,7 +364,6 @@ class Agent(Sink):
                 signing_callback=self._identity.sign_digest,
             ),
             storage=self._storage,
-            resolve=self._resolver,
             ledger=self._ledger,
             interval_messages=self._interval_messages,
             wallet_messaging_client=self._wallet_messaging_client,
@@ -1028,7 +1027,6 @@ class Agent(Sink):
             context = ExternalContext(
                 agent=self._ctx.agent,
                 storage=self._storage,
-                resolve=self._resolver,
                 ledger=self._ledger,
                 wallet_messaging_client=self._wallet_messaging_client,
                 logger=self._logger,
