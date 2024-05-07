@@ -44,11 +44,13 @@ Thanks again for your contribution! We appreciate your help in improving uAgents
 
 _Put an `x` in the boxes that apply:_
 
-- [ ] I am making a pull request against the `main` branch from `release/v...`.
-- [ ] Checks and tests pass locally.
-- [ ] I have updated the version in `pyproject.toml`.
-- [ ] I have regenerated and updated the API docs.
-- [ ] The documentation is up-to-date.
+    - [ ]  I have based my branch, and I am making a pull request against the `main` branch.
+    - [ ] Checks and tests pass locally.
+    - [ ] I have read the [CONTRIBUTING](CONTRIBUTING.md) resource.
+    - [ ] The documentation is up-to-date.
+    - [ ] I have added tests that prove my fix is effective and that my feature works.
+    - [ ] I have checked that code coverage does not decrease.
+    - [ ] I have added/updated the documentations.
 
 ## Further comments
 

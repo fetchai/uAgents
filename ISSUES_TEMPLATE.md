@@ -11,9 +11,9 @@ assignees: ''
 Please, confirm before submitting any new issue:
 
 1. I am running the [latest PROJECT version](https://docs.fetch.ai/PROJECT/#version). 
-2. I checked the [documentation](http://docs.fetch.ai/PROJECT/) and found no answer to my problem. 
-3. I checked the [existing issues](https://github.com/fetchai/PROJECT/issues) to make sure my problem has not already been reported. 
-4. I have read the [code of conduct](https://github.com/fetchai/PROJECT/blob/main/CODE_OF_CONDUCT.md) before creating this issue.
+2. I checked the [documentation](https://fetch.ai/docs) and found no answer to my problem. 
+3. I checked the [existing issues](https://github.com/fetchai/uAgents/issues) to make sure my problem has not already been reported. 
+4. I have read the [CONTRIBUTING](CONTRIBUTING.md) and [DEVELOPING](DEVELOPING.md) resources before creating this issue.
 
 ## Describe the Bug
 
