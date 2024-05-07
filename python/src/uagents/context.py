@@ -1,4 +1,3 @@
-# ruff: noqa: F821
 """Agent Context and Message Handling"""
 
 from __future__ import annotations
@@ -23,6 +22,7 @@ from typing import (
 
 import requests
 from cosmpy.aerial.client import LedgerClient
+from typing_extensions import deprecated
 from uagents.communication import (
     DeliveryStatus,
     MsgDigest,
@@ -270,6 +270,19 @@ class InternalContext(Context):
         """
         return self._outbound_messages
 
+    @deprecated("Please use `ctx.agent.address` instead.")
+    @property
+    def address(self) -> str:
+        """
+        Get the agent address associated with the context.
+        This is a deprecated property and will be removed in a future release.
+        Please use the `ctx.agent.address` property instead.
+
+        Returns:
+            str: The agent address.
+        """
+        return self.agent.address
+
     @staticmethod
     def get_agents_by_protocol(
         protocol_digest: str,
@@ -454,10 +467,18 @@ class InternalContext(Context):
         Args:
             envelope (Envelope): The envelope to queue.
         """
-        dispenser.add_envelope(envelope)
+        dispenser.add_envelope(envelope, sync)
 
-        # the following would happen in agentverse instead
-        # self._envelopes.append(envelope)
+    async def send_wallet_message(
+        self,
+        destination: str,
+        text: str,
+        msg_type: int = 1,
+    ):  # TODO: restructure wallet messaging
+        if self._wallet_messaging_client is not None:
+            await self._wallet_messaging_client.send(destination, text, msg_type)
+        else:
+            self.logger.warning("Cannot send wallet message: no client available")
 
 
 class ExternalContext(InternalContext):
@@ -465,61 +486,36 @@ class ExternalContext(InternalContext):
     Represents the reactive context in which messages are handled and processed.
 
     Attributes:
-        storage (KeyValueStore): The key-value store for storage operations.
-        ledger (LedgerClient): The client for interacting with the blockchain ledger.
-        _resolver (Resolver): The resolver for address-to-endpoint resolution.
         _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their
             response Futures.
         _session (Optional[uuid.UUID]): The session UUID.
         _replies (Optional[Dict[str, Dict[str, Type[Model]]]]): Dictionary of allowed reply digests
             for each type of incoming message.
-        _interval_messages (Optional[Set[str]]): Set of message digests that may be sent by
-            interval tasks.
         _message_received (Optional[MsgDigest]): The message digest received.
-        _protocols (Optional[Dict[str, Protocol]]): Dictionary mapping all supported protocol
-            digests to their corresponding protocols.
-        _logger (Optional[logging.Logger]): The optional logger instance.
-
-    Properties:
-        logger (logging.Logger): The logger instance.
-        protocols (Optional[Dict[str, Protocol]]): Dictionary mapping all supported protocol
-            digests to their corresponding protocols.
-        session (uuid.UUID): The session UUID.
-
-    Methods:
-        send(destination, message, timeout): Send a message to a destination.
-        send_raw(destination, json_message, schema_digest, message_type, timeout):
-            Send a message with the provided schema digest to a destination.
-        broadcast(destination_protocol, message, limit, timeout): Broadcast a message
-            to agents with a specific protocol.
+        _protocol (Optional[Tuple[str, Protocol]]): The supported protocol digest
+            and the corresponding protocol.
     """
 
     def __init__(
         self,
+        message_received: MsgDigest,
         session: Optional[uuid.UUID] = None,
         queries: Dict[str, asyncio.Future] = None,
         replies: Optional[Dict[str, Dict[str, Type[Model]]]] = None,
-        message_received: Optional[MsgDigest] = None,
         protocol: Optional[Tuple[str, Protocol]] = None,
         **kwargs,
     ):
         """
-        Initialize the Context instance.
+        Initialize the ExternalContext instance and attributes needed from the InternalContext.
 
         Args:
-            storage (KeyValueStore): The key-value store for storage operations.
-            resolve (Resolver): The resolver for name-to-address resolution.
-            ledger (LedgerClient): The ledger client for interacting with distributed ledgers.
+            message_received (MsgDigest): The optional message digest received.
             queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their
                 response Futures.
             session (Optional[uuid.UUID]): The optional session UUID.
             replies (Optional[Dict[str, Dict[str, Type[Model]]]]): Dictionary of allowed replies
                 for each type of incoming message.
-            interval_messages (Optional[Set[str]]): The optional set of interval messages.
-            message_received (Optional[MsgDigest]): The optional message digest received.
-            wallet_messaging_client (Optional[Any]): The optional wallet messaging client.
-            protocols (Optional[Dict[str, Protocol]]): The optional dictionary of protocols.
-            logger (Optional[logging.Logger]): The optional logger instance.
+            protocol (Optional[Tuple[str, Protocol]]): The optional Tuple of protocols.
         """
         super().__init__(**kwargs)
         self._session = session or None
@@ -598,14 +594,3 @@ class ExternalContext(InternalContext):
             timeout=timeout,
             protocol_digest=self._protocol[0],
         )
-
-    async def send_wallet_message(
-        self,
-        destination: str,
-        text: str,
-        msg_type: int = 1,
-    ):
-        if self._wallet_messaging_client is not None:
-            await self._wallet_messaging_client.send(destination, text, msg_type)
-        else:
-            self.logger.warning("Cannot send wallet message: no client available")
