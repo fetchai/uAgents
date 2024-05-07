@@ -435,7 +435,7 @@ class InternalContext(Context):
         env = Envelope(
             version=1,
             sender=self.agent.address,
-            target=destination,
+            target=destination_address,
             session=self._session,
             # schema_digest=message_schema_digest,
             protocol=message_schema_digest,  # why use 'protocol'?
@@ -521,8 +521,7 @@ class ExternalContext(InternalContext):
         """
         super().__init__(**kwargs)
         self._session = session or None
-        if queries is None:
-            self._queries = {}
+        self._queries = queries or {}
         self._replies = replies
         self._message_received = message_received
         self._protocol = protocol or ("", None)
