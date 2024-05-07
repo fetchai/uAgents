@@ -120,10 +120,12 @@ class Context(ABC):
         """
         pass
 
-    @staticmethod
     @abstractmethod
     def get_agents_by_protocol(
-        protocol_digest: str, limit: Optional[int], logger: Optional[logging.Logger]
+        self,
+        protocol_digest: str,
+        limit: Optional[int],
+        logger: Optional[logging.Logger],
     ) -> List[str]:
         """Retrieve a list of agent addresses using a specific protocol digest.
 
@@ -283,8 +285,8 @@ class InternalContext(Context):
         """
         return self.agent.address
 
-    @staticmethod
     def get_agents_by_protocol(
+        self,
         protocol_digest: str,
         limit: Optional[int] = None,
         logger: Optional[logging.Logger] = None,
