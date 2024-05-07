@@ -363,14 +363,9 @@ class ExchequerDialogue(Dialogue):
         self.user_id = None
         self.user_token = None
 
-    # def on_continue_dialogue(self):
-    #     """
-    #     This handler is triggered for every incoming "chitchat" message
-    #     once the session has been accepted.
-    #     Any additional stateful information within a dialogue needs to be
-    #     persisted explicitly to access it at a later point in the dialogue.
-    #     """
-    #     return super()._on_state_transition(
-    #         cont_dialogue.name,
-    #         ChitChatDialogueMessage,
-    #     )
+    def on_request(self, msg: type[Model]):
+        # TODO docstring
+        return super()._on_state_transition(request_payment.name, msg)
+
+    def on_complete(self, msg: type[Model]):
+        return super()._on_state_transition(complete_payment.name, msg)

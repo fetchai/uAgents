@@ -51,6 +51,7 @@ class Edge:
         self.starter: bool = False
         self.ender: bool = False
         self._model: Type[Model] = None
+        self._emodel: Type[Model] = None
         self._func: Optional[MessageCallback] = None
         self._efunc: Optional[MessageCallback] = None
 
@@ -63,6 +64,11 @@ class Edge:
     def model(self, model: Type[Model]) -> None:
         """Set the message model type for the edge."""
         self._model = model
+
+    @property
+    def emodel(self) -> Optional[Type[Model]]:
+        """The edge model type that is associated with the edge."""
+        return self._emodel
 
     @property
     def func(self) -> Optional[MessageCallback]:
@@ -86,7 +92,7 @@ class Edge:
         """
         if self._model and self._model is not model:
             raise ValueError("Functionality already set with a different model!")
-        self._model = model
+        self._emodel = model
         self._efunc = func
 
     def set_message_handler(self, model: Type[Model], func: MessageCallback):
@@ -94,7 +100,7 @@ class Edge:
         Set the default message handler for the edge that will be overwritten if
         a decorator defines a new function to be called.
         """
-        if self._model and self._model is not model:
+        if self._model and not issubclass(model, self._model):
             raise ValueError("Functionality already set with a different model!")
         self._model = model
         self._func = func
@@ -600,8 +606,11 @@ class Dialogue(Protocol):
         if edge_name not in self._digest_by_edge:
             raise ValueError("Edge does not exist in the dialogue!")
 
+        edge = self.get_edge(edge_name)
+        if edge.model and not issubclass(model, edge.model):
+            raise ValueError("Functionality already set with a different model!")
+
         def decorator_on_state_transition(func: MessageCallback):
-            edge = self.get_edge(edge_name)
             edge.func = func
             handler = self._build_function_handler(edge)
             self._update_transition_model(edge, model)

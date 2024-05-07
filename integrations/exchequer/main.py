@@ -3,7 +3,7 @@
 from asyncio import sleep
 
 from dialogue.clients import get_client
-from dialogue.exchequer import ExchequerDialogue, PaymentRequest
+from dialogue.exchequer import ExchequerDialogue, PaymentComplete, PaymentRequest
 from uagents import Agent, Bureau, Context
 
 agent1 = Agent(
@@ -26,6 +26,29 @@ ex_dialogue_2 = ExchequerDialogue(
     agent_address=agent2.address,
 )
 
+
+class CustomPaymentRequest(PaymentRequest):
+    customfield: str
+
+
+class CustomPaymentComplete(PaymentComplete):
+    customfield: str
+
+
+@ex_dialogue_1.on_request(CustomPaymentRequest)
+async def my_handle_request1(ctx: Context, sender: str, msg: CustomPaymentRequest):
+    ctx.logger.info(
+        f"I know the hidden amount {msg.amount} and my special sauce {msg.customfield}"
+    )
+
+
+@ex_dialogue_2.on_request(CustomPaymentComplete)
+async def my_handle_request2(ctx: Context, sender: str, msg: CustomPaymentRequest):
+    ctx.logger.info(
+        f"I know the hidden amount {msg.amount} and my special sauce {msg.customfield}"
+    )
+
+
 agent1.include(ex_dialogue_1)
 agent2.include(ex_dialogue_2)
 
@@ -37,10 +60,11 @@ async def start_payee(ctx: Context):
     await ex_dialogue_2.start_dialogue(
         ctx,
         agent1.address,
-        PaymentRequest(
+        CustomPaymentRequest(
             requester_id=get_client("client_3")["id"],
             amount=50,
             subject="Invoice #2984537817894 for ebook",
+            customfield="Dingalingaling",
         ),
     )
     ctx.storage.set(str(ctx.session), {"amount": 50})
