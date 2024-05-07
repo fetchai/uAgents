@@ -210,6 +210,14 @@ class Balance(Model):
     updated_at: Optional[datetime] = None
 
 
+class ExchequerError(Exception):
+    """Exceptions when using Exchequer"""
+
+    def __init__(self, message="Exchequer: Unexpected Error") -> None:
+        self.message = message
+        super().__init__(self.message)
+
+
 async def handle_payment_request(ctx: Context, sender: str, msg: PaymentRequest):
     ctx.logger.debug("Exchequer: Received payment request")
     bal = await get_balance(PAYER_TOKEN)
@@ -226,6 +234,9 @@ async def handle_payment_request(ctx: Context, sender: str, msg: PaymentRequest)
 
     exchange_id = await lock_funds(PAYER_TOKEN, msg.requester_id, msg.amount)
     ctx.logger.debug(f"Exchequer: Created exchange with id: {exchange_id}")
+    if not exchange_id:
+        ctx.logger.error("failed to create exchange")
+        raise ExchequerError("Exchequer: Failed to create exchange")
 
     await ctx.send(sender, PaymentCommitment(exchange_id=exchange_id))
 

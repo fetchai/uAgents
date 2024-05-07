@@ -481,6 +481,10 @@ class Context:
         _, _, destination_address = parse_identifier(destination)
 
         if destination_address:
+            self._outbound_messages[destination_address] = MsgDigest(
+                json_message, schema_digest
+            )
+
             # Handle local dispatch of messages
             if dispatcher.contains(destination_address):
                 await dispatcher.dispatch(
@@ -509,10 +513,6 @@ class Context:
                     destination=destination_address,
                     endpoint="",
                 )
-
-            self._outbound_messages[destination_address] = MsgDigest(
-                json_message, schema_digest
-            )
 
         result = await self.send_raw_exchange_envelope(
             self._identity,
