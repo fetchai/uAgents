@@ -16,7 +16,7 @@ from uagents.crypto import Identity
 from uagents.dispatch import JsonStr, dispatcher
 from uagents.envelope import Envelope
 from uagents.models import Model
-from uagents.resolver import GlobalResolver, Resolver
+from uagents.resolver import GlobalResolver, Resolver, parse_identifier
 
 LOGGER = get_logger("dispenser", logging.DEBUG)
 
@@ -238,10 +238,13 @@ async def send_sync_message(
     if sender is None:
         sender = Identity.generate()
 
+    # TODO: This is not quite right as this should really be resolved by the resolver
+    _, _, destination_address = parse_identifier(destination)
+
     env = Envelope(
         version=1,
         sender=sender.address,
-        target=destination,
+        target=destination_address,
         session=uuid.uuid4(),
         schema_digest=Model.build_schema_digest(message),
         expires=int(time()) + timeout,
