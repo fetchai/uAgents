@@ -1,44 +1,25 @@
 # uAgents Pull Requests Template
 
-## Release details
+## Pull Request Details
 
-Thank you for your contribution to uAgents! Please make sure that your pull request follows these guidelines:
+Thank you for your contribution to uAgents! We appreciate your help in improving uAgents Framework. Please make sure that you provide the following details in your Pull Requests:
 
-1. **Title**: Concisely describe the changes made in your pull request.
-2. **Description**: Provide a detailed description of the changes and why these are necessary.
-3. **Tests**: If applicable, describe the tests you've added or modified to ensure the changes work as expected.
-4. **Documentation**: If applicable, update the documentation or provide necessary information for reviewers.
-5. **Reviewers**: Mention any specific team members or individuals you'd like to review your pull request.
-6. **Issues**: Link any related issues that are addressed or fixed by this pull request.
-
-Thanks again for your contribution! We appreciate your help in improving uAgents.
+   1. **Description**: Provide a clear and detailed description of the changes made in the pull request.
+    
+   2. **Tests**: Describe any tests that have been added or modified to ensure the changes work as expected.
+    
+   3. **Documentation**: If applicable, describe any updates to the documentation or provide necessary information for reviewers.
+    
+   4. **Reviewers**: Provide the name of any reviewer (e.g., @reviewer1).
+    
+   5. **Issues**: If applicable, link any related issues that are addressed or fixed by this pull request. Use the # symbol followed by the issue number (e.g., Fixes issue #123).
 
 ### Changes made in this pull request
 
-- [ ] New feature added.
-- [ ] Bug fix.
-- [ ] Documentation update.
-- [ ] Other (please specify):
-
-    **Description:**
-    
-    [Provide a detailed description of the changes made in the pull request.]
-    
-    **Tests:**
-    
-    [Describe any tests that have been added or modified to ensure the changes work as expected.]
-    
-    **Documentation:**
-    
-    [If applicable, describe any updates to the documentation or provide necessary information for reviewers.]
-    
-    **Reviewers:**
-    
-    [Provide the name of any reviewer (e.g., @reviewer1)]
-    
-    **Issues:**
-    
-    [Link any related issues that are addressed or fixed by this pull request. Use the # symbol followed by the issue number. For example: Fixes issue #123]
+  - [ ] New feature added.
+  - [ ] Bug/issue fix.
+  - [ ] Documentation update.
+  - [ ] Other (please specify)
 
 ## Checklist
 
@@ -49,9 +30,9 @@ _Put an `x` in the boxes that apply:_
     - [ ] I have read the [CONTRIBUTING](CONTRIBUTING.md) resource.
     - [ ] The documentation is up-to-date.
     - [ ] I have added tests that prove my fix is effective and that my feature works.
-    - [ ] I have checked that code coverage does not decrease.
-    - [ ] I have added/updated the documentations.
+    - [ ] I have checked that code is working correctly.
+    - [ ] I have added/updated the documentation.
 
 ## Further comments
 
-_Write other comments (if any) about the release_
+_Write other comments (if any) about the Pull Request._
