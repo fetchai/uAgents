@@ -3,7 +3,7 @@
 import base64
 import hashlib
 import struct
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from pydantic import UUID4, BaseModel, Field
 from uagents.crypto import Identity
@@ -64,7 +64,7 @@ class Envelope(BaseModel):
 
         return base64.b64decode(self.payload).decode()
 
-    def sign(self, signing_fn: callable):
+    def sign(self, signing_fn: Callable):
         """
         Sign the envelope using the provided signing function.
 

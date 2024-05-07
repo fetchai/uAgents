@@ -302,6 +302,19 @@ class Context:
         """
         return self._outbound_messages
 
+    @deprecated("Please use `ctx.agent.address` instead.")
+    @property
+    def address(self) -> str:
+        """
+        Get the agent address associated with the context.
+        This is a deprecated property and will be removed in a future release.
+        Please use the `ctx.agent.address` property instead.
+
+        Returns:
+            str: The agent address.
+        """
+        return self.agent.address
+
     def get_message_protocol(self, message_schema_digest) -> Optional[str]:
         """
         Get the protocol digest associated with a given message schema digest.
