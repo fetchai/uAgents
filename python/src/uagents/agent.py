@@ -345,7 +345,9 @@ class Agent(Sink):
         self._version = version or "0.1.0"
 
         # configure the dispenser
-        self._dispenser.configure()
+        self._dispenser.configure(
+            resolver=self._resolver,
+        )
 
         self.initialize_wallet_messaging(enable_wallet_messaging)
 
@@ -1024,8 +1026,12 @@ class Agent(Sink):
                 continue
 
             context = ExternalContext(
-                **self._ctx,
+                agent=self._ctx.agent,
                 storage=self._storage,
+                resolve=self._resolver,
+                ledger=self._ledger,
+                wallet_messaging_client=self._wallet_messaging_client,
+                logger=self._logger,
                 queries=self._queries,
                 session=session,
                 replies=self._replies,

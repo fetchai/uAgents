@@ -415,20 +415,6 @@ class InternalContext(Context):
                 message_schema_digest,
             )
 
-        destination_address, endpoints = await self._resolver.resolve(destination)
-        if len(endpoints) == 0:
-            log(
-                self.logger,
-                logging.ERROR,
-                f"Unable to resolve destination endpoint for address {destination}",
-            )
-            return MsgStatus(
-                status=DeliveryStatus.FAILED,
-                detail="Unable to resolve destination endpoint",
-                destination=destination,
-                endpoint="",
-            )
-
         # Calculate when the envelope expires
         expires = int(time()) + timeout
 
@@ -436,21 +422,22 @@ class InternalContext(Context):
         env = Envelope(
             version=1,
             sender=self.agent.address,
-            target=destination_address,
-            session=self._session or uuid.uuid4(),
-            schema_digest=message_schema_digest,
+            target=destination,
+            session=self._session,
+            # schema_digest=message_schema_digest,
+            protocol=message_schema_digest,  # why use 'protocol'?
             protocol_digest=protocol_digest,
             expires=expires,
         )
         env.encode_payload(message_body)
         env.sign(self.agent.sign_digest)
 
-        self._queue_envelope(env, sync=sync)
+        self._queue_envelope(env, sync)
 
         return MsgStatus(
             status=DeliveryStatus.QUEUED,
             detail="Envelope successfully queued",
-            destination=destination_address,
+            destination=destination,
             endpoint="",
         )
         # At this point we need the result of the send_raw_exchange_envelope

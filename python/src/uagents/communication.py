@@ -4,21 +4,21 @@
 import asyncio
 import logging
 import uuid
+from ast import Tuple
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Any, List, Optional, Type, Union
+from typing import Any, List, Optional, Type, Union
 
 import aiohttp
 from pydantic import ValidationError
-from uagents.config import DEFAULT_DISPENSER_INTERVAL, log
+from uagents.config import DEFAULT_DISPENSER_INTERVAL, get_logger
 from uagents.crypto import Identity
 from uagents.dispatch import JsonStr, dispatcher
 from uagents.envelope import Envelope
 from uagents.models import Model
 from uagents.resolver import GlobalResolver, Resolver
 
-if TYPE_CHECKING:
-    pass
+LOGGER = get_logger("dispenser", logging.DEBUG)
 
 
 class DeliveryStatus(str, Enum):
@@ -64,24 +64,36 @@ class MsgStatus:
 
 class Dispenser:
     """
-    Dispenses messages from the registered sinks externally.
+    Dispenses messages externally.
     """
 
     def __init__(self):
-        self._envelopes: List[Envelope] = []
+        self._envelopes: List[Tuple[Envelope, bool]] = []
         self._timeout: float = DEFAULT_DISPENSER_INTERVAL
+        self._resolver: Resolver = GlobalResolver()
 
-    def configure(self, timeout: float = None):
+    def configure(self, resolver: Resolver, timeout: Optional[float] = None):
+        if resolver:
+            self._resolver = resolver
         if timeout:
             self._timeout = timeout
 
-    def add_envelope(self, envelope: Envelope):
-        pass
+    def add_envelope(self, envelope: Envelope, sync: bool = False):
+        self._envelopes.append((envelope, sync))
 
     async def run(self):
         while True:
-            for env in self._envelopes:
-                print(env)
+            for env, sync in self._envelopes:
+                try:
+                    print(env, sync)
+                    await send_exchange_envelope(
+                        envelope=env,
+                        resolver=self._resolver,
+                        sync=sync,
+                    )  # how do we handle the MsgStatus response?
+                    self._envelopes.remove((env, sync))
+                except ValueError:
+                    continue
             await asyncio.sleep(DEFAULT_DISPENSER_INTERVAL)
 
 
@@ -92,6 +104,7 @@ async def dispatch_local_message(
     message: JsonStr,
     session_id: uuid.UUID,
 ) -> MsgStatus:
+    """Process a message locally."""
     await dispatcher.dispatch(
         sender=sender,
         destination=destination,
@@ -108,17 +121,26 @@ async def dispatch_local_message(
 
 
 async def send_exchange_envelope(
-    destination: str,
-    destination_address: str,
-    endpoints: List[str],
     envelope: Envelope,
-    logger: Optional[logging.Logger] = None,
+    resolver: Optional[Resolver] = None,
     sync: bool = False,
 ) -> Union[MsgStatus, Envelope]:
+    if resolver is None:
+        resolver = GlobalResolver()
+    _, endpoints = await resolver.resolve(envelope.target)
+    if len(endpoints) == 0:
+        LOGGER.error(
+            f"Unable to resolve destination endpoint for address {envelope.target}",
+        )
+        return MsgStatus(
+            status=DeliveryStatus.FAILED,
+            detail="Unable to resolve destination endpoint",
+            destination=envelope.target,
+            endpoint="",
+        )
     headers = {"content-type": "application/json"}
     if sync:
         headers["x-uagents-connection"] = "sync"
-
     for endpoint in endpoints:
         try:
             async with aiohttp.ClientSession() as session:
@@ -133,42 +155,31 @@ async def send_exchange_envelope(
                             return await dispatch_sync_response_envelope(
                                 Envelope.parse_obj(await resp.json())
                             )
-
                         return MsgStatus(
                             status=DeliveryStatus.DELIVERED,
                             detail="Message successfully delivered via HTTP",
-                            destination=destination_address,
+                            destination=envelope.target,
                             endpoint=endpoint,
                         )
-                log(
-                    logger,
-                    logging.WARNING,
-                    f"Failed to send message to {destination_address} @ {endpoint}: "
+                LOGGER.warning(
+                    f"Failed to send message to {envelope.target} @ {endpoint}: "
                     + (await resp.text()),
                 )
         except aiohttp.ClientConnectorError as ex:
-            log(logger, logging.WARNING, f"Failed to connect to {endpoint}: {ex}")
-
+            LOGGER.warning(f"Failed to connect to {endpoint}: {ex}")
         except ValidationError as ex:
-            log(
-                logger,
-                logging.WARNING,
-                f"Sync message to {destination} @ {endpoint} got invalid response: {ex}",
+            LOGGER.warning(
+                f"Sync message to {envelope.target} @ {endpoint} got invalid response: {ex}",
             )
-
         except Exception as ex:
-            log(
-                logger,
-                logging.WARNING,
-                f"Failed to send message to {destination} @ {endpoint}: {ex}",
+            LOGGER.warning(
+                f"Failed to send message to {envelope.target} @ {endpoint}: {ex}",
             )
-
-    log(logger, logging.ERROR, f"Failed to deliver message to {destination}")
-
+    LOGGER.error(f"Failed to deliver message to {envelope.target}")
     return MsgStatus(
         status=DeliveryStatus.FAILED,
         detail="Message delivery failed",
-        destination=destination,
+        destination=envelope.target,
         endpoint="",
     )
 
