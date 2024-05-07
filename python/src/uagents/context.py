@@ -270,8 +270,8 @@ class InternalContext(Context):
         """
         return self._outbound_messages
 
-    @deprecated("Please use `ctx.agent.address` instead.")
     @property
+    @deprecated("Please use `ctx.agent.address` instead.")
     def address(self) -> str:
         """
         Get the agent address associated with the context.
