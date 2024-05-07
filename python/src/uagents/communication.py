@@ -1,4 +1,3 @@
-# ruff: noqa: F821
 """Agent dispatch of exchange envelopes and synchronous messages."""
 
 import asyncio
@@ -7,6 +6,7 @@ import uuid
 from ast import Tuple
 from dataclasses import dataclass
 from enum import Enum
+from time import time
 from typing import Any, List, Optional, Type, Union
 
 import aiohttp
@@ -124,6 +124,17 @@ async def send_exchange_envelope(
     resolver: Optional[Resolver] = None,
     sync: bool = False,
 ) -> Union[MsgStatus, Envelope]:
+    """
+    Method to send an exchange envelope.
+
+    Args:
+        envelope (Envelope): The envelope to send.
+        resolver (Optional[Resolver], optional): The resolver to use. Defaults to None.
+        sync (bool, optional): True if the message is synchronous. Defaults to False.
+
+    Returns:
+        Union[MsgStatus, Envelope]: Either the status of the message or the response envelope.
+    """
     if resolver is None:
         resolver = GlobalResolver()
     _, endpoints = await resolver.resolve(envelope.target)
@@ -183,73 +194,8 @@ async def send_exchange_envelope(
     )
 
 
-# async def send_raw_exchange_envelope(
-#     sender: AgentRepresentation,
-#     destination: str,
-#     resolver: Resolver,
-#     schema_digest: str,
-#     protocol_digest: Optional[str],
-#     json_message: JsonStr,
-#     logger: Optional[logging.Logger] = None,
-#     timeout: int = 5,
-#     session_id: Optional[uuid.UUID] = None,
-#     sync: bool = False,
-# ) -> Union[MsgStatus, Envelope]:
-#     """
-#     Standalone function to send a raw exchange envelope to an agent.
-
-#     Args:
-#         sender (AgentRepresentation): The representation of an agent.
-#         destination (str): The destination address to send the message to.
-#         resolver (Resolver): The resolver for address-to-endpoint resolution.
-#         schema_digest (str): The schema digest of the message.
-#         protocol_digest (Optional[str]): The protocol digest of the message.
-#         json_message (JsonStr): The JSON-encoded message to be sent.
-#         logger (Optional[logging.Logger]): The optional logger instance.
-#         timeout (int): The timeout for sending the message, in seconds.
-#         session_id (Optional[uuid.UUID]): The optional session ID.
-#         sync (bool): Whether to send the message synchronously or asynchronously.
-
-#     Returns:
-#         Union[MsgStatus, Envelope]: The delivery status of the message, or in the case of a
-#         successful synchronous message, the response envelope.
-#     """
-#     # Resolve the destination address and endpoint ('destination' can be a name or address)
-#     destination_address, endpoints = await resolver.resolve(destination)
-#     if len(endpoints) == 0:
-#         log(
-#             logger,
-#             logging.ERROR,
-#             f"Unable to resolve destination endpoint for address {destination}",
-#         )
-
-#         return MsgStatus(
-#             status=DeliveryStatus.FAILED,
-#             detail="Unable to resolve destination endpoint",
-#             destination=destination,
-#             endpoint="",
-#         )
-
-#     # Calculate when the envelope expires
-#     expires = int(time()) + timeout
-
-#     # Handle external dispatch of messages
-#     env = Envelope(
-#         version=1,
-#         sender=sender.address,
-#         target=destination_address,
-#         session=session_id or uuid.uuid4(),
-#         schema_digest=schema_digest,
-#         protocol_digest=protocol_digest,
-#         expires=expires,
-#     )
-#     env.encode_payload(json_message)
-#     env.sign(sender.sign_digest)
-
-#     dispenser.add_envelope(env)  # should happen in context of the agent
-
-
 async def dispatch_sync_response_envelope(env: Envelope) -> MsgStatus:
+    """Dispatch a synchronous response envelope locally."""
     await dispatcher.dispatch(
         env.sender,
         env.target,
@@ -289,14 +235,23 @@ async def send_sync_message(
         message is returned with that type. Otherwise, the JSON message is returned. On failure, a
         message status is returned.
     """
-    response = await send_raw_exchange_envelope(
-        sender or Identity.generate(),
-        destination,
-        resolver or GlobalResolver(),
-        Model.build_schema_digest(message),
-        protocol_digest=None,
-        json_message=message.json(),
-        timeout=timeout,
+    if sender is None:
+        sender = Identity.generate()
+
+    env = Envelope(
+        version=1,
+        sender=sender.address,
+        target=destination,
+        session=uuid.uuid4(),
+        schema_digest=Model.build_schema_digest(message),
+        expires=int(time()) + timeout,
+    )
+    env.encode_payload(message.json())
+    env.sign(sender.sign_digest)
+
+    response = await send_exchange_envelope(
+        envelope=env,
+        resolver=resolver or GlobalResolver(),
         sync=True,
     )
     if isinstance(response, Envelope):
