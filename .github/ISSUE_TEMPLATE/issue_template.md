@@ -1,29 +1,33 @@
 name: Issue Report
-description: Report an issue for uAgents
+description: File an issue report for uAgents.
 title: "[ISSUE]: <title>"
-labels: ["issue", "unconfirmed"]
-assignees:
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report an issue in uAgents!
+        Thanks for taking the time to report an issue in uAgents! We appreciate your contribution to improving the library.
+
+        Before submitting your report, please take a moment to review the following guidelines:
+
+        * **Search for existing issues:** There are no similar [existing issues](https://github.com/fetchai/uAgents/issues) already been reported. This helps avoid duplicate reports and streamlines the issue management process.
+        * **Search within the documentation:** You can not find an answer to the issue within the [documentation](https://fetch.ai/docs).
+        * **Provide a clear and concise description:** Briefly describe the issue you encountered. Be specific and include relevant details like error messages or unexpected behavior.
   - type: dropdown
     id: category
     attributes:
       label: Category
       description: Select the category that best describes your issue.
       options:
-        - label: Bug (unexpected behavior)
-        - label: Feature Request (suggestion for new functionality)
-        - label: Documentation Issue (error or unclear information in docs)
-        - label: Other (unclear issue type)
+        - Bug (unexpected behavior)
+        - Feature Request (suggestion for new functionality)
+        - Documentation Issue (error or unclear information in docs)
+        - Other (unclear issue type)
       validations:
         required: true
   - type: textarea
     id: description
     attributes:
-      label: Describe the issue
+      label: Describe the Issue
       description: Please provide a clear and concise description of the issue you encountered.
       placeholder: What went wrong?
       validations:
@@ -38,15 +42,20 @@ body:
   - type: textarea
     id: steps_to_reproduce
     attributes:
-      label: Steps to reproduce
-      description: If possible, provide detailed steps that consistently reproduce the issue.
+      label: Steps to Reproduce (Optional)
+      description: If possible, provide detailed steps that consistently reproduce the issue. This will help us pinpoint the problem and fix it as soon as possible.
+      placeholder: |
+        1. In this environment ...
+        2. With this configuration ...
+        3. Run '...'
+        4. See error ...
       validations:
         required: false
   - type: dropdown
     id: version
     attributes:
-      label: uAgents version
-      description: Which version of uagents were you using?
+      label: uAgents Version
+      description: Which version of uAgents were you using?
       options:
         - v0.11.1
         - v0.11.0
@@ -57,33 +66,23 @@ body:
   - type: textarea
     id: environment
     attributes:
-      label: Environment details (Optional)
-      description: Provide any relevant information about your environment, such as operating system and Python version.
+      label: Environment Details (Optional)
+      description: Provide any relevant information about your environment, such as operating system, Python version, and any other libraries used.
+      render: markdown
       validations:
         required: false
   - type: textarea
     id: logs
     attributes:
-      label: Failure logs
-      description: Include any relevant log snippets or files here
+      label: Failure Logs (Optional)
+      description: Include any relevant log snippets or files here. You can paste directly or drag and drop files into this area.
     validations:
-      required: false
+        required: false
   - type: textarea
     id: additional_info
     attributes:
-      label: Additional information (Optional)
-      description: Include any screenshots, logs, or code snippets that might help identify the issue.
+      label: Additional Information (Optional)
+      description: Include any screenshots, code snippets, or other relevant details that might help us understand the issue.
+      render: markdown
       validations:
         required: false
-  - type: checkboxes
-    id: prerequisites
-    attributes:
-      label: General information
-      description: Please confirm the following before submitting your issue report.
-      options:
-        - label: I have included a clear description of the issue.
-          required: true
-        - label: I have read the [documentation](https://fetch.ai/docs) and found no answer to the problem.
-          required: true
-        - label: I have checked the [existing issues](https://github.com/fetchai/uAgents/issues) list to make sure my problem has not already been reported.
-          required: true
