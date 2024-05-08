@@ -1,4 +1,4 @@
-# uAgents Pull Requests Template
+# Proposed Changes
 
 _(Describe the changes provided by the pull request here.)_
 
