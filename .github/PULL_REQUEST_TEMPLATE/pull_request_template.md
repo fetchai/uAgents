@@ -30,12 +30,12 @@ _(Provide the name of any reviewers)_
 
 _Put an `x` in the boxes that apply:_
 
-    - [ ]  I have based my branch, and I am making a pull request against the `main` branch.
-    - [ ] Checks and tests pass locally.
-    - [ ] I have read the [CONTRIBUTING](CONTRIBUTING.md) resource.
-    - [ ] I have added tests that prove my fix is effective and that my feature works.
-    - [ ] I have checked that any code is working correctly.
-    - [ ] I have added/updated the documentation.
+- [ ]  I have based my branch, and I am making a pull request against the `main` branch.
+- [ ] Checks and tests pass locally.
+- [ ] I have read the [CONTRIBUTING](CONTRIBUTING.md) resource.
+- [ ] I have added tests that prove my fix is effective and that my feature works.
+- [ ] I have checked that any code is working correctly.
+- [ ] I have added/updated the documentation.
 
 ## Further comments
 
