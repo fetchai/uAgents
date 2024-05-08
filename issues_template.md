@@ -1,5 +1,5 @@
 ---
-name: Issue Report 🐞
+name: Bug Report 🐞
 about: Report a bug encountered while operating uAgents
 title: ''
 labels: ["issue", "unconfirmed"]
