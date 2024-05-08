@@ -36,7 +36,7 @@ _Put an `x` in the boxes that apply:_
 
 ## If applicable: 
 
-- [ ] I have added tests that prove my fix is effective and that my feature works.
+- [ ] I have added tests that prove my fix is effective or that my feature works.
 - [ ] I have checked that any code is working correctly.
 - [ ] I have added/updated the documentation.
 
