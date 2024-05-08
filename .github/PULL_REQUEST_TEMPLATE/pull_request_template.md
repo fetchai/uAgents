@@ -2,7 +2,7 @@
 
 ## Description of suggested changes
 
-_(Describe the changes provided by the pull request here)_
+_(Describe the changes provided by the pull request here.)_
 
 ## Types of changes
 
@@ -16,15 +16,15 @@ _What types of changes does the pull request introduce? Put an `x` in the boxes 
 
 ## Documentation
 
-_(If applicable, describe any updates to the documentation or provide necessary information for reviewers)_
+_(If applicable, describe any updates to the documentation or provide necessary information for reviewers.)_
 
 ## Issues
 
-_(If applicable, add links to any issues resolved)_
+_(If applicable, add links to any issues resolved.)_
 
 ## Reviewers 
 
-_(Provide the name of any reviewers)_
+_(Provide the name of any reviewers.)_
 
 ## Checklist
 
@@ -39,4 +39,4 @@ _Put an `x` in the boxes that apply:_
 
 ## Further comments
 
-_(If this is a relatively large or complex change, kick off the discussion by explaining why you chose the solution you did, what alternatives you considered, etc...)_
+_(If this is a relatively large or complex change, kick off the discussion by explaining why you chose the solution you did, what alternatives you considered, etc....)_
