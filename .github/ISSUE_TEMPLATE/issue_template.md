@@ -5,20 +5,26 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report an issue in uAgents! We appreciate your contribution to improving the library. Before submitting your report, please take a moment to review the following guidelines:
-      * **Search for existing issues:** There are no similar [existing issues](https://github.com/fetchai/uAgents/issues) already been reported. It helps avoid duplicate reports and streamlines the issue management process.
-      * **Search within the documentation:** You can not find an answer to the issue within the [documentation](https://fetch.ai/docs).
-      * **Provide a clear and concise description:** Briefly describe the issue you encountered. Be specific and include relevant details like error messages or unexpected behavior.
+        Thanks for taking the time to report an issue in uAgents! We appreciate your contribution to improving the library.
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      description: Please confirm before submitting any new issue report form.
+      options:
+        - label: I checked the [documentation](https://fetch.ai/docs) to make sure this issue has not already been resolved within the documentation.
+          required: true
+        - label: I checked the [existing issues](https://github.com/fetchai/uAgents/issues) and made sure there are no similar open issues already been reported. It helps avoid duplicate reports and streamlines the issue management process.
+          required: true
   - type: dropdown
     id: category
     attributes:
       label: Category
       description: Select the category that best describes your issue.
       options:
-        - Bug (unexpected behavior)
-        - Feature Request (suggestion for new functionality)
-        - Documentation Issue (error or unclear information in docs)
-        - Other (unclear issue type)
+        - label: Bug (unexpected behavior)
+        - label: Documentation Issue (error or unclear information in docs)
+        - label: Other (unclear issue type)
       validations:
         required: true
   - type: textarea
