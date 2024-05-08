@@ -28,7 +28,7 @@ _Put an `x` in the boxes that apply:_
 ## If applicable: 
 
 - [ ] I have added tests that prove my fix is effective or that my feature works.
-- [ ] I have checked that any code is working correctly.
+- [ ] I have checked that code coverage does not decrease.
 - [ ] I have added/updated the documentation.
 
 ## Further comments
