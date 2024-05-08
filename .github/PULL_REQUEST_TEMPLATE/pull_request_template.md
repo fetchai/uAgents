@@ -1,7 +1,5 @@
 # uAgents Pull Requests Template
 
-## Description of suggested changes
-
 _(Describe the changes provided by the pull request here.)_
 
 ## Types of changes
