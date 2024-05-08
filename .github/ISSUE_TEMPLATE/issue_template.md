@@ -1,9 +1,9 @@
 ---
-name: Bug Report 🐞
-about: Report a bug encountered while operating uAgents
-title: ''
+name: Issue Report 🐞
+about: 
+title: "[DATE]: [ISSUE]"
 labels: ["issue", "unconfirmed"]
-assignees: ''
+assignees: 
 ---
 
 ## Pre-requisites

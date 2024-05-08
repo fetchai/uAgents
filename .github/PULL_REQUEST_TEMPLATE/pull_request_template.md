@@ -1,6 +1,6 @@
 # uAgents Pull Requests Template
 
-## Pull Request Details
+## Pull request details
 
 Thank you for your contribution to uAgents! We appreciate your help in improving uAgents Framework. Please make sure that you provide the following details in your Pull Requests:
 
