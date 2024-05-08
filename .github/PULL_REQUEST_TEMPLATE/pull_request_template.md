@@ -22,10 +22,6 @@ _(If applicable, describe any updates to the documentation or provide necessary 
 
 _(If applicable, add links to any issues resolved.)_
 
-## Reviewers 
-
-_(Provide the name of any reviewers.)_
-
 ## Checklist
 
 _Put an `x` in the boxes that apply:_
