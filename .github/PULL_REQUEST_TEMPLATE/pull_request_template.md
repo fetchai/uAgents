@@ -14,10 +14,6 @@ _What types of changes does the pull request introduce? Put an `x` in the boxes 
 - [ ] Documentation update.
 - [ ] Something else (e.g., tests, scripts, example, deployment, infrastructure).
 
-## Documentation
-
-_(If applicable, describe any updates to the documentation or provide necessary information for reviewers.)_
-
 ## Issues
 
 _(If applicable, add links to any issues resolved.)_
