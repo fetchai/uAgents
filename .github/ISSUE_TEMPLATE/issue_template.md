@@ -4,6 +4,7 @@ description: Report an issue for uAgents
 title: "[ISSUE]: <title>"
 labels: ["issue", "unconfirmed"]
 assignees:
+---
 body:
   - type: markdown
     attributes:
@@ -88,4 +89,3 @@ body:
           required: true
         - label: I have checked the [existing issues](https://github.com/fetchai/uAgents/issues) list to make sure my problem has not already been reported.
           required: true
----
