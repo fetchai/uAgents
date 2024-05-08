@@ -12,7 +12,7 @@ _What types of changes does the pull request introduce? Put an `x` in the boxes 
 - [ ] New feature added (non-breaking change that adds functionality).
 - [ ] Breaking change (fix or feature that would cause existing functionality to stop working as expected).
 - [ ] Documentation update.
-- [ ] Something else (e.g. tests, scripts, example, deployment, infrastructure, ...)
+- [ ] Something else (e.g., tests, scripts, example, deployment, infrastructure).
 
 ## Documentation
 
