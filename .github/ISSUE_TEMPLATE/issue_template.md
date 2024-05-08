@@ -1,10 +1,8 @@
----
 name: Issue Report
 description: Report an issue for uAgents
 title: "[ISSUE]: <title>"
 labels: ["issue", "unconfirmed"]
 assignees:
----
 body:
   - type: markdown
     attributes:
