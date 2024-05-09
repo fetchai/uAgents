@@ -1,4 +1,4 @@
-name: Issue Report
+name: Bug Report
 description: Report an issue for uagents
 title: "[ISSUE]: <title>"
 body:
