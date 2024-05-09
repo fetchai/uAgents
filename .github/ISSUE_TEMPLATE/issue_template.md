@@ -23,7 +23,7 @@ body:
       options:
         - label: Bug (unexpected behavior)
         - label: Documentation Issue (error or unclear information in docs)
-        - label: Other (unclear issue type)
+        - label: Other
       validations:
         required: true
   - type: textarea
