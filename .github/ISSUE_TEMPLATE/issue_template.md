@@ -12,7 +12,6 @@ body:
       label: Prerequisites
       description: Please confirm before submitting any new bug report:
       options:
-        - label: I checked the [documentation](https://fetch.ai/docs) to make sure this issue has not already been resolved within the documentation.
           required: true
         - label: I checked the [existing issues](https://github.com/fetchai/uAgents/issues) and made sure there are no similar open issues already been reported. It helps avoid duplicate reports and streamlines the issue management process.
           required: true
