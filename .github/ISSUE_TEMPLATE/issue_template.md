@@ -1,6 +1,6 @@
 name: Bug Report
 description: Report an issue for uagents
-title: "[ISSUE]: <title>"
+title: "<title>"
 body:
   - type: markdown
     attributes:
