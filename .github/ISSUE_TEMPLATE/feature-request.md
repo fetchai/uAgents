@@ -11,7 +11,7 @@ body:
     id: prerequisites
     attributes:
       label: Prerequisites
-      description: Please confirm before submitting any new feature request.
+      description: Please confirm before submitting any new feature request:
       options:
         - label: I checked the [documentation](https://fetch.ai/docs) and made sure this feature does not already exist.
           required: true
