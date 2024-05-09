@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report an issue in uAgents! We appreciate your contribution to improving the library.
+        Thanks for taking the time to report a bug in uAgents! We appreciate your contribution to improving the library.
   - type: checkboxes
     id: prerequisites
     attributes:
@@ -19,7 +19,7 @@ body:
     id: category
     attributes:
       label: Category
-      description: Select the category that best describes your issue.
+      description: Select the category that best describes the bug.
       options:
         - label: Bug (unexpected behavior)
         - label: Documentation Issue (error or unclear information in docs)
@@ -30,7 +30,7 @@ body:
     id: description
     attributes:
       label: Describe the Issue
-      description: Please provide a clear and concise description of the issue you encountered.
+      description: Please provide a clear and concise description of the bug you encountered.
       placeholder: What went wrong?
       validations:
         required: true
@@ -45,24 +45,14 @@ body:
     id: steps_to_reproduce
     attributes:
       label: Steps to Reproduce (Optional)
-      description: If possible, provide detailed steps that consistently reproduce the issue. This will help us pinpoint the problem and fix it as soon as possible.
-      placeholder: |
-        1. In this environment ...
-        2. With this configuration ...
-        3. Run '...'
-        4. See error ...
+      description: If possible, provide detailed steps that consistently reproduce the bug. This will help us pinpoint the problem and fix it as soon as possible.
       validations:
         required: false
-  - type: dropdown
+  - type: textarea
     id: version
     attributes:
       label: uAgents Version
-      description: Which version of uAgents were you using?
-      options:
-        - v0.11.1
-        - v0.11.0
-        - v0.10.0
-        # Add other versions as needed
+      description: Which version of uAgents were you using? Please enter the version number here.
       validations:
         required: true
   - type: textarea
@@ -78,13 +68,14 @@ body:
     attributes:
       label: Failure Logs (Optional)
       description: Include any relevant log snippets or files here. You can paste directly or drag and drop files into this area.
+    render: shell
     validations:
         required: false
   - type: textarea
     id: additional_info
     attributes:
       label: Additional Information (Optional)
-      description: Include any screenshots, code snippets, or other relevant details that might help us understand the issue.
+      description: Include any screenshots, code snippets, or other relevant details that might help us understand the bug.
       render: markdown
       validations:
         required: false

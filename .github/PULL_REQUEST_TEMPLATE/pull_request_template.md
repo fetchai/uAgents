@@ -4,13 +4,13 @@ _(Describe the changes provided by the pull request here.)_
 
 ## Issues
 
-_(If applicable, add links to any issues resolved.)_
+_(If applicable, add links to any issues resolved by the pull request.)_
 
 ## Types of changes
 
 _What types of changes does the pull request introduce? Put an `x` in the boxes that apply:_
 
-- [ ] Bug/issue fix (non-breaking change that fixes an issue).
+- [ ] Bug fix (non-breaking change that fixes an issue).
 - [ ] New feature added (non-breaking change that adds functionality).
 - [ ] Breaking change (fix or feature that would cause existing functionality to stop working as expected).
 - [ ] Documentation update.
@@ -20,14 +20,14 @@ _What types of changes does the pull request introduce? Put an `x` in the boxes 
 
 _Put an `x` in the boxes that apply:_
 
-- [ ] Checks and tests pass locally.
-- [ ] I have read the [CONTRIBUTING](/CONTRIBUTING.md) resource.
+  - [ ] I have read the [CONTRIBUTING](/CONTRIBUTING.md) guide.
+  - [ ] Checks and tests pass locally.
 
-### If applicable: 
+### If applicable
 
-- [ ] I have added tests that prove my fix is effective or that my feature works.
-- [ ] I have checked that code coverage does not decrease.
-- [ ] I have added/updated the documentation.
+  - [ ] I have added tests that prove my fix is effective or that my feature works.
+  - [ ] I have checked that code coverage does not decrease.
+  - [ ] I have added/updated the documentation.
 
 ## Further comments
 
