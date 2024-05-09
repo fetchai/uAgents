@@ -13,7 +13,7 @@ body:
       description: Please confirm before submitting any new bug report:
       options:
           required: true
-        - label: I checked the [existing issues](https://github.com/fetchai/uAgents/issues) and made sure there are no similar open issues already been reported. It helps avoid duplicate reports and streamlines the issue management process.
+        - label: I checked the [existing issues](https://github.com/fetchai/uAgents/issues) and made sure there are no similar bug report. 
           required: true
   - type: dropdown
     id: category
