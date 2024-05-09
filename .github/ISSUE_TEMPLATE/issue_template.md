@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report an issue for uagents
+description: Report a bug for uAgents
 title: "<title>"
 body:
   - type: markdown
