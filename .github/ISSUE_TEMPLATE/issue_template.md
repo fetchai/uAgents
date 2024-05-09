@@ -10,7 +10,7 @@ body:
     id: prerequisites
     attributes:
       label: Prerequisites
-      description: Please confirm before submitting any new issue report form.
+      description: Please confirm before submitting any new bug report:
       options:
         - label: I checked the [documentation](https://fetch.ai/docs) to make sure this issue has not already been resolved within the documentation.
           required: true
