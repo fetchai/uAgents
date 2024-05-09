@@ -1,6 +1,6 @@
 name: Feature request
 description: Suggest a new feature for uAgents
-title: "[Feature request]: <title>"
+title: "<title>"
 labels: ["enhancement", "unconfirmed"]
 body:
   - type: markdown
