@@ -23,7 +23,7 @@ from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
 from pydantic import ValidationError
 from uagents.asgi import ASGIServer
-from uagents.communication import MsgDigest, dispenser
+from uagents.communication import Dispenser, MsgDigest
 from uagents.config import (
     AVERAGE_BLOCK_INTERVAL,
     LEDGER_PREFIX,
@@ -32,7 +32,6 @@ from uagents.config import (
     REGISTRATION_RETRY_INTERVAL_SECONDS,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     TESTNET_PREFIX,
-    add_task,
     get_logger,
     parse_agentverse_config,
     parse_endpoint_config,
@@ -283,7 +282,6 @@ class Agent(Sink):
         """
         self._name = name
         self._port = port if port is not None else 8000
-        self._background_tasks: Set[asyncio.Task] = set()
         self._resolver = (
             resolve
             if resolve is not None
@@ -337,7 +335,7 @@ class Agent(Sink):
         self._replies: Dict[str, Dict[str, Type[Model]]] = {}
         self._queries: Dict[str, asyncio.Future] = {}
         self._dispatcher = dispatcher
-        self._dispenser = dispenser
+        self._dispenser = Dispenser()
         self._message_queue = asyncio.Queue()
         self._on_startup = []
         self._on_shutdown = []
@@ -345,9 +343,7 @@ class Agent(Sink):
         self._version = version or "0.1.0"
 
         # configure the dispenser
-        self._dispenser.configure(
-            resolver=self._resolver,
-        )
+        self._dispenser.configure()
 
         self.initialize_wallet_messaging(enable_wallet_messaging)
 
@@ -365,6 +361,8 @@ class Agent(Sink):
             ),
             storage=self._storage,
             ledger=self._ledger,
+            resolver=self._resolver,
+            dispenser=self._dispenser,
             interval_messages=self._interval_messages,
             wallet_messaging_client=self._wallet_messaging_client,
             logger=self._logger,
@@ -962,27 +960,33 @@ class Agent(Sink):
         """
         # register the internal agent protocol
         self.include(self._protocol)
+        self.start_message_dispenser()
         self._loop.run_until_complete(self._startup())
-        self.start_background_tasks()
+        self.start_message_receivers()
+        self.start_interval_tasks()
 
-    def start_background_tasks(self):
+    def start_message_dispenser(self):
         """
-        Start background tasks for the agent.
+        Start the message dispenser.
 
         """
-        # Start the interval tasks
+        self._loop.create_task(self._dispenser.run())
+
+    def start_interval_tasks(self):
+        """
+        Start interval tasks for the agent.
+
+        """
         for func, period in self._interval_handlers:
-            add_task(
-                self._loop,
-                self._background_tasks,
-                _run_interval(func, self._ctx, period),
-            )
+            self._loop.create_task(_run_interval(func, self._ctx, period))
 
+    def start_message_receivers(self):
+        """
+        Start message receiving tasks for the agent.
+
+        """
         # start the background message queue processor
-        add_task(self._loop, self._background_tasks, self._process_message_queue())
-
-        # start the external message dispenser
-        add_task(self._loop, self._background_tasks, self._dispenser.run())
+        self._loop.create_task(self._process_message_queue())
 
         # start the wallet messaging client if enabled
         if self._wallet_messaging_client is not None:
@@ -990,7 +994,7 @@ class Agent(Sink):
                 self._wallet_messaging_client.poll_server(),
                 self._wallet_messaging_client.process_message_queue(self._ctx),
             ]:
-                add_task(self._loop, self._background_tasks, task)
+                self._loop.create_task(task)
 
     def run(self):
         """
@@ -1028,6 +1032,8 @@ class Agent(Sink):
                 agent=self._ctx.agent,
                 storage=self._storage,
                 ledger=self._ledger,
+                resolver=self._resolver,
+                dispenser=self._dispenser,
                 wallet_messaging_client=self._wallet_messaging_client,
                 logger=self._logger,
                 queries=self._queries,
