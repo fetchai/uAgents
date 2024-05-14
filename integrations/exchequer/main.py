@@ -38,14 +38,14 @@ class CustomPaymentComplete(PaymentComplete):
 @ex_dialogue_1.on_request(CustomPaymentRequest)
 async def my_handle_request1(ctx: Context, sender: str, msg: CustomPaymentRequest):
     ctx.logger.info(
-        f"I know the hidden amount {msg.amount} and my special sauce {msg.customfield}"
+        f"I know the mandatory amount {msg.amount} and my custom sauce {msg.customfield}"
     )
 
 
-@ex_dialogue_2.on_request(CustomPaymentComplete)
+@ex_dialogue_2.on_request(CustomPaymentRequest)
 async def my_handle_request2(ctx: Context, sender: str, msg: CustomPaymentRequest):
     ctx.logger.info(
-        f"I know the hidden amount {msg.amount} and my special sauce {msg.customfield}"
+        f"I know the mandatory amount {msg.amount} and my custom sauce {msg.customfield}"
     )
 
 
@@ -67,7 +67,6 @@ async def start_payee(ctx: Context):
             customfield="Dingalingaling",
         ),
     )
-    ctx.storage.set(str(ctx.session), {"amount": 50})
 
 
 if __name__ == "__main__":
