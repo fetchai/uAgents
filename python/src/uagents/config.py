@@ -1,7 +1,6 @@
-import asyncio
 import logging
 import sys
-from typing import Any, Callable, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Union
 
 from uvicorn.logging import DefaultFormatter
 
@@ -117,24 +116,3 @@ def get_logger(logger_name, level=logging.INFO):
     logger.addHandler(log_handler)
     logger.propagate = False
     return logger
-
-
-def log(logger: Optional[logging.Logger], level: str, message: str):
-    if logger:
-        logger.log(level, message)
-
-
-def add_task(
-    loop: asyncio.AbstractEventLoop, task_list: Set[asyncio.Task], func: Callable
-):
-    """
-    Create a task and add it to the agents event loop and task list.
-
-    Args:
-        loop (asyncio.AbstractEventLoop): Agent event loop.
-        task_list (Set[asyncio.Task]): Agent internal task list.
-        func (Callable): Function to be executed as a task.
-    """
-    task = loop.create_task(func)
-    task_list.add(task)
-    task.add_done_callback(task_list.discard)
