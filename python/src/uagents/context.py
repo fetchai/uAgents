@@ -467,7 +467,6 @@ class InternalContext(Context):
         fut = asyncio.Future()
 
         self._queue_envelope(env, endpoints, fut, sync)
-        self._logger.info("Queued envelope...")
 
         result = await fut
 
