@@ -25,22 +25,23 @@ from cosmpy.aerial.client import LedgerClient
 from typing_extensions import deprecated
 from uagents.communication import (
     DeliveryStatus,
+    Dispenser,
     MsgDigest,
     MsgStatus,
     dispatch_local_message,
-    dispenser,
+    dispatch_sync_response_envelope,
 )
 from uagents.config import (
     ALMANAC_API_URL,
     DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     DEFAULT_SEARCH_LIMIT,
-    log,
 )
 from uagents.dispatch import JsonStr, dispatcher
 from uagents.envelope import Envelope
 from uagents.models import ErrorMessage, Model
-from uagents.resolver import parse_identifier
+from uagents.resolver import Resolver, parse_identifier
 from uagents.storage import KeyValueStore
+from uagents.utils import log
 
 if TYPE_CHECKING:
     from uagents.agent import AgentRepresentation
@@ -222,6 +223,8 @@ class InternalContext(Context):
         agent: AgentRepresentation,
         storage: KeyValueStore,
         ledger: LedgerClient,
+        resolver: Resolver,
+        dispenser: Dispenser,
         interval_messages: Optional[Set[str]] = None,
         wallet_messaging_client: Optional[Any] = None,
         logger: Optional[logging.Logger] = None,
@@ -229,6 +232,8 @@ class InternalContext(Context):
         self._agent = agent
         self._storage = storage
         self._ledger = ledger
+        self._resolver = resolver
+        self._dispenser = dispenser
         self._session = None
         self._interval_messages = interval_messages
         self._wallet_messaging_client = wallet_messaging_client
@@ -397,35 +402,49 @@ class InternalContext(Context):
         self._session = self._session or uuid.uuid4()
 
         # Extract address from destination agent identifier if present
-        _, _, destination_address = parse_identifier(destination)
+        _, _, parsed_address = parse_identifier(destination)
 
-        if destination_address:
+        if parsed_address:
             # Handle local dispatch of messages
-            if dispatcher.contains(destination_address):
-                return dispatch_local_message(
+            if dispatcher.contains(parsed_address):
+                return await dispatch_local_message(
                     self.agent.address,
-                    destination_address,
+                    parsed_address,
                     message_schema_digest,
                     message_body,
                     self._session,
                 )
 
             # Handle sync dispatch of messages
-            if queries and destination_address in queries:
-                queries[destination_address].set_result(
+            if queries and parsed_address in queries:
+                queries[parsed_address].set_result(
                     (message_body, message_schema_digest)
                 )
-                del queries[destination_address]
+                del queries[parsed_address]
                 return MsgStatus(
                     status=DeliveryStatus.DELIVERED,
                     detail="Sync message resolved",
-                    destination=destination_address,
+                    destination=parsed_address,
                     endpoint="",
                 )
 
-            self._outbound_messages[destination_address] = (
+            self._outbound_messages[parsed_address] = (
                 message_body,
                 message_schema_digest,
+            )
+
+        # Resolve destination address using the resolver
+        destination_address, endpoints = await self._resolver.resolve(parsed_address)
+
+        if len(endpoints) == 0:
+            self._logger.error(
+                f"Unable to resolve destination endpoint for address {parsed_address}",
+            )
+            return MsgStatus(
+                status=DeliveryStatus.FAILED,
+                detail="Unable to resolve destination endpoint",
+                destination=destination,
+                endpoint="",
             )
 
         # Calculate when the envelope expires
@@ -437,39 +456,40 @@ class InternalContext(Context):
             sender=self.agent.address,
             target=destination_address,
             session=self._session,
-            # schema_digest=message_schema_digest,
-            protocol=message_schema_digest,  # why use 'protocol'?
+            schema_digest=message_schema_digest,
             protocol_digest=protocol_digest,
             expires=expires,
         )
         env.encode_payload(message_body)
         env.sign(self.agent.sign_digest)
 
-        self._queue_envelope(env, sync)
+        # Create awaitable future for sync messages responses
+        fut = asyncio.Future()
 
-        return MsgStatus(
-            status=DeliveryStatus.QUEUED,
-            detail="Envelope successfully queued",
-            destination=destination,
-            endpoint="",
-        )
-        # At this point we need the result of the send_raw_exchange_envelope
-        # but the result will be async so we need another way to access the
-        # return value
+        self._queue_envelope(env, endpoints, fut, sync)
+        self._logger.info("Queued envelope...")
 
-        # if isinstance(result, Envelope):
-        #     return await dispatch_sync_response_envelope(result)
+        result = await fut
 
-        # return result
+        if isinstance(result, Envelope):
+            return await dispatch_sync_response_envelope(result)
 
-    def _queue_envelope(self, envelope: Envelope, sync: bool = False):
+        return result
+
+    def _queue_envelope(
+        self,
+        envelope: Envelope,
+        endpoints: List[str],
+        response_future: asyncio.Future,
+        sync: bool = False,
+    ):
         """
         Queue an envelope for processing.
 
         Args:
             envelope (Envelope): The envelope to queue.
         """
-        dispenser.add_envelope(envelope, sync)
+        self._dispenser.add_envelope(envelope, endpoints, response_future, sync)
 
     async def send_wallet_message(
         self,

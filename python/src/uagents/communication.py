@@ -16,7 +16,7 @@ from uagents.crypto import Identity
 from uagents.dispatch import JsonStr, dispatcher
 from uagents.envelope import Envelope
 from uagents.models import Model
-from uagents.resolver import GlobalResolver, Resolver, parse_identifier
+from uagents.resolver import Resolver, parse_identifier
 
 LOGGER = get_logger("dispenser", logging.DEBUG)
 
@@ -70,29 +70,48 @@ class Dispenser:
     def __init__(self):
         self._envelopes: List[Tuple[Envelope, bool]] = []
         self._timeout: float = DEFAULT_DISPENSER_INTERVAL
-        self._resolver: Resolver = GlobalResolver()
 
-    def configure(self, resolver: Resolver, timeout: Optional[float] = None):
-        if resolver:
-            self._resolver = resolver
+    def configure(self, timeout: Optional[float] = None):
+        """
+        Configure the dispenser.
+
+        Configuration may not be necessary for all implementations.
+        """
         if timeout:
             self._timeout = timeout
 
-    def add_envelope(self, envelope: Envelope, sync: bool = False):
-        self._envelopes.append((envelope, sync))
+    def add_envelope(
+        self,
+        envelope: Envelope,
+        endpoints: List[str],
+        response_future: asyncio.Future,
+        sync: bool = False,
+    ):
+        """
+        Add an envelope to the dispenser.
+
+        Args:
+            envelope (Envelope): The envelope to send.
+            endpoints (List[str]): The endpoints to send the envelope to.
+            sync (bool, optional): True if the message is synchronous. Defaults to False.
+        """
+        self._envelopes.append((envelope, endpoints, response_future, sync))
 
     async def run(self):
+        """Run the dispenser routine."""
         while True:
-            for env, sync in self._envelopes:
+            for env, endpoints, response_future, sync in self._envelopes:
                 try:
-                    await send_exchange_envelope(
+                    result = await send_exchange_envelope(
                         envelope=env,
-                        resolver=self._resolver,
+                        endpoints=endpoints,
                         sync=sync,
-                    )  # how do we handle the MsgStatus response?
-                    self._envelopes.remove((env, sync))
-                except ValueError:
-                    continue
+                    )
+                    response_future.set_result(result)
+                except Exception as err:
+                    LOGGER.error(f"Failed to send envelope: {err}")
+                finally:  # sending an envelope is only tried once
+                    self._envelopes.remove((env, endpoints, response_future, sync))
             await asyncio.sleep(DEFAULT_DISPENSER_INTERVAL)
 
 
@@ -121,7 +140,7 @@ async def dispatch_local_message(
 
 async def send_exchange_envelope(
     envelope: Envelope,
-    resolver: Optional[Resolver] = None,
+    endpoints: List[str] = None,
     sync: bool = False,
 ) -> Union[MsgStatus, Envelope]:
     """
@@ -135,19 +154,6 @@ async def send_exchange_envelope(
     Returns:
         Union[MsgStatus, Envelope]: Either the status of the message or the response envelope.
     """
-    if resolver is None:
-        resolver = GlobalResolver()
-    _, endpoints = await resolver.resolve(envelope.target)
-    if len(endpoints) == 0:
-        LOGGER.error(
-            f"Unable to resolve destination endpoint for address {envelope.target}",
-        )
-        return MsgStatus(
-            status=DeliveryStatus.FAILED,
-            detail="Unable to resolve destination endpoint",
-            destination=envelope.target,
-            endpoint="",
-        )
     headers = {"content-type": "application/json"}
     if sync:
         headers["x-uagents-connection"] = "sync"
@@ -238,8 +244,16 @@ async def send_sync_message(
     if sender is None:
         sender = Identity.generate()
 
-    # TODO: This is not quite right as this should really be resolved by the resolver
-    _, _, destination_address = parse_identifier(destination)
+    _, _, parsed_address = parse_identifier(destination)
+
+    destination_address, endpoints = await resolver.resolve(parsed_address)
+    if not endpoints:
+        return MsgStatus(
+            status=DeliveryStatus.FAILED,
+            detail="Failed to resolve destination address",
+            destination=destination_address,
+            endpoint="",
+        )
 
     env = Envelope(
         version=1,
@@ -254,7 +268,7 @@ async def send_sync_message(
 
     response = await send_exchange_envelope(
         envelope=env,
-        resolver=resolver or GlobalResolver(),
+        endpoints=endpoints,
         sync=True,
     )
     if isinstance(response, Envelope):
@@ -263,6 +277,3 @@ async def send_sync_message(
             return response_type.parse_raw(json_message)
         return json_message
     return response
-
-
-dispenser = Dispenser()
