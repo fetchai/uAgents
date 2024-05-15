@@ -26,13 +26,13 @@ from uagents.asgi import ASGIServer
 from uagents.communication import Dispenser, MsgDigest
 from uagents.config import (
     AVERAGE_BLOCK_INTERVAL,
+    DEFAULT_DISPENSER_INTERVAL,
     LEDGER_PREFIX,
     MAINNET_PREFIX,
     REGISTRATION_FEE,
     REGISTRATION_RETRY_INTERVAL_SECONDS,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     TESTNET_PREFIX,
-    get_logger,
     parse_agentverse_config,
     parse_endpoint_config,
 )
@@ -57,6 +57,7 @@ from uagents.network import (
 from uagents.protocol import Protocol
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
+from uagents.utils import get_logger
 
 
 async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
@@ -342,8 +343,9 @@ class Agent(Sink):
         self._test = test
         self._version = version or "0.1.0"
 
-        # configure the dispenser
-        self._dispenser.configure()
+        self._dispenser.configure(
+            timeout=DEFAULT_DISPENSER_INTERVAL,
+        )
 
         self.initialize_wallet_messaging(enable_wallet_messaging)
 

@@ -11,12 +11,13 @@ from typing import Any, List, Optional, Type, Union
 
 import aiohttp
 from pydantic import ValidationError
-from uagents.config import DEFAULT_DISPENSER_INTERVAL, get_logger
+from uagents.config import DEFAULT_DISPENSER_INTERVAL
 from uagents.crypto import Identity
 from uagents.dispatch import JsonStr, dispatcher
 from uagents.envelope import Envelope
 from uagents.models import Model
-from uagents.resolver import Resolver, parse_identifier
+from uagents.resolver import GlobalResolver, Resolver, parse_identifier
+from uagents.utils import get_logger
 
 LOGGER = get_logger("dispenser", logging.DEBUG)
 
@@ -27,7 +28,6 @@ class DeliveryStatus(str, Enum):
     SENT = "sent"
     DELIVERED = "delivered"
     FAILED = "failed"
-    QUEUED = "queued"
 
 
 @dataclass
@@ -68,7 +68,7 @@ class Dispenser:
     """
 
     def __init__(self):
-        self._envelopes: List[Tuple[Envelope, bool]] = []
+        self._envelopes: List[Tuple[Envelope, List[str], asyncio.Future, bool]] = []
         self._timeout: float = DEFAULT_DISPENSER_INTERVAL
 
     def configure(self, timeout: Optional[float] = None):
@@ -93,6 +93,7 @@ class Dispenser:
         Args:
             envelope (Envelope): The envelope to send.
             endpoints (List[str]): The endpoints to send the envelope to.
+            response_future (asyncio.Future): The future to set the response on.
             sync (bool, optional): True if the message is synchronous. Defaults to False.
         """
         self._envelopes.append((envelope, endpoints, response_future, sync))
@@ -140,7 +141,7 @@ async def dispatch_local_message(
 
 async def send_exchange_envelope(
     envelope: Envelope,
-    endpoints: List[str] = None,
+    endpoints: List[str],
     sync: bool = False,
 ) -> Union[MsgStatus, Envelope]:
     """
@@ -220,9 +221,9 @@ async def dispatch_sync_response_envelope(env: Envelope) -> MsgStatus:
 async def send_sync_message(
     destination: str,
     message: Model,
-    response_type: Type[Model] = None,
-    sender: Identity = None,
-    resolver: Resolver = None,
+    response_type: Optional[Type[Model]] = None,
+    sender: Optional[Identity] = None,
+    resolver: Optional[Resolver] = None,
     timeout: int = 30,
 ) -> Union[Model, JsonStr, MsgStatus]:
     """
@@ -243,15 +244,17 @@ async def send_sync_message(
     """
     if sender is None:
         sender = Identity.generate()
+    if resolver is None:
+        resolver = GlobalResolver()
 
     _, _, parsed_address = parse_identifier(destination)
 
     destination_address, endpoints = await resolver.resolve(parsed_address)
-    if not endpoints:
+    if not endpoints or not destination_address:
         return MsgStatus(
             status=DeliveryStatus.FAILED,
             detail="Failed to resolve destination address",
-            destination=destination_address,
+            destination=destination,
             endpoint="",
         )
 

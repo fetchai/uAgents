@@ -18,6 +18,7 @@ from typing import (
     Set,
     Tuple,
     Type,
+    Union,
 )
 
 import requests
@@ -254,11 +255,11 @@ class InternalContext(Context):
         return self._ledger
 
     @property
-    def logger(self) -> logging.Logger:
+    def logger(self) -> Union[logging.Logger, None]:
         return self._logger
 
     @property
-    def session(self) -> uuid.UUID:
+    def session(self) -> Union[uuid.UUID, None]:
         """
         Get the session UUID associated with the context.
 
@@ -323,7 +324,11 @@ class InternalContext(Context):
             destination_protocol, limit=limit, logger=self.logger
         )
         if not agents:
-            self.logger.error(f"No active agents found for: {destination_protocol}")
+            log(
+                self.logger,
+                logging.ERROR,
+                f"No active agents found for: {destination_protocol}",
+            )
             return []
 
         futures = await asyncio.gather(
@@ -332,12 +337,12 @@ class InternalContext(Context):
                     address,
                     message,
                     sync=False,
-                    timeout=timeout,
+                    timeout=timeout or DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
                 )
                 for address in agents
             ]
         )
-        self.logger.debug(f"Sent {len(futures)} messages")
+        log(self.logger, logging.DEBUG, f"Sent {len(futures)} messages")
         return futures
 
     def _is_valid_interval_message(self, schema_digest: str) -> bool:
@@ -371,9 +376,7 @@ class InternalContext(Context):
         message_body = message.json()
 
         if not self._is_valid_interval_message(schema_digest):
-            self._logger.exception(
-                f"Outgoing message '{message.__class__.__name__}' is not a valid interval message"
-            )
+            log(self.logger, logging.ERROR, f"Invalid interval message: {message}")
             return MsgStatus(
                 status=DeliveryStatus.FAILED,
                 detail="Invalid interval message",
@@ -402,7 +405,7 @@ class InternalContext(Context):
         self._session = self._session or uuid.uuid4()
 
         # Extract address from destination agent identifier if present
-        _, _, parsed_address = parse_identifier(destination)
+        _, parsed_name, parsed_address = parse_identifier(destination)
 
         if parsed_address:
             # Handle local dispatch of messages
@@ -433,13 +436,13 @@ class InternalContext(Context):
                 message_schema_digest,
             )
 
-        # Resolve destination address using the resolver
-        destination_address, endpoints = await self._resolver.resolve(parsed_address)
+        # Resolve destination address or name using the resolver
+        destination_address, endpoints = await self._resolver.resolve(
+            parsed_address or parsed_name
+        )
 
-        if len(endpoints) == 0:
-            self._logger.error(
-                f"Unable to resolve destination endpoint for address {parsed_address}",
-            )
+        if not endpoints or not destination_address:
+            log(self.logger, logging.ERROR, "Unable to resolve destination endpoint")
             return MsgStatus(
                 status=DeliveryStatus.FAILED,
                 detail="Unable to resolve destination endpoint",
@@ -499,7 +502,11 @@ class InternalContext(Context):
         if self._wallet_messaging_client is not None:
             await self._wallet_messaging_client.send(destination, text, msg_type)
         else:
-            self.logger.warning("Cannot send wallet message: no client available")
+            log(
+                self.logger,
+                logging.WARNING,
+                "Cannot send wallet message: no client available",
+            )
 
 
 class ExternalContext(InternalContext):
@@ -521,7 +528,7 @@ class ExternalContext(InternalContext):
         self,
         message_received: MsgDigest,
         session: Optional[uuid.UUID] = None,
-        queries: Dict[str, asyncio.Future] = None,
+        queries: Optional[Dict[str, asyncio.Future]] = None,
         replies: Optional[Dict[str, Dict[str, Type[Model]]]] = None,
         protocol: Optional[Tuple[str, Protocol]] = None,
         **kwargs,
@@ -595,9 +602,11 @@ class ExternalContext(InternalContext):
         if schema_digest != ERROR_MESSAGE_DIGEST and not self._is_valid_reply(
             message_type
         ):
-            self._logger.exception(
+            log(
+                self.logger,
+                logging.ERROR,
                 f"Outgoing message {message_type} is not a valid reply"
-                f"to {self._message_received.message}"
+                f"to {self._message_received.message}",
             )
             return MsgStatus(
                 status=DeliveryStatus.FAILED,

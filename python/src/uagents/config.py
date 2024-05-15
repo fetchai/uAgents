@@ -1,11 +1,4 @@
-import logging
-import sys
 from typing import Any, Dict, List, Optional, Union
-
-from uvicorn.logging import DefaultFormatter
-
-logging.basicConfig(level=logging.INFO)
-
 
 AGENT_PREFIX = "agent"
 LEDGER_PREFIX = "fetch"
@@ -103,16 +96,3 @@ def parse_agentverse_config(
         "http_prefix": http_prefix,
         "use_mailbox": agent_mailbox_key is not None,
     }
-
-
-def get_logger(logger_name, level=logging.INFO):
-    """Get a logger with the given name using uvicorn's default formatter."""
-    logger = logging.getLogger(logger_name)
-    logger.setLevel(level)
-    log_handler = logging.StreamHandler(sys.stdout)
-    log_handler.setFormatter(
-        DefaultFormatter(fmt="%(levelprefix)s [%(name)5s]: %(message)s")
-    )
-    logger.addHandler(log_handler)
-    logger.propagate = False
-    return logger
