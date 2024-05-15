@@ -613,7 +613,7 @@ class ExternalContext(InternalContext):
         # replies, message_received, and protocol are set
 
         if schema_digest != ERROR_MESSAGE_DIGEST and not self._is_valid_reply(
-            message_type
+            schema_digest
         ):
             log(
                 self.logger,
