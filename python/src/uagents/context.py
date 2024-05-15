@@ -471,7 +471,16 @@ class InternalContext(Context):
 
         self._queue_envelope(env, endpoints, fut, sync)
 
-        result = await fut
+        try:
+            result = await asyncio.wait_for(fut, timeout)
+        except asyncio.TimeoutError:
+            log(self.logger, logging.ERROR, "Timeout waiting for dispense response")
+            return MsgStatus(
+                status=DeliveryStatus.FAILED,
+                detail="Timeout waiting for response",
+                destination=destination,
+                endpoint="",
+            )
 
         if isinstance(result, Envelope):
             return await dispatch_sync_response_envelope(result)
