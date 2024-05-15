@@ -171,7 +171,11 @@ class Context(ABC):
 
     @abstractmethod
     async def send(
-        self, destination: str, message: Model, sync: bool, timeout: int
+        self,
+        destination: str,
+        message: Model,
+        sync: Optional[bool],
+        timeout: Optional[int],
     ) -> MsgStatus:
         """
         Send a message to the specified destination.
@@ -193,8 +197,8 @@ class Context(ABC):
         destination: str,
         message_schema_digest: str,
         message_body: JsonStr,
-        sync: bool,
-        timeout: int,
+        sync: Optional[bool],
+        timeout: Optional[int],
         protocol_digest: Optional[str],
     ) -> MsgStatus:
         """
@@ -363,8 +367,8 @@ class InternalContext(Context):
         self,
         destination: str,
         message: Model,
-        sync: bool = False,
-        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+        sync: Optional[bool] = False,
+        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
         """
         This is the pro-active send method which is used in on_event and
@@ -466,7 +470,7 @@ class InternalContext(Context):
         env.encode_payload(message_body)
         env.sign(self.agent.sign_digest)
 
-        # Create awaitable future for sync messages responses
+        # Create awaitable future for MsgStatus and sync response
         fut = asyncio.Future()
 
         self._queue_envelope(env, endpoints, fut, sync)
@@ -586,8 +590,8 @@ class ExternalContext(InternalContext):
         self,
         destination: str,
         message: Model,
-        sync: bool = False,
-        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+        sync: Optional[bool] = False,
+        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
         """
         Send a message to the specified destination.
