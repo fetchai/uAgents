@@ -217,6 +217,26 @@ class Context(ABC):
         """
         pass
 
+    @abstractmethod
+    async def send_wallet_message(
+        self,
+        destination: str,
+        text: str,
+        msg_type: int = 1,
+    ):
+        """
+        Send a message to the wallet of the specified destination.
+
+        Args:
+            destination (str): The destination address to send the message to.
+            text (str): The text of the message to be sent.
+            msg_type (int): The type of the message to be sent.
+
+        Returns:
+            None
+        """
+        pass
+
 
 class InternalContext(Context):
     """
@@ -239,12 +259,11 @@ class InternalContext(Context):
         self._ledger = ledger
         self._resolver = resolver
         self._dispenser = dispenser
-        self._session = None
+        self._logger = logger
+        self._session: Optional[uuid.UUID] = None
         self._interval_messages = interval_messages
         self._wallet_messaging_client = wallet_messaging_client
-        self._logger = logger
         self._outbound_messages: Dict[str, Tuple[JsonStr, str]] = {}
-        self._envelopes: List[Envelope] = []
 
     @property
     def agent(self) -> AgentRepresentation:
