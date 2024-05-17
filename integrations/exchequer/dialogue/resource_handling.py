@@ -29,8 +29,9 @@ from uagents import Model
 from uagents.context import Context
 from uagents.experimental.dialogues import Dialogue, Edge, Node
 
-from .clients import get_client  # pylint: disable=relative-beyond-top-level
 from .exchequer import (
+    PAYEE_TOKEN,
+    PAYER_TOKEN,
     Balance,
     ExchequerError,
     PaymentCommitment,
@@ -54,16 +55,12 @@ from .exchequer import (
     reject_payment,
 )
 
-EXCHEQUER_URL = "http://localhost:8000/v1/payments/"
-# EXCHEQUER_URL = "https://staging.agentverse.ai/v1/payments/"
+from .clients import get_client  # pylint: disable=relative-beyond-top-level
+
+# EXCHEQUER_URL = "http://localhost:8000/v1/payments/"
+EXCHEQUER_URL = "https://staging.agentverse.ai/v1/payments/"
 EXCHEQUER_ACCOUNTS = "accounts"
 EXCHEQUER_EXCHANGE = "exchanges"
-
-PAYER_TOKEN = get_client("client_2")["token"]
-PAYEE_TOKEN = get_client("client_3")["token"]
-
-
-# Base dialogue messages. Check <TODO> to understand which messages to extend for customization
 
 
 class ResourceRequest(Model):
@@ -162,14 +159,14 @@ class ResourcePaymentDialogue(Dialogue):
     # Resource dialogue specific handlers
     #
 
-    async def handle_resource_request(
+    async def _handle_resource_request(
         self, ctx: Context, sender: str, msg: ResourceRequest
     ):
         resource = ctx.storage.get("resources")[msg.type]
         available = resource["available"] or 0
         price = resource["price"] or 0
-
-        if available == 0 or available < msg.quantity:
+        ctx.logger.debug(f"{available} resources available, {msg.quantity} requested")
+        if available < msg.quantity:
             await ctx.send(sender, ReservationReject(reason="Resource not available"))
         else:
             # in the case of service chaining, start a new dialogue with target services/resources here and set a timeout.
@@ -181,7 +178,7 @@ class ResourcePaymentDialogue(Dialogue):
                 ),
             )
 
-    async def handle_availability(
+    async def _handle_availability(
         self, ctx: Context, sender: str, msg: ResourceAvailability
     ):
         # wait for offers to be received and chose best
@@ -201,19 +198,19 @@ class ResourcePaymentDialogue(Dialogue):
         else:
             ctx.logger.debug(f"Exchequer: Not enough funds for offer from {sender}")
 
-    async def handle_reservation(
+    async def _handle_reservation(
         self, ctx: Context, sender: str, msg: ResourceRerservation
     ):
         resources = ctx.storage.get("resources")
         available = resources[msg.type]["available"]
-        if available > 0:
-            resources[msg.type]["available"] = available - 1
+        if available >= msg.quantity:
+            resources[msg.type]["available"] = available - msg.quantity
             ctx.storage.set("resources", resources)
             await ctx.send(
                 sender,
                 PaymentRequest(
                     requester_id=get_client("client_3")["id"],
-                    amount=resources[msg.type]["amount"],
+                    amount=resources[msg.type]["price"],
                     subject="Invoice #111 for resource",
                 ),
             )
@@ -224,7 +221,7 @@ class ResourcePaymentDialogue(Dialogue):
     # Exchequer specific handlers (copied from exchequer.py as long as we don't have composability)
     #
 
-    async def handle_payment_request(
+    async def _handle_payment_request(
         self, ctx: Context, sender: str, msg: PaymentRequest
     ):
         ctx.logger.debug("Exchequer: Received payment request")
@@ -250,7 +247,7 @@ class ResourcePaymentDialogue(Dialogue):
 
         await ctx.send(sender, PaymentCommitment(exchange_id=exchange_id))
 
-    async def handle_payment_commitment(
+    async def _handle_payment_commitment(
         self, ctx: Context, sender: str, msg: PaymentCommitment
     ):
         ctx.logger.debug(
@@ -258,7 +255,7 @@ class ResourcePaymentDialogue(Dialogue):
         )
 
         # check lock, verify IDs and amounts
-        exchange = await get_exchange(msg.exchange_id)
+        exchange = await get_exchange(PAYEE_TOKEN, msg.exchange_id)
         ctx.logger.debug(f"Exchequer: Exchange state: {exchange['state']}")
 
         if not exchange:
@@ -271,8 +268,7 @@ class ResourcePaymentDialogue(Dialogue):
             await ctx.send(sender, PaymentRejected(subject="Exchange is not locked"))
             return
 
-        # TODO how to access dialogue instance here to use get_conversation instead?
-        request_msg = self.get_conversation(ctx.session)[0]
+        request_msg = self.get_conversation(ctx.session)[3]
         request_content = json.loads(request_msg["message_content"])
         amount_expected = request_content["amount"]
         amount_actual = exchange["total_amount"]
@@ -293,19 +289,24 @@ class ResourcePaymentDialogue(Dialogue):
 
         # confirm & trust that Exchequer will work as intended
         ctx.logger.debug("Exchequer: Executing confirm")
-        await confirm_exchange(msg.exchange_id)
+        await confirm_exchange(PAYEE_TOKEN, msg.exchange_id)
 
         # complete
         ctx.logger.debug("Exchequer: <<< providing service >>>")
         warn("Service provided here as well", RuntimeWarning, stacklevel=2)
 
-        ctx.logger.debug("Exchequer: Executing complete: taking 40, refunding 10")
-        await complete_exchange(msg.exchange_id)  # payment done at this point
+        ctx.logger.debug("Exchequer: Executing completee")
+        await complete_exchange(
+            PAYEE_TOKEN,
+            msg.exchange_id,
+            amount_expected,
+            amount_actual - amount_expected,
+        )  # payment done at this point
 
         # notify about complete
         await ctx.send(sender, PaymentComplete(exchange_id=msg.exchange_id))
 
-    async def handle_payment_complete(
+    async def _handle_payment_complete(
         self, ctx: Context, sender: str, msg: PaymentComplete
     ):
         ctx.logger.debug(
@@ -313,7 +314,7 @@ class ResourcePaymentDialogue(Dialogue):
         )
 
         # check complete and do some cleanup here on payer side
-        exchange = await get_exchange(msg.exchange_id)
+        exchange = await get_exchange(PAYER_TOKEN, msg.exchange_id)
         ctx.logger.debug(f"Exchequer: Exchange state: {exchange['state']}")
 
         balance = await get_balance(PAYER_TOKEN)
@@ -322,7 +323,7 @@ class ResourcePaymentDialogue(Dialogue):
         # wait till exchange is settled and funds are released
         await ctx.send(sender, PaymentSettled(exchange_id=msg.exchange_id))
 
-    async def handle_payment_settled(
+    async def _handle_payment_settled(
         self, ctx: Context, _sender: str, msg: PaymentSettled
     ):
         ctx.logger.debug(
@@ -336,27 +337,34 @@ class ResourcePaymentDialogue(Dialogue):
         agent_address: str | None = None,
     ) -> None:
         request_resource_availability.set_edge_handler(
-            ResourceRequest, self.handle_resource_request
+            ResourceRequest, self._handle_resource_request
         )
+        request_resource_availability.set_message_handler(ResourceRequest, default)
 
         return_availability.set_edge_handler(
-            ResourceAvailability, self.handle_availability
+            ResourceAvailability, self._handle_availability
         )
+        return_availability.set_message_handler(ResourceAvailability, default)
 
-        reserve_resource.set_edge_handler(ResourceRerservation, self.handle_reservation)
+        reserve_resource.set_edge_handler(
+            ResourceRerservation, self._handle_reservation
+        )
+        reserve_resource.set_message_handler(ResourceRerservation, default)
 
-        request_payment.set_edge_handler(PaymentRequest, self.handle_payment_request)
+        request_payment.set_edge_handler(PaymentRequest, self._handle_payment_request)
         request_payment.set_message_handler(PaymentRequest, default)
 
         commit_payment.set_edge_handler(
-            PaymentCommitment, self.handle_payment_commitment
+            PaymentCommitment, self._handle_payment_commitment
         )
         commit_payment.set_message_handler(PaymentCommitment, default)
 
-        complete_payment.set_edge_handler(PaymentComplete, self.handle_payment_complete)
+        complete_payment.set_edge_handler(
+            PaymentComplete, self._handle_payment_complete
+        )
         complete_payment.set_message_handler(PaymentComplete, default)
 
-        conclude_payment.set_edge_handler(PaymentSettled, self.handle_payment_settled)
+        conclude_payment.set_edge_handler(PaymentSettled, self._handle_payment_settled)
         conclude_payment.set_message_handler(PaymentSettled, default)
 
         reject_payment.set_message_handler(PaymentSettled, default)
@@ -398,3 +406,22 @@ class ResourcePaymentDialogue(Dialogue):
 
     def on_resource_request(self, msg: type[Model]):
         return super()._on_state_transition(request_resource_availability.name, msg)
+
+    def on_availability(self, msg: type[Model]):
+        return super()._on_state_transition(return_availability.name, msg)
+
+    def on_no_availability(self, msg: type[Model]):
+        return super()._on_state_transition(no_availability.name, msg)
+
+    def on_resource_reserve(self, msg: type[Model]):
+        return super()._on_state_transition(reserve_resource.name, msg)
+
+    def on_reserve_reject(self, msg: type[Model]):
+        return super()._on_state_transition(reject_reservation.name, msg)
+
+    def on_payment_request(self, msg: type[Model]):
+        """
+        This message handler is triggered when a PaymentRequest message is received.
+        Any logic to decide whether the request should be accepted is to be implemented here.
+        """
+        return super()._on_state_transition(request_payment.name, msg)

@@ -18,8 +18,8 @@ from uagents.experimental.dialogues import Dialogue, Edge, Node
 
 from .clients import get_client  # pylint: disable=relative-beyond-top-level
 
-EXCHEQUER_URL = "http://localhost:8000/v1/payments/"
-# EXCHEQUER_URL = "https://staging.agentverse.ai/v1/payments/"
+# EXCHEQUER_URL = "http://localhost:8000/v1/payments/"
+EXCHEQUER_URL = "https://staging.agentverse.ai/v1/payments/"
 EXCHEQUER_ACCOUNTS = "accounts"
 EXCHEQUER_EXCHANGE = "exchanges"
 
@@ -151,11 +151,11 @@ async def lock_funds(token: str, requester_id: str, amount: int):
     return None
 
 
-async def get_exchange(exchange_id: str):
+async def get_exchange(token: str, exchange_id: str):
     try:
         response = requests.get(
             url=EXCHEQUER_URL + EXCHEQUER_EXCHANGE + f"/{exchange_id}",
-            headers={"Authorization": f"bearer {PAYER_TOKEN}"},
+            headers={"Authorization": f"bearer {token}"},
             timeout=10,
         )
         # TODO import exchange object for typing?
@@ -166,23 +166,23 @@ async def get_exchange(exchange_id: str):
     return None
 
 
-async def confirm_exchange(exchange_id: str):
+async def confirm_exchange(token: str, exchange_id: str):
     try:
         requests.post(
             url=EXCHEQUER_URL + EXCHEQUER_EXCHANGE + f"/{exchange_id}/confirm",
-            headers={"Authorization": f"bearer {PAYEE_TOKEN}"},
+            headers={"Authorization": f"bearer {token}"},
             timeout=10,
         )
     except requests.exceptions.RequestException as err:
         print("failed to confirm exchange:", err)
 
 
-async def complete_exchange(exchange_id: str):
+async def complete_exchange(token: str, exchange_id: str, amount: int, refund: int):
     try:
         requests.post(
             url=EXCHEQUER_URL + EXCHEQUER_EXCHANGE + f"/{exchange_id}/complete",
-            json={"payment_amount": 40, "refund_amount": 10},
-            headers={"Authorization": f"bearer {PAYEE_TOKEN}"},
+            json={"payment_amount": amount, "refund_amount": refund},
+            headers={"Authorization": f"bearer {token}"},
             timeout=10,
         )
     except requests.exceptions.RequestException as err:
@@ -267,7 +267,7 @@ class ExchequerDialogue(Dialogue):
         )
 
         # check lock, verify IDs and amounts
-        exchange = await get_exchange(msg.exchange_id)
+        exchange = await get_exchange(PAYEE_TOKEN, msg.exchange_id)
         ctx.logger.debug(f"Exchequer: Exchange state: {exchange['state']}")
 
         if not exchange:
@@ -285,7 +285,7 @@ class ExchequerDialogue(Dialogue):
         request_content = json.loads(request_msg["message_content"])
         amount_expected = request_content["amount"]
         amount_actual = exchange["total_amount"]
-        if amount_actual != amount_expected:
+        if amount_actual < amount_expected:
             ctx.logger.debug(
                 f"Exchequer: Unexpected amount in exchange: {amount_actual} (expected: {amount_expected}) "
             )
@@ -302,14 +302,19 @@ class ExchequerDialogue(Dialogue):
 
         # confirm & trust that Exchequer will work as intended
         ctx.logger.debug("Exchequer: Executing confirm")
-        await confirm_exchange(msg.exchange_id)
+        await confirm_exchange(PAYEE_TOKEN, msg.exchange_id)
 
         # complete
         ctx.logger.debug("Exchequer: <<< providing service >>>")
         warn("Service provided here as well", RuntimeWarning, stacklevel=2)
 
         ctx.logger.debug("Exchequer: Executing complete: taking 40, refunding 10")
-        await complete_exchange(msg.exchange_id)  # payment done at this point
+        await complete_exchange(
+            PAYEE_TOKEN,
+            msg.exchange_id,
+            amount_expected,
+            amount_actual - amount_expected,
+        )  # payment done at this point
 
         # notify about complete
         await ctx.send(sender, PaymentComplete(exchange_id=msg.exchange_id))
@@ -322,7 +327,7 @@ class ExchequerDialogue(Dialogue):
         )
 
         # check complete and do some cleanup here on payer side
-        exchange = await get_exchange(msg.exchange_id)
+        exchange = await get_exchange(PAYER_TOKEN, msg.exchange_id)
         ctx.logger.debug(f"Exchequer: Exchange state: {exchange['state']}")
 
         balance = await get_balance(PAYER_TOKEN)
@@ -344,6 +349,7 @@ class ExchequerDialogue(Dialogue):
         version: str | None = None,
         agent_address: str | None = None,
     ) -> None:
+        # TODO make default message handler as placeholder implicit?
         request_payment.set_edge_handler(PaymentRequest, self.handle_payment_request)
         request_payment.set_message_handler(PaymentRequest, default)
 

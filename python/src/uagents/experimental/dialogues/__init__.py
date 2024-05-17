@@ -90,9 +90,11 @@ class Edge:
         Set the edge handler that will be called when a message is received
         This handler can not be overwritten by a decorator.
         """
-        if self._model and self._model is not model:
+        if self._emodel and self._emodel is not model:
             raise ValueError("Functionality already set with a different model!")
         self._emodel = model
+        if not self._model:
+            self._model = model
         self._efunc = func
 
     def set_message_handler(self, model: Type[Model], func: MessageCallback):
@@ -361,6 +363,8 @@ class Dialogue(Protocol):
         Return True if the digest is one of the last messages of the dialogue.
         False otherwise.
         """
+        if digest == "":
+            return False
         return digest in [self._digest_by_edge[edge] for edge in self._ender]
 
     def get_current_state(self, session_id: UUID) -> str:
@@ -423,6 +427,8 @@ class Dialogue(Protocol):
                 )
 
             if edge.efunc:
+                # TODO make edge handler return the reply message
+                # and feed it to the message handler?
                 await edge.efunc(ctx, sender, message)
             result = await edge.func(ctx, sender, message)
 
@@ -441,7 +447,7 @@ class Dialogue(Protocol):
     def _auto_add_message_handler(self) -> None:
         """Automatically add message handlers for edges with models."""
         for edge in self._edges:
-            if edge.model and edge.func:
+            if edge.model and (edge.func or edge.efunc):
                 self._add_message_handler(
                     edge.model,
                     self._build_function_handler(edge),
