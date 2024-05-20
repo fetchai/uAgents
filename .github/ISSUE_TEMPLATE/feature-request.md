@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you for suggesting a new feature. Please fill out the form to ensure we have everything to get things started.
+        Thank you for suggesting a new feature. Please fill out the form to ensure we have everything to get started.
   - type: checkboxes
     id: prerequisites
     attributes:
