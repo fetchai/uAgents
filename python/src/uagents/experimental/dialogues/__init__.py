@@ -1,7 +1,6 @@
 """Dialogue class aka. blueprint for protocols."""
 
 import functools
-import graphlib
 import warnings
 from datetime import datetime, timedelta
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Type
@@ -162,7 +161,6 @@ class Dialogue(Protocol):
             for edge in self._edges
         }  # store the message models that are associated with an edge
 
-        self._cyclic = False
         self._starter = self._build_starter()  # first message of the dialogue
         self._ender = self._build_ender()  # last message(s) of the dialogue
 
@@ -219,16 +217,6 @@ class Dialogue(Protocol):
             Dict[str, List[str]]: Dictionary of rules represented by edges.
         """
         return self._rules
-
-    @property
-    def is_cyclic(self) -> bool:
-        """
-        Property to determine whether the dialogue has cycles.
-
-        Returns:
-            bool: True if the dialogue is cyclic, False otherwise.
-        """
-        return self._cyclic
 
     @property
     def nodes(self) -> List[Node]:
@@ -293,10 +281,6 @@ class Dialogue(Protocol):
             for inner_edge in self._edges:
                 if inner_edge.parent and inner_edge.parent.name == edge.child.name:
                     out[edge.name].append(inner_edge.name)
-
-        graph = graphlib.TopologicalSorter(out)
-        if graph._find_cycle():  # pylint: disable=protected-access
-            self._cyclic = True
         return out
 
     def _build_starter(self) -> str:
