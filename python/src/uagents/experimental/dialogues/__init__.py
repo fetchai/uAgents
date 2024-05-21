@@ -11,7 +11,7 @@ from uagents import Context, Model, Protocol
 from uagents.context import DeliveryStatus, MsgStatus
 from uagents.dispatch import JsonStr
 from uagents.models import ErrorMessage
-from uagents.storage import KeyValueStore
+from uagents.storage import KeyValueStore, StorageAPI
 
 DEFAULT_SESSION_TIMEOUT_IN_SECONDS = 60
 TARGET_UUID_VERSION = 4
@@ -146,14 +146,13 @@ class Dialogue(Protocol):
     def __init__(
         self,
         name: str,
-        agent_address: str,  # tbd: storage naming and handling
-        version: Optional[str] = None,
-        nodes: List[Node] | None = None,
-        edges: List[Edge] | None = None,
+        storage: StorageAPI = None,
+        nodes: Optional[List[Node]] = None,
+        edges: Optional[List[Node]] = None,
         timeout: int = DEFAULT_SESSION_TIMEOUT_IN_SECONDS,
+        version: Optional[str] = None,
     ) -> None:
         self._name = name
-
         self._nodes = nodes or []
         self._edges = edges or []
         self._graph: Dict[str, List[str]] = self._build_graph()  # by nodes
@@ -168,8 +167,8 @@ class Dialogue(Protocol):
         self._ender = self._build_ender()  # last message(s) of the dialogue
 
         self._timeout = timeout
-        self._storage = KeyValueStore(
-            f"{agent_address[0:16]}_dialogues"
+        self._storage = storage or KeyValueStore(
+            f"{self._name}_dialogue_storage"
         )  # persistent session + message storage
         self._sessions: Dict[UUID, List[Any]] = (
             self._load_storage()
@@ -634,7 +633,9 @@ class Dialogue(Protocol):
         updated_manifest["metadata"]["digest"] = new_digest
         return updated_manifest
 
-    async def start_dialogue(self, ctx: Context, destination: str, message: Model):
+    async def start_dialogue(
+        self, ctx: Context, destination: str, message: Model
+    ) -> MsgStatus:
         """
         Start a dialogue with a message.
 
@@ -652,7 +653,7 @@ class Dialogue(Protocol):
                 "A dialogue can only be started with the specified starting message"
             )
 
-        await ctx.send(destination, message)
+        msg_status = await ctx.send(destination, message)
 
         self.add_message(
             session_id=ctx.session,
@@ -662,3 +663,5 @@ class Dialogue(Protocol):
             content=message.json(),
         )
         self.update_state(message_schema_digest, ctx.session)
+
+        return msg_status
