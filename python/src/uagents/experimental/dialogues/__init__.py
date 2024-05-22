@@ -360,7 +360,7 @@ class Dialogue(Protocol):
             self.add_message(
                 session_id=ctx.session,
                 message_type=self.models[schema_digest].__name__,
-                sender=ctx.address,
+                sender=ctx.agent.address,
                 receiver=sender,
                 content=message.json(),
             )
@@ -377,7 +377,7 @@ class Dialogue(Protocol):
         self.add_message(
             session_id=ctx.session,
             message_type=self.models[outbound_schema_digest].__name__,
-            sender=ctx.address,
+            sender=ctx.agent.address,
             receiver=sender,
             content=outbound_message_content,
         )
@@ -642,7 +642,7 @@ class Dialogue(Protocol):
         self.add_message(
             session_id=ctx.session,
             message_type=self.models[message_schema_digest].__name__,
-            sender=ctx.address,
+            sender=ctx.agent.address,
             receiver=destination,
             content=message.json(),
         )
