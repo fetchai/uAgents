@@ -49,7 +49,7 @@ class Edge:
         self.child = child
         self.starter: bool = False
         self.ender: bool = False
-        self._model: Type[Model] = None
+        self._model: Optional[Type[Model]] = None
         self._func: Optional[MessageCallback] = None
         self._efunc: Optional[MessageCallback] = None
 
@@ -145,9 +145,9 @@ class Dialogue(Protocol):
     def __init__(
         self,
         name: str,
-        storage: StorageAPI = None,
+        storage: Optional[StorageAPI] = None,
         nodes: Optional[List[Node]] = None,
-        edges: Optional[List[Node]] = None,
+        edges: Optional[List[Edge]] = None,
         timeout: int = DEFAULT_SESSION_TIMEOUT_IN_SECONDS,
         version: Optional[str] = None,
     ) -> None:
@@ -474,7 +474,7 @@ class Dialogue(Protocol):
         )
         self._update_session_in_storage(session_id)
 
-    def get_conversation(self, session_id) -> List[Any]:
+    def get_conversation(self, session_id) -> Optional[List[Any]]:
         """
         Return the conversation of the given session from the dialogue instance.
 
