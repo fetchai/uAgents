@@ -26,7 +26,6 @@ from uagents.asgi import ASGIServer
 from uagents.communication import Dispenser, MsgDigest
 from uagents.config import (
     AVERAGE_BLOCK_INTERVAL,
-    DEFAULT_DISPENSER_INTERVAL,
     LEDGER_PREFIX,
     MAINNET_PREFIX,
     REGISTRATION_FEE,
@@ -342,10 +341,6 @@ class Agent(Sink):
         self._on_shutdown = []
         self._test = test
         self._version = version or "0.1.0"
-
-        self._dispenser.configure(
-            timeout=DEFAULT_DISPENSER_INTERVAL,
-        )
 
         self.initialize_wallet_messaging(enable_wallet_messaging)
 

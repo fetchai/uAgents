@@ -202,7 +202,8 @@ class Context(ABC):
         protocol_digest: Optional[str],
     ) -> MsgStatus:
         """
-        Send a raw message to the specified destination.
+        Send a message to the specified destination where the message body and
+        message schema digest are sent separately.
 
         Args:
             destination (str): The destination address to send the message to.
