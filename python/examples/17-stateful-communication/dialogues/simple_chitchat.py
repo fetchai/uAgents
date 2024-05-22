@@ -1,9 +1,10 @@
 """Specific dialogue class for the chit-chat dialogue."""
 
-from typing import Type
+from typing import Optional, Type
 
 from uagents import Model
 from uagents.experimental.dialogues import Dialogue, Edge, Node
+from uagents.storage import StorageAPI
 
 # Node definition for the dialogue states
 chatting_state = Node(
@@ -55,13 +56,22 @@ class SimpleChitChatDialogue(Dialogue):
 
     def __init__(
         self,
-        version: str | None = None,
-        agent_address: str | None = None,
+        version: Optional[str] = None,
+        storage: Optional[StorageAPI] = None,
     ) -> None:
+        """
+        Initialize the simple ChitChatDialogue class.
+
+        Args:
+            version (Optional[str], optional): Version of the dialogue. Defaults to None.
+            storage (Optional[StorageAPI], optional): Storage to use.
+                None will generate a new KeyValueStore based on the dialogue name.
+                Defaults to None.
+        """
         super().__init__(
             name="ChitChatDialogue_simple",
             version=version,
-            agent_address=agent_address,
+            storage=storage,
             nodes=[
                 chatting_state,
                 end_state,
