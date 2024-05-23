@@ -1,0 +1,13 @@
+[tool.poetry]
+name = "top-5-priorities-email"
+version = "0.0.1"
+description = "Retrieves the top 5 priorities emails from the user's inbox"
+authors = ["Beniamino & Pradhumn"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+uagents = "*"
+requests = "^2.31.0"
+langchain = "^0.1.12"
+langchain-community = "^0.0.28"
+uagents-ai-engine = "^0.1.2"

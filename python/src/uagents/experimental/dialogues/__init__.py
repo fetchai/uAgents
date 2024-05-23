@@ -1,18 +1,19 @@
 """Dialogue class aka. blueprint for protocols."""
 
 import functools
-import graphlib
+import warnings
 from datetime import datetime, timedelta
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Type
 from uuid import UUID
 
 from uagents import Context, Model, Protocol
-from uagents.storage import KeyValueStore
+from uagents.context import DeliveryStatus, MsgStatus
+from uagents.dispatch import JsonStr
+from uagents.models import ErrorMessage
+from uagents.storage import KeyValueStore, StorageAPI
 
-DEFAULT_SESSION_TIMEOUT_IN_SECONDS = 100
+DEFAULT_SESSION_TIMEOUT_IN_SECONDS = 60
 TARGET_UUID_VERSION = 4
-
-JsonStr = str
 
 MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
 
@@ -24,11 +25,12 @@ class Node:
         self,
         name: str,
         description: str,
-        starter: bool = False,
+        initial: bool = False,
     ) -> None:
         self.name = name
         self.description = description
-        self.starter = starter
+        self.initial = initial
+        self.final = False
 
 
 class Edge:
@@ -40,15 +42,16 @@ class Edge:
         description: str,
         parent: Optional[Node],  # tail
         child: Node,  # head
-        model: Optional[Type[Model]] = None,
-        func: MessageCallback = lambda *args, **kwargs: None,
     ) -> None:
         self.name = name
         self.description = description
         self.parent = parent
         self.child = child
-        self._model = model
-        self._func = func
+        self.starter: bool = False
+        self.ender: bool = False
+        self._model: Optional[Type[Model]] = None
+        self._func: Optional[MessageCallback] = None
+        self._efunc: Optional[MessageCallback] = None
 
     @property
     def model(self) -> Optional[Type[Model]]:
@@ -57,15 +60,42 @@ class Edge:
 
     @model.setter
     def model(self, model: Type[Model]) -> None:
+        """Set the message model type for the edge."""
         self._model = model
 
     @property
-    def func(self) -> MessageCallback:
+    def func(self) -> Optional[MessageCallback]:
         """The message handler that is associated with the edge."""
         return self._func
 
     @func.setter
     def func(self, func: MessageCallback) -> None:
+        """Set the message handler that will be called when a message is received."""
+        self._func = func
+
+    @property
+    def efunc(self) -> MessageCallback:
+        """The edge handler that is associated with the edge."""
+        return self._efunc
+
+    def set_edge_handler(self, model: Type[Model], func: MessageCallback):
+        """
+        Set the edge handler that will be called when a message is received
+        This handler can not be overwritten by a decorator.
+        """
+        if self._model and self._model is not model:
+            raise ValueError("Functionality already set with a different model!")
+        self._model = model
+        self._efunc = func
+
+    def set_message_handler(self, model: Type[Model], func: MessageCallback):
+        """
+        Set the default message handler for the edge that will be overwritten if
+        a decorator defines a new function to be called.
+        """
+        if self._model and self._model is not model:
+            raise ValueError("Functionality already set with a different model!")
+        self._model = model
         self._func = func
 
 
@@ -115,14 +145,14 @@ class Dialogue(Protocol):
     def __init__(
         self,
         name: str,
-        agent_address: str,  # tbd: storage naming and handling
-        version: Optional[str] = None,
-        nodes: List[Node] | None = None,
-        edges: List[Edge] | None = None,
+        storage: Optional[StorageAPI] = None,
+        nodes: Optional[List[Node]] = None,
+        edges: Optional[List[Edge]] = None,
         timeout: int = DEFAULT_SESSION_TIMEOUT_IN_SECONDS,
+        version: Optional[str] = None,
+        cleanup_interval: int = 1,
     ) -> None:
         self._name = name
-
         self._nodes = nodes or []
         self._edges = edges or []
         self._graph: Dict[str, List[str]] = self._build_graph()  # by nodes
@@ -132,13 +162,12 @@ class Dialogue(Protocol):
             for edge in self._edges
         }  # store the message models that are associated with an edge
 
-        self._cyclic = False
         self._starter = self._build_starter()  # first message of the dialogue
         self._ender = self._build_ender()  # last message(s) of the dialogue
 
         self._timeout = timeout
-        self._storage = KeyValueStore(
-            f"{agent_address[0:16]}_dialogues"
+        self._storage = storage or KeyValueStore(
+            f"{self._name}_dialogue_storage"
         )  # persistent session + message storage
         self._sessions: Dict[UUID, List[Any]] = (
             self._load_storage()
@@ -146,36 +175,13 @@ class Dialogue(Protocol):
         self._states: Dict[
             UUID, str
         ] = {}  # current state of the dialogue (as edge digest) per session
-        self._custom_session: UUID | None = None
 
         super().__init__(name=self._name, version=version)
 
         # if a model exists for an edge, register the handler automatically
         self._auto_add_message_handler()
 
-        @self.on_interval(1)
-        async def cleanup_dialogue(_ctx: Context):
-            """
-            Cleanup the dialogue.
-
-            Deletes sessions that have not been used for a certain amount of time.
-            The task runs every second so the configured timeout is currently
-            measured in seconds as well (interval time * timeout parameter).
-            Sessions with 0 as timeout will never be deleted.
-            """
-            mark_for_deletion = []
-            for session_id, session in self._sessions.items():
-                timeout = session[-1]["timeout"]
-                if (
-                    timeout > 0
-                    and datetime.fromtimestamp(session[-1]["timestamp"])
-                    + timedelta(seconds=timeout)
-                    < datetime.now()
-                ):
-                    mark_for_deletion.append(session_id)
-            if mark_for_deletion:
-                for session_id in mark_for_deletion:
-                    self.cleanup_session(session_id)
+        self.initialise_cleanup_task(cleanup_interval)
 
         # radical but effective
         self.on_message = None
@@ -190,16 +196,6 @@ class Dialogue(Protocol):
             Dict[str, List[str]]: Dictionary of rules represented by edges.
         """
         return self._rules
-
-    @property
-    def is_cyclic(self) -> bool:
-        """
-        Property to determine whether the dialogue has cycles.
-
-        Returns:
-            bool: True if the dialogue is cyclic, False otherwise.
-        """
-        return self._cyclic
 
     @property
     def nodes(self) -> List[Node]:
@@ -226,6 +222,8 @@ class Dialogue(Protocol):
                         "parent": edge.parent.name if edge.parent else None,
                         "child": edge.child.name,
                         "model": edge.model.__name__ if edge.model else None,
+                        "starter": edge.starter,
+                        "ender": edge.ender,
                     }
                     for edge in self._edges
                 ],
@@ -262,22 +260,50 @@ class Dialogue(Protocol):
             for inner_edge in self._edges:
                 if inner_edge.parent and inner_edge.parent.name == edge.child.name:
                     out[edge.name].append(inner_edge.name)
-
-        graph = graphlib.TopologicalSorter(out)
-        if graph._find_cycle():  # pylint: disable=protected-access
-            self._cyclic = True
         return out
 
     def _build_starter(self) -> str:
         """Build the starting message of the dialogue."""
+        starter_nodes = list(filter(lambda n: n.initial, self._nodes))
+        # check if starter property has been set and if there is only one
+        if len(starter_nodes) > 1:
+            raise ValueError("Dialogue has more than one entry point!")
+
         edges_without_entry = list(filter(lambda e: e.parent is None, self._edges))
+        if not edges_without_entry and starter_nodes:
+            # if there is a starter node and no edge without parent we need to
+            # validate if the graph is correct
+            starters = list(filter(lambda e: e.parent is starter_nodes[0], self._edges))
+            if starters:
+                self._edges[self._edges.index(starters[0])].starter = True
+                return starters[0].name
+        if starter_nodes and edges_without_entry:
+            warnings.warn(
+                "There is a starter node and an edge without parent present. "
+                "The edge without a parent takes precedence!",
+                SyntaxWarning,
+                stacklevel=2,
+            )
         if len(edges_without_entry) > 1:
             raise ValueError("Dialogue has more than one entry point!")
-        return edges_without_entry[0].name if edges_without_entry else ""
+        if edges_without_entry:
+            self._edges[self._edges.index(edges_without_entry[0])].starter = True
+            return edges_without_entry[0].name
+        raise ValueError("Dialogue has no entry point!")
 
     def _build_ender(self) -> set[str]:
-        """Build the last message(s) of the dialogue."""
-        return set(edge for edge in self._rules if not self._rules[edge])
+        """Build the last message(s) of the dialogue and set final state."""
+        for node, edges in self._graph.items():
+            if not edges:
+                self._nodes[
+                    self._nodes.index(next(n for n in self._nodes if n.name == node))
+                ].final = True
+        enders = set()
+        for edge in self._edges:
+            if edge.child.final:
+                enders.add(edge.name)
+                edge.ender = True
+        return enders
 
     def is_starter(self, digest: str) -> bool:
         """
@@ -288,7 +314,7 @@ class Dialogue(Protocol):
 
     def is_ender(self, digest: str) -> bool:
         """
-        Return True if the digest is the last message of the dialogue.
+        Return True if the digest is one of the last messages of the dialogue.
         False otherwise.
         """
         return digest in [self._digest_by_edge[edge] for edge in self._ender]
@@ -297,13 +323,86 @@ class Dialogue(Protocol):
         """Get the current state of the dialogue for a given session."""
         return self._states.get(session_id, "")
 
+    def is_finished(self, session_id: UUID) -> bool:
+        """
+        Return True if the current state is (one of) the ending state(s).
+        False otherwise.
+        """
+        return self.is_ender(self.get_current_state(session_id))
+
+    def _pre_handle_hook(self, ctx: Context, sender: str, message: Type[Model]) -> bool:
+        schema_digest = Model.build_schema_digest(message)
+        is_valid = self.is_valid_message(ctx.session, schema_digest)
+        if is_valid:
+            if self.is_ender(schema_digest):
+                self.update_state(schema_digest, ctx.session)
+            self.add_message(
+                session_id=ctx.session,
+                message_type=self.models[schema_digest].__name__,
+                sender=ctx.agent.address,
+                receiver=sender,
+                content=message.json(),
+            )
+        return is_valid
+
+    def _post_handle_hook(self, ctx: Context, sender: str, msg_in: Type[Model]) -> bool:
+        if self.is_finished(ctx.session):
+            return True
+        inbound_schema_digest = Model.build_schema_digest(msg_in)
+        outbound_message_content, outbound_schema_digest = ctx.outbound_messages[sender]
+        if not self.is_valid_reply(inbound_schema_digest, outbound_schema_digest):
+            return False
+
+        self.add_message(
+            session_id=ctx.session,
+            message_type=self.models[outbound_schema_digest].__name__,
+            sender=ctx.agent.address,
+            receiver=sender,
+            content=outbound_message_content,
+        )
+
+        self.update_state(outbound_schema_digest, ctx.session)
+
+        return True
+
+    def _build_function_handler(self, edge: Edge) -> MessageCallback:
+        """Build the function handler for a message."""
+
+        @functools.wraps(edge.func)
+        async def handler(ctx: Context, sender: str, message: Type[Model]):
+            # validate message first then execute handlers, finally update state
+            if not self._pre_handle_hook(ctx, sender, message):
+                return await ctx.send(
+                    sender,
+                    ErrorMessage(error=f"Unexpected message in dialogue: {message}"),
+                )
+
+            if edge.efunc:
+                await edge.efunc(ctx, sender, message)
+            result = await edge.func(ctx, sender, message)
+
+            if not self._post_handle_hook(ctx, sender, message):
+                return MsgStatus(
+                    status=DeliveryStatus.FAILED,
+                    detail="Invalid dialogue reply",
+                    destination=sender,
+                    endpoint="",
+                )
+
+            return result
+
+        return handler
+
     def _auto_add_message_handler(self) -> None:
         """Automatically add message handlers for edges with models."""
         for edge in self._edges:
-            if edge.model:
-                model_digest = Model.build_schema_digest(edge.model)
-                self._models[model_digest] = edge.model
-                self._signed_message_handlers[model_digest] = edge.func
+            if edge.model and edge.func:
+                self._add_message_handler(
+                    edge.model,
+                    self._build_function_handler(edge),
+                    None,  # no replies
+                    False,  # only verified
+                )
 
     def update_state(self, digest: str, session_id: UUID) -> None:
         """
@@ -322,8 +421,8 @@ class Dialogue(Protocol):
         """Create a new session in the dialogue instance."""
         self._sessions[session_id] = []
 
-    def cleanup_session(self, session_id: UUID) -> None:
-        """Remove a session from the dialogue instance."""
+    def cleanup_conversation(self, session_id: UUID) -> None:
+        """Removes all messages related with the given session from the dialogue instance."""
         self._sessions.pop(session_id)
         self._remove_session_from_storage(session_id)
 
@@ -336,7 +435,7 @@ class Dialogue(Protocol):
         content: JsonStr,
         **kwargs,
     ) -> None:
-        """Add a message to a session within the dialogue instance."""
+        """Add a message to the conversation of the given session within the dialogue instance."""
         if session_id is None:
             raise ValueError("Session ID must not be None!")
         if session_id not in self._sessions:
@@ -354,9 +453,9 @@ class Dialogue(Protocol):
         )
         self._update_session_in_storage(session_id)
 
-    def get_session(self, session_id) -> List[Any]:
+    def get_conversation(self, session_id) -> Optional[List[Any]]:
         """
-        Return a session from the dialogue instance.
+        Return the conversation of the given session from the dialogue instance.
 
         This includes all messages that were sent and received for the session.
         """
@@ -372,14 +471,15 @@ class Dialogue(Protocol):
 
     def is_valid_message(self, session_id: UUID, msg_digest: str) -> bool:
         """
-        Check if a message is valid for a given session.
+        Check if an incoming message is valid for a given session.
 
         Args:
             session_id (UUID): The ID of the session to check the message for.
             msg_digest (str): The digest of the message to check.
 
         Returns:
-            bool: True if the message is valid, False otherwise.
+            bool: True if the message is valid,
+            False otherwise.
         """
         if session_id not in self._sessions or len(self._sessions[session_id]) == 0:
             return self.is_starter(msg_digest)
@@ -462,41 +562,14 @@ class Dialogue(Protocol):
             raise ValueError("Edge does not exist in the dialogue!")
 
         def decorator_on_state_transition(func: MessageCallback):
-            @functools.wraps(func)
-            def handler(*args, **kwargs):
-                return func(*args, **kwargs)
-
             edge = self.get_edge(edge_name)
+            edge.func = func
+            handler = self._build_function_handler(edge)
             self._update_transition_model(edge, model)
-            self._add_message_handler(model, func, None, False)
+            self._add_message_handler(model, handler, None, False)
             return handler
 
-        # NOTE: recalculate manifest after each update and re-register /w agent
         return decorator_on_state_transition
-
-    @property
-    def custom_session(self) -> UUID | None:
-        """Return the custom session ID."""
-        return self._custom_session
-
-    def set_custom_session_id(self, uuid: UUID) -> None:
-        """
-        Start a new session with the given ID.
-
-        This method will create a session with the given UUID and uses that
-        ID the next time that a starter message is sent.
-        """
-        if uuid.version != TARGET_UUID_VERSION:
-            raise ValueError("Session ID must be of type UUID v4!")
-        if uuid in self._sessions:
-            raise ValueError("Session ID already exists!")
-        if self._custom_session:
-            raise ValueError("Custom session ID already set!")
-        self._custom_session = uuid
-
-    def reset_custom_session_id(self) -> None:
-        """Reset the custom session ID."""
-        self._custom_session = None
 
     def manifest(self) -> Dict[str, Any]:
         """
@@ -513,6 +586,8 @@ class Dialogue(Protocol):
                     "parent": edge.parent.name if edge.parent else None,
                     "child": edge.child.name,
                     "model": edge.model.__name__ if edge.model else None,
+                    "starter": edge.starter,
+                    "ender": edge.ender,
                 }
                 for edge in self._edges
             ],
@@ -520,3 +595,68 @@ class Dialogue(Protocol):
         new_digest = Protocol.compute_digest(updated_manifest)
         updated_manifest["metadata"]["digest"] = new_digest
         return updated_manifest
+
+    async def start_dialogue(
+        self, ctx: Context, destination: str, message: Model
+    ) -> MsgStatus:
+        """
+        Start a dialogue with a message.
+
+        Args:
+            ctx (Context): The current message context
+            destination (str): Agent address of the receiver
+            message (Model): The current message to send
+
+        Raises:
+            ValueError: If the dialogue is not started with the specified starting message.
+        """
+        message_schema_digest = Model.build_schema_digest(message)
+        if not self.is_starter(message_schema_digest):
+            raise ValueError(
+                "A dialogue can only be started with the specified starting message"
+            )
+
+        msg_status = await ctx.send(destination, message)
+
+        self.add_message(
+            session_id=ctx.session,
+            message_type=self.models[message_schema_digest].__name__,
+            sender=ctx.agent.address,
+            receiver=destination,
+            content=message.json(),
+        )
+        self.update_state(message_schema_digest, ctx.session)
+
+        return msg_status
+
+    def initialise_cleanup_task(self, interval: int = 1) -> None:
+        """
+        Initialise the cleanup task.
+
+        Deletes sessions that have not been used for a certain amount of time.
+        The task runs every second so the configured timeout is currently
+        measured in seconds as well (interval time * timeout parameter).
+        Sessions with 0 as timeout will never be deleted.
+
+        *Important*:
+        - setting the interval above 1 will act as a multiplier
+        - setting it to 0 will disable the cleanup task
+        """
+        if interval == 0:
+            return
+
+        @self.on_interval(interval)
+        async def cleanup_dialogue(_ctx: Context):
+            mark_for_deletion = []
+            for session_id, session in self._sessions.items():
+                timeout = session[-1]["timeout"]
+                if (
+                    timeout > 0
+                    and datetime.fromtimestamp(session[-1]["timestamp"])
+                    + timedelta(seconds=timeout)
+                    < datetime.now()
+                ):
+                    mark_for_deletion.append(session_id)
+            if mark_for_deletion:
+                for session_id in mark_for_deletion:
+                    self.cleanup_conversation(session_id)

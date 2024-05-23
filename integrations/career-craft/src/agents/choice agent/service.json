@@ -1,0 +1,19 @@
+{
+    "service": {
+      "title": "choice agent",
+      "description": "This service helps you to access different career related services. It provides list of clickable options from [Resume Creation, Resume Optimiser, Job description comparison with resume, Cold mailing] and according to selected option it should trigger the respective subtask to perform it.",
+      "service_group": "hero network",
+      "agent": {
+        "name": "choice agent"
+      },
+      "task_type": "Task",
+      "protocol": "main agent",
+      "model": {
+        "name": "Request",
+        "fields": {
+          "choice": "Always ask this from user\nPlease choose a service out of the following options:\nResume Creation,\nResume Optimiser,\nJob description\ncomparison with resume,\nCold mailing\nAs soon as the user chooses a choice trigger the respective subtask to get the response",
+          "response":"this field is the response from the triggered subtask after the user choose a choice. Never ask this from an user in any case."
+        }
+      }
+    }
+  }

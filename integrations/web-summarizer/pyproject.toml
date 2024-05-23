@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "web-summarizer"
+version = "0.1.0"
+description = ""
+authors = ["Alejandro-Morales <alejandro.morales.mad@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+uagents = "*"
+uagents-ai-engine = "^0.1.2"
+langchain = "^0.1.12"
+langchain-openai = "^0.0.8"
+black = "^24.3.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+

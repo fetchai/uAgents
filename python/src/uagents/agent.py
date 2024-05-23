@@ -2,8 +2,20 @@
 
 import asyncio
 import functools
+import logging
 import uuid
-from typing import Any, Coroutine, Dict, List, Optional, Set, Tuple, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Coroutine,
+    Dict,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
 
 import requests
 from cosmpy.aerial.client import LedgerClient
@@ -11,6 +23,7 @@ from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
 from pydantic import ValidationError
 from uagents.asgi import ASGIServer
+from uagents.communication import Dispenser, MsgDigest
 from uagents.config import (
     AVERAGE_BLOCK_INTERVAL,
     LEDGER_PREFIX,
@@ -19,16 +32,16 @@ from uagents.config import (
     REGISTRATION_RETRY_INTERVAL_SECONDS,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     TESTNET_PREFIX,
-    get_logger,
     parse_agentverse_config,
     parse_endpoint_config,
 )
 from uagents.context import (
     Context,
     EventCallback,
+    ExternalContext,
+    InternalContext,
     IntervalCallback,
     MessageCallback,
-    MsgDigest,
 )
 from uagents.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents.dispatch import JsonStr, Sink, dispatcher
@@ -43,6 +56,7 @@ from uagents.network import (
 from uagents.protocol import Protocol
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
+from uagents.utils import get_logger
 
 
 async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
@@ -91,6 +105,87 @@ async def _send_error_message(ctx: Context, destination: str, msg: ErrorMessage)
     await ctx.send(destination, msg)
 
 
+class AgentRepresentation:
+    """
+    Represents an agent in the context of a message.
+
+    Attributes:
+        _address (str): The address of the agent.
+        _name (Optional[str]): The name of the agent.
+        _signing_callback (Callable): The callback for signing messages.
+
+    Properties:
+        name (str): The name of the agent.
+        address (str): The address of the agent.
+        identifier (str): The agent's address and network prefix.
+
+    Methods:
+        sign_digest(data: bytes) -> str: Sign the provided data with the agent's identity.
+    """
+
+    def __init__(
+        self,
+        address: str,
+        name: Optional[str],
+        signing_callback: Callable,
+    ):
+        """
+        Initialize the AgentRepresentation instance.
+
+        Args:
+            address (str): The address of the context.
+            name (Optional[str]): The optional name associated with the context.
+            signing_callback (Callable): The callback for signing messages.
+        """
+        self._address = address
+        self._name = name
+        self._signing_callback = signing_callback
+
+    @property
+    def name(self) -> str:
+        """
+        Get the name associated with the context or a truncated address if name is None.
+
+        Returns:
+            str: The name or truncated address.
+        """
+        if self._name is not None:
+            return self._name
+        return self._address[:10]
+
+    @property
+    def address(self) -> str:
+        """
+        Get the address of the context.
+
+        Returns:
+            str: The address of the context.
+        """
+        return self._address
+
+    @property
+    def identifier(self) -> str:
+        """
+        Get the address of the agent used for communication including the network prefix.
+
+        Returns:
+            str: The agent's address and network prefix.
+        """
+        return TESTNET_PREFIX + "://" + self._address
+
+    def sign_digest(self, data: bytes) -> str:
+        """
+        Sign the provided data with the callback of the agent's identity.
+
+        Args:
+            data (bytes): The data to sign.
+
+        Returns:
+            str: The signature of the data.
+        """
+        return self._signing_callback(data)
+
+
 class Agent(Sink):
     """
     An agent that interacts within a communication environment.
@@ -120,7 +215,8 @@ class Agent(Sink):
         of incoming message.
         _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their response
         Futures.
-        _dispatcher: The dispatcher for message handling.
+        _dispatcher: The dispatcher for internal handling/sorting of messages.
+        _dispenser: The dispatcher for external message handling.
         _message_queue: Asynchronous queue for incoming messages.
         _on_startup (List[Callable]): List of functions to run on agent startup.
         _on_shutdown (List[Callable]): List of functions to run on agent shutdown.
@@ -161,6 +257,7 @@ class Agent(Sink):
         version: Optional[str] = None,
         test: Optional[bool] = True,
         loop: Optional[asyncio.AbstractEventLoop] = None,
+        log_level: Union[int, str] = logging.INFO,
     ):
         """
         Initialize an Agent instance.
@@ -179,10 +276,12 @@ class Agent(Sink):
             wallet_key_derivation_index (Optional[int]): The index used for deriving the wallet key.
             max_resolver_endpoints (Optional[int]): The maximum number of endpoints to resolve.
             version (Optional[str]): The version of the agent.
+            test (Optional[bool]): True if the agent will register and transact on the testnet.
+            loop (Optional[asyncio.AbstractEventLoop]): The asyncio event loop to use.
+            log_level (Union[int, str]): The logging level for the agent.
         """
         self._name = name
         self._port = port if port is not None else 8000
-        self._background_tasks: Set[asyncio.Task] = set()
         self._resolver = (
             resolve
             if resolve is not None
@@ -196,7 +295,7 @@ class Agent(Sink):
 
         # initialize wallet and identity
         self._initialize_wallet_and_identity(seed, name, wallet_key_derivation_index)
-        self._logger = get_logger(self.name)
+        self._logger = get_logger(self.name, level=log_level)
 
         # configure endpoints and mailbox
         self._endpoints = parse_endpoint_config(endpoint)
@@ -236,6 +335,7 @@ class Agent(Sink):
         self._replies: Dict[str, Dict[str, Type[Model]]] = {}
         self._queries: Dict[str, asyncio.Future] = {}
         self._dispatcher = dispatcher
+        self._dispenser = Dispenser()
         self._message_queue = asyncio.Queue()
         self._on_startup = []
         self._on_shutdown = []
@@ -250,20 +350,18 @@ class Agent(Sink):
         # keep track of supported protocols
         self.protocols: Dict[str, Protocol] = {}
 
-        self._ctx = Context(
-            self._identity.address,
-            self.identifier,
-            self._name,
-            self._storage,
-            self._resolver,
-            self._identity,
-            self._wallet,
-            self._ledger,
-            self._queries,
-            replies=self._replies,
+        self._ctx = InternalContext(
+            agent=AgentRepresentation(
+                address=self.address,
+                name=self._name,
+                signing_callback=self._identity.sign_digest,
+            ),
+            storage=self._storage,
+            ledger=self._ledger,
+            resolver=self._resolver,
+            dispenser=self._dispenser,
             interval_messages=self._interval_messages,
             wallet_messaging_client=self._wallet_messaging_client,
-            protocols=self.protocols,
             logger=self._logger,
         )
 
@@ -778,8 +876,6 @@ class Agent(Sink):
 
         if protocol.digest is not None:
             self.protocols[protocol.digest] = protocol
-            if self._ctx is not None:
-                self._ctx.update_protocols(protocol)
 
         if publish_manifest:
             self.publish_manifest(protocol.manifest())
@@ -861,24 +957,33 @@ class Agent(Sink):
         """
         # register the internal agent protocol
         self.include(self._protocol)
+        self.start_message_dispenser()
         self._loop.run_until_complete(self._startup())
-        self.start_background_tasks()
+        self.start_message_receivers()
+        self.start_interval_tasks()
 
-    def start_background_tasks(self):
+    def start_message_dispenser(self):
         """
-        Start background tasks for the agent.
+        Start the message dispenser.
 
         """
-        # Start the interval tasks
+        self._loop.create_task(self._dispenser.run())
+
+    def start_interval_tasks(self):
+        """
+        Start interval tasks for the agent.
+
+        """
         for func, period in self._interval_handlers:
-            task = self._loop.create_task(_run_interval(func, self._ctx, period))
-            self._background_tasks.add(task)
-            task.add_done_callback(self._background_tasks.discard)
+            self._loop.create_task(_run_interval(func, self._ctx, period))
 
+    def start_message_receivers(self):
+        """
+        Start message receiving tasks for the agent.
+
+        """
         # start the background message queue processor
-        task = self._loop.create_task(self._process_message_queue())
-        self._background_tasks.add(task)
-        task.add_done_callback(self._background_tasks.discard)
+        self._loop.create_task(self._process_message_queue())
 
         # start the wallet messaging client if enabled
         if self._wallet_messaging_client is not None:
@@ -886,9 +991,7 @@ class Agent(Sink):
                 self._wallet_messaging_client.poll_server(),
                 self._wallet_messaging_client.process_message_queue(self._ctx),
             ]:
-                new_task = self._loop.create_task(task)
-                self._background_tasks.add(new_task)
-                new_task.add_done_callback(self._background_tasks.discard)
+                self._loop.create_task(task)
 
     def run(self):
         """
@@ -922,24 +1025,21 @@ class Agent(Sink):
                 )
                 continue
 
-            context = Context(
-                self._identity.address,
-                self.identifier,
-                self._name,
-                self._storage,
-                self._resolver,
-                self._identity,
-                self._wallet,
-                self._ledger,
-                self._queries,
+            context = ExternalContext(
+                agent=self._ctx.agent,
+                storage=self._storage,
+                ledger=self._ledger,
+                resolver=self._resolver,
+                dispenser=self._dispenser,
+                wallet_messaging_client=self._wallet_messaging_client,
+                logger=self._logger,
+                queries=self._queries,
                 session=session,
                 replies=self._replies,
-                interval_messages=self._interval_messages,
                 message_received=MsgDigest(
                     message=message, schema_digest=schema_digest
                 ),
-                protocols=self.protocols,
-                logger=self._logger,
+                protocol=self.protocols.get(schema_digest),
             )
 
             # parse the received message
@@ -962,54 +1062,7 @@ class Agent(Sink):
             )
             if handler is None:
                 if not is_user_address(sender):
-                    is_valid = True  # always valid unless considered invalid as part of a dialogue
-                    for protocol in context.protocols.values():
-                        if hasattr(protocol, "rules") and protocol.is_included(
-                            schema_digest
-                        ):
-                            state = protocol.get_current_state(session)
-                            context.logger.debug(
-                                "current state: "
-                                f"{(protocol.models[state].__name__ if state else 'n/a')}"
-                            )
-                            is_valid = protocol.is_valid_message(session, schema_digest)
-                            context.logger.debug(
-                                f"message {self._models[schema_digest].__name__} "
-                                f"allowed: {is_valid}"
-                            )
-
-                            if not is_valid:
-                                context.reset_session()
-                                await _send_error_message(
-                                    context,
-                                    sender,
-                                    ErrorMessage(
-                                        error=f"Unexpected message in dialogue: {message}"
-                                    ),
-                                )
-                                break
-
-                            if protocol.is_starter(schema_digest):
-                                self._ctx.logger.debug("dialogue started")
-                            elif protocol.is_ender(schema_digest):
-                                self._ctx.logger.debug(
-                                    "dialogue ended, cleaning up session"
-                                )
-                            else:
-                                self._ctx.logger.debug("dialogue picked up")
-
-                            context.dialogue = protocol.get_session(
-                                session
-                            )  # add current dialogue messages to context
-                            protocol.add_message(
-                                session_id=session,
-                                message_type=self._models[schema_digest].__name__,
-                                sender=sender,
-                                receiver=self.address,
-                                content=message,
-                            )
-                    if is_valid:
-                        handler = self._signed_message_handlers.get(schema_digest)
+                    handler = self._signed_message_handlers.get(schema_digest)
                 elif schema_digest in self._signed_message_handlers:
                     await _send_error_message(
                         context,
@@ -1060,6 +1113,7 @@ class Bureau:
         self,
         port: Optional[int] = None,
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
+        log_level: Union[int, str] = logging.INFO,
     ):
         """
         Initialize a Bureau instance.
@@ -1074,7 +1128,7 @@ class Bureau:
         self._endpoints = parse_endpoint_config(endpoint)
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
-        self._logger = get_logger("bureau")
+        self._logger = get_logger("bureau", log_level)
         self._server = ASGIServer(self._port, self._loop, self._queries, self._logger)
         self._use_mailbox = False
 
