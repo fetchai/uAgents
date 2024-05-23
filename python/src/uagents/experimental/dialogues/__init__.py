@@ -150,6 +150,7 @@ class Dialogue(Protocol):
         edges: Optional[List[Edge]] = None,
         timeout: int = DEFAULT_SESSION_TIMEOUT_IN_SECONDS,
         version: Optional[str] = None,
+        cleanup_interval: int = 1,
     ) -> None:
         self._name = name
         self._nodes = nodes or []
@@ -180,29 +181,7 @@ class Dialogue(Protocol):
         # if a model exists for an edge, register the handler automatically
         self._auto_add_message_handler()
 
-        @self.on_interval(1)
-        async def cleanup_dialogue(_ctx: Context):
-            """
-            Cleanup the dialogue.
-
-            Deletes sessions that have not been used for a certain amount of time.
-            The task runs every second so the configured timeout is currently
-            measured in seconds as well (interval time * timeout parameter).
-            Sessions with 0 as timeout will never be deleted.
-            """
-            mark_for_deletion = []
-            for session_id, session in self._sessions.items():
-                timeout = session[-1]["timeout"]
-                if (
-                    timeout > 0
-                    and datetime.fromtimestamp(session[-1]["timestamp"])
-                    + timedelta(seconds=timeout)
-                    < datetime.now()
-                ):
-                    mark_for_deletion.append(session_id)
-            if mark_for_deletion:
-                for session_id in mark_for_deletion:
-                    self.cleanup_conversation(session_id)
+        self.initialise_cleanup_task(cleanup_interval)
 
         # radical but effective
         self.on_message = None
@@ -649,3 +628,35 @@ class Dialogue(Protocol):
         self.update_state(message_schema_digest, ctx.session)
 
         return msg_status
+
+    def initialise_cleanup_task(self, interval: int = 1) -> None:
+        """
+        Initialise the cleanup task.
+
+        Deletes sessions that have not been used for a certain amount of time.
+        The task runs every second so the configured timeout is currently
+        measured in seconds as well (interval time * timeout parameter).
+        Sessions with 0 as timeout will never be deleted.
+
+        *Important*:
+        - setting the interval above 1 will act as a multiplier
+        - setting it to 0 will disable the cleanup task
+        """
+        if interval == 0:
+            return
+
+        @self.on_interval(interval)
+        async def cleanup_dialogue(_ctx: Context):
+            mark_for_deletion = []
+            for session_id, session in self._sessions.items():
+                timeout = session[-1]["timeout"]
+                if (
+                    timeout > 0
+                    and datetime.fromtimestamp(session[-1]["timestamp"])
+                    + timedelta(seconds=timeout)
+                    < datetime.now()
+                ):
+                    mark_for_deletion.append(session_id)
+            if mark_for_deletion:
+                for session_id in mark_for_deletion:
+                    self.cleanup_conversation(session_id)
