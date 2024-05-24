@@ -27,11 +27,13 @@ class Node:
         name: str,
         description: str,
         initial: bool = False,
+        metadata: Optional[Dict] = None,
     ) -> None:
         self.name = name
         self.description = description
         self.initial = initial
         self.final = False
+        self.metadata = metadata if metadata is not None else {}
 
 
 class Edge:
@@ -43,6 +45,7 @@ class Edge:
         description: str,
         parent: Optional[Node],  # tail
         child: Node,  # head
+        metadata: Optional[Dict],
     ) -> None:
         self.name = name
         self.description = description
@@ -53,6 +56,7 @@ class Edge:
         self._model: Type[Model] = None
         self._func: Optional[MessageCallback] = None
         self._efunc: Optional[MessageCallback] = None
+        self.metadata = metadata if metadata is not None else {}
 
     @property
     def model(self) -> Optional[Type[Model]]:
@@ -609,18 +613,36 @@ class Dialogue(Protocol):
 
         return decorator_on_state_transition
 
+    def _update_replies(self):
+        """
+        Call this function after all transitions are registered to update the
+        expected reply models
+        """
+        for edge in self._edges:
+            self._replies[self._digest_by_edge[edge.name]] = {
+                self._digest_by_edge[reply_edge]: self._models[
+                    self._digest_by_edge[reply_edge]
+                ]
+                for reply_edge in self._rules[edge.name]
+            }
+
     def manifest(self) -> Dict[str, Any]:
         """
         This method will add the dialogue structure to the original manifest
         and recalculate the digest.
         """
+        self._update_replies()
 
+        keywords_metadata = ["description", "metadata"]
         updated_manifest = super().manifest() | {
-            "nodes": [node.__dict__ for node in self._nodes],
+            "nodes": [
+                {k: v for k, v in node.__dict__.items() if k not in keywords_metadata}
+                for node in self._nodes
+            ],
             "edges": [
                 {
                     "name": edge.name,
-                    "description": edge.description,
+                    # "description": edge.description,
                     "parent": edge.parent.name if edge.parent else None,
                     "child": edge.child.name,
                     "model": edge.model.__name__ if edge.model else None,
@@ -630,13 +652,29 @@ class Dialogue(Protocol):
                 for edge in self._edges
             ],
         }
+        updated_manifest["metadata"]["nodes"] = [
+            {
+                k: v
+                for k, v in node.__dict__.items()
+                if k in keywords_metadata + ["name"]
+            }
+            for node in self._nodes
+        ]
+        updated_manifest["metadata"]["edges"] = [
+            {
+                k: v
+                for k, v in edge.__dict__.items()
+                if k in keywords_metadata + ["name"]
+            }
+            for edge in self._edges
+        ]
         new_digest = Protocol.compute_digest(updated_manifest)
         updated_manifest["metadata"]["digest"] = new_digest
         return updated_manifest
 
     async def start_dialogue(self, ctx: Context, destination: str, message: Model):
         """
-        Start a dialogue with a message.
+        Start a specific dialogue with a message.
 
         Args:
             ctx (Context): The current message context

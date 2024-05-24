@@ -146,7 +146,9 @@ class Protocol:
         Returns:
             str: The digest of the protocol's manifest.
         """
-        return self.manifest()["metadata"]["digest"]
+        if not self._digest:
+            self._digest = self.manifest()["metadata"]["digest"]
+        return self._digest
 
     def on_interval(
         self,
@@ -297,7 +299,7 @@ class Protocol:
 
         manifest = {
             "version": "1.0",
-            "metadata": {},
+            # "metadata": {},
             "models": [],
             "interactions": [],
         }
@@ -315,7 +317,7 @@ class Protocol:
 
         for schema_digest, model in all_models.items():
             manifest["models"].append(
-                {"digest": schema_digest, "schema": model.schema()}
+                {"digest": schema_digest, "schema": copy.deepcopy(model.schema())}
             )
 
         for request, responses in self._replies.items():
@@ -333,6 +335,9 @@ class Protocol:
                     "responses": list(responses.keys()),
                 }
             )
+
+        metadata_keywords = ["description", "metadata"]
+        separate_metadata(manifest, metadata, metadata_keywords)
 
         encoded = json.dumps(manifest, indent=None, sort_keys=True).encode("utf8")
         metadata["digest"] = f"proto:{hashlib.sha256(encoded).digest().hex()}"
@@ -362,3 +367,43 @@ class Protocol:
             "utf8"
         )
         return f"proto:{hashlib.sha256(encoded).digest().hex()}"
+
+
+@staticmethod
+def separate_metadata(manifest: Dict, metadata: Dict, keywords: List[str]):
+    """Separate any entries from the manifest that are not relevant for describing the
+    functionality of the protocol and move them to metadata. This method manipulates
+    both input dicts. If you need to keep the original dicts, provide a copy.
+
+    Args:
+        manifest (Dict): the original manifest with any metadata removed after the
+        function returns
+        metadata (Dict): all metadata will be added to this dict keeping the original
+        nested key path
+        keywords (List[str]): list of keywords that will be treated as metadata
+    """
+    if not isinstance(manifest, dict):
+        return
+    for k in list(manifest.keys()):
+        if k in keywords:
+            metadata[k] = manifest.pop(k)
+        elif isinstance(manifest[k], dict):
+            metadata[k] = {}
+            separate_metadata(manifest[k], metadata[k], keywords)
+            if metadata[k] == {}:
+                metadata.pop(k)
+        elif isinstance(manifest[k], list):
+            metadata[k] = {}
+            for item in manifest[k]:
+                if isinstance(item, dict) and item.get("schema"):
+                    key = item.get("schema").get("title")
+                    if key is not None:
+                        metadata[k][key] = {}
+                        separate_metadata(
+                            item.get("schema"), metadata[k][key], keywords
+                        )
+                        if metadata[k][key] == {}:
+                            metadata[k].pop(key)
+            if metadata[k] == {}:
+                metadata.pop(k)
+    return
