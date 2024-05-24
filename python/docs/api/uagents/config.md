@@ -33,13 +33,3 @@ Parse the user-provided agentverse configutation.
 
   Dict[str, str]: The parsed agentverse configuration.
 
-<a id="src.uagents.config.get_logger"></a>
-
-#### get`_`logger
-
-```python
-def get_logger(logger_name)
-```
-
-Get a logger with the given name using uvicorn's default formatter.
-

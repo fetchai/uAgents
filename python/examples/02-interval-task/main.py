@@ -5,7 +5,7 @@ agent = Agent(name="alice")
 
 @agent.on_event("startup")
 async def introduce_agent(ctx: Context):
-    ctx.logger.info(f"Hello, I'm agent {ctx.name} and my address is {ctx.address}.")
+    ctx.logger.info(f"Hello, I'm agent {agent.name} and my address is {agent.address}.")
 
 
 @agent.on_interval(period=2.0)
