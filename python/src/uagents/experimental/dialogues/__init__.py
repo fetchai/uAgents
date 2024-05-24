@@ -176,6 +176,12 @@ class Dialogue(Protocol):
             UUID, str
         ] = {}  # current state of the dialogue (as edge digest) per session
 
+        if self._sessions:
+            self._states = {
+                session_id: session[-1]["schema_digest"]
+                for session_id, session in self._sessions.items()
+            }
+
         super().__init__(name=self._name, version=version)
 
         # if a model exists for an edge, register the handler automatically
@@ -339,6 +345,7 @@ class Dialogue(Protocol):
             self.add_message(
                 session_id=ctx.session,
                 message_type=self.models[schema_digest].__name__,
+                schema_digest=schema_digest,
                 sender=ctx.agent.address,
                 receiver=sender,
                 content=message.json(),
@@ -356,6 +363,7 @@ class Dialogue(Protocol):
         self.add_message(
             session_id=ctx.session,
             message_type=self.models[outbound_schema_digest].__name__,
+            schema_digest=outbound_schema_digest,
             sender=ctx.agent.address,
             receiver=sender,
             content=outbound_message_content,
@@ -430,6 +438,7 @@ class Dialogue(Protocol):
         self,
         session_id: UUID,
         message_type: str,
+        schema_digest: str,
         sender: str,
         receiver: str,
         content: JsonStr,
@@ -443,6 +452,7 @@ class Dialogue(Protocol):
         self._sessions[session_id].append(
             {
                 "message_type": message_type,
+                "schema_digest": schema_digest,
                 "sender": sender,
                 "receiver": receiver,
                 "message_content": content,
@@ -621,6 +631,7 @@ class Dialogue(Protocol):
         self.add_message(
             session_id=ctx.session,
             message_type=self.models[message_schema_digest].__name__,
+            schema_digest=message_schema_digest,
             sender=ctx.agent.address,
             receiver=destination,
             content=message.json(),
