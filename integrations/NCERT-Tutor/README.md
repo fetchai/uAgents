@@ -98,7 +98,7 @@ python ncertagent.py
 
 
 ###
-Reminder: the openai agent requires a gpt4 api key which needs to be put into the .env file in the same directory as the agent (you will find a .env-template file)
+Reminder: the openai agent requires a gpt4 api key which needs to be put into the .env file in the same directory as the agent (you will find a .env-template file additionally you also need to fill add api credentials to cloudinary and agent mailbox service. )
 ###
 
 ```

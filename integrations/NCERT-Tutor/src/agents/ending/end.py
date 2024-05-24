@@ -8,9 +8,10 @@ from uagents import Model, Protocol, Agent, Context
 from ai_engine import UAgentResponse, UAgentResponseType
 from uagents.setup import fund_agent_if_low
 from pydantic import BaseModel
+import os
 
 
-AGENT_MAILBOX_KEY = "2e623367-4203-4e6e-bb92-06b1aec1264f"
+AGENT_MAILBOX_KEY = os.environ.get("AGENT_MAILBOX_KEY", "2e623367-4203-4e6e-bb92-06b1aec1264f")
 
 agent = Agent(
     name="End System",

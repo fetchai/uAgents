@@ -9,8 +9,9 @@ from ai_engine import UAgentResponse, UAgentResponseType
 import json
 from ncert import ncert
 from uagents.setup import fund_agent_if_low
+import os
 
-AGENT_MAILBOX_KEY = "27c18025-e678-4c1e-840a-cff1d6e969d1"
+AGENT_MAILBOX_KEY = os.environ.get("AGENT_MAILBOX_KEY")
 
 agent = Agent(
     name="Question System",

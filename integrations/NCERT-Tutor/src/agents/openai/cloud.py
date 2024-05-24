@@ -1,10 +1,10 @@
 import os
 
 
-API_KEY = "813453114559759"
-API_SECRET = "VzDu8Be5e6dtDOvxd8EntitA4iM"
+API_KEY = os.environ.get("CLOUDINARY_API_KEY")
+API_SECRET = os.environ.get("API_SECRET")
 
-CLOUDINARY_URL = "cloudinary://API_KEY:API_SECRET@du91akze5"
+CLOUDINARY_URL = f"cloudinary://{API_KEY}:{API_SECRET}@du91akze5"
 
 
 def print_api_key_secret():
@@ -12,4 +12,4 @@ def print_api_key_secret():
     print("API Secret:", API_SECRET)
 
 
-print_api_key_secret()
+#print_api_key_secret()
