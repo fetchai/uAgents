@@ -23,7 +23,7 @@ class Text(Model):
     sender: str
 
 
-AGENT_MAILBOX_KEY = os.environ.get("AGENT_MAILBOX_KEY", "82d392e6-bd87-4402-9170-1b3557270c3b")
+AGENT_MAILBOX_KEY = os.environ.get("AGENT_MAILBOX_KEY")
 
 ncert = Agent(
     name="ncert",
