@@ -35,7 +35,10 @@ Query a remote agent with a message and retrieve the response envelope.
 #### enclose`_`response
 
 ```python
-def enclose_response(message: Model, sender: str, session: str) -> str
+def enclose_response(message: Model,
+                     sender: str,
+                     session: str,
+                     target: str = "") -> str
 ```
 
 Enclose a response message within an envelope.
@@ -45,6 +48,7 @@ Enclose a response message within an envelope.
 - `message` _Model_ - The response message to enclose.
 - `sender` _str_ - The sender's address.
 - `session` _str_ - The session identifier.
+- `target` _str_ - The target address.
   
 
 **Returns**:
@@ -56,8 +60,11 @@ Enclose a response message within an envelope.
 #### enclose`_`response`_`raw
 
 ```python
-def enclose_response_raw(json_message: JsonStr, schema_digest: str,
-                         sender: str, session: str) -> str
+def enclose_response_raw(json_message: JsonStr,
+                         schema_digest: str,
+                         sender: str,
+                         session: str,
+                         target: str = "") -> str
 ```
 
 Enclose a raw response message within an envelope.
@@ -68,6 +75,7 @@ Enclose a raw response message within an envelope.
 - `schema_digest` _str_ - The schema digest of the message.
 - `sender` _str_ - The sender's address.
 - `session` _str_ - The session identifier.
+- `target` _str_ - The target address.
   
 
 **Returns**:

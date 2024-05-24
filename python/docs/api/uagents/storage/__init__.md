@@ -2,12 +2,22 @@
 
 # src.uagents.storage.`__`init`__`
 
+<a id="src.uagents.storage.__init__.StorageAPI"></a>
+
+## StorageAPI Objects
+
+```python
+class StorageAPI(ABC)
+```
+
+Interface for a key-value like storage system.
+
 <a id="src.uagents.storage.__init__.KeyValueStore"></a>
 
 ## KeyValueStore Objects
 
 ```python
-class KeyValueStore()
+class KeyValueStore(StorageAPI)
 ```
 
 A simple key-value store implementation for data storage.
