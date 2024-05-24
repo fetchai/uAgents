@@ -22,7 +22,7 @@ agent = Agent(
 # instantiate the dialogues
 chitchat_dialogue = ChitChatDialogue(
     version="0.1",
-    agent_address=agent.address,
+    storage=agent.storage,
 )
 
 
@@ -40,7 +40,9 @@ async def continue_chitchat(
 @agent.on_event("startup")
 async def start_cycle(ctx: Context):
     await sleep(5)
-    await ctx.send(CHIT_AGENT_ADDRESS, InitiateChitChatDialogue())
+    await chitchat_dialogue.start_dialogue(
+        ctx, CHIT_AGENT_ADDRESS, InitiateChitChatDialogue()
+    )
 
 
 agent.include(chitchat_dialogue)

@@ -21,7 +21,7 @@ The Top 5 Priority Emails agent allows users to connect their email account and 
 
 ## How to Use
 
-To leverage the GitHub PR Review AI Assistant through DeltaV, follow these simple steps:
+To leverage the Top 5 Priority Emails Agent through DeltaV, follow these simple steps:
 
 1. **Access DeltaV**:
    - Go to [DeltaV](https://deltav.agentverse.ai/).

@@ -5,8 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from dataclasses import dataclass
-from enum import Enum
+from abc import ABC, abstractmethod
 from time import time
 from typing import (
     TYPE_CHECKING,
@@ -17,27 +16,36 @@ from typing import (
     List,
     Optional,
     Set,
+    Tuple,
     Type,
+    Union,
 )
 
-import aiohttp
 import requests
 from cosmpy.aerial.client import LedgerClient
-from cosmpy.aerial.wallet import LocalWallet
 from typing_extensions import deprecated
+from uagents.communication import (
+    DeliveryStatus,
+    Dispenser,
+    MsgDigest,
+    MsgStatus,
+    dispatch_local_message,
+    dispatch_sync_response_envelope,
+)
 from uagents.config import (
     ALMANAC_API_URL,
     DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     DEFAULT_SEARCH_LIMIT,
 )
-from uagents.crypto import Identity
 from uagents.dispatch import JsonStr, dispatcher
 from uagents.envelope import Envelope
 from uagents.models import ErrorMessage, Model
 from uagents.resolver import Resolver, parse_identifier
 from uagents.storage import KeyValueStore
+from uagents.utils import log
 
 if TYPE_CHECKING:
+    from uagents.agent import AgentRepresentation
     from uagents.protocol import Protocol
 
 IntervalCallback = Callable[["Context"], Awaitable[None]]
@@ -46,183 +54,65 @@ EventCallback = Callable[["Context"], Awaitable[None]]
 WalletMessageCallback = Callable[["Context", Any], Awaitable[None]]
 
 
-class DeliveryStatus(str, Enum):
-    """Delivery status of a message."""
-
-    SENT = "sent"
-    DELIVERED = "delivered"
-    FAILED = "failed"
-
-
-@dataclass
-class MsgDigest:
-    """
-    Represents a message digest containing a message and its schema digest.
-
-    Attributes:
-        message (Any): The message content.
-        schema_digest (str): The schema digest of the message.
-    """
-
-    message: Any
-    schema_digest: str
-
-
-@dataclass
-class MsgStatus:
-    """
-    Represents the status of a sent message.
-
-    Attributes:
-        status (str): The delivery status of the message {'sent', 'delivered', 'failed'}.
-        detail (str): The details of the message delivery.
-        destination (str): The destination address of the message.
-        endpoint (str): The endpoint the message was sent to.
-    """
-
-    status: DeliveryStatus
-    detail: str
-    destination: str
-    endpoint: str
-
-
 ERROR_MESSAGE_DIGEST = Model.build_schema_digest(ErrorMessage)
 
 
-class Context:
+class Context(ABC):
+    # pylint: disable=unnecessary-pass
     """
     Represents the context in which messages are handled and processed.
 
-    Attributes:
-        storage (KeyValueStore): The key-value store for storage operations.
-        wallet (LocalWallet): The agent's wallet for transacting on the ledger.
-        ledger (LedgerClient): The client for interacting with the blockchain ledger.
-        _name (Optional[str]): The name of the agent.
-        _address (str): The address of the agent.
-        _resolver (Resolver): The resolver for address-to-endpoint resolution.
-        _identity (Identity): The agent's identity.
-        _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their
-        response Futures.
-        _session (Optional[uuid.UUID]): The session UUID.
-        _replies (Optional[Dict[str, Dict[str, Type[Model]]]]): Dictionary of allowed reply digests
-        for each type of incoming message.
-        _interval_messages (Optional[Set[str]]): Set of message digests that may be sent by
-        interval tasks.
-        _message_received (Optional[MsgDigest]): The message digest received.
-        _protocols (Optional[Dict[str, Protocol]]): Dictionary mapping all supported protocol
-        digests to their corresponding protocols.
-        _logger (Optional[logging.Logger]): The optional logger instance.
-
     Properties:
-        name (str): The name of the agent.
-        address (str): The address of the agent.
+        agent (AgentRepresentation): The agent representation associated with the context.
+        storage (KeyValueStore): The key-value store for storage operations.
+        ledger (LedgerClient): The client for interacting with the blockchain ledger.
         logger (logging.Logger): The logger instance.
-        protocols (Optional[Dict[str, Protocol]]): Dictionary mapping all supported protocol
-        digests to their corresponding protocols.
-        session (uuid.UUID): The session UUID.
 
     Methods:
-        get_message_protocol(message_schema_digest): Get the protocol digest associated
-        with a message schema digest.
-        send(destination, message, timeout): Send a message to a destination.
-        send_raw(destination, json_message, schema_digest, message_type, timeout): Send a message
-        with the provided schema digest to a destination.
+        get_agents_by_protocol(protocol_digest, limit, logger): Retrieve a list of agent addresses
+            using a specific protocol digest.
         broadcast(destination_protocol, message, limit, timeout): Broadcast a message
-        to agents with a specific protocol.
-
+            to agents with a specific protocol.
+        send(destination, message, timeout): Send a message to a destination.
+        send_raw(destination, json_message, schema_digest, message_type, timeout):
+            Send a message with the provided schema digest to a destination.
     """
 
-    def __init__(
-        self,
-        address: str,
-        identifier: str,
-        name: Optional[str],
-        storage: KeyValueStore,
-        resolve: Resolver,
-        identity: Identity,
-        wallet: LocalWallet,
-        ledger: LedgerClient,
-        queries: Dict[str, asyncio.Future],
-        session: Optional[uuid.UUID] = None,
-        replies: Optional[Dict[str, Dict[str, Type[Model]]]] = None,
-        interval_messages: Optional[Set[str]] = None,
-        message_received: Optional[MsgDigest] = None,
-        wallet_messaging_client: Optional[Any] = None,
-        protocols: Optional[Dict[str, Protocol]] = None,
-        logger: Optional[logging.Logger] = None,
-    ):
-        """
-        Initialize the Context instance.
-
-        Args:
-            address (str): The address of the context.
-            name (Optional[str]): The optional name associated with the context.
-            storage (KeyValueStore): The key-value store for storage operations.
-            resolve (Resolver): The resolver for name-to-address resolution.
-            identity (Identity): The identity associated with the context.
-            wallet (LocalWallet): The local wallet instance for managing identities.
-            ledger (LedgerClient): The ledger client for interacting with distributed ledgers.
-            queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their response
-            Futures.
-            session (Optional[uuid.UUID]): The optional session UUID.
-            replies (Optional[Dict[str, Dict[str, Type[Model]]]]): Dictionary of allowed replies
-            for each type of incoming message.
-            interval_messages (Optional[Set[str]]): The optional set of interval messages.
-            message_received (Optional[MsgDigest]): The optional message digest received.
-            wallet_messaging_client (Optional[Any]): The optional wallet messaging client.
-            protocols (Optional[Dict[str, Protocol]]): The optional dictionary of protocols.
-            logger (Optional[logging.Logger]): The optional logger instance.
-        """
-        self.storage = storage
-        self.wallet = wallet
-        self.ledger = ledger
-        self._name = name
-        self._address = str(address)
-        self._identifier = str(identifier)
-        self._resolver = resolve
-        self._identity = identity
-        self._queries = queries
-        self._session = session or None
-        self._replies = replies
-        self._interval_messages = interval_messages
-        self._message_received = message_received
-        self._wallet_messaging_client = wallet_messaging_client
-        self._protocols = protocols or {}
-        self._logger = logger
-
     @property
-    def name(self) -> str:
+    @abstractmethod
+    def agent(self) -> AgentRepresentation:
         """
-        Get the name associated with the context or a truncated address if name is None.
+        Get the agent representation associated with the context.
 
         Returns:
-            str: The name or truncated address.
+            AgentRepresentation: The agent representation.
         """
-        if self._name is not None:
-            return self._name
-        return self._address[:10]
+        pass
 
     @property
-    def address(self) -> str:
+    @abstractmethod
+    def storage(self) -> KeyValueStore:
         """
-        Get the address of the context.
+        Get the key-value store associated with the context.
 
         Returns:
-            str: The address of the context.
+            KeyValueStore: The key-value store.
         """
-        return self._address
+        pass
 
     @property
-    def identifier(self) -> str:
+    @abstractmethod
+    def ledger(self) -> LedgerClient:
         """
-        Get the address of the agent used for communication including the network prefix.
+        Get the ledger client associated with the context.
 
         Returns:
-            str: The agent's address and network prefix.
+            LedgerClient: The ledger client.
         """
-        return self._identifier
+        pass
 
     @property
+    @abstractmethod
     def logger(self) -> logging.Logger:
         """
         Get the logger instance associated with the context.
@@ -230,62 +120,14 @@ class Context:
         Returns:
             logging.Logger: The logger instance.
         """
-        return self._logger
+        pass
 
-    @property
-    def protocols(self) -> Optional[Dict[str, Protocol]]:
-        """
-        Get the dictionary of protocols associated with the context.
-
-        Returns:
-            Optional[Dict[str, Protocol]]: The dictionary of protocols.
-        """
-        return self._protocols
-
-    @property
-    def session(self) -> uuid.UUID:
-        """
-        Get the session UUID associated with the context.
-
-        Returns:
-            uuid.UUID: The session UUID.
-        """
-        return self._session
-
-    def reset_session(self) -> None:
-        """
-        Reset the session UUID associated with the context.
-        """
-        self._session = None
-
-    def get_message_protocol(self, message_schema_digest) -> Optional[str]:
-        """
-        Get the protocol digest associated with a given message schema digest.
-
-        Args:
-            message_schema_digest (str): The schema digest of the message.
-
-        Returns:
-            Optional[str]: The protocol digest associated with the message schema digest,
-            or None if not found.
-        """
-        for protocol_digest, protocol in self._protocols.items():
-            for model in protocol.models:
-                if message_schema_digest == model:
-                    return protocol_digest
-        return None
-
-    def update_protocols(self, protocol: Protocol) -> None:
-        """
-        Register a protocol with the context.
-
-        Args:
-            protocol (Protocol): The protocol to register.
-        """
-        self._protocols[protocol.digest] = protocol
-
+    @abstractmethod
     def get_agents_by_protocol(
-        self, protocol_digest: str, limit: Optional[int] = None
+        self,
+        protocol_digest: str,
+        limit: Optional[int],
+        logger: Optional[logging.Logger],
     ) -> List[str]:
         """Retrieve a list of agent addresses using a specific protocol digest.
 
@@ -300,69 +142,15 @@ class Context:
         Returns:
             List[str]: A list of agent addresses using the specified protocol digest.
         """
-        if not isinstance(protocol_digest, str) or not protocol_digest.startswith(
-            "proto:"
-        ):
-            self.logger.error(f"Invalid protocol digest: {protocol_digest}")
-            raise ValueError("Invalid protocol digest")
-        response = requests.post(
-            url=ALMANAC_API_URL + "search",
-            json={"text": protocol_digest[6:]},
-            timeout=DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
-        )
-        if response.status_code == 200:
-            data = response.json()
-            agents = [agent["address"] for agent in data if agent["status"] == "local"]
-            return agents[:limit]
-        return []
+        pass
 
-    async def send(
-        self,
-        destination: str,
-        message: Model,
-        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
-    ) -> MsgStatus:
-        """
-        Send a message to the specified destination.
-
-        Args:
-            destination (str): The destination address to send the message to.
-            message (Model): The message to be sent.
-            timeout (Optional[int]): The optional timeout for sending the message, in seconds.
-
-        Returns:
-            MsgStatus: The delivery status of the message.
-        """
-        schema_digest = Model.build_schema_digest(message)
-        return await self.send_raw(
-            destination,
-            message.json(),
-            schema_digest,
-            message_type=type(message),
-            timeout=timeout,
-        )
-
-    @deprecated(
-        "This method will be removed in a future release. Please use ctx.broadcast()"
-    )
-    async def experimental_broadcast(
-        self,
-        destination_protocol: str,
-        message: Model,
-        limit: Optional[int] = DEFAULT_SEARCH_LIMIT,
-        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
-    ) -> List[MsgStatus]:
-        """Deprecated method for broadcasting a message to agents with a specific protocol.
-        This method will be removed in a future release. Please use ctx.broadcast() instead.
-        """
-        return await self.broadcast(destination_protocol, message, limit, timeout)
-
+    @abstractmethod
     async def broadcast(
         self,
         destination_protocol: str,
         message: Model,
-        limit: Optional[int] = DEFAULT_SEARCH_LIMIT,
-        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+        limit: Optional[int],
+        timeout: Optional[int],
     ) -> List[MsgStatus]:
         """Broadcast a message to agents with a specific protocol.
 
@@ -379,80 +167,240 @@ class Context:
         Returns:
             List[MsgStatus]: A list of message delivery statuses.
         """
-        agents = self.get_agents_by_protocol(destination_protocol, limit=limit)
-        if not agents:
-            self.logger.error(f"No active agents found for: {destination_protocol}")
-            return []
+        pass
 
-        schema_digest = Model.build_schema_digest(message)
-        futures = await asyncio.gather(
-            *[
-                self.send_raw(
-                    address,
-                    message.json(),
-                    schema_digest,
-                    message_type=type(message),
-                    timeout=timeout,
-                )
-                for address in agents
-            ]
-        )
-        self.logger.debug(f"Sent {len(futures)} messages")
-        return futures
-
-    async def send_raw(
+    @abstractmethod
+    async def send(
         self,
         destination: str,
-        json_message: JsonStr,
-        schema_digest: str,
-        message_type: Optional[Type[Model]] = None,
-        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+        message: Model,
+        sync: Optional[bool],
+        timeout: Optional[int],
     ) -> MsgStatus:
         """
-        Send a raw message to the specified destination.
+        Send a message to the specified destination.
 
         Args:
-            destination (str): The destination name or address to send the message to.
-            json_message (JsonStr): The JSON-encoded message to be sent.
-            schema_digest (str): The schema digest of the message.
-            message_type (Optional[Type[Model]]): The optional type of the message being sent.
+            destination (str): The destination address to send the message to.
+            message (Model): The message to be sent.
+            sync (bool): Whether to send the message synchronously or asynchronously.
             timeout (Optional[int]): The optional timeout for sending the message, in seconds.
 
         Returns:
             MsgStatus: The delivery status of the message.
         """
-        current_session = self._session or uuid.uuid4()
+        pass
 
-        # Check if this message is a reply
-        if (
-            self._message_received is not None
-            and self._replies
-            and schema_digest != ERROR_MESSAGE_DIGEST
+    @abstractmethod
+    async def send_raw(
+        self,
+        destination: str,
+        message_schema_digest: str,
+        message_body: JsonStr,
+        sync: Optional[bool],
+        timeout: Optional[int],
+        protocol_digest: Optional[str],
+    ) -> MsgStatus:
+        """
+        Send a message to the specified destination where the message body and
+        message schema digest are sent separately.
+
+        Args:
+            destination (str): The destination address to send the message to.
+            message_schema_digest (str): The schema digest of the message to be sent.
+            message_body (JsonStr): The JSON-encoded message body to be sent.
+            sync (bool): Whether to send the message synchronously or asynchronously.
+            timeout (Optional[int]): The optional timeout for sending the message, in seconds.
+            protocol_digest (Optional[str]): The protocol digest of the message to be sent.
+
+        Returns:
+            MsgStatus: The delivery status of the message.
+        """
+        pass
+
+    @abstractmethod
+    async def send_wallet_message(
+        self,
+        destination: str,
+        text: str,
+        msg_type: int = 1,
+    ):
+        """
+        Send a message to the wallet of the specified destination.
+
+        Args:
+            destination (str): The destination address to send the message to.
+            text (str): The text of the message to be sent.
+            msg_type (int): The type of the message to be sent.
+
+        Returns:
+            None
+        """
+        pass
+
+
+class InternalContext(Context):
+    """
+    Represents the agent internal context for proactive behaviour.
+    """
+
+    def __init__(
+        self,
+        agent: AgentRepresentation,
+        storage: KeyValueStore,
+        ledger: LedgerClient,
+        resolver: Resolver,
+        dispenser: Dispenser,
+        interval_messages: Optional[Set[str]] = None,
+        wallet_messaging_client: Optional[Any] = None,
+        logger: Optional[logging.Logger] = None,
+    ):
+        self._agent = agent
+        self._storage = storage
+        self._ledger = ledger
+        self._resolver = resolver
+        self._dispenser = dispenser
+        self._logger = logger
+        self._session: Optional[uuid.UUID] = None
+        self._interval_messages = interval_messages
+        self._wallet_messaging_client = wallet_messaging_client
+        self._outbound_messages: Dict[str, Tuple[JsonStr, str]] = {}
+
+    @property
+    def agent(self) -> AgentRepresentation:
+        return self._agent
+
+    @property
+    def storage(self) -> KeyValueStore:
+        return self._storage
+
+    @property
+    def ledger(self) -> LedgerClient:
+        return self._ledger
+
+    @property
+    def logger(self) -> Union[logging.Logger, None]:
+        return self._logger
+
+    @property
+    def session(self) -> Union[uuid.UUID, None]:
+        """
+        Get the session UUID associated with the context.
+
+        Returns:
+            uuid.UUID: The session UUID.
+        """
+        return self._session
+
+    @property
+    def outbound_messages(self) -> Dict[str, Tuple[JsonStr, str]]:
+        """
+        Get the dictionary of outbound messages associated with the context.
+
+        Returns:
+            Dict[str, Tuple[JsonStr, str]]: The dictionary of outbound messages.
+        """
+        return self._outbound_messages
+
+    @property
+    @deprecated("Please use `ctx.agent.address` instead.")
+    def address(self) -> str:
+        """
+        Get the agent address associated with the context.
+        This is a deprecated property and will be removed in a future release.
+        Please use the `ctx.agent.address` property instead.
+
+        Returns:
+            str: The agent address.
+        """
+        return self.agent.address
+
+    def get_agents_by_protocol(
+        self,
+        protocol_digest: str,
+        limit: Optional[int] = None,
+        logger: Optional[logging.Logger] = None,
+    ) -> List[str]:
+        if not isinstance(protocol_digest, str) or not protocol_digest.startswith(
+            "proto:"
         ):
-            received = self._message_received
-            # Ensure the reply is valid
-            if (received.schema_digest in self._replies) and (
-                schema_digest not in self._replies[received.schema_digest]
-            ):
-                self._logger.exception(
-                    f"Outgoing message {message_type or ''} "
-                    f"is not a valid reply to {received.message}"
-                )
-                return MsgStatus(
-                    status=DeliveryStatus.FAILED,
-                    detail="Invalid reply",
-                    destination=destination,
-                    endpoint="",
-                )
-        # Check if this message is a valid interval message
-        if (
-            self._message_received is None
-            and self._interval_messages
-            and schema_digest not in self._interval_messages
-        ):
-            self._logger.exception(
-                f"Outgoing message {message_type} is not a valid interval message"
+            log(logger, logging.ERROR, f"Invalid protocol digest: {protocol_digest}")
+            return []
+        response = requests.post(
+            url=ALMANAC_API_URL + "search",
+            json={"text": protocol_digest[6:]},
+            timeout=DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+        )
+        if response.status_code == 200:
+            data = response.json()
+            agents = [agent["address"] for agent in data if agent["status"] == "local"]
+            return agents[:limit]
+        return []
+
+    async def broadcast(
+        self,
+        destination_protocol: str,
+        message: Model,
+        limit: Optional[int] = DEFAULT_SEARCH_LIMIT,
+        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+    ) -> List[MsgStatus]:
+        agents = self.get_agents_by_protocol(
+            destination_protocol, limit=limit, logger=self.logger
+        )
+        if not agents:
+            log(
+                self.logger,
+                logging.ERROR,
+                f"No active agents found for: {destination_protocol}",
             )
+            return []
+
+        futures = await asyncio.gather(
+            *[
+                self.send(
+                    address,
+                    message,
+                    sync=False,
+                    timeout=timeout or DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+                )
+                for address in agents
+            ]
+        )
+        log(self.logger, logging.DEBUG, f"Sent {len(futures)} messages")
+        return futures
+
+    def _is_valid_interval_message(self, schema_digest: str) -> bool:
+        """
+        Check if the message is a valid interval message.
+
+        Args:
+            schema_digest (str): The schema digest of the message to check.
+
+        Returns:
+            bool: Whether the message is a valid interval message.
+        """
+        if self._interval_messages:
+            return schema_digest in self._interval_messages
+        return True
+
+    async def send(
+        self,
+        destination: str,
+        message: Model,
+        sync: Optional[bool] = False,
+        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+    ) -> MsgStatus:
+        """
+        This is the pro-active send method which is used in on_event and
+        on_interval methods. In these methods, interval messages are set but
+        we don't have access properties that are only necessary in re-active
+        contexts, like 'replies', 'message_received', or 'protocol'.
+        """
+        schema_digest = Model.build_schema_digest(message)
+        message_body = message.json()
+
+        if not self._is_valid_interval_message(schema_digest):
+            log(self.logger, logging.ERROR, f"Invalid interval message: {message}")
             return MsgStatus(
                 status=DeliveryStatus.FAILED,
                 detail="Invalid interval message",
@@ -460,115 +408,65 @@ class Context:
                 endpoint="",
             )
 
-        # if the message is part of a Dialogue, update the Dialogue state accordingly
-        current_protocol_digest = self.get_message_protocol(schema_digest)
-        if current_protocol_digest is not None:
-            current_protocol = self.protocols[current_protocol_digest]
-            if hasattr(current_protocol, "rules"):
-                if self._message_received and not current_protocol.is_valid_reply(
-                    self._message_received.schema_digest, schema_digest
-                ):
-                    message_received_name = current_protocol.models[
-                        self._message_received.schema_digest
-                    ].__name__
-                    self._logger.exception(
-                        f"Outgoing message {message_type.__name__} is not a valid "
-                        f"response to {message_received_name} "
-                        f"for a {current_protocol.name}"
-                    )
-                    return MsgStatus(
-                        status=DeliveryStatus.FAILED,
-                        detail="Invalid dialogue reply",
-                        destination=destination,
-                        endpoint="",
-                    )
+        return await self.send_raw(
+            destination,
+            schema_digest,
+            message_body,
+            sync=sync,
+            timeout=timeout,
+        )
 
-                if (
-                    self._session is None
-                    and current_protocol.custom_session
-                    and current_protocol.is_starter(schema_digest)
-                ):
-                    current_session = current_protocol.custom_session
-                    current_protocol.reset_custom_session_id()
-
-                message_name = current_protocol.models[schema_digest].__name__
-                current_protocol.add_message(
-                    session_id=current_session,
-                    message_type=message_name,
-                    sender=self.address,
-                    receiver=destination,
-                    content=json_message,
-                )
-                current_protocol.update_state(schema_digest, current_session)
-                self.logger.debug(
-                    f"update state to: {message_name} for session {current_session}"
-                )
+    async def send_raw(
+        self,
+        destination: str,
+        message_schema_digest: str,
+        message_body: JsonStr,
+        sync: bool = False,
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+        protocol_digest: Optional[str] = None,
+        queries: Optional[Dict[str, asyncio.Future]] = None,
+    ) -> MsgStatus:
+        self._session = self._session or uuid.uuid4()
 
         # Extract address from destination agent identifier if present
-        _, _, destination_address = parse_identifier(destination)
+        _, parsed_name, parsed_address = parse_identifier(destination)
 
-        if destination_address:
+        if parsed_address:
             # Handle local dispatch of messages
-            if dispatcher.contains(destination_address):
-                await dispatcher.dispatch(
-                    self.address,
-                    destination_address,
-                    schema_digest,
-                    json_message,
-                    current_session,
-                )
-                return MsgStatus(
-                    status=DeliveryStatus.DELIVERED,
-                    detail="Message dispatched locally",
-                    destination=destination_address,
-                    endpoint="",
+            if dispatcher.contains(parsed_address):
+                return await dispatch_local_message(
+                    self.agent.address,
+                    parsed_address,
+                    message_schema_digest,
+                    message_body,
+                    self._session,
                 )
 
-            # Handle queries waiting for a response
-            if destination_address in self._queries:
-                self._queries[destination_address].set_result(
-                    (json_message, schema_digest)
+            # Handle sync dispatch of messages
+            if queries and parsed_address in queries:
+                queries[parsed_address].set_result(
+                    (message_body, message_schema_digest)
                 )
-                del self._queries[destination_address]
+                del queries[parsed_address]
                 return MsgStatus(
                     status=DeliveryStatus.DELIVERED,
                     detail="Sync message resolved",
-                    destination=destination_address,
+                    destination=parsed_address,
                     endpoint="",
                 )
 
-        return await self.send_raw_exchange_envelope(
-            self._identity,
-            destination,
-            self._resolver,
-            schema_digest,
-            self.get_message_protocol(schema_digest),
-            json_message,
-            logger=self._logger,
-            timeout=timeout,
-            session_id=current_session,
+            self._outbound_messages[parsed_address] = (
+                message_body,
+                message_schema_digest,
+            )
+
+        # Resolve destination address or name using the resolver
+        destination_address, endpoints = await self._resolver.resolve(
+            parsed_address or parsed_name
         )
 
-    @staticmethod
-    async def send_raw_exchange_envelope(
-        sender: Identity,
-        destination: str,
-        resolver: Resolver,
-        schema_digest: str,
-        protocol_digest: Optional[str],
-        json_message: JsonStr,
-        logger: Optional[logging.Logger] = None,
-        timeout: int = 5,
-        session_id: Optional[uuid.UUID] = None,
-    ) -> MsgStatus:
-        # Resolve the destination address and endpoint ('destination' can be a name or address)
-        destination_address, endpoints = await resolver.resolve(destination)
-        if len(endpoints) == 0:
-            if logger:
-                logger.exception(
-                    f"Unable to resolve destination endpoint for address {destination}"
-                )
-
+        if not endpoints or not destination_address:
+            log(self.logger, logging.ERROR, "Unable to resolve destination endpoint")
             return MsgStatus(
                 status=DeliveryStatus.FAILED,
                 detail="Unable to resolve destination endpoint",
@@ -582,65 +480,180 @@ class Context:
         # Handle external dispatch of messages
         env = Envelope(
             version=1,
-            sender=sender.address,
+            sender=self.agent.address,
             target=destination_address,
-            session=session_id or uuid.uuid4(),
-            schema_digest=schema_digest,
+            session=self._session,
+            schema_digest=message_schema_digest,
             protocol_digest=protocol_digest,
             expires=expires,
         )
-        env.encode_payload(json_message)
-        env.sign(sender)
+        env.encode_payload(message_body)
+        env.sign(self.agent.sign_digest)
 
-        for endpoint in endpoints:
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(
-                        endpoint,
-                        headers={"content-type": "application/json"},
-                        data=env.json(),
-                    ) as resp:
-                        success = resp.status == 200
-                    if success:
-                        return MsgStatus(
-                            status=DeliveryStatus.DELIVERED,
-                            detail="Message successfully delivered via HTTP",
-                            destination=destination,
-                            endpoint=endpoint,
-                        )
+        # Create awaitable future for MsgStatus and sync response
+        fut = asyncio.Future()
 
-                    if logger:
-                        logger.warning(
-                            f"Failed to send message to {destination_address} @ {endpoint}: "
-                            + (await resp.text())
-                        )
-            except aiohttp.ClientConnectorError as ex:
-                if logger:
-                    logger.warning(f"Failed to connect to {endpoint}: {ex}")
+        self._queue_envelope(env, endpoints, fut, sync)
 
-            except Exception as ex:
-                if logger:
-                    logger.warning(
-                        f"Failed to send message to {destination} @ {endpoint}: {ex}"
-                    )
+        try:
+            result = await asyncio.wait_for(fut, timeout)
+        except asyncio.TimeoutError:
+            log(self.logger, logging.ERROR, "Timeout waiting for dispense response")
+            return MsgStatus(
+                status=DeliveryStatus.FAILED,
+                detail="Timeout waiting for response",
+                destination=destination,
+                endpoint="",
+            )
 
-        if logger:
-            logger.exception(f"Failed to deliver message to {destination}")
+        if isinstance(result, Envelope):
+            return await dispatch_sync_response_envelope(result)
 
-        return MsgStatus(
-            status=DeliveryStatus.FAILED,
-            detail="Message delivery failed",
-            destination=destination,
-            endpoint="",
-        )
+        return result
+
+    def _queue_envelope(
+        self,
+        envelope: Envelope,
+        endpoints: List[str],
+        response_future: asyncio.Future,
+        sync: bool = False,
+    ):
+        """
+        Queue an envelope for processing.
+
+        Args:
+            envelope (Envelope): The envelope to queue.
+        """
+        self._dispenser.add_envelope(envelope, endpoints, response_future, sync)
 
     async def send_wallet_message(
         self,
         destination: str,
         text: str,
         msg_type: int = 1,
-    ):
+    ):  # TODO: restructure wallet messaging
         if self._wallet_messaging_client is not None:
             await self._wallet_messaging_client.send(destination, text, msg_type)
         else:
-            self.logger.warning("Cannot send wallet message: no client available")
+            log(
+                self.logger,
+                logging.WARNING,
+                "Cannot send wallet message: no client available",
+            )
+
+
+class ExternalContext(InternalContext):
+    """
+    Represents the reactive context in which messages are handled and processed.
+
+    Attributes:
+        _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their
+            response Futures.
+        _session (Optional[uuid.UUID]): The session UUID.
+        _replies (Optional[Dict[str, Dict[str, Type[Model]]]]): Dictionary of allowed reply digests
+            for each type of incoming message.
+        _message_received (Optional[MsgDigest]): The message digest received.
+        _protocol (Optional[Tuple[str, Protocol]]): The supported protocol digest
+            and the corresponding protocol.
+    """
+
+    def __init__(
+        self,
+        message_received: MsgDigest,
+        session: Optional[uuid.UUID] = None,
+        queries: Optional[Dict[str, asyncio.Future]] = None,
+        replies: Optional[Dict[str, Dict[str, Type[Model]]]] = None,
+        protocol: Optional[Tuple[str, Protocol]] = None,
+        **kwargs,
+    ):
+        """
+        Initialize the ExternalContext instance and attributes needed from the InternalContext.
+
+        Args:
+            message_received (MsgDigest): The optional message digest received.
+            queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their
+                response Futures.
+            session (Optional[uuid.UUID]): The optional session UUID.
+            replies (Optional[Dict[str, Dict[str, Type[Model]]]]): Dictionary of allowed replies
+                for each type of incoming message.
+            protocol (Optional[Tuple[str, Protocol]]): The optional Tuple of protocols.
+        """
+        super().__init__(**kwargs)
+        self._session = session or None
+        self._queries = queries or {}
+        self._replies = replies
+        self._message_received = message_received
+        self._protocol = protocol or ("", None)
+
+    def _is_valid_reply(self, message_type: Type[Model]) -> bool:
+        """
+        Check if the message type is a valid reply to the message received.
+
+        Args:
+            message_type (Type[Model]): The type of the message to check.
+
+        Returns:
+            bool: Whether the message type is a valid reply.
+        """
+        if not self._message_received:
+            raise ValueError("No message received")
+
+        if not self._replies:
+            return True
+
+        received = self._message_received
+        if received.schema_digest in self._replies:
+            return message_type in self._replies[received.schema_digest]
+        return False
+
+    async def send(
+        self,
+        destination: str,
+        message: Model,
+        sync: Optional[bool] = False,
+        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+    ) -> MsgStatus:
+        """
+        Send a message to the specified destination.
+
+        Args:
+            destination (str): The destination address to send the message to.
+            message (Model): The message to be sent.
+            sync (bool): Whether to send the message synchronously or asynchronously.
+            timeout (Optional[int]): The optional timeout for sending the message, in seconds.
+
+        Returns:
+            MsgStatus: The delivery status of the message.
+        """
+        schema_digest = Model.build_schema_digest(message)
+        message_type = type(message)
+
+        # This is the re-active send method
+        # at this point we have received a message and have built a context
+        # replies, message_received, and protocol are set
+
+        if schema_digest != ERROR_MESSAGE_DIGEST and not self._is_valid_reply(
+            schema_digest
+        ):
+            log(
+                self.logger,
+                logging.ERROR,
+                f"Outgoing message {message_type} is not a valid reply"
+                f"to {self._message_received.message}",
+            )
+            return MsgStatus(
+                status=DeliveryStatus.FAILED,
+                detail="Invalid reply",
+                destination=destination,
+                endpoint="",
+            )
+
+        return await self.send_raw(
+            destination,
+            schema_digest,
+            message.json(),
+            sync=sync,
+            timeout=timeout,
+            protocol_digest=self._protocol[0],
+            queries=self._queries,
+        )
