@@ -1,4 +1,8 @@
-"""Specific dialogue class for the Agentverse chit-chat dialogue."""
+"""
+Specific dialogue class for the Agentverse chit-chat dialogue.
+
+See python/examples/17-stateful-communication/agent5.py for a usage example.
+"""
 
 from typing import Type
 
@@ -34,7 +38,6 @@ class AgentverseChitChat(Dialogue):
     number of "ChitChat" messages.
     Messages are started with an initial message, followed by any number of
     "ChitChat" messages, and finally concluded with an end message.
-    (see python/examples/17-stateful-communication/agent5.py for a usage example)
     """
 
     # Node definition for the dialogue states
@@ -86,7 +89,6 @@ class AgentverseChitChat(Dialogue):
         Initialize the simple ChitChatDialogue class.
 
         Args:
-            version (Optional[str], optional): Version of the dialogue. Defaults to None.
             storage (Optional[StorageAPI], optional): Storage to use.
                 None will generate a new KeyValueStore based on the dialogue name.
                 Defaults to None.

@@ -83,6 +83,11 @@ agent.include(chitchat)
 
 @agent.on_event("startup")
 async def handle_startup(ctx: Context):
+    """
+    Start the dialogue with the hosted agent
+
+    Please note the `Dialogue.start_dialogue` method is used to start the dialogue.
+    """
     ctx.logger.info("Agent started with address: " + agent.address)
     await chitchat.start_dialogue(ctx, HOSTED_AGENT_ADDRESS, InitiateChitChatDialogue())
 
