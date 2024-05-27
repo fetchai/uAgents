@@ -45,7 +45,7 @@ class Edge:
         description: str,
         parent: Optional[Node],  # tail
         child: Node,  # head
-        metadata: Optional[Dict],
+        metadata: Optional[Dict] = None,
     ) -> None:
         self.name = name
         self.description = description
