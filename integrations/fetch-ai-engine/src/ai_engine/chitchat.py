@@ -5,7 +5,7 @@ from typing import Type
 from uagents import Model
 from uagents.experimental.dialogues import Dialogue, Node
 
-from .dialogue import create_edge
+from ai_engine.dialogue import create_edge
 
 
 # Node definition for the dialogue states
