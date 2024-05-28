@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "uagents-ai-engine"
-version = "0.1.6"
+version = "0.2.0"
 description = "Integrating AI-Engine with UAgents"
 authors = ["Fetch.AI Limited"]
 license = "Apache 2.0"
@@ -10,5 +10,5 @@ packages = [{include = "ai_engine", from = "src" }]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
-uagents = ">=0.11.0"
+uagents = ">=0.12.0"
 pydantic = "^1.10.2"
