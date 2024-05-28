@@ -355,6 +355,7 @@ class InternalContext(Context):
             )
             return []
 
+        agents.remove(self.agent.address)
         futures = await asyncio.gather(
             *[
                 self.send(
@@ -396,6 +397,7 @@ class InternalContext(Context):
         we don't have access properties that are only necessary in re-active
         contexts, like 'replies', 'message_received', or 'protocol'.
         """
+        self._session = None
         schema_digest = Model.build_schema_digest(message)
         message_body = message.json()
 
