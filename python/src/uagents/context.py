@@ -355,6 +355,7 @@ class InternalContext(Context):
             )
             return []
 
+        agents.remove(self.agent.address)
         futures = await asyncio.gather(
             *[
                 self.send(
