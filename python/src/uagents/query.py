@@ -5,12 +5,12 @@ from time import time
 from typing import Optional
 
 import aiohttp
-from uagents.config import get_logger
 from uagents.crypto import generate_user_address
 from uagents.dispatch import JsonStr
 from uagents.envelope import Envelope
 from uagents.models import Model
 from uagents.resolver import GlobalResolver, Resolver
+from uagents.utils import get_logger
 
 LOGGER = get_logger("query")
 

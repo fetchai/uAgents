@@ -6,12 +6,13 @@ use this dialogue. This defines the structure of the specific dialogue and
 the messages that are expected to be exchanged.
 """
 
-from typing import Type
+from typing import Optional, Type
 from warnings import warn
 
 from uagents import Model
 from uagents.context import Context
 from uagents.experimental.dialogues import Dialogue, Edge, Node
+from uagents.storage import StorageAPI
 
 
 # define dialogue messages; each transition needs a separate message
@@ -165,13 +166,22 @@ class ChitChatDialogue(Dialogue):
 
     def __init__(
         self,
-        version: str | None = None,
-        agent_address: str | None = None,
+        version: Optional[str] = None,
+        storage: Optional[StorageAPI] = None,
     ) -> None:
+        """
+        Initialize the ChitChatDialogue class where certain behaviour is hardcoded / predefined.
+
+        Args:
+            version (Optional[str], optional): Version of the dialogue. Defaults to None.
+            storage (Optional[StorageAPI], optional): Storage to use.
+                None will generate a new KeyValueStore based on the dialogue name.
+                Defaults to None.
+        """
         super().__init__(
             name="ChitChatDialogue",
             version=version,
-            agent_address=agent_address,
+            storage=storage,
             nodes=[
                 init_state,
                 chatting_state,

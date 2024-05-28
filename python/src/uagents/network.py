@@ -26,8 +26,8 @@ from uagents.config import (
     REGISTRATION_FEE,
     TESTNET_CONTRACT_ALMANAC,
     TESTNET_CONTRACT_NAME_SERVICE,
-    get_logger,
 )
+from uagents.utils import get_logger
 
 logger = get_logger("network")
 

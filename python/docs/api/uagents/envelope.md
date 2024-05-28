@@ -62,14 +62,14 @@ Decode and retrieve the payload value from the envelope.
 #### sign
 
 ```python
-def sign(identity: Identity)
+def sign(signing_fn: Callable)
 ```
 
-Sign the envelope using the provided identity.
+Sign the envelope using the provided signing function.
 
 **Arguments**:
 
-- `identity` _Identity_ - The identity used for signing.
+- `signing_fn` _callback_ - The callback used for signing.
 
 <a id="src.uagents.envelope.Envelope.verify"></a>
 

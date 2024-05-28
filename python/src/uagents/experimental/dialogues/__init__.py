@@ -1,7 +1,6 @@
 """Dialogue class aka. blueprint for protocols."""
 
 import functools
-import graphlib
 import warnings
 from datetime import datetime, timedelta
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Type
@@ -11,7 +10,7 @@ from uagents import Context, Model, Protocol
 from uagents.context import DeliveryStatus, MsgStatus
 from uagents.dispatch import JsonStr
 from uagents.models import ErrorMessage
-from uagents.storage import KeyValueStore
+from uagents.storage import KeyValueStore, StorageAPI
 
 DEFAULT_SESSION_TIMEOUT_IN_SECONDS = 60
 TARGET_UUID_VERSION = 4
@@ -53,7 +52,7 @@ class Edge:
         self.child = child
         self.starter: bool = False
         self.ender: bool = False
-        self._model: Type[Model] = None
+        self._model: Optional[Type[Model]] = None
         self._func: Optional[MessageCallback] = None
         self._efunc: Optional[MessageCallback] = None
         self.metadata = metadata if metadata is not None else {}
@@ -150,14 +149,14 @@ class Dialogue(Protocol):
     def __init__(
         self,
         name: str,
-        agent_address: str,  # tbd: storage naming and handling
-        version: Optional[str] = None,
-        nodes: List[Node] | None = None,
-        edges: List[Edge] | None = None,
+        storage: Optional[StorageAPI] = None,
+        nodes: Optional[List[Node]] = None,
+        edges: Optional[List[Edge]] = None,
         timeout: int = DEFAULT_SESSION_TIMEOUT_IN_SECONDS,
+        version: Optional[str] = None,
+        cleanup_interval: int = 1,
     ) -> None:
         self._name = name
-
         self._nodes = nodes or []
         self._edges = edges or []
         self._graph: Dict[str, List[str]] = self._build_graph()  # by nodes
@@ -167,13 +166,12 @@ class Dialogue(Protocol):
             for edge in self._edges
         }  # store the message models that are associated with an edge
 
-        self._cyclic = False
         self._starter = self._build_starter()  # first message of the dialogue
         self._ender = self._build_ender()  # last message(s) of the dialogue
 
         self._timeout = timeout
-        self._storage = KeyValueStore(
-            f"{agent_address[0:16]}_dialogues"
+        self._storage = storage or KeyValueStore(
+            f"{self._name}_dialogue_storage"
         )  # persistent session + message storage
         self._sessions: Dict[UUID, List[Any]] = (
             self._load_storage()
@@ -182,34 +180,18 @@ class Dialogue(Protocol):
             UUID, str
         ] = {}  # current state of the dialogue (as edge digest) per session
 
+        if self._sessions:
+            self._states = {
+                session_id: session[-1]["schema_digest"]
+                for session_id, session in self._sessions.items()
+            }
+
         super().__init__(name=self._name, version=version)
 
         # if a model exists for an edge, register the handler automatically
         self._auto_add_message_handler()
 
-        @self.on_interval(1)
-        async def cleanup_dialogue(_ctx: Context):
-            """
-            Cleanup the dialogue.
-
-            Deletes sessions that have not been used for a certain amount of time.
-            The task runs every second so the configured timeout is currently
-            measured in seconds as well (interval time * timeout parameter).
-            Sessions with 0 as timeout will never be deleted.
-            """
-            mark_for_deletion = []
-            for session_id, session in self._sessions.items():
-                timeout = session[-1]["timeout"]
-                if (
-                    timeout > 0
-                    and datetime.fromtimestamp(session[-1]["timestamp"])
-                    + timedelta(seconds=timeout)
-                    < datetime.now()
-                ):
-                    mark_for_deletion.append(session_id)
-            if mark_for_deletion:
-                for session_id in mark_for_deletion:
-                    self.cleanup_conversation(session_id)
+        self.initialise_cleanup_task(cleanup_interval)
 
         # radical but effective
         self.on_message = None
@@ -224,16 +206,6 @@ class Dialogue(Protocol):
             Dict[str, List[str]]: Dictionary of rules represented by edges.
         """
         return self._rules
-
-    @property
-    def is_cyclic(self) -> bool:
-        """
-        Property to determine whether the dialogue has cycles.
-
-        Returns:
-            bool: True if the dialogue is cyclic, False otherwise.
-        """
-        return self._cyclic
 
     @property
     def nodes(self) -> List[Node]:
@@ -298,10 +270,6 @@ class Dialogue(Protocol):
             for inner_edge in self._edges:
                 if inner_edge.parent and inner_edge.parent.name == edge.child.name:
                     out[edge.name].append(inner_edge.name)
-
-        graph = graphlib.TopologicalSorter(out)
-        if graph._find_cycle():  # pylint: disable=protected-access
-            self._cyclic = True
         return out
 
     def _build_starter(self) -> str:
@@ -381,7 +349,8 @@ class Dialogue(Protocol):
             self.add_message(
                 session_id=ctx.session,
                 message_type=self.models[schema_digest].__name__,
-                sender=ctx.address,
+                schema_digest=schema_digest,
+                sender=ctx.agent.address,
                 receiver=sender,
                 content=message.json(),
             )
@@ -398,7 +367,8 @@ class Dialogue(Protocol):
         self.add_message(
             session_id=ctx.session,
             message_type=self.models[outbound_schema_digest].__name__,
-            sender=ctx.address,
+            schema_digest=outbound_schema_digest,
+            sender=ctx.agent.address,
             receiver=sender,
             content=outbound_message_content,
         )
@@ -472,6 +442,7 @@ class Dialogue(Protocol):
         self,
         session_id: UUID,
         message_type: str,
+        schema_digest: str,
         sender: str,
         receiver: str,
         content: JsonStr,
@@ -485,6 +456,7 @@ class Dialogue(Protocol):
         self._sessions[session_id].append(
             {
                 "message_type": message_type,
+                "schema_digest": schema_digest,
                 "sender": sender,
                 "receiver": receiver,
                 "message_content": content,
@@ -495,7 +467,7 @@ class Dialogue(Protocol):
         )
         self._update_session_in_storage(session_id)
 
-    def get_conversation(self, session_id) -> List[Any]:
+    def get_conversation(self, session_id) -> Optional[List[Any]]:
         """
         Return the conversation of the given session from the dialogue instance.
 
@@ -672,7 +644,9 @@ class Dialogue(Protocol):
         updated_manifest["metadata"]["digest"] = new_digest
         return updated_manifest
 
-    async def start_dialogue(self, ctx: Context, destination: str, message: Model):
+    async def start_dialogue(
+        self, ctx: Context, destination: str, message: Model
+    ) -> MsgStatus:
         """
         Start a specific dialogue with a message.
 
@@ -690,13 +664,48 @@ class Dialogue(Protocol):
                 "A dialogue can only be started with the specified starting message"
             )
 
-        await ctx.send(destination, message)
+        msg_status = await ctx.send(destination, message)
 
         self.add_message(
             session_id=ctx.session,
             message_type=self.models[message_schema_digest].__name__,
-            sender=ctx.address,
+            schema_digest=message_schema_digest,
+            sender=ctx.agent.address,
             receiver=destination,
             content=message.json(),
         )
         self.update_state(message_schema_digest, ctx.session)
+
+        return msg_status
+
+    def initialise_cleanup_task(self, interval: int = 1) -> None:
+        """
+        Initialise the cleanup task.
+
+        Deletes sessions that have not been used for a certain amount of time.
+        The task runs every second so the configured timeout is currently
+        measured in seconds as well (interval time * timeout parameter).
+        Sessions with 0 as timeout will never be deleted.
+
+        *Important*:
+        - setting the interval above 1 will act as a multiplier
+        - setting it to 0 will disable the cleanup task
+        """
+        if interval == 0:
+            return
+
+        @self.on_interval(interval)
+        async def cleanup_dialogue(_ctx: Context):
+            mark_for_deletion = []
+            for session_id, session in self._sessions.items():
+                timeout = session[-1]["timeout"]
+                if (
+                    timeout > 0
+                    and datetime.fromtimestamp(session[-1]["timestamp"])
+                    + timedelta(seconds=timeout)
+                    < datetime.now()
+                ):
+                    mark_for_deletion.append(session_id)
+            if mark_for_deletion:
+                for session_id in mark_for_deletion:
+                    self.cleanup_conversation(session_id)
