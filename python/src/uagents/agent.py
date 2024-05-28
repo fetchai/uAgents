@@ -1128,13 +1128,30 @@ class Bureau:
         """
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
         self._agents: List[Agent] = agents or []
-        self._registered_agents: List[Agent] = []
         self._endpoints = parse_endpoint_config(endpoint)
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
         self._logger = get_logger("bureau", log_level)
         self._server = ASGIServer(self._port, self._loop, self._queries, self._logger)
         self._use_mailbox = False
+
+        for agent in self._agents:
+            self._register(agent)
+
+    def _register(self, agent: Agent):
+        """
+        Register an agent with the bureau.
+
+        Args:
+            agent (Agent): The agent to be registered.
+
+        """
+        agent.update_loop(self._loop)
+        agent.update_queries(self._queries)
+        if agent.agentverse["use_mailbox"]:
+            self._use_mailbox = True
+        else:
+            agent.update_endpoints(self._endpoints)
 
     def add(self, agent: Agent):
         """
@@ -1144,27 +1161,17 @@ class Bureau:
             agent (Agent): The agent to be added.
 
         """
-        if agent in self._registered_agents:
+        if agent in self._agents:
             return
-        agent.update_loop(self._loop)
-        agent.update_queries(self._queries)
-        if agent.agentverse["use_mailbox"]:
-            self._use_mailbox = True
-        else:
-            agent.update_endpoints(self._endpoints)
-        self._registered_agents.append(agent)
+        self._register(agent)
 
     def run(self):
         """
         Run the agents managed by the bureau.
 
         """
-        for agent in self._agents:
-            self.add(agent)
-        self._agents = []
-
         tasks = []
-        for agent in self._registered_agents:
+        for agent in self._agents:
             agent.setup()
             if agent.agentverse["use_mailbox"]:
                 tasks.append(
