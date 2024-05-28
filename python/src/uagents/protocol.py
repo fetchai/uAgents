@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
 
 from apispec import APISpec
 from uagents.context import IntervalCallback, MessageCallback
-from uagents.models import ExcludeMetadataGenerateJsonSchema, Model
+from uagents.models import Model
 
 OPENAPI_VERSION = "3.0.2"
 
@@ -316,11 +316,9 @@ class Protocol:
                     all_models[schema_digest] = model
 
         for schema_digest, model in all_models.items():
-            model_schema = copy.deepcopy(
-                model.model_json_schema(
-                    schema_generator=ExcludeMetadataGenerateJsonSchema
-                )
-            )
+            model_schema = copy.deepcopy(model.model_json_schema())
+            if "required" in model_schema:
+                model_schema["required"].sort()
             manifest["models"].append({"digest": schema_digest, "schema": model_schema})
 
         for request, responses in self._replies.items():
