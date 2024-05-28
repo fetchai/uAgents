@@ -1164,6 +1164,7 @@ class Bureau:
         if agent in self._agents:
             return
         self._register(agent)
+        self._agents.append(agent)
 
     def run(self):
         """
