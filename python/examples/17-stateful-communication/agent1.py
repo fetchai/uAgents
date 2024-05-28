@@ -40,7 +40,7 @@ class RejectChitChatDialogue(Model):
 # instantiate the dialogues
 chitchat_dialogue = ChitChatDialogue(
     version="0.1",
-    agent_address=agent.address,
+    storage=agent.storage,
 )
 
 # get an overview of the dialogue structure

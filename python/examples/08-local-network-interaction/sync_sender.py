@@ -1,7 +1,7 @@
 import asyncio
 
 from uagents import Model
-from uagents.context import send_sync_message
+from uagents.communication import send_sync_message
 
 RECIPIENT_ADDRESS = (
     "test-agent://agent1q2kxet3vh0scsf0sm7y2erzz33cve6tv5uk63x64upw5g68kr0chkv7hw50"
