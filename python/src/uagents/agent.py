@@ -1127,7 +1127,7 @@ class Bureau:
             for the bureau.
         """
         self._loop = asyncio.get_event_loop_policy().get_event_loop()
-        self._agents: List[Agent] = agents or []
+        self._agents: List[Agent] = []
         self._endpoints = parse_endpoint_config(endpoint)
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
@@ -1135,23 +1135,8 @@ class Bureau:
         self._server = ASGIServer(self._port, self._loop, self._queries, self._logger)
         self._use_mailbox = False
 
-        for agent in self._agents:
-            self._register(agent)
-
-    def _register(self, agent: Agent):
-        """
-        Register an agent with the bureau.
-
-        Args:
-            agent (Agent): The agent to be registered.
-
-        """
-        agent.update_loop(self._loop)
-        agent.update_queries(self._queries)
-        if agent.agentverse["use_mailbox"]:
-            self._use_mailbox = True
-        else:
-            agent.update_endpoints(self._endpoints)
+        for agent in agents:
+            self.add(agent)
 
     def add(self, agent: Agent):
         """
@@ -1163,7 +1148,12 @@ class Bureau:
         """
         if agent in self._agents:
             return
-        self._register(agent)
+        agent.update_loop(self._loop)
+        agent.update_queries(self._queries)
+        if agent.agentverse["use_mailbox"]:
+            self._use_mailbox = True
+        else:
+            agent.update_endpoints(self._endpoints)
         self._agents.append(agent)
 
     def run(self):
