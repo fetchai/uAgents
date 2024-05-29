@@ -1,10 +1,10 @@
 ## Proposed Changes
 
-Describe the changes provided by the Pull Request here.
+Describe the changes provided by this Pull Request here.
 
 ## Issues
 
-_(If applicable, add links to any issues resolved by the pull request.)_
+If applicable, add links to any issues resolved by this Pull Request.
 
 ## Types of changes
 
