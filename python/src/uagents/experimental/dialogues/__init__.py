@@ -615,7 +615,7 @@ class Dialogue(Protocol):
 
         Args:
             ctx (Context): The current message context
-            destination (str): Agent address of the receiver
+            destination (str): Either the agent address of the receiver or a protocol digest
             message (Model): The current message to send
 
         Raises:
