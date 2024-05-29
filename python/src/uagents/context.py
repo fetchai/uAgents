@@ -408,6 +408,7 @@ class InternalContext(Context):
                 detail="Invalid interval message",
                 destination=destination,
                 endpoint="",
+                session=self._session,
             )
 
         return await self.send_raw(
@@ -455,6 +456,7 @@ class InternalContext(Context):
                     detail="Sync message resolved",
                     destination=parsed_address,
                     endpoint="",
+                    session=self._session,
                 )
 
             self._outbound_messages[parsed_address] = (
@@ -474,6 +476,7 @@ class InternalContext(Context):
                 detail="Unable to resolve destination endpoint",
                 destination=destination,
                 endpoint="",
+                session=self._session,
             )
 
         # Calculate when the envelope expires
@@ -506,6 +509,7 @@ class InternalContext(Context):
                 detail="Timeout waiting for response",
                 destination=destination,
                 endpoint="",
+                session=self._session,
             )
 
         if isinstance(result, Envelope):
@@ -648,6 +652,7 @@ class ExternalContext(InternalContext):
                 detail="Invalid reply",
                 destination=destination,
                 endpoint="",
+                session=self._session,
             )
 
         return await self.send_raw(
