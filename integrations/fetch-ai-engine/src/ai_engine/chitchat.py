@@ -91,6 +91,7 @@ class ChitChatDialogue(Dialogue):
         self,
         version: str,
         storage: Optional[StorageAPI] = None,
+        cleanup_interval: int = 0,
     ) -> None:
         super().__init__(
             name="ChitChatDialogue",
@@ -109,6 +110,7 @@ class ChitChatDialogue(Dialogue):
                 end_session,
             ],
             storage=storage,
+            cleanup_interval=cleanup_interval,
         )
 
     def on_initiate_session(self, model: Type[Model]):
