@@ -1,7 +1,7 @@
 import unittest
 
 from pydantic import Field
-from uagents import Model, Protocol
+from uagents import Context, Model, Protocol
 from uagents.experimental.dialogues import Dialogue, Edge, Node
 
 FIELD_DESCRIPTION = "This description will show up in the schemas properties"
@@ -58,6 +58,12 @@ class DialogueWrapperA:
                 edges=[self.edge_1, self.edge_2],
             )
 
+        def edge_handler_1(self, model: type[Model]):
+            return super()._on_state_transition(self.edge_1.name, model)
+
+        def edge_handler_2(self, model: type[Model]):
+            return super()._on_state_transition(self.edge_2.name, model)
+
 
 class DialogueWrapperB:
     class TestDialogue(Dialogue):
@@ -86,6 +92,12 @@ class DialogueWrapperB:
                 nodes=[self.node_1, self.node_2, self.node_3],
                 edges=[self.edge_1, self.edge_2],
             )
+
+        def edge_handler_1(self, model: type[Model]):
+            return super()._on_state_transition(self.edge_1.name, model)
+
+        def edge_handler_2(self, model: type[Model]):
+            return super()._on_state_transition(self.edge_2.name, model)
 
 
 class TestProtocolManifest(unittest.TestCase):
@@ -130,17 +142,33 @@ class TestProtocolManifest(unittest.TestCase):
 
 
 # TODO add transition handlers incl model definitions
-# class TestDialogueManifest(unittest.TestCase):
-#   def setUp(self) -> None:
-#     self.dialogueA = DialogueWrapperA.TestDialogue()
-#     self.dialogueB = DialogueWrapperB.TestDialogue()
-#     return super().setUp()
+class TestDialogueManifest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.dialogueA = DialogueWrapperA.TestDialogue()
+        self.dialogueB = DialogueWrapperB.TestDialogue()
 
-#   def test_dialogue_manifest(self):
-#     self.assertEqual(self.dialogueA.manifest()["metadata"]["digest"],
-#       self.dialogueB.manifest()["metadata"]["digest"])
+        @self.dialogueA.edge_handler_1(MsgWrapperNormal.Ping)
+        @self.dialogueB.edge_handler_1(MsgWrapperDocstring.Ping)
+        async def _1(_ctx: Context, _sender, _msg):
+            pass
 
-#   def test_dialogue_metadata(self):
-#     self.assertEqual(self.dialogueB.manifest()["metadata"]["nodes"]["metadata"][
-#       "nodemetadata"
-#     ], NODE_METADATA)
+        @self.dialogueA.edge_handler_2(Pong)
+        @self.dialogueB.edge_handler_2(Pong)
+        async def _2(_ctx, _sender, _msg):
+            pass
+
+        return super().setUp()
+
+    def test_dialogue_manifest(self):
+        self.assertEqual(
+            self.dialogueA.manifest()["metadata"]["digest"],
+            self.dialogueB.manifest()["metadata"]["digest"],
+        )
+
+    def test_dialogue_metadata(self):
+        self.assertEqual(
+            self.dialogueB.manifest()["metadata"]["nodes"][0]["metadata"][
+                "nodemetadata"
+            ],
+            NODE_METADATA,
+        )
