@@ -333,7 +333,7 @@ class InternalContext(Context):
         )
         if response.status_code == 200:
             data = response.json()
-            agents = [agent["address"] for agent in data if agent["status"] == "local"]
+            agents = [agent["address"] for agent in data if agent["status"] == "active"]
             return agents[:limit]
         return []
 
@@ -355,7 +355,8 @@ class InternalContext(Context):
             )
             return []
 
-        agents.remove(self.agent.address)
+        if self.agent.address in agents:
+            agents.remove(self.agent.address)
         futures = await asyncio.gather(
             *[
                 self.send(
@@ -408,6 +409,7 @@ class InternalContext(Context):
                 detail="Invalid interval message",
                 destination=destination,
                 endpoint="",
+                session=self._session,
             )
 
         return await self.send_raw(
@@ -455,6 +457,7 @@ class InternalContext(Context):
                     detail="Sync message resolved",
                     destination=parsed_address,
                     endpoint="",
+                    session=self._session,
                 )
 
             self._outbound_messages[parsed_address] = (
@@ -474,6 +477,7 @@ class InternalContext(Context):
                 detail="Unable to resolve destination endpoint",
                 destination=destination,
                 endpoint="",
+                session=self._session,
             )
 
         # Calculate when the envelope expires
@@ -506,6 +510,7 @@ class InternalContext(Context):
                 detail="Timeout waiting for response",
                 destination=destination,
                 endpoint="",
+                session=self._session,
             )
 
         if isinstance(result, Envelope):
@@ -648,6 +653,7 @@ class ExternalContext(InternalContext):
                 detail="Invalid reply",
                 destination=destination,
                 endpoint="",
+                session=self._session,
             )
 
         return await self.send_raw(
