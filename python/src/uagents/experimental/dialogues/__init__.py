@@ -591,12 +591,13 @@ class Dialogue(Protocol):
         expected reply models
         """
         for edge in self._edges:
-            self._replies[self._digest_by_edge[edge.name]] = {
-                self._digest_by_edge[reply_edge]: self._models[
-                    self._digest_by_edge[reply_edge]
-                ]
-                for reply_edge in self._rules[edge.name]
-            }
+            if not edge.ender:
+                self._replies[self._digest_by_edge[edge.name]] = {
+                    self._digest_by_edge[reply_edge]: self._models[
+                        self._digest_by_edge[reply_edge]
+                    ]
+                    for reply_edge in self._rules[edge.name]
+                }
 
     def manifest(self) -> Dict[str, Any]:
         """
