@@ -1,8 +1,9 @@
 """Specific dialogue class for the AI enabled chit-chat dialogue."""
 
-from typing import Type
+from typing import Type, Optional
 
 from uagents import Model
+from uagents.storage import StorageAPI
 from uagents.experimental.dialogues import Dialogue, Node
 
 from ai_engine.dialogue import create_edge
@@ -89,6 +90,7 @@ class ChitChatDialogue(Dialogue):
     def __init__(
         self,
         version: str,
+        storage: Optional[StorageAPI] = None,
     ) -> None:
         super().__init__(
             name="ChitChatDialogue",
@@ -106,6 +108,7 @@ class ChitChatDialogue(Dialogue):
                 cont_dialogue,
                 end_session,
             ],
+            storage=storage,
         )
 
     def on_initiate_session(self, model: Type[Model]):
