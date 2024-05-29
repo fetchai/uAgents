@@ -1,4 +1,11 @@
-# fetchai-hack
+# Hire AI Influencer 
+#### Hire AI influencer for your brand collaboration directly from Delta V. ✨
+> instant posts to your chosen model.
+ 
+> built using fetch.ai's uagents technology
+
+> user asks to hire ai influencer, gets the option to choose from the avaiable models. User can then provide brand prompt to be uploaded to the indluncer's account.
+> 
 ### NOTE: Put the API keys in config.json and for Firebase please refer to the video given.
 ## AI Model Creation from Prompt
 This repository demonstrates creating an AI model from a prompt using Stable Diffusion.
@@ -77,7 +84,7 @@ Once you've completed these steps, you'll have Firebase Cloud set up and ready t
 ### DeltaV chat screenshots
 ![App Screenshot](https://github.com/saquib000/fetchai-hack/blob/main/screenshots/deltav.jpeg)
 ![App Screenshot](https://github.com/saquib000/fetchai-hack/blob/main/screenshots/deltav2.jpeg)
-### GenAI Samplw
+### GenAI Sample
 ![App Screenshot](https://github.com/saquib000/fetchai-hack/blob/main/screenshots/genAI_sample.png)
 ### Our AI's Instagram ID
 ![App Screenshot](https://github.com/saquib000/fetchai-hack/blob/main/screenshots/insta.jpeg)
