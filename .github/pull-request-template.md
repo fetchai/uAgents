@@ -1,6 +1,6 @@
 ## Proposed Changes
 
-_[Describe the changes here...]_
+_[describe the changes here...]_
 
 ## Linked Issues
 
@@ -31,4 +31,4 @@ _Put an `x` in the boxes that apply:_
 
 ## Further comments
 
-_[If this is a relatively large or complex change, kick off a discussion by explaining why you chose the solution you did, what alternatives you considered, etc...]_
+_[if this is a relatively large or complex change, kick off a discussion by explaining why you chose the solution you did, what alternatives you considered, etc...]_
