@@ -333,7 +333,7 @@ class InternalContext(Context):
         )
         if response.status_code == 200:
             data = response.json()
-            agents = [agent["address"] for agent in data if agent["status"] == "local"]
+            agents = [agent["address"] for agent in data if agent["status"] == "active"]
             return agents[:limit]
         return []
 
