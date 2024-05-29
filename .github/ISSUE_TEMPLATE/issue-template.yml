@@ -1,6 +1,7 @@
-name: Bug Report
-description: Report a bug for uAgents
-title: "<title>"
+name: 🐛 Bug Report
+description: Report a bug for uAgents.
+title: "Bug report: <short description>"
+labels: ["bug", "unconfirmed"]
 body:
   - type: markdown
     attributes:
@@ -10,10 +11,11 @@ body:
     id: prerequisites
     attributes:
       label: Prerequisites
-      description: Please confirm before submitting any new bug report:
+      description: Please confirm before submitting any new issue.
       options:
+        - label: I checked the [documentation ↗️](https://fetch.ai/docs) and found no answer to my problem.
           required: true
-        - label: I checked the [existing issues](https://github.com/fetchai/uAgents/issues) and made sure there are no similar bug report. 
+        - label: I checked the [existing issues ↗️](https://github.com/fetchai/uAgents/issues) and made sure there are no similar bug report.
           required: true
   - type: dropdown
     id: category
@@ -21,33 +23,32 @@ body:
       label: Category
       description: Select the category that best describes the bug.
       options:
-        - label: Bug (unexpected behavior)
-        - label: Documentation Issue (error or unclear information in docs)
-        - label: Other
+        - label: Bug (unexpected behavior).
+        - label: Documentation Issue (error or unclear information in docs).
+        - label: Other.
       validations:
         required: true
   - type: textarea
-    id: description
-    attributes:
-      label: Describe the Issue
-      description: Please provide a clear and concise description of the bug you encountered.
-      placeholder: What went wrong?
-      validations:
-        required: true
-  - type: textarea
-    id: expected_behavior
+    id: expected
     attributes:
       label: Expected Behavior
-      description: Explain what you expected to happen in this situation.
-      validations:
-        required: false
+      description: Describe the behavior you are expecting.
+    validations:
+      required: false
   - type: textarea
-    id: steps_to_reproduce
+    id: actual
     attributes:
-      label: Steps to Reproduce (Optional)
-      description: If possible, provide detailed steps that consistently reproduce the bug. This will help us pinpoint the problem and fix it as soon as possible.
-      validations:
-        required: false
+      label: Observed Behavior
+      description: Describe the behavior you are observing.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: To Reproduce
+      description: Provide steps to reproduce the issue.
+    validations:
+      required: false
   - type: textarea
     id: version
     attributes:
@@ -72,7 +73,7 @@ body:
     validations:
         required: false
   - type: textarea
-    id: additional_info
+    id: additional
     attributes:
       label: Additional Information (Optional)
       description: Include any screenshots, code snippets, or other relevant details that might help us understand the bug.
