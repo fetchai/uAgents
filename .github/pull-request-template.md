@@ -1,10 +1,10 @@
-# Proposed Changes
+## Proposed Changes
 
-_(Describe the changes provided by the pull request here.)_
+Describe the changes provided by this Pull Request here.
 
 ## Issues
 
-_(If applicable, add links to any issues resolved by the pull request.)_
+If applicable, add links to any issues resolved by this Pull Request.
 
 ## Types of changes
 
@@ -20,7 +20,7 @@ _What types of changes does the pull request introduce? Put an `x` in the boxes 
 
 _Put an `x` in the boxes that apply:_
 
-  - [ ] I have read the [CONTRIBUTING](/CONTRIBUTING.md) guide.
+  - [ ] I have read the [CONTRIBUTING ↗️](/CONTRIBUTING.md) guide.
   - [ ] Checks and tests pass locally.
 
 ### If applicable
