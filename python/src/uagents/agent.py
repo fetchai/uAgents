@@ -1135,8 +1135,9 @@ class Bureau:
         self._server = ASGIServer(self._port, self._loop, self._queries, self._logger)
         self._use_mailbox = False
 
-        for agent in agents:
-            self.add(agent)
+        if agents is not None:
+            for agent in agents:
+                self.add(agent)
 
     def add(self, agent: Agent):
         """
