@@ -59,6 +59,7 @@ class MsgStatus:
     detail: str
     destination: str
     endpoint: str
+    session: Optional[uuid.UUID] = None
 
 
 class Dispenser:
@@ -125,6 +126,7 @@ async def dispatch_local_message(
         detail="Message dispatched locally",
         destination=destination,
         endpoint="",
+        session=session_id,
     )
 
 
@@ -166,6 +168,7 @@ async def send_exchange_envelope(
                             detail="Message successfully delivered via HTTP",
                             destination=envelope.target,
                             endpoint=endpoint,
+                            session=envelope.session,
                         )
                 LOGGER.warning(
                     f"Failed to send message to {envelope.target} @ {endpoint}: "
@@ -187,6 +190,7 @@ async def send_exchange_envelope(
         detail="Message delivery failed",
         destination=envelope.target,
         endpoint="",
+        session=envelope.session,
     )
 
 
@@ -204,6 +208,7 @@ async def dispatch_sync_response_envelope(env: Envelope) -> MsgStatus:
         detail="Sync message successfully delivered via HTTP",
         destination=env.target,
         endpoint="",
+        session=env.session,
     )
 
 
@@ -245,6 +250,7 @@ async def send_sync_message(
             detail="Failed to resolve destination address",
             destination=destination,
             endpoint="",
+            session=None,
         )
 
     env = Envelope(
