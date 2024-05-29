@@ -53,6 +53,7 @@ class MsgStatus:
         detail (str): The details of the message delivery.
         destination (str): The destination address of the message.
         endpoint (str): The endpoint the message was sent to.
+        session (Optional[uuid.UUID]): The session ID of the message.
     """
 
     status: DeliveryStatus
@@ -149,6 +150,7 @@ async def send_exchange_envelope(
     headers = {"content-type": "application/json"}
     if sync:
         headers["x-uagents-connection"] = "sync"
+    errors = []
     for endpoint in endpoints:
         try:
             async with aiohttp.ClientSession() as session:
@@ -170,21 +172,16 @@ async def send_exchange_envelope(
                             endpoint=endpoint,
                             session=envelope.session,
                         )
-                LOGGER.warning(
-                    f"Failed to send message to {envelope.target} @ {endpoint}: "
-                    + (await resp.text()),
-                )
+                errors.append(await resp.text())
         except aiohttp.ClientConnectorError as ex:
-            LOGGER.warning(f"Failed to connect to {endpoint}: {ex}")
+            errors.append(f"Failed to connect: {ex}")
         except ValidationError as ex:
-            LOGGER.warning(
-                f"Sync message to {envelope.target} @ {endpoint} got invalid response: {ex}",
-            )
+            errors.append(f"Invalid sync response: {ex}")
         except Exception as ex:
-            LOGGER.warning(
-                f"Failed to send message to {envelope.target} @ {endpoint}: {ex}",
-            )
-    LOGGER.error(f"Failed to deliver message to {envelope.target}")
+            errors.append(f"Failed to send message: {ex}")
+    LOGGER.error(
+        f"Failed to deliver message to {envelope.target} @ {endpoints}: " + str(errors)
+    )
     return MsgStatus(
         status=DeliveryStatus.FAILED,
         detail="Message delivery failed",
