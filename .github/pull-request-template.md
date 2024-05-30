@@ -1,14 +1,14 @@
 ## Proposed Changes
 
-Describe the changes provided by this Pull Request here.
+_[describe the changes here...]_
 
-## Issues
+## Linked Issues
 
-If applicable, add links to any issues resolved by this Pull Request.
+_[if applicable, add links to issues resolved by this PR]_
 
 ## Types of changes
 
-_What types of changes does the pull request introduce? Put an `x` in the boxes that apply:_
+_What type of change does this pull request make (put an `x` in the boxes that apply)?_
 
 - [ ] Bug fix (non-breaking change that fixes an issue).
 - [ ] New feature added (non-breaking change that adds functionality).
@@ -20,15 +20,15 @@ _What types of changes does the pull request introduce? Put an `x` in the boxes 
 
 _Put an `x` in the boxes that apply:_
 
-  - [ ] I have read the [CONTRIBUTING ↗️](/CONTRIBUTING.md) guide.
-  - [ ] Checks and tests pass locally.
+  - [ ] I have read the [CONTRIBUTING ↗️](/CONTRIBUTING.md) guide
+  - [ ] Checks and tests pass locally
 
 ### If applicable
 
-  - [ ] I have added tests that prove my fix is effective or that my feature works.
-  - [ ] I have checked that code coverage does not decrease.
-  - [ ] I have added/updated the documentation.
+  - [ ] I have added tests that prove my fix is effective or that my feature works
+  - [ ] I have checked that code coverage does not decrease
+  - [ ] I have added/updated the documentation
 
 ## Further comments
 
-_(If this is a relatively large or complex change, kick off a discussion by explaining why you chose the solution you did, what alternatives you considered, etc...)._
+_[if this is a relatively large or complex change, kick off a discussion by explaining why you chose the solution you did, what alternatives you considered, etc...]_
