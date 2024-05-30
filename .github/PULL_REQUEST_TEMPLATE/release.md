@@ -1,21 +1,21 @@
-## Release summary
+## Version Number
 
-Version number: [e.g. 1.0.1]
+_[version number (e.g. v1.0.1)]_
 
-## Release details
+## Release Details
 
-Briefly describe the main changes with the new release.
+_[briefly describe the main changes with this release]_
 
 ## Checklist
 
 _Put an `x` in the boxes that apply._
 
-- [ ] I am making a pull request against the `main` branch from `branch_name`.
-- [ ] Checks and tests pass locally.
-- [ ] I have updated the version in `pyproject.toml`.
-- [ ] I have regenerated and updated the API docs.
-- [ ] The documentation is up-to-date. 
+- [ ] I am making a pull request against the `main` branch
+- [ ] Checks and tests pass locally
+- [ ] I have updated the version in `pyproject.toml`
+- [ ] I have regenerated and updated the API docs
+- [ ] The documentation is up-to-date
 
-## Further comments
+## Further Comments
 
-Write here any other comment (if any) about the release.
+_[any other comments about this release]_
