@@ -454,7 +454,7 @@ class Agent(Sink):
         Returns:
             str: The name of the agent.
         """
-        return self._name
+        return self._name or self.address[0:16]
 
     @property
     def address(self) -> str:
@@ -529,12 +529,12 @@ class Agent(Sink):
         return self._agentverse
 
     @property
-    def mailbox_client(self) -> MailboxClient:
+    def mailbox_client(self) -> Optional[MailboxClient]:
         """
         Get the mailbox client used by the agent for mailbox communication.
 
         Returns:
-            MailboxClient: The mailbox client instance.
+            Optional[MailboxClient]: The mailbox client instance.
         """
         return self._mailbox_client
 
@@ -735,7 +735,7 @@ class Agent(Sink):
     def on_query(
         self,
         model: Type[Model],
-        replies: Optional[Union[Model, Set[Model]]] = None,
+        replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
     ):
         """
         Set up a query event with a callback.
@@ -828,6 +828,10 @@ class Agent(Sink):
     def on_wallet_message(
         self,
     ):
+        """
+        Add a handler for wallet messages.
+
+        """
         if self._wallet_messaging_client is None:
             self._logger.warning(
                 "Discarding 'on_wallet_message' handler because wallet messaging is disabled"
@@ -955,7 +959,6 @@ class Agent(Sink):
         """
         Include the internal agent protocol, run startup tasks, and start background tasks.
         """
-        # register the internal agent protocol
         self.include(self._protocol)
         self.start_message_dispenser()
         self._loop.run_until_complete(self._startup())
@@ -1000,7 +1003,7 @@ class Agent(Sink):
         """
         self.setup()
         try:
-            if self._use_mailbox:
+            if self._use_mailbox and self._mailbox_client is not None:
                 self._loop.create_task(self._mailbox_client.process_deletion_queue())
                 self._loop.run_until_complete(self._mailbox_client.run())
             else:
@@ -1069,7 +1072,7 @@ class Agent(Sink):
                 continue
 
             # attempt to find the handler
-            handler: MessageCallback = self._unsigned_message_handlers.get(
+            handler: Optional[MessageCallback] = self._unsigned_message_handlers.get(
                 schema_digest
             )
             if handler is None:
@@ -1177,7 +1180,7 @@ class Bureau:
         tasks = []
         for agent in self._agents:
             agent.setup()
-            if agent.agentverse["use_mailbox"]:
+            if agent.agentverse["use_mailbox"] and agent.mailbox_client is not None:
                 tasks.append(
                     self._loop.create_task(
                         agent.mailbox_client.process_deletion_queue()
