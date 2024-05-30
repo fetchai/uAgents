@@ -14,4 +14,4 @@ proto = Protocol(name="hello_protocol", version="1.0")
 
 @proto.on_message(model=Request, replies=Response)
 async def request_handler(ctx, sender: str, _msg: Request):
-    await ctx.send(sender, Response(message=f"Hello from {ctx.name}"))
+    await ctx.send(sender, Response(message=f"Hello from {ctx.agent.name}"))

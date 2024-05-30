@@ -1,0 +1,6 @@
+{
+    "title": "TOP LIVE NEWS ARTICLE SUMMARISER",
+    "description": "This integration helps user to get the top live news article summary of their specified country.",
+    "categories":    ["News API", "News" , "Rapid API"],
+    "deltav": true
+}

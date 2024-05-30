@@ -19,7 +19,7 @@ class Sink(ABC):
 
 class Dispatcher:
     """
-    Dispatches messages to sinks.
+    Dispatches incoming messages to internal sinks.
     """
 
     def __init__(self):

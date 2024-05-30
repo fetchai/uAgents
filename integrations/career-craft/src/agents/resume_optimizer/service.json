@@ -1,0 +1,18 @@
+{
+    "service": {
+      "title": "resume optimiser agent",
+      "description": "This service helps to optimize a existing resume from the resume text provided from the user. So agent asks the user for a resume in text form compulsorily . trigger this when user asks to optimize his or her resume. This is a subtask that is triggered after the choice agent.",
+      "service_group": "hero network",
+      "agent": {
+        "name": "resume optimiser"
+      },
+      "task_type": "Subtask",
+      "protocol": "Resume Optimiser Agent",
+      "model": {
+        "name": "Request",
+        "fields": {
+            "resume_text":"Enter the resume text"
+        }
+      }
+    }
+  }

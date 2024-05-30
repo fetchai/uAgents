@@ -1,0 +1,25 @@
+{
+    "service": {
+      "title": "resume creator agent",
+      "description": "This agent creates a new resume for the user. Input the fields name, email, phone, address, skills, certifications, awards, experiences from user at all time and then send them the resume text. always trigger after the Choice Agent",
+      "service_group": "hero network",
+      "agent": {
+        "name": "resume creation"
+      },
+      "task_type": "Subtask",
+      "protocol": "resume creator agent",
+      "model": {
+        "name": "Request",
+        "fields": {
+          "address": "The physical address of the person whose resume is to be created taken from user",
+          "awards":"The awards that the user won in the domain",
+          "certifications":"Comma-separated list of certifications the person holds.",
+          "email":"Email address of the person.",
+          "experiences":"Comma-separated list of professional experiences.",
+          "name":"Full name of the person. Ask this from the user in the start at any case.",
+          "phone":"Contact phone number.",
+          "skills":"Comma-separated list of skills the person has acquired."
+        }
+      }
+    }
+  }

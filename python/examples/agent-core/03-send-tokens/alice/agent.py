@@ -29,7 +29,7 @@ async def request_funds(ctx: Context):
     await ctx.send(
         BOB_ADDRESS,
         PaymentRequest(
-            wallet_address=str(ctx.wallet.address()), amount=AMOUNT, denom=DENOM
+            wallet_address=str(alice.wallet.address()), amount=AMOUNT, denom=DENOM
         ),
     )
 
@@ -42,7 +42,7 @@ async def transaction_handler(ctx: Context, sender: str, msg: TransactionInfo):
     coin_received = tx_resp.events["coin_received"]
 
     if (
-        coin_received["receiver"] == str(ctx.wallet.address())
+        coin_received["receiver"] == str(alice.wallet.address())
         and coin_received["amount"] == f"{AMOUNT}{DENOM}"
     ):
         ctx.logger.info(f"Transaction {msg.tx_hash} was successful: {coin_received}")

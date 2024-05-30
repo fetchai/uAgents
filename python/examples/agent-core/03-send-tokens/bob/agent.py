@@ -26,7 +26,7 @@ async def payment_handler(ctx: Context, sender: str, msg: PaymentRequest):
     ctx.logger.info(f"Received payment request from {sender}: {msg}")
 
     transaction = ctx.ledger.send_tokens(
-        msg.wallet_address, msg.amount, msg.denom, ctx.wallet
+        msg.wallet_address, msg.amount, msg.denom, bob.wallet
     ).wait_to_complete()
 
     await ctx.send(sender, TransactionInfo(tx_hash=transaction.tx_hash))

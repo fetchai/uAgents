@@ -1,12 +1,37 @@
 import json
 import os
+from abc import ABC, abstractmethod
 from typing import Any, Optional, Tuple
 
 from cosmpy.aerial.wallet import PrivateKey
 from uagents.crypto import Identity
 
 
-class KeyValueStore:
+class StorageAPI(ABC):
+    """Interface for a key-value like storage system."""
+
+    @abstractmethod
+    def get(self, key: str) -> Optional[Any]:
+        pass
+
+    @abstractmethod
+    def has(self, key: str) -> bool:
+        pass
+
+    @abstractmethod
+    def set(self, key: str, value: Any):
+        pass
+
+    @abstractmethod
+    def remove(self, key: str):
+        pass
+
+    @abstractmethod
+    def clear(self):
+        pass
+
+
+class KeyValueStore(StorageAPI):
     """
     A simple key-value store implementation for data storage.
 
