@@ -1008,6 +1008,18 @@ class Agent(Sink):
         finally:
             self._loop.run_until_complete(self._shutdown())
 
+    def get_message_protocol(
+        self, message_schema_digest
+    ) -> Optional[Tuple[str, Protocol]]:
+        """
+        Get the protocol for a given message schema digest.
+
+        """
+        for protocol_digest, protocol in self.protocols.items():
+            if message_schema_digest in protocol.models:
+                return (protocol_digest, protocol)
+        return None
+
     async def _process_message_queue(self):
         """
         Process the message queue.
@@ -1039,7 +1051,7 @@ class Agent(Sink):
                 message_received=MsgDigest(
                     message=message, schema_digest=schema_digest
                 ),
-                protocol=self.protocols.get(schema_digest),
+                protocol=self.get_message_protocol(schema_digest),
             )
 
             # parse the received message
