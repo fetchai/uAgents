@@ -605,7 +605,7 @@ class ExternalContext(InternalContext):
         self._message_received = message_received
         self._protocol = protocol or ("", None)
 
-    def _is_valid_reply(self, message_type: Type[Model]) -> bool:
+    def _is_valid_reply(self, message_schema_digest: str) -> bool:
         """
         Check if the message type is a valid reply to the message received.
 
@@ -615,6 +615,9 @@ class ExternalContext(InternalContext):
         Returns:
             bool: Whether the message type is a valid reply.
         """
+        if message_schema_digest == ERROR_MESSAGE_DIGEST:
+            return True
+
         if not self._message_received:
             raise ValueError("No message received")
 
@@ -623,7 +626,7 @@ class ExternalContext(InternalContext):
 
         received = self._message_received
         if received.schema_digest in self._replies:
-            return message_type in self._replies[received.schema_digest]
+            return message_schema_digest in self._replies[received.schema_digest]
         return False
 
     async def send(
@@ -652,14 +655,12 @@ class ExternalContext(InternalContext):
         # at this point we have received a message and have built a context
         # replies, message_received, and protocol are set
 
-        if schema_digest != ERROR_MESSAGE_DIGEST and not self._is_valid_reply(
-            schema_digest
-        ):
+        if not self._is_valid_reply(schema_digest):
             log(
                 self.logger,
                 logging.ERROR,
-                f"Outgoing message {message_type} is not a valid reply"
-                f"to {self._message_received.message}",
+                f"Outgoing message '{message_type}' is not a valid reply"
+                f"to received message: {self._message_received.schema_digest}",
             )
             return MsgStatus(
                 status=DeliveryStatus.FAILED,
