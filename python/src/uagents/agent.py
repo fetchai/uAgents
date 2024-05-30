@@ -251,11 +251,11 @@ class Agent(Sink):
         agentverse: Optional[Union[str, Dict[str, str]]] = None,
         mailbox: Optional[Union[str, Dict[str, str]]] = None,
         resolve: Optional[Resolver] = None,
-        enable_wallet_messaging: Optional[Union[bool, Dict[str, str]]] = False,
+        enable_wallet_messaging: Union[bool, Dict[str, str]] = False,
         wallet_key_derivation_index: Optional[int] = 0,
         max_resolver_endpoints: Optional[int] = None,
         version: Optional[str] = None,
-        test: Optional[bool] = True,
+        test: bool = True,
         loop: Optional[asyncio.AbstractEventLoop] = None,
         log_level: Union[int, str] = logging.INFO,
     ):
@@ -1030,7 +1030,7 @@ class Agent(Sink):
             schema_digest, sender, message, session = await self._message_queue.get()
 
             # lookup the model definition
-            model_class: Model = self._models.get(schema_digest)
+            model_class: Optional[Type[Model]] = self._models.get(schema_digest)
             if model_class is None:
                 self._logger.warning(
                     f"Received message with unrecognized schema digest: {schema_digest}"
