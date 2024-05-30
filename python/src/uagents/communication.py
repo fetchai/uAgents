@@ -9,7 +9,7 @@ from time import time
 from typing import Any, List, Optional, Tuple, Type, Union
 
 import aiohttp
-from pydantic import ValidationError
+from pydantic import UUID4, ValidationError
 from uagents.crypto import Identity
 from uagents.dispatch import JsonStr, dispatcher
 from uagents.envelope import Envelope
@@ -271,3 +271,53 @@ async def send_sync_message(
             return response_type.parse_raw(json_message)
         return json_message
     return response
+
+
+def enclose_response(
+    message: Model, sender: str, session: UUID4, target: str = ""
+) -> str:
+    """
+    Enclose a response message within an envelope.
+
+    Args:
+        message (Model): The response message to enclose.
+        sender (str): The sender's address.
+        session (str): The session identifier.
+        target (str): The target address.
+
+    Returns:
+        str: The JSON representation of the response envelope.
+    """
+    schema_digest = Model.build_schema_digest(message)
+    return enclose_response_raw(message.json(), schema_digest, sender, session, target)
+
+
+def enclose_response_raw(
+    json_message: JsonStr,
+    schema_digest: str,
+    sender: str,
+    session: UUID4,
+    target: str = "",
+) -> str:
+    """
+    Enclose a raw response message within an envelope.
+
+    Args:
+        json_message (JsonStr): The JSON-formatted response message to enclose.
+        schema_digest (str): The schema digest of the message.
+        sender (str): The sender's address.
+        session (UUID4): The session identifier.
+        target (str): The target address.
+
+    Returns:
+        str: The JSON representation of the response envelope.
+    """
+    response_env = Envelope(
+        version=1,
+        sender=sender,
+        target=target,
+        session=session,
+        schema_digest=schema_digest,
+    )
+    response_env.encode_payload(json_message)
+    return response_env.json()
