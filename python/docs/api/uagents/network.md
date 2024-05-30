@@ -68,14 +68,14 @@ Add testnet funds to the provided wallet address.
 ```python
 def parse_record_config(
     record: Optional[Union[str, List[str], Dict[str, dict]]]
-) -> List[Dict[str, Any]]
+) -> Optional[List[Dict[str, Any]]]
 ```
 
 Parse the user-provided record configuration.
 
 **Returns**:
 
-  List[Dict[str, Any]]: The parsed record configuration in correct format.
+  Optional[List[Dict[str, Any]]]: The parsed record configuration in correct format.
 
 <a id="src.uagents.network.wait_for_tx_to_complete"></a>
 
@@ -353,7 +353,7 @@ Retrieve the previous records for a given name within a specified domain.
 #### get`_`registration`_`tx
 
 ```python
-def get_registration_tx(name: str, wallet_address: str,
+def get_registration_tx(name: str, wallet_address: Address,
                         agent_records: List[Dict[str, Any]], domain: str,
                         test: bool)
 ```

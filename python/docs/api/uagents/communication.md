@@ -47,6 +47,7 @@ Represents the status of a sent message.
 - `detail` _str_ - The details of the message delivery.
 - `destination` _str_ - The destination address of the message.
 - `endpoint` _str_ - The endpoint the message was sent to.
+- `session` _Optional[uuid.UUID]_ - The session ID of the message.
 
 <a id="src.uagents.communication.Dispenser"></a>
 

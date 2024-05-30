@@ -45,7 +45,7 @@ A simple key-value store implementation for data storage.
 #### `__`init`__`
 
 ```python
-def __init__(name: str, cwd: str = None)
+def __init__(name: str, cwd: Optional[str] = None)
 ```
 
 Initialize the KeyValueStore instance.

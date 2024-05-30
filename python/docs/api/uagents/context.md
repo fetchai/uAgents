@@ -94,14 +94,32 @@ Get the logger instance associated with the context.
 
 - `logging.Logger` - The logger instance.
 
+<a id="src.uagents.context.Context.session"></a>
+
+#### session
+
+```python
+@property
+@abstractmethod
+def session() -> Union[uuid.UUID, None]
+```
+
+Get the session UUID associated with the context.
+
+**Returns**:
+
+- `uuid.UUID` - The session UUID.
+
 <a id="src.uagents.context.Context.get_agents_by_protocol"></a>
 
 #### get`_`agents`_`by`_`protocol
 
 ```python
 @abstractmethod
-def get_agents_by_protocol(protocol_digest: str, limit: Optional[int],
-                           logger: Optional[logging.Logger]) -> List[str]
+def get_agents_by_protocol(
+        protocol_digest: str,
+        limit: int = DEFAULT_SEARCH_LIMIT,
+        logger: Optional[logging.Logger] = None) -> List[str]
 ```
 
 Retrieve a list of agent addresses using a specific protocol digest.
@@ -126,9 +144,11 @@ limited to a specified number of addresses.
 
 ```python
 @abstractmethod
-async def broadcast(destination_protocol: str, message: Model,
-                    limit: Optional[int],
-                    timeout: Optional[int]) -> List[MsgStatus]
+async def broadcast(
+        destination_protocol: str,
+        message: Model,
+        limit: int = DEFAULT_SEARCH_LIMIT,
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS) -> List[MsgStatus]
 ```
 
 Broadcast a message to agents with a specific protocol.
@@ -155,8 +175,10 @@ The schema digest of the message is used for verification.
 
 ```python
 @abstractmethod
-async def send(destination: str, message: Model, sync: Optional[bool],
-               timeout: Optional[int]) -> MsgStatus
+async def send(destination: str,
+               message: Model,
+               sync: bool = False,
+               timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS) -> MsgStatus
 ```
 
 Send a message to the specified destination.
@@ -179,10 +201,14 @@ Send a message to the specified destination.
 
 ```python
 @abstractmethod
-async def send_raw(destination: str, message_schema_digest: str,
-                   message_body: JsonStr, sync: Optional[bool],
-                   timeout: Optional[int],
-                   protocol_digest: Optional[str]) -> MsgStatus
+async def send_raw(
+        destination: str,
+        message_schema_digest: str,
+        message_body: JsonStr,
+        sync: bool = False,
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+        protocol_digest: Optional[str] = None,
+        queries: Optional[Dict[str, asyncio.Future]] = None) -> MsgStatus
 ```
 
 Send a message to the specified destination where the message body and
@@ -196,6 +222,7 @@ message schema digest are sent separately.
 - `sync` _bool_ - Whether to send the message synchronously or asynchronously.
 - `timeout` _Optional[int]_ - The optional timeout for sending the message, in seconds.
 - `protocol_digest` _Optional[str]_ - The protocol digest of the message to be sent.
+- `queries` _Optional[Dict[str, asyncio.Future]]_ - The dictionary of queries to resolve.
   
 
 **Returns**:
@@ -287,12 +314,10 @@ Please use the `ctx.agent.address` property instead.
 #### send
 
 ```python
-async def send(
-        destination: str,
-        message: Model,
-        sync: Optional[bool] = False,
-        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS
-) -> MsgStatus
+async def send(destination: str,
+               message: Model,
+               sync: bool = False,
+               timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS) -> MsgStatus
 ```
 
 This is the pro-active send method which is used in on_event and
@@ -351,12 +376,10 @@ Initialize the ExternalContext instance and attributes needed from the InternalC
 #### send
 
 ```python
-async def send(
-        destination: str,
-        message: Model,
-        sync: Optional[bool] = False,
-        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS
-) -> MsgStatus
+async def send(destination: str,
+               message: Model,
+               sync: bool = False,
+               timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS) -> MsgStatus
 ```
 
 Send a message to the specified destination.
