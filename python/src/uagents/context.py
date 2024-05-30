@@ -122,12 +122,23 @@ class Context(ABC):
         """
         pass
 
+    @property
+    @abstractmethod
+    def session(self) -> Union[uuid.UUID, None]:
+        """
+        Get the session UUID associated with the context.
+
+        Returns:
+            uuid.UUID: The session UUID.
+        """
+        pass
+
     @abstractmethod
     def get_agents_by_protocol(
         self,
         protocol_digest: str,
-        limit: Optional[int],
-        logger: Optional[logging.Logger],
+        limit: int = DEFAULT_SEARCH_LIMIT,
+        logger: Optional[logging.Logger] = None,
     ) -> List[str]:
         """Retrieve a list of agent addresses using a specific protocol digest.
 
@@ -149,8 +160,8 @@ class Context(ABC):
         self,
         destination_protocol: str,
         message: Model,
-        limit: Optional[int],
-        timeout: Optional[int],
+        limit: int = DEFAULT_SEARCH_LIMIT,
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> List[MsgStatus]:
         """Broadcast a message to agents with a specific protocol.
 
@@ -174,8 +185,8 @@ class Context(ABC):
         self,
         destination: str,
         message: Model,
-        sync: Optional[bool],
-        timeout: Optional[int],
+        sync: bool = False,
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
         """
         Send a message to the specified destination.
@@ -197,9 +208,10 @@ class Context(ABC):
         destination: str,
         message_schema_digest: str,
         message_body: JsonStr,
-        sync: Optional[bool],
-        timeout: Optional[int],
-        protocol_digest: Optional[str],
+        sync: bool = False,
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+        protocol_digest: Optional[str] = None,
+        queries: Optional[Dict[str, asyncio.Future]] = None,
     ) -> MsgStatus:
         """
         Send a message to the specified destination where the message body and
@@ -212,6 +224,7 @@ class Context(ABC):
             sync (bool): Whether to send the message synchronously or asynchronously.
             timeout (Optional[int]): The optional timeout for sending the message, in seconds.
             protocol_digest (Optional[str]): The protocol digest of the message to be sent.
+            queries (Optional[Dict[str, asyncio.Future]]): The dictionary of queries to resolve.
 
         Returns:
             MsgStatus: The delivery status of the message.
@@ -318,7 +331,7 @@ class InternalContext(Context):
     def get_agents_by_protocol(
         self,
         protocol_digest: str,
-        limit: Optional[int] = None,
+        limit: int = DEFAULT_SEARCH_LIMIT,
         logger: Optional[logging.Logger] = None,
     ) -> List[str]:
         if not isinstance(protocol_digest, str) or not protocol_digest.startswith(
@@ -341,8 +354,8 @@ class InternalContext(Context):
         self,
         destination_protocol: str,
         message: Model,
-        limit: Optional[int] = DEFAULT_SEARCH_LIMIT,
-        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+        limit: int = DEFAULT_SEARCH_LIMIT,
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> List[MsgStatus]:
         agents = self.get_agents_by_protocol(
             destination_protocol, limit=limit, logger=self.logger
@@ -363,7 +376,7 @@ class InternalContext(Context):
                     address,
                     message,
                     sync=False,
-                    timeout=timeout or DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+                    timeout=timeout,
                 )
                 for address in agents
             ]
@@ -389,8 +402,8 @@ class InternalContext(Context):
         self,
         destination: str,
         message: Model,
-        sync: Optional[bool] = False,
-        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+        sync: bool = False,
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
         """
         This is the pro-active send method which is used in on_event and
@@ -617,8 +630,8 @@ class ExternalContext(InternalContext):
         self,
         destination: str,
         message: Model,
-        sync: Optional[bool] = False,
-        timeout: Optional[int] = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+        sync: bool = False,
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
         """
         Send a message to the specified destination.
