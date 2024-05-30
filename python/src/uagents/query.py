@@ -20,7 +20,7 @@ async def query(
     destination: str,
     message: Model,
     resolver: Optional[Resolver] = None,
-    timeout: Optional[int] = 30,
+    timeout: int = 30,
 ) -> Optional[Envelope]:
     """
     Query a remote agent with a message and retrieve the response envelope.
@@ -30,7 +30,7 @@ async def query(
         message (Model): The message to send.
         resolver (Optional[Resolver], optional): The resolver to use for endpoint resolution.
         Defaults to GlobalResolver.
-        timeout (Optional[int], optional): The timeout for the query in seconds. Defaults to 30.
+        timeout (int): The timeout for the query in seconds. Defaults to 30.
 
     Returns:
         Optional[Envelope]: The response envelope if successful, otherwise None.
@@ -44,7 +44,7 @@ async def query(
 
     # resolve the endpoint
     destination_address, endpoints = await resolver.resolve(destination)
-    if len(endpoints) == 0:
+    if not endpoints or not destination_address:
         LOGGER.exception(
             f"Unable to resolve destination endpoint for address {destination}"
         )
