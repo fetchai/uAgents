@@ -1,6 +1,5 @@
-from uagents import Agent, Bureau
 from protocol.protocol import proto
-
+from uagents import Agent, Bureau
 
 AGENT_INFO = {
     "alice": {"seed": "replace_with_alice_seed", "min_price": 45},

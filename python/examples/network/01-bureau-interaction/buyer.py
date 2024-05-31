@@ -1,5 +1,6 @@
-from uagents import Model, Agent, Context
 import random
+
+from uagents import Agent, Context, Model
 
 
 class OfferRequest(Model):
