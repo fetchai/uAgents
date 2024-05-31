@@ -10,7 +10,8 @@ from typing import Any, List, Optional, Tuple, Type, Union
 
 import aiohttp
 from pydantic import UUID4, ValidationError
-from uagents.crypto import Identity
+from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
+from uagents.crypto import Identity, is_user_address
 from uagents.dispatch import JsonStr, dispatcher
 from uagents.envelope import Envelope
 from uagents.models import Model
@@ -161,6 +162,9 @@ async def send_exchange_envelope(
                     success = resp.status == 200
                     if success:
                         if sync:
+                            # If the message is synchronous but not verified, return the envelope
+                            if not envelope.verify():
+                                return Envelope.parse_obj(await resp.json())
                             return await dispatch_sync_response_envelope(
                                 Envelope.parse_obj(await resp.json())
                             )
@@ -208,32 +212,41 @@ async def dispatch_sync_response_envelope(env: Envelope) -> MsgStatus:
     )
 
 
-async def send_sync_message(
+async def send_message_raw(
     destination: str,
-    message: Model,
+    message_schema_digest: str,
+    message_body: JsonStr,
     response_type: Optional[Type[Model]] = None,
-    sender: Optional[Identity] = None,
+    sender: Optional[Union[Identity, str]] = None,
     resolver: Optional[Resolver] = None,
-    timeout: int = 30,
-) -> Union[Model, JsonStr, MsgStatus]:
+    timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+    sync: bool = False,
+) -> Union[Model, JsonStr, MsgStatus, Envelope]:
     """
-    Standalone function to send a synchronous message to an agent.
+    Standalone function to send a message to an agent.
 
     Args:
         destination (str): The destination address to send the message to.
-        message (Model): The message to be sent.
-        response_type (Type[Model]): The optional type of the response message.
-        sender (Identity): The optional sender identity (defaults to a generated identity).
-        resolver (Resolver): The optional resolver for address-to-endpoint resolution.
-        timeout (int): The optional timeout for the message response in seconds.
+        message_schema_digest (str): The schema digest of the message.
+        message_body (JsonStr): The JSON-formatted message to be sent.
+        response_type (Optional[Type[Model]]): The optional type of the response message.
+        sender (Optional[Union[Identity, str]]): The optional sender identity or user address.
+        resolver (Optional[Resolver]): The optional resolver for address-to-endpoint resolution.
+        timeout (int): The timeout for the message response in seconds. Defaults to 30.
+        sync (bool): True if the message is synchronous.
 
     Returns:
-        Union[Model, JsonStr, MsgStatus]: On success, if the response type is provided, the response
-        message is returned with that type. Otherwise, the JSON message is returned. On failure, a
-        message status is returned.
+        Union[Model, JsonStr, MsgStatus, Envelope]: On success, if the response type is provided,
+        the response message is returned with that type. Otherwise, the JSON message is returned.
+        If the sender is a user address, the response envelope is returned.
+        On failure, a message status is returned.
     """
+    sender_address = sender
     if sender is None:
         sender = Identity.generate()
+    if isinstance(sender, Identity):
+        sender_address = sender.address
+
     if resolver is None:
         resolver = GlobalResolver()
 
@@ -251,26 +264,99 @@ async def send_sync_message(
 
     env = Envelope(
         version=1,
-        sender=sender.address,
+        sender=sender_address,
         target=destination_address,
         session=uuid.uuid4(),
-        schema_digest=Model.build_schema_digest(message),
+        schema_digest=message_schema_digest,
         expires=int(time()) + timeout,
     )
-    env.encode_payload(message.json())
-    env.sign(sender.sign_digest)
+    env.encode_payload(message_body)
+    if not is_user_address(sender_address) and isinstance(sender, Identity):
+        env.sign(sender.sign_digest)
 
     response = await send_exchange_envelope(
         envelope=env,
         endpoints=endpoints,
-        sync=True,
+        sync=sync,
     )
     if isinstance(response, Envelope):
+        if not env.verify():
+            return response
         json_message = response.decode_payload()
         if response_type:
             return response_type.parse_raw(json_message)
         return json_message
     return response
+
+
+async def send_message(
+    destination: str,
+    message: Model,
+    response_type: Optional[Type[Model]] = None,
+    sender: Optional[Union[Identity, str]] = None,
+    resolver: Optional[Resolver] = None,
+    timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+    sync: bool = False,
+) -> Union[Model, JsonStr, MsgStatus, Envelope]:
+    """
+    Standalone function to send a message to an agent.
+
+    Args:
+        destination (str): The destination address to send the message to.
+        message (Model): The message to be sent.
+        response_type (Optional[Type[Model]]): The optional type of the response message.
+        sender (Optional[Union[Identity, str]]): The optional sender identity or user address.
+        resolver (Optional[Resolver]): The optional resolver for address-to-endpoint resolution.
+        timeout (int): The timeout for the message response in seconds. Defaults to 30.
+        sync (bool): True if the message is synchronous.
+
+    Returns:
+        Union[Model, JsonStr, MsgStatus, Envelope]: On success, if the response type is provided,
+        the response message is returned with that type. Otherwise, the JSON message is returned.
+        If the sender is a user address, the response envelope is returned.
+        On failure, a message status is returned.
+    """
+    return await send_message_raw(
+        destination,
+        Model.build_schema_digest(message),
+        message.json(),
+        response_type,
+        sender,
+        resolver,
+        timeout,
+        sync,
+    )
+
+
+async def send_sync_message(
+    destination: str,
+    message: Model,
+    response_type: Optional[Type[Model]] = None,
+    sender: Optional[Union[Identity, str]] = None,
+    resolver: Optional[Resolver] = None,
+    timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+) -> Union[Model, JsonStr, MsgStatus, Envelope]:
+    """
+    Standalone function to send a synchronous message to an agent.
+
+    Args:
+        destination (str): The destination address to send the message to.
+        message (Model): The message to be sent.
+        response_type (Optional[Type[Model]]): The optional type of the response message.
+        sender (Optional[Union[Identity, str]]): The optional sender identity or user address.
+        resolver (Optional[Resolver]): The optional resolver for address-to-endpoint resolution.
+        timeout (int): The timeout for the message response in seconds. Defaults to 30.
+        sync (bool): True if the message is synchronous.
+
+    Returns:
+        Union[Model, JsonStr, MsgStatus, Envelope]: On success, if the response type is provided,
+        the response message is returned with that type. Otherwise, the JSON message is returned.
+        If the sender is a user address, the response envelope is returned.
+        On failure, a message status is returned.
+    """
+    return await send_message(
+        destination, message, response_type, sender, resolver, timeout, True
+    )
 
 
 def enclose_response(
