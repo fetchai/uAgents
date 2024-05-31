@@ -15,7 +15,7 @@ body:
       options:
         - label: I checked the [documentation ↗️](https://fetch.ai/docs) and found no answer to my problem.
           required: true
-        - label: I checked the [existing issues ↗️](https://github.com/fetchai/uAgents/issues) and made sure there are no similar bug report.
+        - label: I checked the [existing issues ↗️](https://github.com/fetchai/uAgents/issues) and made sure there are no similar bug reports.
           required: true
   - type: dropdown
     id: category
