@@ -9,7 +9,7 @@ from uagents import Agent, Context, Model
 
 agent = Agent(
     name="chat_agent",
-    seed="ai-engine-example-seed-1234567893",
+    seed="ai-engine-example-seed-1234567893-",
     port=8111,
     endpoint="http://127.0.0.1:8111/submit",
     agentverse="https://staging.agentverse.ai",
@@ -38,6 +38,7 @@ class ConcludeChitChatDialogue(Model):
 # instantiate the dialogues
 chitchat_dialogue = ChitChatDialogue(
     version="0.1",
+    storage=agent.storage,
 )
 
 # get an overview of the dialogue structure

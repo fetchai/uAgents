@@ -16,7 +16,6 @@ init_state = Node(
     ),
     initial=True,
 )
-
 chatting_state = Node(
     name="Chit Chatting",
     description="This is the state in which messages are exchanged.",
@@ -77,13 +76,13 @@ class ChitChatDialogue(Dialogue):
 
     def __init__(
         self,
-        version: Optional[str] = None,
+        version: str,
         storage: Optional[StorageAPI] = None,
+        cleanup_interval: int = 0,
     ) -> None:
         super().__init__(
             name="ChitChatDialogue",
             version=version,
-            storage=storage,
             nodes=[
                 init_state,
                 chatting_state,
@@ -94,6 +93,8 @@ class ChitChatDialogue(Dialogue):
                 cont_dialogue,
                 end_session,
             ],
+            storage=storage,
+            cleanup_interval=cleanup_interval,
         )
 
     def on_start_dialogue(self, model: Type[Model]):

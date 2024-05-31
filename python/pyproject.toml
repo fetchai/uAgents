@@ -1,11 +1,12 @@
 [tool.poetry]
 name = "uagents"
-version = "0.12.0"
+version = "0.12.2"
 description = "Lightweight framework for rapid agent-based development"
 authors = [
     "Ed FitzGerald <edward.fitzgerald@fetch.ai>",
     "James Riehl <james.riehl@fetch.ai>",
     "Alejandro Morales <alejandro.madrigal@fetch.ai>",
+    "Florian Wilde <florian.wilde@fetch.ai>",
 ]
 license = "Apache 2.0"
 readme = "README.md"

@@ -357,7 +357,7 @@ class Dialogue(Protocol):
         return is_valid
 
     def _post_handle_hook(self, ctx: Context, sender: str, msg_in: Type[Model]) -> bool:
-        if self.is_finished(ctx.session):
+        if self.is_finished(ctx.session) or not ctx.outbound_messages:
             return True
         inbound_schema_digest = Model.build_schema_digest(msg_in)
         outbound_message_content, outbound_schema_digest = ctx.outbound_messages[sender]
@@ -399,6 +399,7 @@ class Dialogue(Protocol):
                     detail="Invalid dialogue reply",
                     destination=sender,
                     endpoint="",
+                    session=ctx.session,
                 )
 
             return result
@@ -647,13 +648,13 @@ class Dialogue(Protocol):
 
     async def start_dialogue(
         self, ctx: Context, destination: str, message: Model
-    ) -> MsgStatus:
+    ) -> List[MsgStatus]:
         """
         Start a specific dialogue with a message.
 
         Args:
             ctx (Context): The current message context
-            destination (str): Agent address of the receiver
+            destination (str): Either the agent address of the receiver or a protocol digest
             message (Model): The current message to send
 
         Raises:
@@ -665,19 +666,30 @@ class Dialogue(Protocol):
                 "A dialogue can only be started with the specified starting message"
             )
 
-        msg_status = await ctx.send(destination, message)
+        status_list: List[MsgStatus] = []
 
-        self.add_message(
-            session_id=ctx.session,
-            message_type=self.models[message_schema_digest].__name__,
-            schema_digest=message_schema_digest,
-            sender=ctx.agent.address,
-            receiver=destination,
-            content=message.json(),
-        )
-        self.update_state(message_schema_digest, ctx.session)
+        if destination.startswith("proto:"):
+            status_list = await ctx.broadcast(destination, message)
+        elif destination.startswith("agent"):
+            status_list.append(await ctx.send(destination, message))
+        else:
+            raise ValueError("Invalid destination address")
 
-        return msg_status
+        for status in status_list:
+            if status.status == DeliveryStatus.FAILED:
+                continue
+
+            self.add_message(
+                session_id=status.session,
+                message_type=self.models[message_schema_digest].__name__,
+                schema_digest=message_schema_digest,
+                sender=ctx.agent.address,
+                receiver=status.destination,
+                content=message.json(),
+            )
+            self.update_state(message_schema_digest, status.session)
+
+        return status_list
 
     def initialise_cleanup_task(self, interval: int = 1) -> None:
         """

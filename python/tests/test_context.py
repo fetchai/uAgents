@@ -77,6 +77,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             detail="Message dispatched locally",
             destination=bob.address,
             endpoint="",
+            session=self.context.session,
         )
 
         self.assertEqual(result, exp_msg_status)
@@ -91,6 +92,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             detail="Message dispatched locally",
             destination=bob.address,
             endpoint="",
+            session=context.session,
         )
 
         self.assertEqual(result, exp_msg_status)
@@ -105,6 +107,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             detail="Invalid reply",
             destination=bob.address,
             endpoint="",
+            session=context.session,
         )
 
         self.assertEqual(result, exp_msg_status)
@@ -117,6 +120,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             detail="Message dispatched locally",
             destination=bob.address,
             endpoint="",
+            session=self.context.session,
         )
 
         self.assertEqual(result, exp_msg_status)
@@ -130,6 +134,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             detail="Invalid interval message",
             destination=bob.address,
             endpoint="",
+            session=self.context.session,
         )
 
         self.assertEqual(result, exp_msg_status)
@@ -148,6 +153,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             detail="Sync message resolved",
             destination=clyde.address,
             endpoint="",
+            session=context.session,
         )
 
         self.assertEqual(future.result(), (msg.json(), msg_digest))
@@ -162,6 +168,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             detail="Unable to resolve destination endpoint",
             destination=destination,
             endpoint="",
+            session=self.context.session,
         )
 
         self.assertEqual(result, exp_msg_status)
@@ -180,6 +187,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             detail="Message successfully delivered via HTTP",
             destination=clyde.address,
             endpoint=endpoints[0],
+            session=self.context.session,
         )
 
         # Assertions
@@ -199,6 +207,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             detail="Message delivery failed",
             destination=clyde.address,
             endpoint="",
+            session=self.context.session,
         )
 
         # Assertions
@@ -223,6 +232,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             detail="Message successfully delivered via HTTP",
             destination=clyde.address,
             endpoint=endpoints[0],
+            session=self.context.session,
         )
 
         # Assertions
@@ -252,6 +262,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             detail="Message successfully delivered via HTTP",
             destination=clyde.address,
             endpoint=endpoints[1],
+            session=self.context.session,
         )
 
         # Assertions
@@ -278,6 +289,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             detail="Message delivery failed",
             destination=clyde.address,
             endpoint="",
+            session=self.context.session,
         )
 
         # Assertions

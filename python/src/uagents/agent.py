@@ -1091,13 +1091,15 @@ class Bureau:
     This class manages a collection of agents and orchestrates their execution.
 
     Args:
+        agents (Optional[List[Agent]]): The list of agents to be managed by the bureau.
         port (Optional[int]): The port number for the server.
         endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): Configuration
         for agent endpoints.
 
     Attributes:
         _loop (asyncio.AbstractEventLoop): The event loop.
-        _agents (List[Agent]): The list of agents contained in the bureau.
+        _agents (List[Agent]): The list of agents to be managed by the bureau.
+        _registered_agents (List[Agent]): The list of agents contained in the bureau.
         _endpoints (List[Dict[str, Any]]): The endpoint configuration for the bureau.
         _port (int): The port on which the bureau's server runs.
         _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their
@@ -1111,6 +1113,7 @@ class Bureau:
 
     def __init__(
         self,
+        agents: Optional[List[Agent]] = None,
         port: Optional[int] = None,
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
         log_level: Union[int, str] = logging.INFO,
@@ -1132,6 +1135,10 @@ class Bureau:
         self._server = ASGIServer(self._port, self._loop, self._queries, self._logger)
         self._use_mailbox = False
 
+        if agents is not None:
+            for agent in agents:
+                self.add(agent)
+
     def add(self, agent: Agent):
         """
         Add an agent to the bureau.
@@ -1140,6 +1147,8 @@ class Bureau:
             agent (Agent): The agent to be added.
 
         """
+        if agent in self._agents:
+            return
         agent.update_loop(self._loop)
         agent.update_queries(self._queries)
         if agent.agentverse["use_mailbox"]:
