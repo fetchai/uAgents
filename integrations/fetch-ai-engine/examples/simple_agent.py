@@ -23,12 +23,6 @@ class InitiateChitChatDialogue(Model):
     pass
 
 
-class AcceptChitChatDialogue(Model):
-    """I accept ChitChat dialogue request"""
-
-    pass
-
-
 class ChitChatDialogueMessage(DialogueMessage):
     """ChitChat dialogue message"""
 
@@ -41,16 +35,9 @@ class ConcludeChitChatDialogue(Model):
     pass
 
 
-class RejectChitChatDialogue(Model):
-    """I reject ChitChat dialogue request"""
-
-    pass
-
-
 # instantiate the dialogues
 chitchat_dialogue = ChitChatDialogue(
     version="0.1",
-    agent_address=agent.address,
 )
 
 # get an overview of the dialogue structure
@@ -59,36 +46,22 @@ print(json.dumps(chitchat_dialogue.get_overview(), indent=4))
 print("---")
 
 
-@chitchat_dialogue.on_initiate_session(InitiateChitChatDialogue)
-async def start_chitchat(
+@agent.on_event("startup")
+async def start(ctx: Context):
+    print(
+        f"aiengine chitchat manifest: >>>>>>>>>>>>>>>>>>\n{chitchat_dialogue.manifest()}"
+    )
+
+
+@chitchat_dialogue.on_start_dialogue(InitiateChitChatDialogue)
+async def accepted_chitchat(
     ctx: Context,
     sender: str,
     _msg: InitiateChitChatDialogue,
 ):
-    ctx.logger.info(f"Received init message from {sender} Session: {ctx.session}")
-    # do something when the dialogue is initiated
-    await ctx.send(sender, AcceptChitChatDialogue())
-
-
-@chitchat_dialogue.on_start_dialogue(AcceptChitChatDialogue)
-async def accepted_chitchat(
-    ctx: Context,
-    sender: str,
-    _msg: AcceptChitChatDialogue,
-):
     ctx.logger.info(
         f"session with {sender} was accepted. This shouldn't be called as this agent is not the initiator."
     )
-
-
-@chitchat_dialogue.on_reject_session(RejectChitChatDialogue)
-async def reject_chitchat(
-    ctx: Context,
-    sender: str,
-    _msg: RejectChitChatDialogue,
-):
-    # do something when the dialogue is rejected and nothing has been sent yet
-    ctx.logger.info(f"Received conclude message from: {sender}")
 
 
 @chitchat_dialogue.on_continue_dialogue(ChitChatDialogueMessage)
@@ -119,7 +92,7 @@ async def conclude_chitchat(
 ):
     # do something when the dialogue is concluded after messages have been exchanged
     ctx.logger.info(f"Received conclude message from: {sender}; accessing history:")
-    ctx.logger.info(ctx.dialogue)
+    ctx.logger.info(chitchat_dialogue.get_conversation(ctx.session))
 
 
 agent.include(chitchat_dialogue, publish_manifest=True)

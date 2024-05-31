@@ -1,15 +1,14 @@
 """Specific dialogue class for the AI enabled chit-chat dialogue."""
 
-from typing import Type
+from typing import Type, Optional
 
 from uagents import Model
-from uagents.experimental.dialogues import Dialogue
-
-from .dialogue import create_edge, create_node
+from uagents.experimental.dialogues import Dialogue, Node, Edge
+from uagents.storage import StorageAPI
 
 
 # Node definition for the dialogue states
-init_state = create_node(
+init_state = Node(
     name="Initiated",
     description=(
         "This is the initial state of the dialogue that is only available at "
@@ -17,59 +16,56 @@ init_state = create_node(
     ),
     initial=True,
 )
-chatting_state = create_node(
+
+chatting_state = Node(
     name="Chit Chatting",
     description="This is the state in which messages are exchanged.",
 )
-end_state = create_node(
+end_state = Node(
     name="Concluded",
     description="This is the state after the dialogue has been concluded.",
-    terminal=True,
 )
 
-# Edge definition for the dialogue transitions
-init_session = create_edge(
-    name="Initiate session",
-    description="Every dialogue starts with this transition.",
-    target="user",
-    observable=True,
-    parent=None,
-    child=init_state,
-)
-reject_session = create_edge(
-    name="Reject dialogue",
-    description=("This is the transition for when the dialogue is rejected"),
-    target="user",
-    observable=True,
-    parent=init_state,
-    child=end_state,
-)
-start_dialogue = create_edge(
+
+start_dialogue = Edge(
     name="Start dialogue",
-    description="This is the transition from initiated to chit chatting.",
-    target="user",
-    observable=True,
+    description=(
+        "A message that initiates a ChitChat conversation and provides "
+        "any information needed to set the context and let the receiver "
+        "decide whether to accept or directly end this conversation."
+    ),
     parent=init_state,
     child=chatting_state,
+    metadata={
+        "target": "user",
+        "observable": True,
+    },
 )
-cont_dialogue = create_edge(
+cont_dialogue = Edge(
     name="Continue dialogue",
     description=(
         "This is the transition from one dialogue message to the next, "
         "i.e. for when the dialogue continues."
     ),
-    target="user",
-    observable=True,
     parent=chatting_state,
     child=chatting_state,
+    metadata={
+        "target": "user",
+        "observable": True,
+    },
 )
-end_session = create_edge(
+end_session = Edge(
     name="End dialogue",
-    description="This is the transition for when the session is ended.",
-    target="user",
-    observable=True,
+    description=(
+        "A final message that can be sent at any time by either party "
+        "to finish this dialogue."
+    ),
     parent=chatting_state,
     child=end_state,
+    metadata={
+        "target": "user",
+        "observable": True,
+    },
 )
 
 
@@ -81,43 +77,24 @@ class ChitChatDialogue(Dialogue):
 
     def __init__(
         self,
-        version: str,
-        agent_address: str,
+        version: Optional[str] = None,
+        storage: Optional[StorageAPI] = None,
     ) -> None:
         super().__init__(
             name="ChitChatDialogue",
             version=version,
-            agent_address=agent_address,
+            storage=storage,
             nodes=[
                 init_state,
                 chatting_state,
                 end_state,
             ],
             edges=[
-                init_session,
-                reject_session,
                 start_dialogue,
                 cont_dialogue,
                 end_session,
             ],
         )
-
-    def on_initiate_session(self, model: Type[Model]):
-        """
-        This handler is triggered when the initial message of the
-        dialogue is received. From here you can either accept or reject.
-        Logic that is needed to complete any kind of handshake or considers
-        global agent state should go here.
-        """
-        return super()._on_state_transition(init_session.name, model)
-
-    def on_reject_session(self, model: Type[Model]):
-        """
-        This handler is triggered when a reject message is returned on
-        the initial message.
-        Implement this if you need to clean up session data.
-        """
-        return super()._on_state_transition(reject_session.name, model)
 
     def on_start_dialogue(self, model: Type[Model]):
         """
