@@ -1,20 +1,24 @@
+from contextvars import Context
+from pydantic import BaseModel
+from typing import Protocol
 import requests
 from ai_engine import UAgentResponse, UAgentResponseType
+import logging
 
-class GasPriceRequest(Model):
+class GasPriceRequest(BaseModel):
     chain_id: int  # Chain ID represented as an integer
 
-gas_price_protocol = Protocol("Infura Gas Price Retrieval")
+class GasPriceProtocol(Protocol):
+    async def on_gas_price_request(self, ctx: Context, sender: str, msg: GasPriceRequest): ...
 
-"""
-import base64
-api_key = 
-api_key_secret = 
-credentials = f"{api_key}:{api_key_secret}"
-base64.b64encode(credentials.encode()).decode()
-"""
+# Define the API key (replace with your actual key)
+API_KEY = ""
 
-def fetch_gas_prices(chain_id, ctx):
+# Setup logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
+def fetch_gas_prices(chain_id):
     """Fetch gas prices from Infura API."""
     url = f'https://gas.api.infura.io/networks/{str(chain_id)}/suggestedGasFees'
     headers = {
@@ -25,7 +29,7 @@ def fetch_gas_prices(chain_id, ctx):
         response.raise_for_status()
         return response.json()
     except Exception as exc:
-        ctx.logger.info(f"Error during Infura gas price retrieval: {exc}")
+        logger.info(f"Error during Infura gas price retrieval: {exc}")
         return None
 
 def format_gas_price_results(results):
@@ -45,53 +49,77 @@ def format_gas_price_results(results):
     )
     return formatted_string.strip()
 
-@gas_price_protocol.on_message(model=GasPriceRequest, replies=UAgentResponse)
-async def on_gas_price_request(ctx: Context, sender: str, msg: GasPriceRequest):
-    # Log the incoming request
-    ctx.logger.info(f"Received gas price request for chain ID: {msg.chain_id} from {sender}")
+class SimpleAgent:
+    def __init__(self):
+        self.protocols = []
+        self.logger = logger
 
-    try:
-        # Fetch gas prices
-        gas_prices = fetch_gas_prices(msg.chain_id, ctx)
-        if gas_prices is None:
-            # Send the error response
-            await ctx.send(
+    def include(self, protocol):
+        self.protocols.append(protocol)
+
+    async def send(self, recipient, response):
+        # Simulate sending a response
+        print(f"Sending to {recipient}: {response.message}")
+
+    async def on_gas_price_request(self, ctx: Context, sender: str, msg: GasPriceRequest):
+        # Log the incoming request
+        self.logger.info(f"Received gas price request for chain ID: {msg.chain_id} from {sender}")
+
+        try:
+            # Fetch gas prices
+            gas_prices = fetch_gas_prices(msg.chain_id)
+            if gas_prices is None:
+                # Send the error response
+                await self.send(
+                    sender,
+                    UAgentResponse(
+                        message=(
+                            f"⚠️ Error: Unable to fetch gas prices for chain ID: {msg.chain_id}.\n\n"
+                            "Please make sure the chain ID is correct.\n"
+                            "If yes, then there might be something wrong with the API/agent. "
+                            "Please try again later."
+                        ),
+                        type=UAgentResponseType.ERROR
+                    )
+                )
+                return
+
+            # Format and log the response
+            formatted_string = format_gas_price_results(gas_prices)
+            self.logger.info(f"Sending gas price information for chain ID: {msg.chain_id} to {sender}\n{formatted_string}")
+
+            # Send the response
+            await self.send(
                 sender,
                 UAgentResponse(
-                    message=(
-                        f"⚠️ Error: Unable to fetch gas prices for chain ID: {msg.chain_id}.\n\n"
-                        "Please make sure the chain ID is correct.\n"
-                        "If yes, then there might be something wrong with the API/agent. "
-                        "Please try again later."
-                    ),
+                    message=f"{formatted_string}",
+                    type=UAgentResponseType.FINAL
+                )
+            )
+
+        except Exception as exc:
+            error_message = f"An error occurred while processing request for chain ID: {msg.chain_id} - {exc}"
+            self.logger.error(error_message)
+
+            # Send the error response
+            await self.send(
+                sender,
+                UAgentResponse(
+                    message=f"Error: An error occurred while processing request for chain ID: {msg.chain_id}",
                     type=UAgentResponseType.ERROR
                 )
             )
 
-        # Format and log the response
-        formatted_string = format_gas_price_results(gas_prices)
-        ctx.logger.info(f"Sending gas price information for chain ID: {msg.chain_id} to {sender}\n{formatted_string}")
+# Instantiate the agent and include the protocol
+agent = SimpleAgent()
+agent.include(GasPriceProtocol)
 
-        # Send the response
-        await ctx.send(
-            sender,
-            UAgentResponse(
-                message=f"{formatted_string}",
-                type=UAgentResponseType.FINAL
-            )
-        )
+# Simulate a request (For testing purposes)
+import asyncio
 
-    except Exception as exc:
-        error_message = f"An error occurred while processing request for chain ID: {msg.chain_id} - {exc}"
-        ctx.logger.error(error_message)
+async def simulate_request():
+    ctx = Context()
+    request = GasPriceRequest(chain_id=1)
+    await agent.on_gas_price_request(ctx, "test_sender", request)
 
-        # Send the error response
-        await ctx.send(
-            sender,
-            UAgentResponse(
-                message=f"Error: An error occurred while processing request for chain ID: {msg.chain_id}",
-                type=UAgentResponseType.ERROR
-            )
-        )
-
-agent.include(gas_price_protocol)
+asyncio.run(simulate_request())
