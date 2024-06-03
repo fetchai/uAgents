@@ -1,6 +1,5 @@
 name: ☝️Feature request
 description: Suggest an idea for the uAgents Framework.
-title: ""
 labels: ["enhancement", "unconfirmed"]
 body:
   - type: markdown
