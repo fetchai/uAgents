@@ -52,7 +52,7 @@ body:
     id: version
     attributes:
       label: uAgents Version
-      description: Which version of uAgents were you using? Please enter the version number here.
+      description: Which version of the library were you using? Please enter the version number here.
     validations:
       required: true
   - type: textarea
