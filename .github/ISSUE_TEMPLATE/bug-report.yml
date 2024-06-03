@@ -1,6 +1,8 @@
 name: 🐛 Bug Report
 description: Report a bug for uAgents.
 labels: ["bug", "unconfirmed"]
+assignees:
+  - jrriehl
 body:
   - type: markdown
     attributes:
@@ -22,9 +24,9 @@ body:
       label: Category
       description: Select the category that best describes the bug.
       options:
-        - label: Bug (unexpected behavior)
-        - label: Documentation Issue (error or unclear information in docs)
-        - label: Other
+        - Bug (unexpected behavior)
+        - Documentation Issue (error or unclear information in docs)
+        - Other
     validations:
       required: true
   - type: textarea
@@ -48,11 +50,12 @@ body:
       description: Provide steps to reproduce the issue.
     validations:
       required: false
-  - type: textarea
+  - type: input
     id: version
     attributes:
       label: uAgents Version
       description: Which version of the library were you using? Please enter the version number here.
+      placeholder: ex. v0.5.0
     validations:
       required: true
   - type: textarea
