@@ -145,7 +145,19 @@ To ensure consistency throughout the source code, keep these rules in mind as yo
 
 ## <a name="commit"></a> Commit Message Convention
 
-This project uses Conventional Commits to generate release notes and to determine versioning. Commit messages should adhere to this standard and be of the form:
+
+This project uses Conventional Commits to generate release notes and to determine versioning. Please follow the [Conventional Commits v1.0.0][convcommit]. The commit types must be one of the following:
+
+  - **build**: Changes that affect the build system or external dependencies
+  - **ci**: Changes to our CI configuration files and scripts
+  - **docs**: Changes to the documentation
+  - **feat**: A new feature
+  - **fix**: A bug fix
+  - **nfunc**: Code that improves some non-functional characteristic, such as performance, security, ...
+  - **refactor**: A code change that neither fixes a bug nor adds a feature
+  - **test**: Adding missing tests or correcting existing tests
+
+Commit messages should adhere to this standard and be of the form:
 
     ```bash
     git commit -m "feat: add new feature x"
