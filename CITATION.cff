@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use uAgents in your research or project, please cite it as below:"
+title: uAgents Framework
+authors:
+  - family-names: LASTNAME1
+    given-names: FIRSTNAME1
+  - family-names: LASTNAME2
+    given-names: FIRSTNAME2
+date-released: "2000-01-01"
+url: "https://github.com/fetchai/uAgents"
+license: "Apache-2.0"
