@@ -1,6 +1,5 @@
 name: 🐛 Bug Report
 description: Report a bug for uAgents.
-title: "Bug report: <short description>"
 labels: ["bug", "unconfirmed"]
 body:
   - type: markdown
