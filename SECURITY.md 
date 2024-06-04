@@ -2,10 +2,6 @@
 
 Security is very important for Fetch.ai and its community. This document outlines security procedures and general policies for the `uAgents` project.
 
-## Supported Versions
-
-[Here](https://github.com/fetchai/uAgents/releases) you can find which versions of `uagents` are currently being supported with security updates.
-
 ## Reporting a Vulnerability
 
 The Fetch.ai team and community take all security bugs in `uagents` seriously. We appreciate your efforts and responsible disclosure and will make every effort to acknowledge your contributions.
