@@ -14,9 +14,9 @@ body:
       label: Prerequisites
       description: Please confirm before submitting any new bug report.
       options:
-        - label: I checked the [documentation ↗️](https://fetch.ai/docs){:target="_blank"} and found no answer to my problem
+        - label: I checked the [documentation](https://fetch.ai/docs) and found no answer to my problem
           required: true
-        - label: I checked the [existing issues ↗️](https://github.com/fetchai/uAgents/issues){:target="_blank"} and made sure there are no similar bug reports
+        - label: I checked the [existing issues](https://github.com/fetchai/uAgents/issues) and made sure there are no similar bug reports
           required: true
   - type: dropdown
     id: category
