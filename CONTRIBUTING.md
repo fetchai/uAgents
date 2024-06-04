@@ -1,40 +1,21 @@
-# Contributing
+# Contribution Guidelines
 
-Contributions to this library are very welcome! If you have improvements, send us your pull requests or open a dedicated issue within the uAgents Github repository.
-
-  - If you want to report a bug or ask for features, you can check the [Issues page](https://github.com/fetchai/uAgents/issues) and raise an issue.
-
-  - If you would like to contribute a bug fix or feature then [submit a Pull request](https://github.com/fetchai/uAgents/pulls).
-
-As a contributor, here below you will find the guidelines we would like you to follow when contributing to the uAgents repo:
+Contributions to the μAgents library are welcome. As a contributor, here are the guidelines we would like you to follow:
 
 - [Code of Conduct](#coc)
-- [Contributing Code](#cc)
 - [Question or Problem?](#question)
 - [Issues and Bugs](#issue)
 - [Feature Requests](#feature)
 - [Submission Guidelines](#submit)
 - [Coding Rules](#rules)
 - [Commit Message Guidelines](#commit)
+- [Merge Pull Requests](#merge)
 
 ## <a name="coc"></a> Code of Conduct
 
 <!-- markdown-link-check-disable -->
 Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md).
 <!-- markdown-link-check-enable -->
-
-## <a name="cc"></a> Contributing code
-
-A team member will be assigned to review your pull requests. All tests are run as part of CI as well as various other checks (linters, static type checkers, etc). If there are any problems, feedback is provided via GitHub. Once the pull requests is approved and passes continuous integration checks, you or a team member can merge it.
-
-If you want to contribute, start working through the codebase, navigate to the Github [Issues page](https://github.com/fetchai/uAgents/issues) tab and start looking through interesting issues. If you decide to start on an issue, leave a comment so that other people know that you're working on it. If you want to help out, but not alone, use the issue comment thread to coordinate. Additional simple rules include:
-
-- Before working on a feature, reach out to one of the core developers or discuss the feature in an issue. The framework caters a diverse audience and new features require upfront coordination.
-- Where possible, extend existing features instead of replacing one.
-- Before committing and opening a PR, run all tests locally. This saves CI hours and ensures you only commit clean code.
-- Include unit tests when you contribute new features, as they help to:
-  - a) prove that your code works correctly;
-  - b) guard against future breaking changes to lower the maintenance cost.
 
 ## <a name="question"></a> Question or Problem?
 
@@ -47,17 +28,16 @@ Please use [GitHub Discussions](https://github.com/fetchai/uAgents/discussions) 
 
 ## <a name="issue"></a> Found a Bug?
 
-If you find a bug in the source code, you can check the [Issues page](https://github.com/fetchai/uAgents/issues) and raise an issue for it.
-
-Even better, you can [submit a Pull request](https://github.com/fetchai/uAgents/pulls) with a fix to the issue.
+If you find a bug in the source code [submit a bug report issue](#submit-issue).
+Even better, you can [submit a Pull Request](#submit-pr) with a fix.
 
 ## <a name="feature"></a> Missing a Feature?
 
-You can *request* a new feature by [submitting a feature request issue](https://github.com/fetchai/uAgents/issues).
+You can *request* a new feature by [submitting a feature request issue](#submit-issue).
 If you would like to *implement* a new feature:
 
-- For a **Major Feature**, first [open an issue](https://github.com/fetchai/uAgents/issues) and outline your proposal so that it can be discussed.
-- **Small Features** can be crafted and directly [submitted as a Pull Request](https://github.com/fetchai/uAgents/pulls).
+- For a **Major Feature**, first [open an issue](#submit-issue) and outline your proposal so that it can be discussed.
+- **Small Features** can be crafted and directly [submitted as a Pull Request](#submit-pr).
 
 ## <a name="submit"></a> Submission Guidelines
 
@@ -68,7 +48,7 @@ Before you submit an issue, please search the [issue tracker](https://github.com
 
 For bug reports, it is important that we can reproduce and confirm it. For this, we need you to provide a minimal reproduction instruction (this is part of the bug report issue template).
 
-You can file new issues by selecting from our [issue templates](https://github.com/fetchai/uAgents/issues) and filling out the issue template.
+You can file new issues by selecting from our [new issue templates](https://github.com/fetchai/uAgents/issues/new/choose) and filling out the issue template.
 <!-- markdown-link-check-enable -->
 
 ### <a name="submit-pr"></a> Submitting a Pull Request (PR)
@@ -92,7 +72,7 @@ Before you submit your Pull Request (PR) consider the following guidelines:
 
 6. Make your changes, **including test cases and documentation updates where appropriate**.
 
-7. Follow our [coding rules](#Coding rules).
+7. Follow our [coding rules](#rules).
 
     <!-- markdown-link-check-disable -->
 8. Run all tests and checks locally, as described in the [development guide](DEVELOPING.md), and ensure they pass. This saves CI hours and ensures you only commit clean code.
@@ -107,20 +87,20 @@ Before you submit your Pull Request (PR) consider the following guidelines:
 #### Reviewing a Pull Request
 
 <!-- markdown-link-check-disable -->
-The <THE-PROJECT> team reserves the right not to accept pull requests from community members who haven't been good citizens of the community. Such behavior includes not following our [code of conduct](CODE_OF_CONDUCT.md) and applies within or outside the managed channels.
+The μAgents team reserves the right not to accept pull requests from community members who haven't been good citizens of the community. Such behavior includes not following our [code of conduct](CODE_OF_CONDUCT.md) and applies within or outside the managed channels.
 <!-- markdown-link-check-enable -->
 
-When you contribute a new feature to `uAgents`, the maintenance burden is transferred to the core team. This means that the benefit of the contribution must be compared against the cost of maintaining the feature.
+When you contribute a new feature, the maintenance burden is transferred to the core team. This means that the benefit of the contribution must be compared against the cost of maintaining the feature.
 
 #### Addressing review feedback
 
 If we ask for changes via code reviews then:
 
-   1. Make the required updates to the code.
+1. Make the required updates to the code.
 
-   2. Re-run the tests and checks to ensure they are still passing.
+2. Re-run the tests and checks to ensure they are still passing.
 
-   3. Create a new commit and push to your GitHub repository (this will update your Pull Request).
+3. Create a new commit and push to your GitHub repository (this will update your Pull Request).
 
 #### After your pull request is merged
 
@@ -145,17 +125,18 @@ To ensure consistency throughout the source code, keep these rules in mind as yo
 
 ## <a name="commit"></a> Commit Message Convention
 
+This project uses Conventional Commits to generate release notes and to determine versioning. Please follow the [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/). The commit types must be one of the following:
 
-This project uses Conventional Commits to generate release notes and to determine versioning. Please follow the [Conventional Commits v1.0.0][convcommit]. The commit types must be one of the following:
-
-  - **build**: Changes that affect the build system or external dependencies
+  - **chore**: Commits that don't directly add features, fix bugs, or refactor code, but rather maintain the project or its surrounding processes.
   - **ci**: Changes to our CI configuration files and scripts
   - **docs**: Changes to the documentation
   - **feat**: A new feature
   - **fix**: A bug fix
-  - **nfunc**: Code that improves some non-functional characteristic, such as performance, security, ...
   - **refactor**: A code change that neither fixes a bug nor adds a feature
   - **test**: Adding missing tests or correcting existing tests
+  - **revert**: Reverts a previous commit that introduced an issue or unintended change. This essentially undoes a previous commit.
+  - **style**: Changes that only affect code formatting or style, without affecting functionality. This ensures consistency and readability of the codebase.
+  - **perf**: Changes that improve the performance of the project.
 
 Commit messages should adhere to this standard and be of the form:
 
@@ -166,7 +147,9 @@ Commit messages should adhere to this standard and be of the form:
     git commit -m "test: add test suite for feature x"
     ```
 
-Further details on `conventional commits` can be found here: <https://www.conventionalcommits.org/en/v1.0.0/>
+Further details on `conventional commits` can be found [here](https://www.conventionalcommits.org/en/v1.0.0/).
+
+## <a name="merge"></a> Merging Pull Requests
 
 When merging a branch, PRs should be squashed into one conventional commit by selecting the `Squash and merge` option. This ensures Release notes are useful and readable when releases are created.
 
