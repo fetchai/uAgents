@@ -9,12 +9,12 @@
 ## <a name="get"></a> Getting the Source
 
 <!-- markdown-link-check-disable -->
-1. Fork the [repository](https://github.com/fetchai/uAgents).
+1. Fork the [repository](https://github.com/fetchai/uAgents.git).
 2. Clone your fork of the repository:
     <!-- markdown-link-check-enable -->
 
    ``` shell
-   git clone git@github.com:fetchai/uAgents.git
+   git clone https://github.com/fetchai/uAgents.git
    ```
 
 3. Define an `upstream` remote pointing back to the main uAgents repository:
@@ -63,11 +63,8 @@ To run tests use the following command:
 ## <a name="contributing"></a>Contributing
 
 <!-- markdown-link-check-disable -->
-For instructions on how to contribute to the project (e.g. creating Pull Requests, commit message convention, ...), see the [contributing guide](CONTRIBUTING.md).
+For instructions on how to contribute to the project (e.g. creating Pull Requests, commit message convention, etc), see the [contributing guide](CONTRIBUTING.md).
 <!-- markdown-link-check-enable -->
 
-- [mkdocs](https://www.mkdocs.org)
-- [material](https://squidfunk.github.io/mkdocs-material/)
-- [poetry](https://python-poetry.org)
-- [contributing guide](CONTRIBUTING.md)
-- [repo](https://github.com/fetchai/uAgents)
+[poetry]: https://python-poetry.org
+[repo]: https://github.com/fetchai/uAgents
