@@ -63,3 +63,4 @@ To run tests use the following command:
 <!-- markdown-link-check-disable -->
 For instructions on how to contribute to the project (e.g. creating Pull Requests, commit message convention, etc), see the [contributing guide](CONTRIBUTING.md).
 <!-- markdown-link-check-enable -->
+
