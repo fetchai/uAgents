@@ -1,7 +1,8 @@
 from typing import Any, Dict, List, Optional, Union
+from cosmpy.aerial.client import NetworkConfig
 
 AGENT_PREFIX = "agent"
-LEDGER_PREFIX = "fetch"
+LEDGER_PREFIX = "asi"
 USER_PREFIX = "user"
 TESTNET_PREFIX = "test-agent"
 MAINNET_PREFIX = "agent"
@@ -11,7 +12,7 @@ MAINNET_CONTRACT_ALMANAC = (
     "fetch1mezzhfj7qgveewzwzdk6lz5sae4dunpmmsjr9u7z0tpmdsae8zmquq3y0y"
 )
 TESTNET_CONTRACT_ALMANAC = (
-    "fetch1tjagw8g8nn4cwuw00cf0m5tl4l6wfw9c0ue507fhx9e3yrsck8zs0l3q4w"
+    "asi1tjagw8g8nn4cwuw00cf0m5tl4l6wfw9c0ue507fhx9e3yrsck8zs78nwf3"
 )
 MAINNET_CONTRACT_NAME_SERVICE = (
     "fetch1479lwv5vy8skute5cycuz727e55spkhxut0valrcm38x9caa2x8q99ef0q"
@@ -20,7 +21,7 @@ TESTNET_CONTRACT_NAME_SERVICE = (
     "fetch1mxz8kn3l5ksaftx8a9pj9a6prpzk2uhxnqdkwuqvuh37tw80xu6qges77l"
 )
 REGISTRATION_FEE = 500000000000000000
-REGISTRATION_DENOM = "atestfet"
+REGISTRATION_DENOM = "atestasi"
 REGISTRATION_UPDATE_INTERVAL_SECONDS = 3600
 REGISTRATION_RETRY_INTERVAL_SECONDS = 60
 AVERAGE_BLOCK_INTERVAL = 6
@@ -35,6 +36,17 @@ RESPONSE_TIME_HINT_SECONDS = 5
 DEFAULT_ENVELOPE_TIMEOUT_SECONDS = 30
 DEFAULT_MAX_ENDPOINTS = 10
 DEFAULT_SEARCH_LIMIT = 100
+
+FAUCET_URL = "https://faucet-eridanus-1.fetch.ai"
+
+ASI_CONFIG = NetworkConfig(
+            chain_id="eridanus-1",
+            url="grpc+https://grpc-eridanus-1.fetch.ai",
+            fee_minimum_gas_price=5000000000,
+            fee_denomination=REGISTRATION_DENOM,
+            staking_denomination=REGISTRATION_DENOM,
+            faucet_url=FAUCET_URL,
+        )
 
 
 def parse_endpoint_config(

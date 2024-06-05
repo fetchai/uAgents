@@ -392,11 +392,11 @@ class Agent(Sink):
         """
         if seed is None:
             if name is None:
-                self._wallet = LocalWallet.generate()
+                self._wallet = LocalWallet.generate(prefix="asi")
                 self._identity = Identity.generate()
             else:
                 identity_key, wallet_key = get_or_create_private_keys(name)
-                self._wallet = LocalWallet(PrivateKey(wallet_key))
+                self._wallet = LocalWallet(PrivateKey(wallet_key), prefix="asi")
                 self._identity = Identity.from_string(identity_key)
         else:
             self._identity = Identity.from_seed(seed, 0)
@@ -547,7 +547,7 @@ class Agent(Sink):
             int: Bank balance.
         """
 
-        return self.ledger.query_bank_balance(Address(self.wallet.address()))
+        return self.ledger.query_bank_balance(self.wallet.address())
 
     @mailbox.setter
     def mailbox(self, config: Union[str, Dict[str, str]]):

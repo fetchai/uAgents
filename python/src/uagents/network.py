@@ -26,14 +26,14 @@ from uagents.config import (
     REGISTRATION_FEE,
     TESTNET_CONTRACT_ALMANAC,
     TESTNET_CONTRACT_NAME_SERVICE,
+    ASI_CONFIG,
 )
 from uagents.utils import get_logger
 
 logger = get_logger("network")
 
-
-_faucet_api = FaucetApi(NetworkConfig.fetchai_stable_testnet())
-_testnet_ledger = LedgerClient(NetworkConfig.fetchai_stable_testnet())
+_faucet_api = FaucetApi(ASI_CONFIG)
+_testnet_ledger = LedgerClient(ASI_CONFIG)
 _mainnet_ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
 
 
