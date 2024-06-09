@@ -84,9 +84,10 @@ Once you've completed these steps, you'll have Firebase Cloud set up and ready t
 ### DeltaV chat screenshots
 ![App Screenshot](https://github.com/saquib000/fetchai-hack/blob/main/screenshots/deltav.jpeg)
 ![App Screenshot](https://github.com/saquib000/fetchai-hack/blob/main/screenshots/deltav2.jpeg)
-### GenAI Sample
-![App Screenshot](https://github.com/saquib000/fetchai-hack/blob/main/screenshots/genAI_sample.png)
-### Our AI's Instagram ID
-![App Screenshot](https://github.com/saquib000/fetchai-hack/blob/main/screenshots/insta.jpeg)
+### AI Influencer's socials : auto upload of prompt generated image
+<img width="1280" alt="Screenshot 2024-06-09 at 4 17 43 PM" src="https://github.com/saquib000/uAgents/assets/103306537/a46aeca1-4632-4106-920e-eaf24153b7a8">
+<img width="1280" alt="Screenshot 2024-06-09 at 4 18 11 PM" src="https://github.com/saquib000/uAgents/assets/103306537/c42ed528-b4c5-46c7-b837-28319dabaec1">
+
+
 
 
