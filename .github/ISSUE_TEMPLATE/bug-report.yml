@@ -1,21 +1,22 @@
 name: 🐛 Bug Report
 description: Report a bug for uAgents.
-title: "Bug report: <short description>"
 labels: ["bug", "unconfirmed"]
+assignees:
+  - jrriehl
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report a bug in uAgents! We appreciate your contribution to improving the library.
+        Thanks for taking the time to report a bug! We appreciate your contribution to improving the library.
   - type: checkboxes
     id: prerequisites
     attributes:
       label: Prerequisites
-      description: Please confirm before submitting any new issue.
+      description: Please confirm before submitting any new bug report.
       options:
-        - label: I checked the [documentation ↗️](https://fetch.ai/docs) and found no answer to my problem.
+        - label: I checked the [documentation](https://fetch.ai/docs) and found no answer to my problem
           required: true
-        - label: I checked the [existing issues ↗️](https://github.com/fetchai/uAgents/issues) and made sure there are no similar bug report.
+        - label: I checked the [existing issues](https://github.com/fetchai/uAgents/issues) and made sure there are no similar bug reports
           required: true
   - type: dropdown
     id: category
@@ -23,11 +24,11 @@ body:
       label: Category
       description: Select the category that best describes the bug.
       options:
-        - label: Bug (unexpected behavior).
-        - label: Documentation Issue (error or unclear information in docs).
-        - label: Other.
-      validations:
-        required: true
+        - Bug (unexpected behavior)
+        - Documentation Issue (error or unclear information in docs)
+        - Other
+    validations:
+      required: true
   - type: textarea
     id: expected
     attributes:
@@ -49,27 +50,28 @@ body:
       description: Provide steps to reproduce the issue.
     validations:
       required: false
-  - type: textarea
+  - type: input
     id: version
     attributes:
       label: uAgents Version
-      description: Which version of uAgents were you using? Please enter the version number here.
-      validations:
-        required: true
+      description: Which version of the library were you using? Please enter the version number here.
+      placeholder: ex. v0.5.0
+    validations:
+      required: true
   - type: textarea
     id: environment
     attributes:
       label: Environment Details (Optional)
       description: Provide any relevant information about your environment, such as operating system, Python version, and any other libraries used.
       render: markdown
-      validations:
-        required: false
+    validations:
+      required: false
   - type: textarea
     id: logs
     attributes:
       label: Failure Logs (Optional)
       description: Include any relevant log snippets or files here. You can paste directly or drag and drop files into this area.
-    render: shell
+      render: shell
     validations:
         required: false
   - type: textarea
@@ -78,5 +80,5 @@ body:
       label: Additional Information (Optional)
       description: Include any screenshots, code snippets, or other relevant details that might help us understand the bug.
       render: markdown
-      validations:
-        required: false
+    validations:
+      required: false
