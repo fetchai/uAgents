@@ -1,5 +1,5 @@
 name: 🐛 Bug Report
-description: Report a bug for uAgents.
+description: Report a bug.
 labels: ["bug", "unconfirmed"]
 assignees:
   - jrriehl
@@ -53,8 +53,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: uAgents Version
-      description: Which version of the library were you using? Please enter the version number here.
+      label: Version
+      description: Which version were you using? Please enter the version number here.
       placeholder: ex. v0.5.0
     validations:
       required: true
