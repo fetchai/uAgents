@@ -1,6 +1,6 @@
 # Contribution Guidelines
 
-Contributions to the μAgents library are welcome. As a contributor, here are the guidelines we would like you to follow:
+Contributions to this repository are welcome. As a contributor, here are the guidelines we would like you to follow:
 
 - [Code of Conduct](#coc)
 - [Question or Problem?](#question)
@@ -87,7 +87,7 @@ Before you submit your Pull Request (PR) consider the following guidelines:
 #### Reviewing a Pull Request
 
 <!-- markdown-link-check-disable -->
-The μAgents team reserves the right not to accept pull requests from community members who haven't been good citizens of the community. Such behavior includes not following our [code of conduct](CODE_OF_CONDUCT.md) and applies within or outside the managed channels.
+The repository maintainers reserve the right not to accept pull requests from community members who haven't been good citizens of the community. Such behavior includes not following our [code of conduct](CODE_OF_CONDUCT.md) and applies within or outside the managed channels.
 <!-- markdown-link-check-enable -->
 
 When you contribute a new feature, the maintenance burden is transferred to the core team. This means that the benefit of the contribution must be compared against the cost of maintaining the feature.
@@ -120,8 +120,7 @@ To ensure consistency throughout the source code, keep these rules in mind as yo
     2. Guard against future breaking changes and lower the maintenance cost. 
 
 - All public features **must be documented**.
-- All files must include a license header. 
-- Keep API compatibility in mind when you change any code under `<project>`. Above version `1.0.0`, breaking changes can happen across versions with different left digit. Below version `1.0.0`, they can happen across versions with different middle digit. Reviewers of your pull request will comment on any API compatibility issues.
+- Keep API compatibility in mind when you change any code. Above version `1.0.0`, breaking changes can happen across versions with different left digit. Below version `1.0.0`, they can happen across versions with different middle digit. Reviewers of your pull request will comment on any API compatibility issues.
 
 ## <a name="commit"></a> Commit Message Convention
 

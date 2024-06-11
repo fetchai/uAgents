@@ -1,6 +1,6 @@
 # Security Policy
 
-Security is very important for Fetch.ai and its community. This document outlines security procedures and general policies for the `uAgents` library.
+Security is very important for Fetch.ai and its community. This document outlines security procedures and general policies for this repository.
 
 ## How to Report
 
