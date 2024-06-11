@@ -1,5 +1,5 @@
 name: ☝️Feature request
-description: Suggest an idea for the uAgents Framework.
+description: Suggest an idea.
 labels: ["enhancement", "unconfirmed"]
 assignees:
   - jrriehl
@@ -23,7 +23,7 @@ body:
     attributes:
       label: Feature
       description: |
-        Provide a description of the feature you would like to see implemented within the uAgents library.
+        Provide a description of the feature you would like to see implemented.
     validations:
       required: true
   - type: textarea
