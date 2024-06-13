@@ -1,9 +1,9 @@
-from enum import Enum
+from enum import IntEnum
 
 from tortoise import fields, models
 
 
-class ServiceType(int, Enum):
+class ServiceType(IntEnum):
     FLOOR = 1
     WINDOW = 2
     LAUNDRY = 3
