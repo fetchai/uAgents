@@ -3,7 +3,7 @@
 - [Getting the Source](#get)
 - [Setting up a New Development Environment](#setup)
 - [Development](#dev)
-- [Tests](#tests)
+- [Testing](#test)
 - [Contributing](#contributing)
 
 ## <a name="get"></a> Getting the Source
@@ -25,8 +25,6 @@
 
 ## <a name="setup"></a> Setting up a New Development Environment
 
-## Development setup
-
 The easiest way to get set up for development is to install Python (`3.9` to `3.12`) and [poetry](https://pypi.org/project/poetry/), and then run the following from the top-level project directory:
 
 ```bash
@@ -37,7 +35,6 @@ The easiest way to get set up for development is to install Python (`3.9` to `3.
 ```
 
 ## <a name="dev"></a>Development
-
 
 When developing for `uAgents` make sure to have the poetry shell active. This ensures that linting and formatting will automatically be checked during `git commit`.
 
@@ -50,7 +47,7 @@ Alternately you can invoke ruff by typing the following from within the `./pytho
   ruff check --fix && ruff format
 ```
 
-### <a name="tests"></a>Tests
+## <a name="test"></a>Testing
 
 To run tests use the following command:
 
@@ -63,4 +60,3 @@ To run tests use the following command:
 <!-- markdown-link-check-disable -->
 For instructions on how to contribute to the project (e.g. creating Pull Requests, commit message convention, etc), see the [contributing guide](CONTRIBUTING.md).
 <!-- markdown-link-check-enable -->
-

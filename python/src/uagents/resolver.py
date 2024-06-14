@@ -116,7 +116,7 @@ def query_record(agent_address: str, service: str, test: bool) -> dict:
     return result
 
 
-def get_agent_address(name: str, test: bool) -> str:
+def get_agent_address(name: str, test: bool) -> Optional[str]:
     """
     Get the agent address associated with the provided name from the name service contract.
 
@@ -263,9 +263,7 @@ class NameServiceResolver(Resolver):
 
 
 class RulesBasedResolver(Resolver):
-    def __init__(
-        self, rules: Dict[str, str], max_endpoints: Optional[int] = None
-    ) -> Tuple[Optional[str], List[str]]:
+    def __init__(self, rules: Dict[str, str], max_endpoints: Optional[int] = None):
         """
         Initialize the RulesBasedResolver with the provided rules.
 

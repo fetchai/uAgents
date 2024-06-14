@@ -20,14 +20,14 @@ _What type of change does this pull request make (put an `x` in the boxes that a
 
 _Put an `x` in the boxes that apply:_
 
-  - [ ] I have read the [CONTRIBUTING](/CONTRIBUTING.md) guide
-  - [ ] Checks and tests pass locally
+- [ ] I have read the [CONTRIBUTING](/CONTRIBUTING.md) guide
+- [ ] Checks and tests pass locally
 
 ### If applicable
 
-  - [ ] I have added tests that prove my fix is effective or that my feature works
-  - [ ] I have checked that code coverage does not decrease
-  - [ ] I have added/updated the documentation
+- [ ] I have added tests that prove my fix is effective or that my feature works
+- [ ] I have checked that code coverage does not decrease
+- [ ] I have added/updated the documentation
 
 ## Further comments
 
