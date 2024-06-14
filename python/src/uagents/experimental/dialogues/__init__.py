@@ -465,8 +465,8 @@ class Dialogue(Protocol):
         self._update_session_in_storage(session_id)
 
     def get_conversation(
-        self, session_id: UUID, message_filter: Optional[str] = ""
-    ) -> Optional[List[Any]]:
+        self, session_id: UUID, message_filter: Optional[str] = None
+    ) -> List[Any]:
         """
         Return the message history of the given session from the dialogue instance as
         list of DialogueMessage.
@@ -482,16 +482,14 @@ class Dialogue(Protocol):
             from the given session
         """
         conversation = self._sessions.get(session_id)
-        if message_filter == "":
+        if message_filter is None:
             return conversation
-        elif len(conversation) > 0:
-            return [
-                message
-                for message in conversation
-                if message["message_type"] == message_filter
-            ]
-        else:
-            return None
+
+        return [
+            message
+            for message in conversation
+            if message["message_type"] == message_filter
+        ]
 
     def get_edge(self, edge_name: str) -> Edge:
         """Return an edge from the dialogue instance."""
