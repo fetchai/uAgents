@@ -27,7 +27,7 @@ Build your first uAgent using the following script:
     from uagents import Agent, Context
     alice = Agent(name="alice", seed="alice recovery phrase")
 
-Include a seed parameter when creating an agent to set fixed addresses, or leave it out to generate random addresses each time.
+Include a seed parameter when creating an agent to set fixed addresses, or leave it out to generate a new random address each time.
 
 #### Giving it a task
 

@@ -7,7 +7,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Type
 from uuid import UUID
 
 from uagents import Context, Model, Protocol
-from uagents.context import DeliveryStatus, MsgStatus
+from uagents.context import DeliveryStatus, ExternalContext, MsgStatus
 from uagents.dispatch import JsonStr
 from uagents.models import ErrorMessage
 from uagents.storage import KeyValueStore, StorageAPI
@@ -74,7 +74,7 @@ class Edge:
         self._func = func
 
     @property
-    def efunc(self) -> MessageCallback:
+    def efunc(self) -> Optional[MessageCallback]:
         """The edge handler that is associated with the edge."""
         return self._efunc
 
@@ -190,8 +190,8 @@ class Dialogue(Protocol):
         self.initialise_cleanup_task(cleanup_interval)
 
         # radical but effective
-        self.on_message = None
-        self.on_query = None
+        self.on_message = lambda *args, **kwargs: None  # type: ignore
+        self.on_query = lambda *args, **kwargs: None  # type: ignore
 
     @property
     def rules(self) -> Dict[str, List[str]]:
@@ -338,6 +338,8 @@ class Dialogue(Protocol):
 
     def _pre_handle_hook(self, ctx: Context, sender: str, message: Type[Model]) -> bool:
         schema_digest = Model.build_schema_digest(message)
+        if not ctx.session:
+            raise ValueError("Session ID must not be None!")
         is_valid = self.is_valid_message(ctx.session, schema_digest)
         if is_valid:
             if self.is_ender(schema_digest):
@@ -348,11 +350,16 @@ class Dialogue(Protocol):
                 schema_digest=schema_digest,
                 sender=ctx.agent.address,
                 receiver=sender,
-                content=message.json(),
+                content=message.json(),  # type: ignore
             )
         return is_valid
 
     def _post_handle_hook(self, ctx: Context, sender: str, msg_in: Type[Model]) -> bool:
+        if not ctx.session:
+            raise ValueError("Session ID must not be None!")
+        if not isinstance(ctx, ExternalContext):
+            raise ValueError("Context must be an ExternalContext instance!")
+
         if self.is_finished(ctx.session) or not ctx.outbound_messages:
             return True
         inbound_schema_digest = Model.build_schema_digest(msg_in)
@@ -376,6 +383,9 @@ class Dialogue(Protocol):
     def _build_function_handler(self, edge: Edge) -> MessageCallback:
         """Build the function handler for a message."""
 
+        if not edge.func:
+            raise ValueError("No function handler set for edge!")
+
         @functools.wraps(edge.func)
         async def handler(ctx: Context, sender: str, message: Type[Model]):
             # validate message first then execute handlers, finally update state
@@ -387,7 +397,7 @@ class Dialogue(Protocol):
 
             if edge.efunc:
                 await edge.efunc(ctx, sender, message)
-            result = await edge.func(ctx, sender, message)
+            result = await edge.func(ctx, sender, message)  # type: ignore
 
             if not self._post_handle_hook(ctx, sender, message):
                 return MsgStatus(
@@ -400,7 +410,7 @@ class Dialogue(Protocol):
 
             return result
 
-        return handler
+        return handler  # type: ignore
 
     def _auto_add_message_handler(self) -> None:
         """Automatically add message handlers for edges with models."""
@@ -464,13 +474,32 @@ class Dialogue(Protocol):
         )
         self._update_session_in_storage(session_id)
 
-    def get_conversation(self, session_id) -> Optional[List[Any]]:
+    def get_conversation(
+        self, session_id: UUID, message_filter: Optional[str] = None
+    ) -> List[Any]:
         """
-        Return the conversation of the given session from the dialogue instance.
+        Return the message history of the given session from the dialogue instance as
+        list of DialogueMessage.
+        This includes both sent and received messages.
 
-        This includes all messages that were sent and received for the session.
+        Args:
+            session_id (UUID): The ID of the session to get the conversation for.
+            message_filter (str): The name of the message type to filter for
+
+        Returns:
+            list(DialogueMessage): A list of all messages exchanged during the given session
+            list(DialogueMessage): Only messages of type 'message_filter' (Model.__name__)
+            from the given session
         """
-        return self._sessions.get(session_id)
+        conversation = self._sessions.get(session_id)
+        if message_filter is None:
+            return conversation
+
+        return [
+            message
+            for message in conversation
+            if message["message_type"] == message_filter
+        ]
 
     def get_edge(self, edge_name: str) -> Edge:
         """Return an edge from the dialogue instance."""
@@ -639,6 +668,8 @@ class Dialogue(Protocol):
         for status in status_list:
             if status.status == DeliveryStatus.FAILED:
                 continue
+            if status.session is None:
+                raise ValueError("Session ID must not be None!")
 
             self.add_message(
                 session_id=status.session,

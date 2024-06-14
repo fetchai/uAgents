@@ -8,6 +8,7 @@ import pydantic
 import uvicorn
 from requests.structures import CaseInsensitiveDict
 from uagents.config import RESPONSE_TIME_HINT_SECONDS
+from uagents.context import ERROR_MESSAGE_DIGEST
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
@@ -309,11 +310,12 @@ class ASGIServer:
             if (env.expires is not None) and (
                 datetime.now() > datetime.fromtimestamp(env.expires)
             ):
-                response_msg = ErrorMessage(error="Query envelope expired")
+                response_msg = ErrorMessage(error="Query envelope expired").json()
+                schema_digest = ERROR_MESSAGE_DIGEST
             sender = env.target
             target = env.sender
             response = enclose_response_raw(
-                response_msg, schema_digest, sender, str(env.session), target=target
+                response_msg, schema_digest, sender, env.session, target=target
             )
         else:
             response = "{}"

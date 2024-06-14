@@ -3,11 +3,10 @@
 import asyncio
 import logging
 import uuid
-from ast import Tuple
 from dataclasses import dataclass
 from enum import Enum
 from time import time
-from typing import Any, List, Optional, Type, Union
+from typing import Any, List, Optional, Tuple, Type, Union
 
 import aiohttp
 from pydantic import ValidationError

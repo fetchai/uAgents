@@ -39,12 +39,12 @@ DEFAULT_SEARCH_LIMIT = 100
 
 def parse_endpoint_config(
     endpoint: Optional[Union[str, List[str], Dict[str, dict]]],
-) -> List[Dict[str, Any]]:
+) -> Optional[List[Dict[str, Any]]]:
     """
     Parse the user-provided endpoint configuration.
 
     Returns:
-        List[Dict[str, Any]]: The parsed endpoint configuration.
+        Optional[List[Dict[str, Any]]]: The parsed endpoint configuration.
     """
     if isinstance(endpoint, dict):
         endpoints = [
@@ -62,12 +62,12 @@ def parse_endpoint_config(
 
 def parse_agentverse_config(
     config: Optional[Union[str, Dict[str, str]]] = None,
-) -> Dict[str, str]:
+) -> Dict[str, Union[str, bool, None]]:
     """
-    Parse the user-provided agentverse configutation.
+    Parse the user-provided agentverse configuration.
 
     Returns:
-        Dict[str, str]: The parsed agentverse configuration.
+        Dict[str, Union[str, bool, None]]: The parsed agentverse configuration.
     """
     agent_mailbox_key = None
     base_url = AGENTVERSE_URL

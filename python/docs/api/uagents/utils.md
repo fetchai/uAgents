@@ -7,7 +7,7 @@
 #### get`_`logger
 
 ```python
-def get_logger(logger_name, level=logging.INFO)
+def get_logger(logger_name: str, level: Union[int, str] = logging.INFO)
 ```
 
 Get a logger with the given name using uvicorn's default formatter.

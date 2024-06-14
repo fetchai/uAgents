@@ -113,7 +113,7 @@ Query a record from the Almanac contract.
 #### get`_`agent`_`address
 
 ```python
-def get_agent_address(name: str, test: bool) -> str
+def get_agent_address(name: str, test: bool) -> Optional[str]
 ```
 
 Get the agent address associated with the provided name from the name service contract.
@@ -292,10 +292,7 @@ class RulesBasedResolver(Resolver)
 #### `__`init`__`
 
 ```python
-def __init__(
-        rules: Dict[str, str],
-        max_endpoints: Optional[int] = None
-) -> Tuple[Optional[str], List[str]]
+def __init__(rules: Dict[str, str], max_endpoints: Optional[int] = None)
 ```
 
 Initialize the RulesBasedResolver with the provided rules.

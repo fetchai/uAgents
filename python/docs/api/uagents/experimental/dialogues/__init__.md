@@ -74,7 +74,7 @@ Set the message handler that will be called when a message is received.
 
 ```python
 @property
-def efunc() -> MessageCallback
+def efunc() -> Optional[MessageCallback]
 ```
 
 The edge handler that is associated with the edge.
@@ -358,7 +358,7 @@ and recalculate the digest.
 
 ```python
 async def start_dialogue(ctx: Context, destination: str,
-                         message: Model) -> MsgStatus
+                         message: Model) -> List[MsgStatus]
 ```
 
 Start a dialogue with a message.
@@ -366,7 +366,7 @@ Start a dialogue with a message.
 **Arguments**:
 
 - `ctx` _Context_ - The current message context
-- `destination` _str_ - Agent address of the receiver
+- `destination` _str_ - Either the agent address of the receiver or a protocol digest
 - `message` _Model_ - The current message to send
   
 
