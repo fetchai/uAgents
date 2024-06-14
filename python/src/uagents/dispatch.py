@@ -25,6 +25,10 @@ class Dispatcher:
     def __init__(self):
         self._sinks: Dict[str, Set[Sink]] = {}
 
+    @property
+    def sinks(self) -> Dict[str, Set[Sink]]:
+        return self._sinks
+
     def register(self, address: str, sink: Sink):
         destinations = self._sinks.get(address, set())
         destinations.add(sink)
