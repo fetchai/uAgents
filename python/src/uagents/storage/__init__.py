@@ -52,7 +52,7 @@ class KeyValueStore(StorageAPI):
 
     """
 
-    def __init__(self, name: str, cwd: str = None):
+    def __init__(self, name: str, cwd: Optional[str] = None):
         """
         Initialize the KeyValueStore instance.
 
@@ -145,7 +145,8 @@ def get_or_create_private_keys(name: str) -> Tuple[str, str]:
     keys = load_all_keys()
     if name in keys:
         private_keys = keys.get(name)
-        return private_keys["identity_key"], private_keys["wallet_key"]
+        if private_keys:
+            return private_keys["identity_key"], private_keys["wallet_key"]
 
     identity_key = Identity.generate().private_key
     wallet_key = PrivateKey().private_key
