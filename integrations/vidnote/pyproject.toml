@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "vidnote"
+version = "0.1.0"
+description = "A video to notes converter"
+authors = ["Jiya Ahuja <jia.ahujacod@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+torch = "2.1.0"
+transformer = "4.41.1"
+uagents = "0.11.1"
+ai_engine = "0.1.6"
+youtube_transcript_api = "0.6.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
