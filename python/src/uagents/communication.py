@@ -190,8 +190,11 @@ async def send_exchange_envelope(
     )
 
 
-async def dispatch_sync_response_envelope(env: Envelope) -> MsgStatus:
+async def dispatch_sync_response_envelope(env: Envelope) -> Union[MsgStatus, Envelope]:
     """Dispatch a synchronous response envelope locally."""
+    # If there are no sinks registered, return the envelope back to the caller
+    if len(dispatcher.sinks) == 0:
+        return env
     await dispatcher.dispatch(
         env.sender,
         env.target,
