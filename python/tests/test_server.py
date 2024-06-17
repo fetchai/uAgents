@@ -5,10 +5,10 @@ import uuid
 from unittest.mock import AsyncMock, call, patch
 
 from uagents import Agent, Model
+from uagents.communication import enclose_response
 from uagents.config import RESPONSE_TIME_HINT_SECONDS
 from uagents.crypto import Identity, generate_user_address
 from uagents.envelope import Envelope
-from uagents.query import enclose_response
 
 
 class Message(Model):

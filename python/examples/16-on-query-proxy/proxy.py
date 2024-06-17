@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from uagents import Model
 from uagents.query import query
 
-AGENT_ADDRESS = "agent1qt6ehs6kqdgtrsduuzslqnrzwkrcn3z0cfvwsdj22s27kvatrxu8sy3vag0"
+AGENT_ADDRESS = "address_of_your_agent_to_be_queried_here"
 
 
 class TestRequest(Model):

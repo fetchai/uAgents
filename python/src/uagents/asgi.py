@@ -7,13 +7,13 @@ from typing import Dict, Optional
 import pydantic
 import uvicorn
 from requests.structures import CaseInsensitiveDict
+from uagents.communication import enclose_response_raw
 from uagents.config import RESPONSE_TIME_HINT_SECONDS
 from uagents.context import ERROR_MESSAGE_DIGEST
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
 from uagents.models import ErrorMessage
-from uagents.query import enclose_response_raw
 from uagents.utils import get_logger
 
 HOST = "0.0.0.0"
