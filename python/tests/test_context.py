@@ -156,7 +156,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             session=context.session,
         )
 
-        self.assertEqual(future.result(), (msg.json(), msg_digest))
+        self.assertEqual(future.result(), (msg.model_dump_json(), msg_digest))
         self.assertEqual(result, exp_msg_status)
         self.assertEqual(len(context._queries), 0, "Query not removed from context")
 

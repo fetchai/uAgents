@@ -413,7 +413,7 @@ class InternalContext(Context):
         """
         self._session = None
         schema_digest = Model.build_schema_digest(message)
-        message_body = message.json()
+        message_body = message.model_dump_json()
 
         if not self._is_valid_interval_message(schema_digest):
             log(self.logger, logging.ERROR, f"Invalid interval message: {message}")
@@ -673,7 +673,7 @@ class ExternalContext(InternalContext):
         return await self.send_raw(
             destination,
             schema_digest,
-            message.json(),
+            message.model_dump_json(),
             sync=sync,
             timeout=timeout,
             protocol_digest=self._protocol[0],

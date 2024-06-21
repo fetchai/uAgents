@@ -39,7 +39,7 @@ async def query(
         resolver = GlobalResolver()
 
     # convert the message into object form
-    json_message = message.json()
+    json_message = message.model_dump_json()
     schema_digest = Model.build_schema_digest(message)
 
     # resolve the endpoint
@@ -74,14 +74,14 @@ async def query(
                         "content-type": "application/json",
                         "x-uagents-connection": "sync",
                     },
-                    data=env.json(),
+                    data=env.model_dump_json(),
                     timeout=timeout,
                 ) as response,
             ):
                 success = response.status == 200
 
                 if success:
-                    return Envelope.parse_obj(await response.json())
+                    return Envelope.model_validate(await response.json())
         except aiohttp.ClientConnectorError as ex:
             LOGGER.warning(f"Failed to connect to {endpoint}: {ex}")
         except Exception as ex:
@@ -108,7 +108,9 @@ def enclose_response(
         str: The JSON representation of the response envelope.
     """
     schema_digest = Model.build_schema_digest(message)
-    return enclose_response_raw(message.json(), schema_digest, sender, session, target)
+    return enclose_response_raw(
+        message.model_dump_json(), schema_digest, sender, session, target
+    )
 
 
 def enclose_response_raw(
@@ -139,4 +141,4 @@ def enclose_response_raw(
         schema_digest=schema_digest,
     )
     response_env.encode_payload(json_message)
-    return response_env.json()
+    return response_env.model_dump_json()

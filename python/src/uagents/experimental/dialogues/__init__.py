@@ -350,7 +350,7 @@ class Dialogue(Protocol):
                 schema_digest=schema_digest,
                 sender=ctx.agent.address,
                 receiver=sender,
-                content=message.json(),  # type: ignore
+                content=message.model_dump_json(),  # type: ignore
             )
         return is_valid
 
@@ -677,7 +677,7 @@ class Dialogue(Protocol):
                 schema_digest=message_schema_digest,
                 sender=ctx.agent.address,
                 receiver=status.destination,
-                content=message.json(),
+                content=message.model_dump_json(),
             )
             self.update_state(message_schema_digest, status.session)
 
