@@ -156,13 +156,13 @@ async def send_exchange_envelope(
                 async with session.post(
                     endpoint,
                     headers=headers,
-                    data=envelope.json(),
+                    data=envelope.model_dump_json(),
                 ) as resp:
                     success = resp.status == 200
                     if success:
                         if sync:
                             return await dispatch_sync_response_envelope(
-                                Envelope.parse_obj(await resp.json())
+                                Envelope.model_validate(await resp.json())
                             )
                         return MsgStatus(
                             status=DeliveryStatus.DELIVERED,
@@ -260,7 +260,7 @@ async def send_sync_message(
         schema_digest=Model.build_schema_digest(message),
         expires=int(time()) + timeout,
     )
-    env.encode_payload(message.json())
+    env.encode_payload(message.model_dump_json())
     env.sign(sender.sign_digest)
 
     response = await send_exchange_envelope(
@@ -271,6 +271,6 @@ async def send_sync_message(
     if isinstance(response, Envelope):
         json_message = response.decode_payload()
         if response_type:
-            return response_type.parse_raw(json_message)
+            return response_type.model_validate_json(json_message)
         return json_message
     return response
