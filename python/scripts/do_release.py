@@ -108,6 +108,11 @@ class ReleaseTool:
             print("Current version is not newer. Exiting.")
             return
 
+        # copy README.md from top level to python folder so that appears on pypi
+        readme = ROOT / "README.md"
+        python_readme = ROOT / "python" / "README.md"
+        python_readme.write_text(readme.read_text())
+
         print("\nBuilding packages")
         build_packages()
         print("Packages built")
