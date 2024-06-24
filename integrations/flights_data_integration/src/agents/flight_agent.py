@@ -77,13 +77,13 @@ async def get_flight_details_by_number(flight_number):
                 }
                 geo_querystring = {"latitude": str(last_point['lat']), "longitude": str(last_point['lng']), "range": "0"}
                     
-                # Making a request to the geocode API
+                # Making a request to the google-maps-geocode API
                 geo_response = requests.get(geo_url, headers=headers1, params=geo_querystring)
             else:
                 return f"Failed to retrieve detailed flight information for flight ID {flight_id}."
 
             if geo_response.status_code == 200 and geo_response.json():
-                # Extracting the current city from the geocode response
+                # Extracting the current city from the google-maps-geocode response
                 current_city = geo_response.json()[0]['City']
                 details += f"Present Location: {current_city}"
             else:
