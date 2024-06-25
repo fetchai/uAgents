@@ -109,8 +109,8 @@ class ReleaseTool:
             return
 
         # copy README.md from top level to python folder so that appears on pypi
-        readme = ROOT / "README.md"
-        python_readme = ROOT / "python" / "README.md"
+        readme = ROOT.parent / "README.md"
+        python_readme = ROOT / "README.md"
         python_readme.write_text(readme.read_text())
 
         print("\nBuilding packages")
