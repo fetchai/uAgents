@@ -102,3 +102,7 @@ async def process_response_from_ai_agent(ctx: Context, sender: str, msg: AIRespo
 
 
 agent.include(adapter_protocol)
+
+if __name__ == "__main__":
+    print(f"Agent address: {agent.address}")
+    agent.run()

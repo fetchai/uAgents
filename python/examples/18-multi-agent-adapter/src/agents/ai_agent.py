@@ -26,3 +26,8 @@ async def respond_to_adapter(ctx: Context, sender: str, msg: AIRequest):
 
     # TODO: send back the actual AI response to the Adapter agent
     await ctx.send(sender, AIResponse(response="AI response"))
+
+
+if __name__ == "__main__":
+    print(f"Agent address: {agent.address}")
+    agent.run()
