@@ -1,4 +1,13 @@
 from ai_engine import UAgentResponse, UAgentResponseType
+from uagents import Agent, Context, Model, Protocol
+
+agent = Agent(
+    name="adapteragent",
+    seed="39r29-39-rup23fu9-24h32phf98480h2bvbpiernbfpr3nnklw",
+    port=8002,
+    endpoint="http://127.0.0.1:8002/submit",
+    log_level="DEBUG",
+)
 
 
 class AIRequest(Model):
@@ -9,7 +18,7 @@ class AIResponse(Model):
     response: str
 
 
-adapter_protocol = Protocol(f"AI Agent Adapter protocol")
+adapter_protocol = Protocol("AI Agent Adapter protocol")
 
 
 @agent.on_event("startup")
@@ -37,30 +46,33 @@ async def process_response_from_ai_agent(ctx: Context, sender: str, msg: AIRespo
     ctx.logger.info(f"Response from AI agent: {msg.response}")
 
     # get all AI Agent responses from storage that belong to those DeltaV sessions
-    # for which we have already got some of the responses from our AI Agents but not all of them (= pending DeltaV sessions)
+    # for which we have already got some of the responses from our AI Agents but
+    # not all of them (= pending DeltaV sessions)
     pending_ai_agents_responses = ctx.storage.get("pending_ai_agents_responses")
     session_str = str(ctx.session)
-    if session_str in pending_ai_agents_responses:
-        # get storage entry for current DeltaV session from agent storage
-        # because another AI agent has already sent back its response to this Adapter via this message handler
-        # so an entry for this DeltaV session has already been created before in agent storage
-        ai_agents_responses_session = pending_ai_agents_responses[session_str]
-    else:
-        # Adapter hasn't got any messages from any of the AI Agents for this DeltaV session via this message handler so far
-        # so let's create a new entry for this session
-        ai_agents_responses_session = {}
+
+    # get storage entry for current DeltaV session from agent storage
+    # because another AI agent has already sent back its response to this Adapter
+    # via this message handler so an entry for this DeltaV session has already been
+    # created before in agent storage. If Adapter hasn't got any messages from any
+    # of the AI Agents for this DeltaV session via this message handler so far
+    # so let's create a new entry for this session
+    ai_agents_responses_session = pending_ai_agents_responses.get(session_str, {})
+
     # add response of AI Agent to session dictionary
     ai_agents_responses_session[sender] = msg.response
     ctx.logger.info(
         f"""All AI Agent responses that belong to those DeltaV sessions
-            for which we have got some of the responses but not all of them: {pending_ai_agents_responses}"""
+            for which we have got some of the responses but not all of them:
+            {pending_ai_agents_responses}"""
     )
 
     # number of responses for current DeltaV session is equal to the number of AI Agents
     # it means we have received the response from all AI Agents
     if len(ai_agents_responses_session) == len(ctx.storage.get("ai_agent_addresses")):
         ctx.logger.info(
-            f"Sending response back to DeltaV for session {session_str} since we have received the response from all AI Agents"
+            f"Sending response back to DeltaV for session {session_str} "
+            f"since we have received the response from all AI Agents"
         )
 
         # concatenate all AI responses into a final response string
@@ -76,8 +88,8 @@ async def process_response_from_ai_agent(ctx: Context, sender: str, msg: AIRespo
             ),
         )
 
-        # we don't need to store responses for this session anymore
-        # so we can remove those AI responses from agent storage that were collected for current DeltaV session
+        # we don't need to store responses for this session anymore so we can remove those
+        # AI responses from agent storage that were collected for current DeltaV session
         pending_ai_agents_responses.pop(session_str)
         # save updated AI responses data (without current session responses) in agent storage
         ctx.storage.set("pending_ai_agents_responses", pending_ai_agents_responses)
