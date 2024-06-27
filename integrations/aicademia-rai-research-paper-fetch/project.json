@@ -1,0 +1,6 @@
+{
+    "title": "RAI Research Paper Fetch Agent",
+    "description": "This integration helps machine learning researchers, data scientists, ethicist, policy makers, and learners in the related field to fetch research papers in the field of responsible AI focused holistically on three crucial backgrounds",
+    "categories": ["OpenAI", "GPT-3.5 turbo", "AI", "LLM", "Responsible AI", "Researc Paper", "Ethics", "Policy Makers", "Engineers"],
+    "deltav": true
+}
