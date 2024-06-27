@@ -31,7 +31,7 @@ Include a seed parameter when creating an agent to set fixed addresses, or leave
 
 #### Giving it a task
 
-Give it a simple task, such as greeting:
+Give it a simple task, such as a greeting:
 
     @alice.on_interval(period=2.0)
     async def say_hello(ctx: Context):
