@@ -3,6 +3,7 @@ description: Suggest an idea.
 labels: ["enhancement", "unconfirmed"]
 assignees:
   - jrriehl
+  - lrahmani
 body:
   - type: markdown
     attributes:
