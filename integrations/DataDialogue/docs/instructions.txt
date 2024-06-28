@@ -1,3 +1,0 @@
-avoid queries with Limit and also avoid subquerries.
-
-This is stockmarket database it contains users info and start

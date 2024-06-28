@@ -1,6 +1,0 @@
-{
-    "title": "Mobility Integrations",
-    "description": "This contains examples of mobility integrations using few agents: `ev_charger` , `car_service` ,`car_wash`, `restaurants`, `geocode` and `geoapi_car_parking`",
-    "categories":   ["Mobility", "Geocoding"],
-    "deltav": true
-}
