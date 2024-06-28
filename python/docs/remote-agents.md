@@ -143,7 +143,7 @@ agent = Agent(
 )
 ```
 
-Now, you can recreate the example we showed at the begining of this section also registering agent `bob` in [The Agentverse Explorer](https://agentverse.ai/) and adding the missing imports, models and handlers.
+Now, you can recreate the example we showed at the beginning of this section also registering agent `bob` in [The Agentverse Explorer](https://agentverse.ai/) and adding the missing imports, models and handlers.
 
 
 ## Managed Agents on Agentverse
