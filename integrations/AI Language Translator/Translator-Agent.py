@@ -13,11 +13,11 @@ class TrnRequest(Model):
     sentence: str = Field(description="What is the message you want to translate?")
 
 # Set a unique identifier for your agent
-SEED_PHRASE = "Open AI Language Translator"
+SEED_PHRASE = "your seed phrase"
 print(f"Your agent's address is: {Agent(seed=SEED_PHRASE).address}")
 
 # Define the unique mailbox key for the agent's communication
-AGENT_MAILBOX_KEY = "590fb602-b77f-4d1b-9e63-1ac2e98ee358"
+AGENT_MAILBOX_KEY = "<your_mailbox_key>"
 
 # Initialize the agent with its unique identifiers
 translatorAgent = Agent(
@@ -33,7 +33,7 @@ fund_agent_if_low(translatorAgent.wallet.address())
 translator_protocol = Protocol("Translator Protocol")
 
 # Set your OpenAI API key here
-OPENAI_API_KEY = "YOUR_OPEN_AI_API_KEY"
+OPENAI_API_KEY = "<your_openai_api_key>"
 
 # Set the API key directly in the openai module
 openai.api_key = OPENAI_API_KEY
