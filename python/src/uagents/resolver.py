@@ -325,7 +325,7 @@ class AlmanacApiResolver(Resolver):
         return (
             (address, endpoints)
             if address is not None
-            else await self._almanac_contract_resolver.resolve(address)
+            else await self._almanac_contract_resolver.resolve(destination)
         )
 
 
