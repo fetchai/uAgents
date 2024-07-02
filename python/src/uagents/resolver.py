@@ -287,7 +287,6 @@ class AlmanacApiResolver(Resolver):
             if len(endpoint_list) > 0 and expiry > current_time:
                 endpoints = [val.get("url") for val in endpoint_list]
                 weights = [val.get("weight") for val in endpoint_list]
-                print("API si que si")
                 return address, weighted_random_sample(
                     endpoints,
                     weights=weights,
