@@ -1,10 +1,13 @@
 """Endpoint Resolver."""
 
 import random
+import requests
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from uagents.config import (
+    ALMANAC_API_URL,
     AGENT_ADDRESS_LENGTH,
     AGENT_PREFIX,
     DEFAULT_MAX_ENDPOINTS,
@@ -167,8 +170,13 @@ class GlobalResolver(Resolver):
             max_endpoints (Optional[int]): The maximum number of endpoints to return.
         """
         self._max_endpoints = max_endpoints or DEFAULT_MAX_ENDPOINTS
-        self._almanc_resolver = AlmanacResolver(max_endpoints=self._max_endpoints)
+        self._almanc_resolver = AlmanacContractResolver(
+            max_endpoints=self._max_endpoints
+        )
         self._name_service_resolver = NameServiceResolver(
+            max_endpoints=self._max_endpoints
+        )
+        self._almanac_api_resolver = AlmanacApiResolver(
             max_endpoints=self._max_endpoints
         )
 
@@ -186,16 +194,18 @@ class GlobalResolver(Resolver):
         prefix, _, address = parse_identifier(destination)
 
         if is_valid_prefix(prefix):
-            resolver = self._almanc_resolver if address else self._name_service_resolver
+            resolver = (
+                self._almanac_api_resolver if address else self._name_service_resolver
+            )
             return await resolver.resolve(destination)
 
         return None, []
 
 
-class AlmanacResolver(Resolver):
+class AlmanacContractResolver(Resolver):
     def __init__(self, max_endpoints: Optional[int] = None):
         """
-        Initialize the AlmanacResolver.
+        Initialize the AlmanacContractResolver.
 
         Args:
             max_endpoints (Optional[int]): The maximum number of endpoints to return.
@@ -233,6 +243,62 @@ class AlmanacResolver(Resolver):
         return None, []
 
 
+class AlmanacApiResolver(Resolver):
+    def __init__(self, max_endpoints: Optional[int] = None):
+        """
+        Initialize the AlmanacApiResolver.
+
+        Args:
+            max_endpoints (Optional[int]): The maximum number of endpoints to return.
+        """
+        self._max_endpoints = max_endpoints or DEFAULT_MAX_ENDPOINTS
+        self._almanac_resolver = AlmanacContractResolver(
+            max_endpoints=self._max_endpoints
+        )
+
+    async def resolve(self, destination: str) -> Tuple[Optional[str], List[str]]:
+        """
+        Resolve the destination using the Almanac API.
+
+        Args:
+            destination (str): The destination address to resolve.
+
+        Returns:
+            Tuple[Optional[str], List[str]]: The address and resolved endpoints.
+        """
+        try:
+            _, _, address = parse_identifier(destination)
+            response = requests.get(f"{ALMANAC_API_URL}agents/{address}")
+
+            if response.status_code != 200:
+                return await self._almanac_resolver.resolve(address)
+            agent = response.json()
+
+            expiry_str = agent.get("expiry", None)
+            if expiry_str:
+                expiry = datetime.fromisoformat(expiry_str)
+            else:
+                return await self._almanac_resolver.resolve(address)
+
+            current_time = datetime.now(timezone.utc)
+
+            endpoint_list = agent.get("endpoints", [])
+
+            if len(endpoint_list) > 0 and expiry > current_time:
+                endpoints = [val.get("url") for val in endpoint_list]
+                weights = [val.get("weight") for val in endpoint_list]
+                print("API si que si")
+                return address, weighted_random_sample(
+                    endpoints,
+                    weights=weights,
+                    k=min(self._max_endpoints, len(endpoints)),
+                )
+        except Exception as e:
+            print(f"Error in AlmanacApiResolver when resolving {destination}: {e}")
+
+        return await self._almanac_resolver.resolve(address)
+
+
 class NameServiceResolver(Resolver):
     def __init__(self, max_endpoints: Optional[int] = None):
         """
@@ -242,7 +308,9 @@ class NameServiceResolver(Resolver):
             max_endpoints (Optional[int]): The maximum number of endpoints to return.
         """
         self._max_endpoints = max_endpoints or DEFAULT_MAX_ENDPOINTS
-        self._almanac_resolver = AlmanacResolver(max_endpoints=self._max_endpoints)
+        self._almanac_api_resolver = AlmanacApiResolver(
+            max_endpoints=self._max_endpoints
+        )
 
     async def resolve(self, destination: str) -> Tuple[Optional[str], List[str]]:
         """
@@ -258,7 +326,7 @@ class NameServiceResolver(Resolver):
         use_testnet = prefix != MAINNET_PREFIX
         address = get_agent_address(name, use_testnet)
         if address is not None:
-            return await self._almanac_resolver.resolve(address)
+            return await self._almanac_api_resolver.resolve(address)
         return None, []
 
 
