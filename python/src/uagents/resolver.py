@@ -1,15 +1,15 @@
 """Endpoint Resolver."""
 
 import random
-import requests
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
+import requests
 from uagents.config import (
-    ALMANAC_API_URL,
     AGENT_ADDRESS_LENGTH,
     AGENT_PREFIX,
+    ALMANAC_API_URL,
     DEFAULT_MAX_ENDPOINTS,
     MAINNET_PREFIX,
     TESTNET_PREFIX,
