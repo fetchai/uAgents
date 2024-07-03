@@ -13,7 +13,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
-pydantic = "~2.7"
+pydantic = "~2.8"
 msgpack = "^1.0.4"
 bech32 = "^1.2.0"
 ecdsa = "^0.19.0"
@@ -24,7 +24,7 @@ cosmpy = "^0.9.2"
 websockets = "^10.4"
 
 # extras
-fetchai-babble = { git = "https://github.com/fetchai/babble.git", branch = "chore/update-dependencies", optional = true }
+fetchai-babble = { version = "^0.4.2", optional = true }
 tortoise-orm = { version = "^0.19.2", optional = true }
 geopy = { version = "^2.3.0", optional = true }
 pyngrok = { version = "^5.2.3", optional = true }
