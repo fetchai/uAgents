@@ -10,6 +10,7 @@ from typing import Any, List, Optional, Tuple, Type, Union
 
 import aiohttp
 from pydantic import ValidationError
+from uagents.config import DISPENSER_POLL_INTERVAL_SECONDS
 from uagents.crypto import Identity
 from uagents.dispatch import JsonStr, dispatcher
 from uagents.envelope import Envelope
@@ -69,6 +70,7 @@ class Dispenser:
 
     def __init__(self):
         self._envelopes: List[Tuple[Envelope, List[str], asyncio.Future, bool]] = []
+        self._poll_interval = DISPENSER_POLL_INTERVAL_SECONDS
 
     def add_envelope(
         self,
@@ -103,7 +105,7 @@ class Dispenser:
                     LOGGER.error(f"Failed to send envelope: {err}")
                 finally:  # sending an envelope is only tried once
                     self._envelopes.remove((env, endpoints, response_future, sync))
-            await asyncio.sleep(0)
+            await asyncio.sleep(self._poll_interval)
 
 
 async def dispatch_local_message(
