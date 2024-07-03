@@ -68,7 +68,9 @@ class Dispenser:
     """
 
     def __init__(self):
-        self._envelopes: asyncio.Queue[Tuple[Envelope, List[str], asyncio.Future, bool]] = asyncio.Queue()
+        self._envelopes: asyncio.Queue[
+            Tuple[Envelope, List[str], asyncio.Future, bool]
+        ] = asyncio.Queue()
 
     def add_envelope(
         self,
