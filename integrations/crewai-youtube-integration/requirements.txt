@@ -1,0 +1,4 @@
+python-dotenv==1.0.1
+crewai==0.14.3
+uagents==0.12.0
+crewai-tools
