@@ -49,9 +49,9 @@ from uagents.mailbox import MailboxClient
 from uagents.models import ErrorMessage, Model
 from uagents.network import (
     InsufficientFundsError,
-    add_testnet_funds,
     get_almanac_contract,
     get_ledger,
+    AgentEndpoint,
 )
 from uagents.protocol import Protocol
 from uagents.registration import (
@@ -321,10 +321,12 @@ class Agent(Sink):
             self._mailbox_client = MailboxClient(self, self._logger)
             # if mailbox is provided, override endpoints with mailbox endpoint
             self._endpoints = [
-                {
-                    "url": f"{self.mailbox['http_prefix']}://{self.mailbox['base_url']}/v1/submit",
-                    "weight": 1,
-                }
+                AgentEndpoint.model_validate(
+                    {
+                        "url": f"{self.mailbox['http_prefix']}://{self.mailbox['base_url']}/v1/submit",
+                        "weight": 1,
+                    }
+                )
             ]
         else:
             self._mailbox_client = None
@@ -609,7 +611,7 @@ class Agent(Sink):
         """
         return self._identity.sign_digest(digest)
 
-    def update_endpoints(self, endpoints: List[Dict[str, Any]]):
+    def update_endpoints(self, endpoints: List[AgentEndpoint]):
         """
         Update the list of endpoints.
 

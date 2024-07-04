@@ -1,5 +1,7 @@
 from typing import Any, Dict, List, Optional, Union
 
+from pydantic import BaseModel
+
 AGENT_PREFIX = "agent"
 LEDGER_PREFIX = "fetch"
 USER_PREFIX = "user"
@@ -37,9 +39,14 @@ DEFAULT_MAX_ENDPOINTS = 10
 DEFAULT_SEARCH_LIMIT = 100
 
 
+class AgentEndpoint(BaseModel):
+    url: str
+    weight: int
+
+
 def parse_endpoint_config(
     endpoint: Optional[Union[str, List[str], Dict[str, dict]]],
-) -> Optional[List[Dict[str, Any]]]:
+) -> List[AgentEndpoint]:
     """
     Parse the user-provided endpoint configuration.
 
@@ -48,15 +55,19 @@ def parse_endpoint_config(
     """
     if isinstance(endpoint, dict):
         endpoints = [
-            {"url": val[0], "weight": val[1].get("weight") or 1}
+            AgentEndpoint.model_validate(
+                {"url": val[0], "weight": val[1].get("weight") or 1}
+            )
             for val in endpoint.items()
         ]
     elif isinstance(endpoint, list):
-        endpoints = [{"url": val, "weight": 1} for val in endpoint]
+        endpoints = [
+            AgentEndpoint.model_validate({"url": val, "weight": 1}) for val in endpoint
+        ]
     elif isinstance(endpoint, str):
-        endpoints = [{"url": endpoint, "weight": 1}]
+        endpoints = [AgentEndpoint.model_validate({"url": endpoint, "weight": 1})]
     else:
-        endpoints = None
+        endpoints = []
     return endpoints
 
 

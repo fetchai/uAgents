@@ -14,6 +14,7 @@ from uagents.config import (
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     REGISTRATION_FEE,
     ALMANAC_API_URL,
+    AgentEndpoint,
 )
 from uagents.crypto import Identity
 from uagents.network import AlmanacContract, InsufficientFundsError, add_testnet_funds
@@ -23,20 +24,15 @@ class AgentRegistrationPolicy(ABC):
     @abstractmethod
     # pylint: disable=unnecessary-pass
     async def register(
-        self, agent_address: str, protocols: List[str], endpoints: List[Dict[str, Any]]
+        self, agent_address: str, protocols: List[str], endpoints: List[AgentEndpoint]
     ):
         pass
-
-
-class AgentEndpoint(BaseModel):
-    url: str
-    weight: int
 
 
 class AgentRegistrationAttestation(BaseModel):
     agent_address: str
     protocols: List[str]
-    endpoints: List[Dict[str, Any]]
+    endpoints: List[AgentEndpoint]
     signature: Optional[str] = None
 
     def sign(self, identity: Identity):
@@ -54,7 +50,7 @@ class AgentRegistrationAttestation(BaseModel):
         normalised_attestation = AgentRegistrationAttestation(
             agent_address=self.agent_address,
             protocols=sorted(self.protocols),
-            endpoints=sorted(self.endpoints, key=lambda x: x.get("url")),
+            endpoints=sorted(self.endpoints, key=lambda x: x.url),
         )
 
         sha256 = hashlib.sha256()
@@ -81,7 +77,7 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         self._logger = logger or logging.getLogger(__name__)
 
     async def register(
-        self, agent_address: str, protocols: List[str], endpoints: List[Dict[str, Any]]
+        self, agent_address: str, protocols: List[str], endpoints: List[AgentEndpoint]
     ):
         # create the attestation
         attestation = AgentRegistrationAttestation(
@@ -121,7 +117,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         self._logger = logger or logging.getLogger(__name__)
 
     async def register(
-        self, agent_address: str, protocols: List[str], endpoints: List[Dict[str, Any]]
+        self, agent_address: str, protocols: List[str], endpoints: List[AgentEndpoint]
     ):
         # register if not yet registered or registration is about to expire
         # or anything has changed from the last registration
@@ -207,7 +203,7 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
         self,
         agent_address: str,
         protocols: List[str],
-        endpoints: List[Dict[str, Any]],
+        endpoints: List[AgentEndpoint],
     ):
         # prefer the API registration policy as it is faster
         try:
