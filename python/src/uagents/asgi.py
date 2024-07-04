@@ -238,7 +238,7 @@ class ASGIServer:
             return
 
         try:
-            env: Envelope = Envelope.parse_obj(contents)
+            env = Envelope.model_validate(contents)
         except pydantic.ValidationError:
             await send(
                 {
