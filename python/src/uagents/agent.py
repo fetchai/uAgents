@@ -28,7 +28,6 @@ from uagents.config import (
     AVERAGE_BLOCK_INTERVAL,
     LEDGER_PREFIX,
     MAINNET_PREFIX,
-    REGISTRATION_FEE,
     REGISTRATION_RETRY_INTERVAL_SECONDS,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     TESTNET_PREFIX,
@@ -48,10 +47,10 @@ from uagents.dispatch import JsonStr, Sink, dispatcher
 from uagents.mailbox import MailboxClient
 from uagents.models import ErrorMessage, Model
 from uagents.network import (
+    AgentEndpoint,
     InsufficientFundsError,
     get_almanac_contract,
     get_ledger,
-    AgentEndpoint,
 )
 from uagents.protocol import Protocol
 from uagents.registration import (

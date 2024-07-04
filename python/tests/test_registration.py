@@ -1,12 +1,11 @@
 import unittest
+
 import pytest
-
 from aioresponses import aioresponses
-
 from uagents.crypto import Identity
 from uagents.registration import (
-    AlmanacApiRegistrationPolicy,
     AgentRegistrationAttestation,
+    AlmanacApiRegistrationPolicy,
 )
 
 

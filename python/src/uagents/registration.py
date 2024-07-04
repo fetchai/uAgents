@@ -2,18 +2,17 @@ import hashlib
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 
 import aiohttp
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
 from pydantic import BaseModel
-
 from uagents.config import (
-    REGISTRATION_UPDATE_INTERVAL_SECONDS,
-    REGISTRATION_FEE,
     ALMANAC_API_URL,
+    REGISTRATION_FEE,
+    REGISTRATION_UPDATE_INTERVAL_SECONDS,
     AgentEndpoint,
 )
 from uagents.crypto import Identity
