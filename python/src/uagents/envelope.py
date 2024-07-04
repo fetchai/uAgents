@@ -5,7 +5,7 @@ import hashlib
 import struct
 from typing import Callable, Optional
 
-from pydantic import UUID4, BaseModel
+from pydantic import UUID4, BaseModel, ConfigDict
 from uagents.crypto import Identity
 from uagents.dispatch import JsonStr
 
@@ -40,8 +40,7 @@ class Envelope(BaseModel):
     nonce: Optional[int] = None
     signature: Optional[str] = None
 
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     def encode_payload(self, value: JsonStr):
         """
