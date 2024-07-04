@@ -315,7 +315,7 @@ class Protocol:
 
         for schema_digest, model in all_models.items():
             manifest["models"].append(
-                {"digest": schema_digest, "schema": model.schema()}
+                {"digest": schema_digest, "schema": model.model_json_schema()}
             )
 
         for request, responses in self._replies.items():
