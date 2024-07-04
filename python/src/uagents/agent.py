@@ -353,7 +353,6 @@ class Agent(Sink):
             self._almanac_contract,
             self._test,
             logger=self._logger,
-            #almanac_api='http://localhost:8000/v1/almanac',
         )
 
         self.initialize_wallet_messaging(enable_wallet_messaging)
