@@ -1,13 +1,13 @@
 import logging
 import sys
-from typing import Optional
+from typing import Optional, Union
 
 from uvicorn.logging import DefaultFormatter
 
 logging.basicConfig(level=logging.INFO)
 
 
-def get_logger(logger_name, level=logging.INFO):
+def get_logger(logger_name: str, level: Union[int, str] = logging.INFO):
     """Get a logger with the given name using uvicorn's default formatter."""
     logger = logging.getLogger(logger_name)
     logger.setLevel(level)

@@ -3,11 +3,10 @@
 import asyncio
 import logging
 import uuid
-from ast import Tuple
 from dataclasses import dataclass
 from enum import Enum
 from time import time
-from typing import Any, List, Optional, Type, Union
+from typing import Any, List, Optional, Tuple, Type, Union
 
 import aiohttp
 from pydantic import ValidationError
@@ -53,12 +52,14 @@ class MsgStatus:
         detail (str): The details of the message delivery.
         destination (str): The destination address of the message.
         endpoint (str): The endpoint the message was sent to.
+        session (Optional[uuid.UUID]): The session ID of the message.
     """
 
     status: DeliveryStatus
     detail: str
     destination: str
     endpoint: str
+    session: Optional[uuid.UUID] = None
 
 
 class Dispenser:
@@ -67,7 +68,9 @@ class Dispenser:
     """
 
     def __init__(self):
-        self._envelopes: List[Tuple[Envelope, List[str], asyncio.Future, bool]] = []
+        self._envelopes: asyncio.Queue[
+            Tuple[Envelope, List[str], asyncio.Future, bool]
+        ] = asyncio.Queue()
 
     def add_envelope(
         self,
@@ -85,24 +88,23 @@ class Dispenser:
             response_future (asyncio.Future): The future to set the response on.
             sync (bool, optional): True if the message is synchronous. Defaults to False.
         """
-        self._envelopes.append((envelope, endpoints, response_future, sync))
+        self._envelopes.put_nowait((envelope, endpoints, response_future, sync))
 
     async def run(self):
         """Run the dispenser routine."""
         while True:
-            for env, endpoints, response_future, sync in self._envelopes:
-                try:
-                    result = await send_exchange_envelope(
-                        envelope=env,
-                        endpoints=endpoints,
-                        sync=sync,
-                    )
-                    response_future.set_result(result)
-                except Exception as err:
-                    LOGGER.error(f"Failed to send envelope: {err}")
-                finally:  # sending an envelope is only tried once
-                    self._envelopes.remove((env, endpoints, response_future, sync))
-            await asyncio.sleep(0)
+            # get the message from the queue
+            env, endpoints, response_future, sync = await self._envelopes.get()
+
+            try:
+                result = await send_exchange_envelope(
+                    envelope=env,
+                    endpoints=endpoints,
+                    sync=sync,
+                )
+                response_future.set_result(result)
+            except Exception as err:
+                LOGGER.error(f"Failed to send envelope: {err}")
 
 
 async def dispatch_local_message(
@@ -125,6 +127,7 @@ async def dispatch_local_message(
         detail="Message dispatched locally",
         destination=destination,
         endpoint="",
+        session=session_id,
     )
 
 
@@ -147,51 +150,52 @@ async def send_exchange_envelope(
     headers = {"content-type": "application/json"}
     if sync:
         headers["x-uagents-connection"] = "sync"
+    errors = []
     for endpoint in endpoints:
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     endpoint,
                     headers=headers,
-                    data=envelope.json(),
+                    data=envelope.model_dump_json(),
                 ) as resp:
                     success = resp.status == 200
                     if success:
                         if sync:
                             return await dispatch_sync_response_envelope(
-                                Envelope.parse_obj(await resp.json())
+                                Envelope.model_validate(await resp.json())
                             )
                         return MsgStatus(
                             status=DeliveryStatus.DELIVERED,
                             detail="Message successfully delivered via HTTP",
                             destination=envelope.target,
                             endpoint=endpoint,
+                            session=envelope.session,
                         )
-                LOGGER.warning(
-                    f"Failed to send message to {envelope.target} @ {endpoint}: "
-                    + (await resp.text()),
-                )
+                errors.append(await resp.text())
         except aiohttp.ClientConnectorError as ex:
-            LOGGER.warning(f"Failed to connect to {endpoint}: {ex}")
+            errors.append(f"Failed to connect: {ex}")
         except ValidationError as ex:
-            LOGGER.warning(
-                f"Sync message to {envelope.target} @ {endpoint} got invalid response: {ex}",
-            )
+            errors.append(f"Invalid sync response: {ex}")
         except Exception as ex:
-            LOGGER.warning(
-                f"Failed to send message to {envelope.target} @ {endpoint}: {ex}",
-            )
-    LOGGER.error(f"Failed to deliver message to {envelope.target}")
+            errors.append(f"Failed to send message: {ex}")
+    LOGGER.error(
+        f"Failed to deliver message to {envelope.target} @ {endpoints}: " + str(errors)
+    )
     return MsgStatus(
         status=DeliveryStatus.FAILED,
         detail="Message delivery failed",
         destination=envelope.target,
         endpoint="",
+        session=envelope.session,
     )
 
 
-async def dispatch_sync_response_envelope(env: Envelope) -> MsgStatus:
+async def dispatch_sync_response_envelope(env: Envelope) -> Union[MsgStatus, Envelope]:
     """Dispatch a synchronous response envelope locally."""
+    # If there are no sinks registered, return the envelope back to the caller
+    if len(dispatcher.sinks) == 0:
+        return env
     await dispatcher.dispatch(
         env.sender,
         env.target,
@@ -204,6 +208,7 @@ async def dispatch_sync_response_envelope(env: Envelope) -> MsgStatus:
         detail="Sync message successfully delivered via HTTP",
         destination=env.target,
         endpoint="",
+        session=env.session,
     )
 
 
@@ -245,6 +250,7 @@ async def send_sync_message(
             detail="Failed to resolve destination address",
             destination=destination,
             endpoint="",
+            session=None,
         )
 
     env = Envelope(
@@ -255,7 +261,7 @@ async def send_sync_message(
         schema_digest=Model.build_schema_digest(message),
         expires=int(time()) + timeout,
     )
-    env.encode_payload(message.json())
+    env.encode_payload(message.model_dump_json())
     env.sign(sender.sign_digest)
 
     response = await send_exchange_envelope(
@@ -266,6 +272,6 @@ async def send_sync_message(
     if isinstance(response, Envelope):
         json_message = response.decode_payload()
         if response_type:
-            return response_type.parse_raw(json_message)
+            return response_type.model_validate_json(json_message)
         return json_message
     return response

@@ -12,7 +12,7 @@ Query Envelopes.
 async def query(destination: str,
                 message: Model,
                 resolver: Optional[Resolver] = None,
-                timeout: Optional[int] = 30) -> Optional[Envelope]
+                timeout: int = 30) -> Optional[Envelope]
 ```
 
 Query a remote agent with a message and retrieve the response envelope.
@@ -23,7 +23,7 @@ Query a remote agent with a message and retrieve the response envelope.
 - `message` _Model_ - The message to send.
 - `resolver` _Optional[Resolver], optional_ - The resolver to use for endpoint resolution.
   Defaults to GlobalResolver.
-- `timeout` _Optional[int], optional_ - The timeout for the query in seconds. Defaults to 30.
+- `timeout` _int_ - The timeout for the query in seconds. Defaults to 30.
   
 
 **Returns**:
@@ -37,7 +37,7 @@ Query a remote agent with a message and retrieve the response envelope.
 ```python
 def enclose_response(message: Model,
                      sender: str,
-                     session: str,
+                     session: UUID4,
                      target: str = "") -> str
 ```
 
@@ -63,7 +63,7 @@ Enclose a response message within an envelope.
 def enclose_response_raw(json_message: JsonStr,
                          schema_digest: str,
                          sender: str,
-                         session: str,
+                         session: UUID4,
                          target: str = "") -> str
 ```
 
@@ -74,7 +74,7 @@ Enclose a raw response message within an envelope.
 - `json_message` _JsonStr_ - The JSON-formatted response message to enclose.
 - `schema_digest` _str_ - The schema digest of the message.
 - `sender` _str_ - The sender's address.
-- `session` _str_ - The session identifier.
+- `session` _UUID4_ - The session identifier.
 - `target` _str_ - The target address.
   
 

@@ -26,17 +26,10 @@ class Message(Model):
 
 
 endpoints = ["http://localhost:8000"]
-clyde = Agent(name="clyde", seed="clyde recovery phrase", endpoint=endpoints)
-dispatcher.unregister(clyde.address, clyde)
-resolver = RulesBasedResolver(
-    rules={
-        clyde.address: endpoints,
-    }
-)
-alice = Agent(name="alice", seed="alice recovery phrase", resolve=resolver)
-bob = Agent(name="bob", seed="bob recovery phrase")
+
 incoming = Incoming(text="hello")
 incoming_digest = Model.build_schema_digest(incoming)
+
 msg = Message(message="hey")
 msg_digest = Model.build_schema_digest(msg)
 test_replies = {incoming_digest: {msg_digest: Message}}
@@ -44,7 +37,21 @@ test_replies = {incoming_digest: {msg_digest: Message}}
 
 class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
-        self.agent = alice
+        # agents need to be recreated for each test
+        self.clyde = Agent(
+            name="clyde", seed="clyde recovery phrase", endpoint=endpoints
+        )
+        dispatcher.unregister(self.clyde.address, self.clyde)
+        resolver = RulesBasedResolver(
+            rules={
+                self.clyde.address: endpoints,
+            }
+        )
+
+        self.alice = Agent(name="alice", seed="alice recovery phrase", resolve=resolver)
+        self.bob = Agent(name="bob", seed="bob recovery phrase")
+
+        self.agent = self.alice
         self.context = self.agent._ctx
         self.loop = asyncio.get_event_loop()
         self.loop.create_task(self.context._dispenser.run())
@@ -71,12 +78,13 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_send_local_dispatch(self):
-        result = await self.context.send(bob.address, msg)
+        result = await self.context.send(self.bob.address, msg)
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.DELIVERED,
             detail="Message dispatched locally",
-            destination=bob.address,
+            destination=self.bob.address,
             endpoint="",
+            session=self.context.session,
         )
 
         self.assertEqual(result, exp_msg_status)
@@ -85,12 +93,13 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         context = self.get_external_context(
             incoming, incoming_digest, replies=test_replies
         )
-        result = await context.send(bob.address, msg)
+        result = await context.send(self.bob.address, msg)
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.DELIVERED,
             detail="Message dispatched locally",
-            destination=bob.address,
+            destination=self.bob.address,
             endpoint="",
+            session=context.session,
         )
 
         self.assertEqual(result, exp_msg_status)
@@ -99,24 +108,26 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         context = self.get_external_context(
             incoming, incoming_digest, replies=test_replies
         )
-        result = await context.send(bob.address, incoming)
+        result = await context.send(self.bob.address, incoming)
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.FAILED,
             detail="Invalid reply",
-            destination=bob.address,
+            destination=self.bob.address,
             endpoint="",
+            session=context.session,
         )
 
         self.assertEqual(result, exp_msg_status)
 
     async def test_send_local_dispatch_valid_interval_msg(self):
         self.context._interval_messages = {msg_digest}
-        result = await self.context.send(bob.address, msg)
+        result = await self.context.send(self.bob.address, msg)
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.DELIVERED,
             detail="Message dispatched locally",
-            destination=bob.address,
+            destination=self.bob.address,
             endpoint="",
+            session=self.context.session,
         )
 
         self.assertEqual(result, exp_msg_status)
@@ -124,12 +135,13 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
     async def test_send_local_dispatch_invalid_interval_msg(self):
         self.context._interval_messages = {msg_digest}
-        result = await self.context.send(bob.address, incoming)
+        result = await self.context.send(self.bob.address, incoming)
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.FAILED,
             detail="Invalid interval message",
-            destination=bob.address,
+            destination=self.bob.address,
             endpoint="",
+            session=self.context.session,
         )
 
         self.assertEqual(result, exp_msg_status)
@@ -140,17 +152,18 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             incoming,
             incoming_digest,
             replies=test_replies,
-            queries={clyde.address: future},
+            queries={self.clyde.address: future},
         )
-        result = await context.send(clyde.address, msg, sync=True)
+        result = await context.send(self.clyde.address, msg, sync=True)
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.DELIVERED,
             detail="Sync message resolved",
-            destination=clyde.address,
+            destination=self.clyde.address,
             endpoint="",
+            session=context.session,
         )
 
-        self.assertEqual(future.result(), (msg.json(), msg_digest))
+        self.assertEqual(future.result(), (msg.model_dump_json(), msg_digest))
         self.assertEqual(result, exp_msg_status)
         self.assertEqual(len(context._queries), 0, "Query not removed from context")
 
@@ -162,6 +175,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             detail="Unable to resolve destination endpoint",
             destination=destination,
             endpoint="",
+            session=self.context.session,
         )
 
         self.assertEqual(result, exp_msg_status)
@@ -172,14 +186,15 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         mocked_responses.post(endpoints[0], status=200)
 
         # Perform the actual operation
-        result = await self.context.send(clyde.address, msg)
+        result = await self.context.send(self.clyde.address, msg)
 
         # Define the expected message status
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.DELIVERED,
             detail="Message successfully delivered via HTTP",
-            destination=clyde.address,
+            destination=self.clyde.address,
             endpoint=endpoints[0],
+            session=self.context.session,
         )
 
         # Assertions
@@ -191,14 +206,15 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         mocked_responses.post(endpoints[0], status=404)
 
         # Perform the actual operation
-        result = await self.context.send(clyde.address, msg)
+        result = await self.context.send(self.clyde.address, msg)
 
         # Define the expected message status
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.FAILED,
             detail="Message delivery failed",
-            destination=clyde.address,
+            destination=self.clyde.address,
             endpoint="",
+            session=self.context.session,
         )
 
         # Assertions
@@ -215,14 +231,15 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         mocked_responses.post(endpoints[1], status=404)
 
         # Perform the actual operation
-        result = await self.context.send(clyde.address, msg)
+        result = await self.context.send(self.clyde.address, msg)
 
         # Define the expected message status
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.DELIVERED,
             detail="Message successfully delivered via HTTP",
-            destination=clyde.address,
+            destination=self.clyde.address,
             endpoint=endpoints[0],
+            session=self.context.session,
         )
 
         # Assertions
@@ -244,14 +261,15 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         mocked_responses.post(endpoints[1], status=200)
 
         # Perform the actual operation
-        result = await self.context.send(clyde.address, msg)
+        result = await self.context.send(self.clyde.address, msg)
 
         # Define the expected message status
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.DELIVERED,
             detail="Message successfully delivered via HTTP",
-            destination=clyde.address,
+            destination=self.clyde.address,
             endpoint=endpoints[1],
+            session=self.context.session,
         )
 
         # Assertions
@@ -270,14 +288,15 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         mocked_responses.post(endpoints[1], status=404)
 
         # Perform the actual operation
-        result = await self.context.send(clyde.address, msg)
+        result = await self.context.send(self.clyde.address, msg)
 
         # Define the expected message status
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.FAILED,
             detail="Message delivery failed",
-            destination=clyde.address,
+            destination=self.clyde.address,
             endpoint="",
+            session=self.context.session,
         )
 
         # Assertions

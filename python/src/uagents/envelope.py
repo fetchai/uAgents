@@ -3,7 +3,7 @@
 import base64
 import hashlib
 import struct
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
 from pydantic import UUID4, BaseModel
 from uagents.crypto import Identity
@@ -52,15 +52,15 @@ class Envelope(BaseModel):
         """
         self.payload = base64.b64encode(value.encode()).decode()
 
-    def decode_payload(self) -> Optional[Any]:
+    def decode_payload(self) -> str:
         """
         Decode and retrieve the payload value from the envelope.
 
         Returns:
-            Optional[Any]: The decoded payload value, or None if payload is not present.
+            str: The decoded payload value, or '' if payload is not present.
         """
         if self.payload is None:
-            return None
+            return ""
 
         return base64.b64decode(self.payload).decode()
 
