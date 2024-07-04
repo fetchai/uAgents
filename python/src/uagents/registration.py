@@ -87,7 +87,7 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         attestation.sign(self._identity)
 
         # submit the attestation to the API
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession() as session:  # noqa: SIM117
             async with session.post(
                 f"{self._almanac_api}/agents",
                 headers={"content-type": "application/json"},

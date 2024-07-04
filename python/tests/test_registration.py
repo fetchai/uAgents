@@ -1,6 +1,7 @@
 import unittest
 
 import pytest
+from aiohttp import ClientResponseError
 from aioresponses import aioresponses
 from uagents.crypto import Identity
 from uagents.registration import (
@@ -113,7 +114,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         # Mock the HTTP POST request with a status code and response content
         mocked_responses.post(f"{self.MOCKED_ALMANAC_API}/agents", status=400)
 
-        with pytest.raises(Exception):
+        with pytest.raises(ClientResponseError):
             await self.policy.register(
                 agent_address=self.identity.address,
                 protocols=["foo", "bar", "baz"],
@@ -128,7 +129,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         # Mock the HTTP POST request with a status code and response content
         mocked_responses.post(f"{self.MOCKED_ALMANAC_API}/agents", status=500)
 
-        with pytest.raises(Exception):
+        with pytest.raises(ClientResponseError):
             await self.policy.register(
                 agent_address=self.identity.address,
                 protocols=["foo", "bar", "baz"],
