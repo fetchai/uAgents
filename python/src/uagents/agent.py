@@ -251,11 +251,11 @@ class Agent(Sink):
         agentverse: Optional[Union[str, Dict[str, str]]] = None,
         mailbox: Optional[Union[str, Dict[str, str]]] = None,
         resolve: Optional[Resolver] = None,
-        enable_wallet_messaging: Optional[Union[bool, Dict[str, str]]] = False,
+        enable_wallet_messaging: Union[bool, Dict[str, str]] = False,
         wallet_key_derivation_index: Optional[int] = 0,
         max_resolver_endpoints: Optional[int] = None,
         version: Optional[str] = None,
-        test: Optional[bool] = True,
+        test: bool = True,
         loop: Optional[asyncio.AbstractEventLoop] = None,
         log_level: Union[int, str] = logging.INFO,
     ):
@@ -454,7 +454,7 @@ class Agent(Sink):
         Returns:
             str: The name of the agent.
         """
-        return self._name
+        return self._name or self.address[0:16]
 
     @property
     def address(self) -> str:
@@ -529,12 +529,12 @@ class Agent(Sink):
         return self._agentverse
 
     @property
-    def mailbox_client(self) -> MailboxClient:
+    def mailbox_client(self) -> Optional[MailboxClient]:
         """
         Get the mailbox client used by the agent for mailbox communication.
 
         Returns:
-            MailboxClient: The mailbox client instance.
+            Optional[MailboxClient]: The mailbox client instance.
         """
         return self._mailbox_client
 
@@ -735,7 +735,7 @@ class Agent(Sink):
     def on_query(
         self,
         model: Type[Model],
-        replies: Optional[Union[Model, Set[Model]]] = None,
+        replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
     ):
         """
         Set up a query event with a callback.
@@ -828,6 +828,10 @@ class Agent(Sink):
     def on_wallet_message(
         self,
     ):
+        """
+        Add a handler for wallet messages.
+
+        """
         if self._wallet_messaging_client is None:
             self._logger.warning(
                 "Discarding 'on_wallet_message' handler because wallet messaging is disabled"
@@ -955,7 +959,6 @@ class Agent(Sink):
         """
         Include the internal agent protocol, run startup tasks, and start background tasks.
         """
-        # register the internal agent protocol
         self.include(self._protocol)
         self.start_message_dispenser()
         self._loop.run_until_complete(self._startup())
@@ -1000,13 +1003,25 @@ class Agent(Sink):
         """
         self.setup()
         try:
-            if self._use_mailbox:
+            if self._use_mailbox and self._mailbox_client is not None:
                 self._loop.create_task(self._mailbox_client.process_deletion_queue())
                 self._loop.run_until_complete(self._mailbox_client.run())
             else:
                 self._loop.run_until_complete(self._server.serve())
         finally:
             self._loop.run_until_complete(self._shutdown())
+
+    def get_message_protocol(
+        self, message_schema_digest
+    ) -> Optional[Tuple[str, Protocol]]:
+        """
+        Get the protocol for a given message schema digest.
+
+        """
+        for protocol_digest, protocol in self.protocols.items():
+            if message_schema_digest in protocol.models:
+                return (protocol_digest, protocol)
+        return None
 
     async def _process_message_queue(self):
         """
@@ -1018,7 +1033,7 @@ class Agent(Sink):
             schema_digest, sender, message, session = await self._message_queue.get()
 
             # lookup the model definition
-            model_class: Model = self._models.get(schema_digest)
+            model_class: Optional[Type[Model]] = self._models.get(schema_digest)
             if model_class is None:
                 self._logger.warning(
                     f"Received message with unrecognized schema digest: {schema_digest}"
@@ -1039,7 +1054,7 @@ class Agent(Sink):
                 message_received=MsgDigest(
                     message=message, schema_digest=schema_digest
                 ),
-                protocol=self.protocols.get(schema_digest),
+                protocol=self.get_message_protocol(schema_digest),
             )
 
             # parse the received message
@@ -1057,7 +1072,7 @@ class Agent(Sink):
                 continue
 
             # attempt to find the handler
-            handler: MessageCallback = self._unsigned_message_handlers.get(
+            handler: Optional[MessageCallback] = self._unsigned_message_handlers.get(
                 schema_digest
             )
             if handler is None:
@@ -1091,13 +1106,15 @@ class Bureau:
     This class manages a collection of agents and orchestrates their execution.
 
     Args:
+        agents (Optional[List[Agent]]): The list of agents to be managed by the bureau.
         port (Optional[int]): The port number for the server.
         endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): Configuration
         for agent endpoints.
 
     Attributes:
         _loop (asyncio.AbstractEventLoop): The event loop.
-        _agents (List[Agent]): The list of agents contained in the bureau.
+        _agents (List[Agent]): The list of agents to be managed by the bureau.
+        _registered_agents (List[Agent]): The list of agents contained in the bureau.
         _endpoints (List[Dict[str, Any]]): The endpoint configuration for the bureau.
         _port (int): The port on which the bureau's server runs.
         _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their
@@ -1111,6 +1128,7 @@ class Bureau:
 
     def __init__(
         self,
+        agents: Optional[List[Agent]] = None,
         port: Optional[int] = None,
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
         log_level: Union[int, str] = logging.INFO,
@@ -1132,6 +1150,10 @@ class Bureau:
         self._server = ASGIServer(self._port, self._loop, self._queries, self._logger)
         self._use_mailbox = False
 
+        if agents is not None:
+            for agent in agents:
+                self.add(agent)
+
     def add(self, agent: Agent):
         """
         Add an agent to the bureau.
@@ -1140,6 +1162,8 @@ class Bureau:
             agent (Agent): The agent to be added.
 
         """
+        if agent in self._agents:
+            return
         agent.update_loop(self._loop)
         agent.update_queries(self._queries)
         if agent.agentverse["use_mailbox"]:
@@ -1156,7 +1180,7 @@ class Bureau:
         tasks = []
         for agent in self._agents:
             agent.setup()
-            if agent.agentverse["use_mailbox"]:
+            if agent.agentverse["use_mailbox"] and agent.mailbox_client is not None:
                 tasks.append(
                     self._loop.create_task(
                         agent.mailbox_client.process_deletion_queue()

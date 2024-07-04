@@ -1,0 +1,84 @@
+name: 🐛 Bug Report
+description: Report a bug.
+labels: ["bug", "unconfirmed"]
+assignees:
+  - jrriehl
+  - lrahmani
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! We appreciate your contribution to improving the library.
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      description: Please confirm before submitting any new bug report.
+      options:
+        - label: I checked the [documentation](https://fetch.ai/docs) and found no answer to my problem
+          required: true
+        - label: I checked the [existing issues](https://github.com/fetchai/uAgents/issues) and made sure there are no similar bug reports
+          required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      description: Select the category that best describes the bug.
+      options:
+        - Bug (unexpected behavior)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: Describe the behavior you are expecting.
+    validations:
+      required: false
+  - type: textarea
+    id: actual
+    attributes:
+      label: Observed Behavior
+      description: Describe the behavior you are observing.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: To Reproduce
+      description: Provide steps to reproduce the issue.
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Which version were you using? Please enter the version number here.
+      placeholder: ex. v0.5.0
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Details (Optional)
+      description: Provide any relevant information about your environment, such as operating system, Python version, and any other libraries used.
+      render: markdown
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Failure Logs (Optional)
+      description: Include any relevant log snippets or files here. You can paste directly or drag and drop files into this area.
+      render: shell
+    validations:
+        required: false
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Information (Optional)
+      description: Include any screenshots, code snippets, or other relevant details that might help us understand the bug.
+      render: markdown
+    validations:
+      required: false

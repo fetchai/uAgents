@@ -1,30 +1,38 @@
 """Specific dialogue class for the AI enabled chit-chat dialogue."""
 
-from typing import Type
+from typing import Type, Optional
 
 from uagents import Model
-from uagents.experimental.dialogues import Dialogue
+from uagents.storage import StorageAPI
+from uagents.experimental.dialogues import Dialogue, Node
 
-from .dialogue import create_edge, create_node
+from ai_engine.dialogue import create_edge
 
 
 # Node definition for the dialogue states
-init_state = create_node(
+# Node definition for the dialogue states
+default_state = Node(
+    name="Default State",
+    description=(
+        "This is the default state of the dialogue. Every session starts in "
+        "this state and is automatically updated once the dialogue starts."
+    ),
+    initial=True,
+)
+init_state = Node(
     name="Initiated",
     description=(
         "This is the initial state of the dialogue that is only available at "
         "the receiving agent."
     ),
-    initial=True,
 )
-chatting_state = create_node(
+chatting_state = Node(
     name="Chit Chatting",
     description="This is the state in which messages are exchanged.",
 )
-end_state = create_node(
+end_state = Node(
     name="Concluded",
     description="This is the state after the dialogue has been concluded.",
-    terminal=True,
 )
 
 # Edge definition for the dialogue transitions
@@ -33,7 +41,7 @@ init_session = create_edge(
     description="Every dialogue starts with this transition.",
     target="user",
     observable=True,
-    parent=None,
+    parent=default_state,
     child=init_state,
 )
 reject_session = create_edge(
@@ -82,13 +90,14 @@ class ChitChatDialogue(Dialogue):
     def __init__(
         self,
         version: str,
-        agent_address: str,
+        storage: Optional[StorageAPI] = None,
+        cleanup_interval: int = 0,
     ) -> None:
         super().__init__(
             name="ChitChatDialogue",
             version=version,
-            agent_address=agent_address,
             nodes=[
+                default_state,
                 init_state,
                 chatting_state,
                 end_state,
@@ -100,6 +109,8 @@ class ChitChatDialogue(Dialogue):
                 cont_dialogue,
                 end_session,
             ],
+            storage=storage,
+            cleanup_interval=cleanup_interval,
         )
 
     def on_initiate_session(self, model: Type[Model]):

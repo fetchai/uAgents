@@ -105,8 +105,15 @@ async def conclude_chitchat(
     _msg: ConcludeChitChatDialogue,
 ):
     # do something when the dialogue is concluded after messages have been exchanged
-    ctx.logger.info(f"Received conclude message from: {sender}; accessing history:")
-    ctx.logger.info(chitchat_dialogue.get_conversation(ctx.session))
+    ctx.logger.info(
+        f"Received conclude message from: {sender};\n"
+        "accessing history showing only ChitChat messages:"
+    )
+    ctx.logger.info(
+        chitchat_dialogue.get_conversation(
+            ctx.session, ChitChatDialogueMessage.__name__
+        )
+    )
 
 
 agent.include(chitchat_dialogue)
