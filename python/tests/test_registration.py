@@ -98,7 +98,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
     @aioresponses()
     async def test_registration_success(self, mocked_responses):
         # Mock the HTTP POST request with a status code and response content
-        mocked_responses.post(f"{self.MOCKED_ALMANAC_API}/agents", status=200)
+        mocked_responses.post(f"{self.MOCKED_ALMANAC_API}agents", status=200)
 
         await self.policy.register(
             agent_address=self.identity.address,
@@ -112,7 +112,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
     @aioresponses()
     async def test_registration_failure(self, mocked_responses):
         # Mock the HTTP POST request with a status code and response content
-        mocked_responses.post(f"{self.MOCKED_ALMANAC_API}/agents", status=400)
+        mocked_responses.post(f"{self.MOCKED_ALMANAC_API}agents", status=400)
 
         with pytest.raises(ClientResponseError):
             await self.policy.register(
@@ -127,7 +127,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
     @aioresponses()
     async def test_registration_server_failure(self, mocked_responses):
         # Mock the HTTP POST request with a status code and response content
-        mocked_responses.post(f"{self.MOCKED_ALMANAC_API}/agents", status=500)
+        mocked_responses.post(f"{self.MOCKED_ALMANAC_API}agents", status=500)
 
         with pytest.raises(ClientResponseError):
             await self.policy.register(
