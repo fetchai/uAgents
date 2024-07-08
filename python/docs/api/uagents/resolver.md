@@ -169,7 +169,8 @@ class GlobalResolver(Resolver)
 #### `__`init`__`
 
 ```python
-def __init__(max_endpoints: Optional[int] = None)
+def __init__(max_endpoints: Optional[int] = None,
+             almanac_api_url: Optional[str] = None)
 ```
 
 Initialize the GlobalResolver.
@@ -177,6 +178,7 @@ Initialize the GlobalResolver.
 **Arguments**:
 
 - `max_endpoints` _Optional[int]_ - The maximum number of endpoints to return.
+- `almanac_api_url` _Optional[str]_ - The url for almanac api
 
 <a id="src.uagents.resolver.GlobalResolver.resolve"></a>
 
@@ -197,15 +199,15 @@ Resolve the destination using the appropriate resolver.
 
   Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
 
-<a id="src.uagents.resolver.AlmanacResolver"></a>
+<a id="src.uagents.resolver.AlmanacContractResolver"></a>
 
-## AlmanacResolver Objects
+## AlmanacContractResolver Objects
 
 ```python
-class AlmanacResolver(Resolver)
+class AlmanacContractResolver(Resolver)
 ```
 
-<a id="src.uagents.resolver.AlmanacResolver.__init__"></a>
+<a id="src.uagents.resolver.AlmanacContractResolver.__init__"></a>
 
 #### `__`init`__`
 
@@ -213,13 +215,13 @@ class AlmanacResolver(Resolver)
 def __init__(max_endpoints: Optional[int] = None)
 ```
 
-Initialize the AlmanacResolver.
+Initialize the AlmanacContractResolver.
 
 **Arguments**:
 
 - `max_endpoints` _Optional[int]_ - The maximum number of endpoints to return.
 
-<a id="src.uagents.resolver.AlmanacResolver.resolve"></a>
+<a id="src.uagents.resolver.AlmanacContractResolver.resolve"></a>
 
 #### resolve
 
@@ -237,6 +239,50 @@ Resolve the destination using the Almanac contract.
 **Returns**:
 
   Tuple[str, List[str]]: The address and resolved endpoints.
+
+<a id="src.uagents.resolver.AlmanacApiResolver"></a>
+
+## AlmanacApiResolver Objects
+
+```python
+class AlmanacApiResolver(Resolver)
+```
+
+<a id="src.uagents.resolver.AlmanacApiResolver.__init__"></a>
+
+#### `__`init`__`
+
+```python
+def __init__(max_endpoints: Optional[int] = None,
+             almanac_api_url: Optional[str] = None)
+```
+
+Initialize the AlmanacApiResolver.
+
+**Arguments**:
+
+- `max_endpoints` _Optional[int]_ - The maximum number of endpoints to return.
+- `almanac_api_url` _Optional[str]_ - The url for almanac api
+
+<a id="src.uagents.resolver.AlmanacApiResolver.resolve"></a>
+
+#### resolve
+
+```python
+async def resolve(destination: str) -> Tuple[Optional[str], List[str]]
+```
+
+Resolve the destination using the Almanac API.
+If the resolution using API fails, it retries using the Almanac Contract.
+
+**Arguments**:
+
+- `destination` _str_ - The destination address to resolve.
+  
+
+**Returns**:
+
+  Tuple[Optional[str], List[str]]: The address and resolved endpoints.
 
 <a id="src.uagents.resolver.NameServiceResolver"></a>
 
