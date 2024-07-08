@@ -87,7 +87,7 @@ def test_order_of_protocols_or_endpoints_does_not_matter():
 
 class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
     # we use a mocked almanac API uri
-    MOCKED_ALMANAC_API = "http://127.0.0.1:8888/v1/almanac"
+    MOCKED_ALMANAC_API = "http://127.0.0.1:8888/v1/almanac/"
 
     def setUp(self):
         self.identity = Identity.generate()
