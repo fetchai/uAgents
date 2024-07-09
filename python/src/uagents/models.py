@@ -1,19 +1,21 @@
 import hashlib
-import json
 from typing import Type, Union
 
-from pydantic import BaseModel
+from pydantic.v1 import BaseModel
 
 
+# reverting back to pydantic.v1 BaseModel for backwards compatibility
 class Model(BaseModel):
+    def model_json_schema(self) -> str:
+        return self.schema_json(indent=None, sort_keys=True)
+
+    def model_dump_json(self) -> str:
+        return self.json(indent=None, sort_keys=True)
+
     @staticmethod
     def build_schema_digest(model: Union["Model", Type["Model"]]) -> str:
-        schema = model.model_json_schema()
-        digest = (
-            hashlib.sha256(json.dumps(schema, sort_keys=True).encode("utf8"))
-            .digest()
-            .hex()
-        )
+        schema = model.schema_json(indent=None, sort_keys=True)
+        digest = hashlib.sha256(schema.encode("utf8")).digest().hex()
 
         return f"model:{digest}"
 
