@@ -1,5 +1,5 @@
 import hashlib
-from typing import Type, Union
+from typing import Any, Type, Union
 
 from pydantic.v1 import BaseModel
 
@@ -12,6 +12,10 @@ class Model(BaseModel):
 
     def model_dump_json(self) -> str:
         return self.json(indent=None, sort_keys=True)
+
+    @classmethod
+    def model_validate(cls, obj: Any) -> "Model":
+        return cls.parse_obj(obj)
 
     @staticmethod
     def build_schema_digest(model: Union["Model", Type["Model"]]) -> str:
