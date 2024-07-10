@@ -1,7 +1,7 @@
 import hashlib
 from typing import Any, Type, Union
 
-from pydantic.v1 import BaseModel, Field
+from pydantic.v1 import BaseModel, Field  # noqa
 
 
 # reverting back to pydantic.v1 BaseModel for backwards compatibility

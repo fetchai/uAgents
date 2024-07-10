@@ -2,7 +2,7 @@
 import unittest
 from typing import Callable
 
-from uagents import Agent, Model, Protocol, Field
+from uagents import Agent, Field, Model, Protocol
 
 
 class Message(Model):
