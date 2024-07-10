@@ -223,8 +223,15 @@ class AlmanacContract(LedgerContract):
             return None
         return response.get("record")[0]["record"]["service"]["protocols"]
 
-    def get_registration_msg(self, protocols: List[str], endpoints: List[Dict[str, Any]], signature: str, sequence: int, address: str):
-        return  {
+    def get_registration_msg(
+        self,
+        protocols: List[str],
+        endpoints: List[Dict[str, Any]],
+        signature: str,
+        sequence: int,
+        address: str,
+    ):
+        return {
             "register": {
                 "record": {
                     "service": {
@@ -261,7 +268,9 @@ class AlmanacContract(LedgerContract):
         transaction = Transaction()
 
         sequence = self.get_sequence(agent_address)
-        almanac_msg = self.get_registration_msg(protocols, endpoints, signature, sequence, agent_address)
+        almanac_msg = self.get_registration_msg(
+            protocols, endpoints, signature, sequence, agent_address
+        )
 
         if not self.address:
             raise ValueError("Contract address not set")
