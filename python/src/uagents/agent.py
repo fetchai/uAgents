@@ -28,7 +28,6 @@ from uagents.config import (
     AVERAGE_BLOCK_INTERVAL,
     LEDGER_PREFIX,
     MAINNET_PREFIX,
-    REGISTRATION_FEE,
     REGISTRATION_RETRY_INTERVAL_SECONDS,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     TESTNET_PREFIX,
@@ -48,12 +47,16 @@ from uagents.dispatch import JsonStr, Sink, dispatcher
 from uagents.mailbox import MailboxClient
 from uagents.models import ErrorMessage, Model
 from uagents.network import (
+    AgentEndpoint,
     InsufficientFundsError,
-    add_testnet_funds,
     get_almanac_contract,
     get_ledger,
 )
 from uagents.protocol import Protocol
+from uagents.registration import (
+    AgentRegistrationPolicy,
+    DefaultRegistrationPolicy,
+)
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.utils import get_logger
@@ -251,6 +254,7 @@ class Agent(Sink):
         agentverse: Optional[Union[str, Dict[str, str]]] = None,
         mailbox: Optional[Union[str, Dict[str, str]]] = None,
         resolve: Optional[Resolver] = None,
+        registration_policy: Optional[AgentRegistrationPolicy] = None,
         enable_wallet_messaging: Union[bool, Dict[str, str]] = False,
         wallet_key_derivation_index: Optional[int] = 0,
         max_resolver_endpoints: Optional[int] = None,
@@ -316,10 +320,12 @@ class Agent(Sink):
             self._mailbox_client = MailboxClient(self, self._logger)
             # if mailbox is provided, override endpoints with mailbox endpoint
             self._endpoints = [
-                {
-                    "url": f"{self.mailbox['http_prefix']}://{self.mailbox['base_url']}/v1/submit",
-                    "weight": 1,
-                }
+                AgentEndpoint.model_validate(
+                    {
+                        "url": f"{self.mailbox['http_prefix']}://{self.mailbox['base_url']}/v1/submit",
+                        "weight": 1,
+                    }
+                )
             ]
         else:
             self._mailbox_client = None
@@ -341,6 +347,14 @@ class Agent(Sink):
         self._on_shutdown = []
         self._test = test
         self._version = version or "0.1.0"
+        self._registration_policy = registration_policy or DefaultRegistrationPolicy(
+            self._identity,
+            self._ledger,
+            self._wallet,
+            self._almanac_contract,
+            self._test,
+            logger=self._logger,
+        )
 
         self.initialize_wallet_messaging(enable_wallet_messaging)
 
@@ -596,24 +610,7 @@ class Agent(Sink):
         """
         return self._identity.sign_digest(digest)
 
-    def sign_registration(self) -> str:
-        """
-        Sign the registration data for Almanac contract.
-
-        Returns:
-            str: The signature of the registration data.
-
-        Raises:
-            AssertionError: If the Almanac contract address is None.
-
-        """
-        assert self._almanac_contract.address is not None
-        return self._identity.sign_registration(
-            str(self._almanac_contract.address),
-            self._almanac_contract.get_sequence(self.address),
-        )
-
-    def update_endpoints(self, endpoints: List[Dict[str, Any]]):
+    def update_endpoints(self, endpoints: List[AgentEndpoint]):
         """
         Update the list of endpoints.
 
@@ -654,43 +651,9 @@ class Agent(Sink):
         if necessary.
 
         """
-        # register if not yet registered or registration is about to expire
-        # or anything has changed from the last registration
-        if (
-            not self._almanac_contract.is_registered(self.address)
-            or self._almanac_contract.get_expiry(self.address)
-            < REGISTRATION_UPDATE_INTERVAL_SECONDS
-            or self._endpoints != self._almanac_contract.get_endpoints(self.address)
-            or list(self.protocols.keys())
-            != self._almanac_contract.get_protocols(self.address)
-        ):
-            if self.balance < REGISTRATION_FEE:
-                self._logger.warning(
-                    "I do not have enough funds to register on Almanac contract"
-                )
-                if self._test:
-                    add_testnet_funds(str(self.wallet.address()))
-                    self._logger.info(
-                        f"Adding testnet funds to {self.wallet.address()}"
-                    )
-                else:
-                    self._logger.info(
-                        f"Send funds to wallet address: {self.wallet.address()}"
-                    )
-                raise InsufficientFundsError()
-            self._logger.info("Registering on almanac contract...")
-            signature = self.sign_registration()
-            await self._almanac_contract.register(
-                self.ledger,
-                self.wallet,
-                self.address,
-                list(self.protocols.keys()),
-                self._endpoints,
-                signature,
-            )
-            self._logger.info("Registering on almanac contract...complete")
-        else:
-            self._logger.info("Almanac registration is up to date!")
+        await self._registration_policy.register(
+            self.address, list(self.protocols.keys()), self._endpoints
+        )
 
     async def _registration_loop(self):
         """
@@ -708,6 +671,7 @@ class Agent(Sink):
         except Exception as ex:
             self._logger.exception(f"Failed to register on almanac contract: {ex}")
             time_until_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
+
         # schedule the next registration update
         self._loop.create_task(
             _delay(self._registration_loop(), time_until_next_registration)
@@ -930,6 +894,7 @@ class Agent(Sink):
         """
         if self._endpoints is not None:
             await self._registration_loop()
+
         for handler in self._on_startup:
             try:
                 await handler(self._ctx)
