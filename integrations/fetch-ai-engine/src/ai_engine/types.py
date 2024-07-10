@@ -26,6 +26,7 @@ class UAgentResponse(Model):
     verbose_message: Optional[str] = None
     verbose_options: Optional[List[KeyValue]] = None
 
+
 class BookingRequest(Model):
     request_id: str
     user_response: str
