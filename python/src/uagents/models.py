@@ -1,17 +1,17 @@
 import hashlib
 from typing import Any, Type, Union
 
-from pydantic.v1 import BaseModel
+from pydantic.v1 import BaseModel, Field
 
 
 # reverting back to pydantic.v1 BaseModel for backwards compatibility
 class Model(BaseModel):
     @classmethod
     def model_json_schema(cls) -> str:
-        return cls.schema_json(indent=None, sort_keys=True)
+        return cls.schema_json()
 
     def model_dump_json(self) -> str:
-        return self.json(indent=None, sort_keys=True)
+        return self.json()
 
     @classmethod
     def model_validate(cls, obj: Any) -> "Model":
