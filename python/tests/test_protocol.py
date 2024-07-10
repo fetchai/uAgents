@@ -87,7 +87,7 @@ class TestAgent(unittest.TestCase):
 
         digest = proto.manifest()["metadata"]["digest"]
         target_digest = (
-            "a98290009c0891bc431c5159357074527d10eff6b2e86a61fcf7721b472f1125"
+            "proto:a98290009c0891bc431c5159357074527d10eff6b2e86a61fcf7721b472f1125"
         )
         self.assertEqual(digest, target_digest, "Digest mismatch")
 
