@@ -1,4 +1,5 @@
 # pylint: disable=protected-access
+# ruff: noqa
 import hashlib
 import json
 import unittest
