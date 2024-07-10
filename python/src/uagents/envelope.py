@@ -20,7 +20,7 @@ class Envelope(BaseModel):
         target (str): The target's address.
         session (UUID4): The session UUID that persists for back-and-forth
         dialogues between agents.
-        schema_digest (str): The schema digest for the enclosed message (alias for protocol).
+        schema_digest (str): The schema digest for the enclosed message.
         protocol_digest (Optional[str]): The digest of the protocol associated with the message
         (optional).
         payload (Optional[str]): The encoded message payload of the envelope (optional).
