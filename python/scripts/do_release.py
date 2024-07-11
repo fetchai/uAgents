@@ -63,8 +63,8 @@ def push_tag(current_version) -> None:
 def make_release(current_version: Version) -> None:
     """Make release on Github."""
     subprocess.check_call(
-        f"""gh release create v{current_version} --title "v{current_version}"
-        --generate-notes --latest""",
+        f'gh release create v{current_version} --title "v{current_version}"'
+        " --generate-notes --latest",
         shell=True,
     )
 
@@ -107,6 +107,11 @@ class ReleaseTool:
         else:
             print("Current version is not newer. Exiting.")
             return
+
+        # copy README.md from top level to python folder so that appears on pypi
+        readme = ROOT.parent / "README.md"
+        python_readme = ROOT / "README.md"
+        python_readme.write_text(readme.read_text())
 
         print("\nBuilding packages")
         build_packages()
