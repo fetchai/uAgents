@@ -7,12 +7,14 @@ from typing import Dict, Optional
 import pydantic
 import uvicorn
 from requests.structures import CaseInsensitiveDict
-from uagents.config import RESPONSE_TIME_HINT_SECONDS, get_logger
+from uagents.config import RESPONSE_TIME_HINT_SECONDS
+from uagents.context import ERROR_MESSAGE_DIGEST
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
 from uagents.models import ErrorMessage
 from uagents.query import enclose_response_raw
+from uagents.utils import get_logger
 
 HOST = "0.0.0.0"
 
@@ -236,7 +238,7 @@ class ASGIServer:
             return
 
         try:
-            env: Envelope = Envelope.parse_obj(contents)
+            env = Envelope.model_validate(contents)
         except pydantic.ValidationError:
             await send(
                 {
@@ -308,10 +310,14 @@ class ASGIServer:
             if (env.expires is not None) and (
                 datetime.now() > datetime.fromtimestamp(env.expires)
             ):
-                response_msg = ErrorMessage(error="Query envelope expired")
+                response_msg = ErrorMessage(
+                    error="Query envelope expired"
+                ).model_dump_json()
+                schema_digest = ERROR_MESSAGE_DIGEST
             sender = env.target
+            target = env.sender
             response = enclose_response_raw(
-                response_msg, schema_digest, sender, str(env.session)
+                response_msg, schema_digest, sender, env.session, target=target
             )
         else:
             response = "{}"

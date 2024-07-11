@@ -4,6 +4,112 @@
 
 Agent
 
+<a id="src.uagents.agent.AgentRepresentation"></a>
+
+## AgentRepresentation Objects
+
+```python
+class AgentRepresentation()
+```
+
+Represents an agent in the context of a message.
+
+**Attributes**:
+
+- `_address` _str_ - The address of the agent.
+- `_name` _Optional[str]_ - The name of the agent.
+- `_signing_callback` _Callable_ - The callback for signing messages.
+  
+  Properties:
+- `name` _str_ - The name of the agent.
+- `address` _str_ - The address of the agent.
+- `identifier` _str_ - The agent's address and network prefix.
+  
+
+**Methods**:
+
+- `sign_digest(data` - bytes) -> str: Sign the provided data with the agent's identity.
+
+<a id="src.uagents.agent.AgentRepresentation.__init__"></a>
+
+#### `__`init`__`
+
+```python
+def __init__(address: str, name: Optional[str], signing_callback: Callable)
+```
+
+Initialize the AgentRepresentation instance.
+
+**Arguments**:
+
+- `address` _str_ - The address of the context.
+- `name` _Optional[str]_ - The optional name associated with the context.
+- `signing_callback` _Callable_ - The callback for signing messages.
+
+<a id="src.uagents.agent.AgentRepresentation.name"></a>
+
+#### name
+
+```python
+@property
+def name() -> str
+```
+
+Get the name associated with the context or a truncated address if name is None.
+
+**Returns**:
+
+- `str` - The name or truncated address.
+
+<a id="src.uagents.agent.AgentRepresentation.address"></a>
+
+#### address
+
+```python
+@property
+def address() -> str
+```
+
+Get the address of the context.
+
+**Returns**:
+
+- `str` - The address of the context.
+
+<a id="src.uagents.agent.AgentRepresentation.identifier"></a>
+
+#### identifier
+
+```python
+@property
+def identifier() -> str
+```
+
+Get the address of the agent used for communication including the network prefix.
+
+**Returns**:
+
+- `str` - The agent's address and network prefix.
+
+<a id="src.uagents.agent.AgentRepresentation.sign_digest"></a>
+
+#### sign`_`digest
+
+```python
+def sign_digest(data: bytes) -> str
+```
+
+Sign the provided data with the callback of the agent's identity.
+
+**Arguments**:
+
+- `data` _bytes_ - The data to sign.
+  
+
+**Returns**:
+
+- `str` - The signature of the data.
+
 <a id="src.uagents.agent.Agent"></a>
 
 ## Agent Objects
@@ -36,11 +142,12 @@ An agent that interacts within a communication environment.
 - `_unsigned_message_handlers` _Dict[str, MessageCallback]_ - Handlers for
   unsigned messages.
 - `_models` _Dict[str, Type[Model]]_ - Dictionary mapping supported message digests to messages.
-- `_replies` _Dict[str, Set[Type[Model]]]_ - Dictionary of allowed reply digests for each type
+- `_replies` _Dict[str, Dict[str, Type[Model]]]_ - Dictionary of allowed replies for each type
   of incoming message.
 - `_queries` _Dict[str, asyncio.Future]_ - Dictionary mapping query senders to their response
   Futures.
-- `_dispatcher` - The dispatcher for message handling.
+- `_dispatcher` - The dispatcher for internal handling/sorting of messages.
+- `_dispenser` - The dispatcher for external message handling.
 - `_message_queue` - Asynchronous queue for incoming messages.
 - `_on_startup` _List[Callable]_ - List of functions to run on agent startup.
 - `_on_shutdown` _List[Callable]_ - List of functions to run on agent shutdown.
@@ -50,14 +157,15 @@ An agent that interacts within a communication environment.
 - `protocols` _Dict[str, Protocol]_ - Dictionary mapping all supported protocol digests to their
   corresponding protocols.
 - `_ctx` _Context_ - The context for agent interactions.
+- `_test` _bool_ - True if the agent will register and transact on the testnet.
   
   Properties:
 - `name` _str_ - The name of the agent.
 - `address` _str_ - The address of the agent used for communication.
+- `identifier` _str_ - The Agent Identifier, including network prefix and address.
 - `wallet` _LocalWallet_ - The agent's wallet for transacting on the ledger.
 - `storage` _KeyValueStore_ - The key-value store for storage operations.
-- `mailbox` _Dict[str, str]_ - The mailbox configuration for the agent (deprecated and replaced
-  by agentverse).
+- `mailbox` _Dict[str, str]_ - The mailbox configuration for the agent.
 - `agentverse` _Dict[str, str]_ - The agentverse configuration for the agent.
 - `mailbox_client` _MailboxClient_ - The client for interacting with the agentverse mailbox.
 - `protocols` _Dict[str, Protocol]_ - Dictionary mapping all supported protocol digests to their
@@ -75,7 +183,13 @@ def __init__(name: Optional[str] = None,
              agentverse: Optional[Union[str, Dict[str, str]]] = None,
              mailbox: Optional[Union[str, Dict[str, str]]] = None,
              resolve: Optional[Resolver] = None,
-             version: Optional[str] = None)
+             enable_wallet_messaging: Union[bool, Dict[str, str]] = False,
+             wallet_key_derivation_index: Optional[int] = 0,
+             max_resolver_endpoints: Optional[int] = None,
+             version: Optional[str] = None,
+             test: bool = True,
+             loop: Optional[asyncio.AbstractEventLoop] = None,
+             log_level: Union[int, str] = logging.INFO)
 ```
 
 Initialize an Agent instance.
@@ -89,7 +203,31 @@ Initialize an Agent instance.
 - `agentverse` _Optional[Union[str, Dict[str, str]]]_ - The agentverse configuration.
 - `mailbox` _Optional[Union[str, Dict[str, str]]]_ - The mailbox configuration.
 - `resolve` _Optional[Resolver]_ - The resolver to use for agent communication.
+- `enable_wallet_messaging` _Optional[Union[bool, Dict[str, str]]]_ - Whether to enable
+  wallet messaging. If '{"chain_id": CHAIN_ID}' is provided, this sets the chain ID for
+  the messaging server.
+- `wallet_key_derivation_index` _Optional[int]_ - The index used for deriving the wallet key.
+- `max_resolver_endpoints` _Optional[int]_ - The maximum number of endpoints to resolve.
 - `version` _Optional[str]_ - The version of the agent.
+- `test` _Optional[bool]_ - True if the agent will register and transact on the testnet.
+- `loop` _Optional[asyncio.AbstractEventLoop]_ - The asyncio event loop to use.
+- `log_level` _Union[int, str]_ - The logging level for the agent.
+
+<a id="src.uagents.agent.Agent.initialize_wallet_messaging"></a>
+
+#### initialize`_`wallet`_`messaging
+
+```python
+def initialize_wallet_messaging(enable_wallet_messaging: Union[bool,
+                                                               Dict[str,
+                                                                    str]])
+```
+
+Initialize wallet messaging for the agent.
+
+**Arguments**:
+
+- `enable_wallet_messaging` _Union[bool, Dict[str, str]]_ - Wallet messaging configuration.
 
 <a id="src.uagents.agent.Agent.name"></a>
 
@@ -121,6 +259,21 @@ Get the address of the agent used for communication.
 
 - `str` - The agent's address.
 
+<a id="src.uagents.agent.Agent.identifier"></a>
+
+#### identifier
+
+```python
+@property
+def identifier() -> str
+```
+
+Get the Agent Identifier, including network prefix and address.
+
+**Returns**:
+
+- `str` - The agent's identifier.
+
 <a id="src.uagents.agent.Agent.wallet"></a>
 
 #### wallet
@@ -135,6 +288,21 @@ Get the wallet of the agent.
 **Returns**:
 
 - `LocalWallet` - The agent's wallet.
+
+<a id="src.uagents.agent.Agent.ledger"></a>
+
+#### ledger
+
+```python
+@property
+def ledger() -> LedgerClient
+```
+
+Get the ledger of the agent.
+
+**Returns**:
+
+- `LedgerClient` - The agent's ledger
 
 <a id="src.uagents.agent.Agent.storage"></a>
 
@@ -160,7 +328,8 @@ Get the key-value store used by the agent for data storage.
 def mailbox() -> Dict[str, str]
 ```
 
-Get the mailbox configuration of the agent (deprecated and replaced by agentverse).
+Get the mailbox configuration of the agent.
+Agentverse overrides it but mailbox is kept for backwards compatibility.
 
 **Returns**:
 
@@ -187,14 +356,29 @@ Get the agentverse configuration of the agent.
 
 ```python
 @property
-def mailbox_client() -> MailboxClient
+def mailbox_client() -> Optional[MailboxClient]
 ```
 
 Get the mailbox client used by the agent for mailbox communication.
 
 **Returns**:
 
-- `MailboxClient` - The mailbox client instance.
+- `Optional[MailboxClient]` - The mailbox client instance.
+
+<a id="src.uagents.agent.Agent.balance"></a>
+
+#### balance
+
+```python
+@property
+def balance() -> int
+```
+
+Get the balance of the agent.
+
+**Returns**:
+
+- `int` - Bank balance.
 
 <a id="src.uagents.agent.Agent.mailbox"></a>
 
@@ -205,7 +389,8 @@ Get the mailbox client used by the agent for mailbox communication.
 def mailbox(config: Union[str, Dict[str, str]])
 ```
 
-Set the mailbox configuration for the agent (deprecated and replaced by agentverse).
+Set the mailbox configuration for the agent.
+Agentverse overrides it but mailbox is kept for backwards compatibility.
 
 **Arguments**:
 
@@ -366,7 +551,7 @@ Decorator to register an interval handler for the provided period.
 
 ```python
 def on_query(model: Type[Model],
-             replies: Optional[Union[Model, Set[Model]]] = None)
+             replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None)
 ```
 
 Set up a query event with a callback.
@@ -422,6 +607,16 @@ Decorator to register an event handler for a specific event type.
 **Returns**:
 
 - `Callable` - The decorator function for registering event handlers.
+
+<a id="src.uagents.agent.Agent.on_wallet_message"></a>
+
+#### on`_`wallet`_`message
+
+```python
+def on_wallet_message()
+```
+
+Add a handler for wallet messages.
 
 <a id="src.uagents.agent.Agent.include"></a>
 
@@ -486,15 +681,35 @@ def setup()
 
 Include the internal agent protocol, run startup tasks, and start background tasks.
 
-<a id="src.uagents.agent.Agent.start_background_tasks"></a>
+<a id="src.uagents.agent.Agent.start_message_dispenser"></a>
 
-#### start`_`background`_`tasks
+#### start`_`message`_`dispenser
 
 ```python
-def start_background_tasks()
+def start_message_dispenser()
 ```
 
-Start background tasks for the agent.
+Start the message dispenser.
+
+<a id="src.uagents.agent.Agent.start_interval_tasks"></a>
+
+#### start`_`interval`_`tasks
+
+```python
+def start_interval_tasks()
+```
+
+Start interval tasks for the agent.
+
+<a id="src.uagents.agent.Agent.start_message_receivers"></a>
+
+#### start`_`message`_`receivers
+
+```python
+def start_message_receivers()
+```
+
+Start message receiving tasks for the agent.
 
 <a id="src.uagents.agent.Agent.run"></a>
 
@@ -505,6 +720,17 @@ def run()
 ```
 
 Run the agent.
+
+<a id="src.uagents.agent.Agent.get_message_protocol"></a>
+
+#### get`_`message`_`protocol
+
+```python
+def get_message_protocol(
+        message_schema_digest) -> Optional[Tuple[str, Protocol]]
+```
+
+Get the protocol for a given message schema digest.
 
 <a id="src.uagents.agent.Bureau"></a>
 
@@ -520,6 +746,7 @@ This class manages a collection of agents and orchestrates their execution.
 
 **Arguments**:
 
+- `agents` _Optional[List[Agent]]_ - The list of agents to be managed by the bureau.
 - `port` _Optional[int]_ - The port number for the server.
 - `endpoint` _Optional[Union[str, List[str], Dict[str, dict]]]_ - Configuration
   for agent endpoints.
@@ -528,7 +755,8 @@ This class manages a collection of agents and orchestrates their execution.
 **Attributes**:
 
 - `_loop` _asyncio.AbstractEventLoop_ - The event loop.
-- `_agents` _List[Agent]_ - The list of agents contained in the bureau.
+- `_agents` _List[Agent]_ - The list of agents to be managed by the bureau.
+- `_registered_agents` _List[Agent]_ - The list of agents contained in the bureau.
 - `_endpoints` _List[Dict[str, Any]]_ - The endpoint configuration for the bureau.
 - `_port` _int_ - The port on which the bureau's server runs.
 - `_queries` _Dict[str, asyncio.Future]_ - Dictionary mapping query senders to their
@@ -543,9 +771,10 @@ This class manages a collection of agents and orchestrates their execution.
 #### `__`init`__`
 
 ```python
-def __init__(port: Optional[int] = None,
-             endpoint: Optional[Union[str, List[str], Dict[str,
-                                                           dict]]] = None)
+def __init__(agents: Optional[List[Agent]] = None,
+             port: Optional[int] = None,
+             endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
+             log_level: Union[int, str] = logging.INFO)
 ```
 
 Initialize a Bureau instance.
