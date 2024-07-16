@@ -22,7 +22,9 @@ proto = Protocol(name="proto", version="1.0")
 
 @proto.on_message(model=BroadcastExampleRequest, replies=BroadcastExampleResponse)
 async def handle_request(ctx: Context, sender: str, _msg: BroadcastExampleRequest):
-    await ctx.send(sender, BroadcastExampleResponse(text=f"Hello from {ctx.name}"))
+    await ctx.send(
+        sender, BroadcastExampleResponse(text=f"Hello from {ctx.agent.name}")
+    )
 
 
 # include protocol
@@ -35,7 +37,8 @@ bob.include(proto)
 # let charles send the message to all agents supporting the protocol
 @charles.on_interval(period=5)
 async def say_hello(ctx: Context):
-    await ctx.broadcast(proto.digest, message=BroadcastExampleRequest())
+    status_list = await ctx.broadcast(proto.digest, message=BroadcastExampleRequest())
+    ctx.logger.info(f"Trying to contact {len(status_list)} agents.")
 
 
 @charles.on_message(model=BroadcastExampleResponse)

@@ -25,7 +25,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         while True:
             if sender in self.agent._server._queries:
                 self.agent._server._queries[sender].set_result(
-                    (msg.json(), Model.build_schema_digest(msg))
+                    (msg.model_dump_json(), Model.build_schema_digest(msg))
                 )
                 return
 
@@ -36,14 +36,14 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             sender=self.bob.address,
             target=self.agent.address,
             session=uuid.uuid4(),
-            protocol=Model.build_schema_digest(message),
+            schema_digest=Model.build_schema_digest(message),
         )
-        env.encode_payload(message.json())
-        env.sign(self.bob._identity)
+        env.encode_payload(message.model_dump_json())
+        env.sign(self.bob._identity.sign_digest)
 
         mock_send = AsyncMock()
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
-            mock_receive.return_value = env.json().encode()
+            mock_receive.return_value = env.model_dump_json().encode()
             await self.agent._server(
                 scope={
                     "type": "http",
@@ -81,13 +81,13 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             sender=user,
             target=self.agent.address,
             session=session,
-            protocol=Model.build_schema_digest(message),
+            schema_digest=Model.build_schema_digest(message),
         )
-        env.encode_payload(message.json())
+        env.encode_payload(message.model_dump_json())
 
         mock_send = AsyncMock()
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
-            mock_receive.return_value = env.json().encode()
+            mock_receive.return_value = env.model_dump_json().encode()
             await self.agent._server(
                 scope={
                     "type": "http",
@@ -126,12 +126,12 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             sender=user,
             target=self.agent.address,
             session=session,
-            protocol=Model.build_schema_digest(message),
+            schema_digest=Model.build_schema_digest(message),
         )
-        env.encode_payload(message.json())
+        env.encode_payload(message.model_dump_json())
         mock_send = AsyncMock()
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
-            mock_receive.return_value = env.json().encode()
+            mock_receive.return_value = env.model_dump_json().encode()
             await asyncio.gather(
                 asyncio.create_task(
                     self.agent._server(
@@ -150,7 +150,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                 ),
                 asyncio.create_task(self.mock_process_sync_message(user, reply)),
             )
-        response = enclose_response(reply, self.agent.address, session)
+        response = enclose_response(reply, self.agent.address, session, user)
         mock_send.assert_has_calls(
             [
                 call(
@@ -169,7 +169,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             ]
         )
 
-    async def test_message_success_sync_unsigned(self):
+    async def test_message_success_sync_signed(self):
         message = Message(message="hello")
         reply = Message(message="hey")
         session = uuid.uuid4()
@@ -178,13 +178,13 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             sender=self.bob.address,
             target=self.agent.address,
             session=session,
-            protocol=Model.build_schema_digest(message),
+            schema_digest=Model.build_schema_digest(message),
         )
-        env.encode_payload(message.json())
-        env.sign(self.bob._identity)
+        env.encode_payload(message.model_dump_json())
+        env.sign(self.bob._identity.sign_digest)
         mock_send = AsyncMock()
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
-            mock_receive.return_value = env.json().encode()
+            mock_receive.return_value = env.model_dump_json().encode()
             await asyncio.gather(
                 asyncio.create_task(
                     self.agent._server(
@@ -205,7 +205,9 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                     self.mock_process_sync_message(self.bob.address, reply)
                 ),
             )
-        response = enclose_response(reply, self.agent.address, session)
+        response = enclose_response(
+            reply, self.agent.address, session, self.bob.address
+        )
         mock_send.assert_has_calls(
             [
                 call(
@@ -231,14 +233,14 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             sender=self.bob.address,
             target=self.agent.address,
             session=uuid.uuid4(),
-            protocol=Model.build_schema_digest(message),
+            schema_digest=Model.build_schema_digest(message),
         )
-        env.encode_payload(message.json())
-        env.sign(self.bob._identity)
+        env.encode_payload(message.model_dump_json())
+        env.sign(self.bob._identity.sign_digest)
 
         mock_send = AsyncMock()
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
-            mock_receive.return_value = env.json().encode()
+            mock_receive.return_value = env.model_dump_json().encode()
             await self.agent._server(
                 scope={
                     "type": "http",
@@ -274,14 +276,14 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             sender=self.bob.address,
             target=self.agent.address,
             session=uuid.uuid4(),
-            protocol=Model.build_schema_digest(message),
+            schema_digest=Model.build_schema_digest(message),
         )
-        env.encode_payload(message.json())
-        env.sign(self.bob._identity)
+        env.encode_payload(message.model_dump_json())
+        env.sign(self.bob._identity.sign_digest)
 
         mock_send = AsyncMock()
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
-            mock_receive.return_value = env.json().encode()
+            mock_receive.return_value = env.model_dump_json().encode()
             await self.agent._server(
                 scope={
                     "type": "http",
@@ -314,7 +316,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         message = Message(message="hello")
         mock_send = AsyncMock()
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
-            mock_receive.return_value = message.json().encode()
+            mock_receive.return_value = message.model_dump_json().encode()
             await self.agent._server(
                 scope={
                     "type": "http",
@@ -350,13 +352,13 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             sender=self.bob.address,
             target=self.agent.address,
             session=uuid.uuid4(),
-            protocol=Model.build_schema_digest(message),
+            schema_digest=Model.build_schema_digest(message),
         )
-        env.encode_payload(message.json())
+        env.encode_payload(message.model_dump_json())
 
         mock_send = AsyncMock()
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
-            mock_receive.return_value = env.json().encode()
+            mock_receive.return_value = env.model_dump_json().encode()
             await self.agent._server(
                 scope={
                     "type": "http",
@@ -392,14 +394,14 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             sender=self.bob.address,
             target=self.agent.address,
             session=uuid.uuid4(),
-            protocol=Model.build_schema_digest(message),
+            schema_digest=Model.build_schema_digest(message),
         )
-        env.encode_payload(message.json())
-        env.sign(self.agent._identity)
+        env.encode_payload(message.model_dump_json())
+        env.sign(self.agent._identity.sign_digest)
 
         mock_send = AsyncMock()
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
-            mock_receive.return_value = env.json().encode()
+            mock_receive.return_value = env.model_dump_json().encode()
             await self.agent._server(
                 scope={
                     "type": "http",
@@ -435,14 +437,14 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             sender=self.bob.address,
             target=generate_user_address(),
             session=uuid.uuid4(),
-            protocol=Model.build_schema_digest(message),
+            schema_digest=Model.build_schema_digest(message),
         )
-        env.encode_payload(message.json())
-        env.sign(self.bob._identity)
+        env.encode_payload(message.model_dump_json())
+        env.sign(self.bob._identity.sign_digest)
 
         mock_send = AsyncMock()
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
-            mock_receive.return_value = env.json().encode()
+            mock_receive.return_value = env.model_dump_json().encode()
             await self.agent._server(
                 scope={
                     "type": "http",

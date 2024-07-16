@@ -1,0 +1,13 @@
+[tool.poetry]
+name = "GitHub PR Review AI Assistant 🤖"
+version = "0.1.0"
+description = "The GitHub PR Review AI Assistant is a AI agent designed to streamline the process of reviewing pull requests on GitHub."
+authors = ["cmaliwal <chiragmaliwal1995@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.11"
+codedog = "^0.8.2"
+uagents = "^0.11.0"
+black = "^24.2.0"
+isort = "^5.13.2"
+uagents-ai-engine = "^0.1.2"

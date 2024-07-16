@@ -1,4 +1,5 @@
 # uAgents: AI Agent Framework
+
 [![Official Website](https://img.shields.io/badge/Official%20Website-fetch.ai-blue?style=flat&logo=world&logoColor=white)](https://fetch.ai) [![Unit Tests](https://img.shields.io/github/actions/workflow/status/Fetchai/uAgents/ci-tests.yml?label=unit%20tests)](https://github.com/Fetchai/uAgents/actions/workflows/ci-tests.yml) [![GitHub Repo stars](https://img.shields.io/github/stars/Fetchai/uAgents?style=social)](https://github.com/Fetchai/uAgents/stargazers) [![Twitter Follow](https://img.shields.io/twitter/follow/fetch_ai?style=social)](https://twitter.com/fetch_ai)
 
 uAgents is a library developed by Fetch.ai that allows for creating autonomous AI agents in Python. With simple and expressive decorators, you can have an agent that performs various tasks on a schedule or takes action on various events.
@@ -12,47 +13,59 @@ uAgents is a library developed by Fetch.ai that allows for creating autonomous A
 ## ⚡ Quickstart
 
 ### Installation
-Get started with uAgents by installing it for Python 3.8 to 3.12:
+
+Get started with uAgents by installing it for Python 3.9 to 3.12:
 
     pip install uagents
 
 ### Running a Demo
 
 #### Creating an Agent
+
 Build your first uAgent using the following script:
 
-    from uagents import Agent, Context
-    alice = Agent(name="alice", seed="alice recovery phrase")
+```python3
+from uagents import Agent, Context
+alice = Agent(name="alice", seed="alice recovery phrase")
+```
 
-Include a seed parameter when creating an agent to set fixed addresses, or leave it out to generate random addresses each time.
+Include a seed parameter when creating an agent to set fixed addresses, or leave it out to generate a new random address each time.
 
 #### Giving it a task
-Give it a simple task, such as greeting:
 
-    @alice.on_interval(period=2.0)
-    async def say_hello(ctx: Context):
-        ctx.logger.info(f'hello, my name is {ctx.name}')
+Give it a simple task, such as a greeting:
 
-    if __name__ == "__main__":
-        alice.run()
+```python3
+@alice.on_interval(period=2.0)
+async def say_hello(ctx: Context):
+    ctx.logger.info(f'hello, my name is {ctx.agent.name}')
+
+if __name__ == "__main__":
+    alice.run()
+```
 
 #### Running the Agent
+
 So far, your code should look like this:
 
-    from uagents import Agent, Context
+```python3
+from uagents import Agent, Context
 
-    alice = Agent(name="alice", seed="alice recovery phrase")
+alice = Agent(name="alice", seed="alice recovery phrase")
 
-    @alice.on_interval(period=2.0)
-    async def say_hello(ctx: Context):
-        ctx.logger.info(f'hello, my name is {ctx.name}')
+@alice.on_interval(period=2.0)
+async def say_hello(ctx: Context):
+    ctx.logger.info(f'hello, my name is {ctx.agent.name}')
 
-    if __name__ == "__main__":
-        alice.run()
+if __name__ == "__main__":
+    alice.run()
+```
 
 Run it using:
 
-    python agent.py
+```bash
+python agent.py
+```
 
 You should see the results in your terminal.
 
@@ -60,18 +73,18 @@ You should see the results in your terminal.
 
 Please see the [official documentation](https://fetch.ai/docs) for full setup instructions and advanced features.
 
-* [👋 Introduction](https://fetch.ai/docs/concepts/agents/agents)
-* [💻 Installation](https://fetch.ai/docs/guides/agents/installing-uagent)
-* Tutorials
-  * [🤖 Create an agent](https://fetch.ai/docs/guides/agents/create-a-uagent)
-  * [🛣️ Agent Communication](https://fetch.ai/docs/guides/agents/communicating-with-other-agents)
-  * [🍽️ Restaurant Booking Demo](https://fetch.ai/docs/guides/agents/booking-demo)
-* Key Concepts:
-  * [📍Addresses](https://fetch.ai/docs/guides/agents/getting-uagent-address)
-  * [💾 Storage](https://fetch.ai/docs/guides/agents/storage-function)
-  * [📝 Interval Tasks](https://fetch.ai/docs/guides/agents/interval-task)
-  * [🌐 Agent Broadcast](https://fetch.ai/docs/guides/agents/broadcast)
-  * [⚙️ Almanac Contracts](https://fetch.ai/docs/guides/agents/register-in-almanac)
+- [👋 Introduction](https://fetch.ai/docs/concepts/agents/agents)
+- [💻 Installation](https://fetch.ai/docs/guides/agents/installing-uagent)
+- Tutorials
+  - [🤖 Create an agent](https://fetch.ai/docs/guides/agents/create-a-uagent)
+  - [🛣️ Agent Communication](https://fetch.ai/docs/guides/agents/communicating-with-other-agents)
+  - [🍽️ Restaurant Booking Demo](https://fetch.ai/docs/guides/agents/booking-demo)
+- Key Concepts:
+  - [📍Addresses](https://fetch.ai/docs/guides/agents/getting-uagent-address)
+  - [💾 Storage](https://fetch.ai/docs/guides/agents/storage-function)
+  - [📝 Interval Tasks](https://fetch.ai/docs/guides/agents/interval-task)
+  - [🌐 Agent Broadcast](https://fetch.ai/docs/guides/agents/broadcast)
+  - [⚙️ Almanac Contracts](https://fetch.ai/docs/guides/agents/register-in-almanac)
 
 ## 🌱 Examples
 

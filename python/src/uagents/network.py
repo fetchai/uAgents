@@ -18,6 +18,7 @@ from cosmpy.aerial.faucet import FaucetApi
 from cosmpy.aerial.tx import Transaction
 from cosmpy.aerial.tx_helpers import TxResponse
 from cosmpy.aerial.wallet import LocalWallet
+from cosmpy.crypto.address import Address
 from uagents.config import (
     AVERAGE_BLOCK_INTERVAL,
     MAINNET_CONTRACT_ALMANAC,
@@ -26,8 +27,8 @@ from uagents.config import (
     REGISTRATION_FEE,
     TESTNET_CONTRACT_ALMANAC,
     TESTNET_CONTRACT_NAME_SERVICE,
-    get_logger,
 )
+from uagents.utils import get_logger
 
 logger = get_logger("network")
 
@@ -80,12 +81,12 @@ def add_testnet_funds(wallet_address: str):
 
 def parse_record_config(
     record: Optional[Union[str, List[str], Dict[str, dict]]],
-) -> List[Dict[str, Any]]:
+) -> Optional[List[Dict[str, Any]]]:
     """
     Parse the user-provided record configuration.
 
     Returns:
-        List[Dict[str, Any]]: The parsed record configuration in correct format.
+        Optional[List[Dict[str, Any]]]: The parsed record configuration in correct format.
     """
     if isinstance(record, dict):
         records = [
@@ -258,6 +259,9 @@ class AlmanacContract(LedgerContract):
             }
         }
 
+        if not self.address:
+            raise ValueError("Contract address not set")
+
         transaction.add_message(
             create_cosmwasm_execute_msg(
                 wallet.address(),
@@ -289,10 +293,10 @@ class AlmanacContract(LedgerContract):
 
 
 _mainnet_almanac_contract = AlmanacContract(
-    None, _mainnet_ledger, MAINNET_CONTRACT_ALMANAC
+    None, _mainnet_ledger, Address(MAINNET_CONTRACT_ALMANAC)
 )
 _testnet_almanac_contract = AlmanacContract(
-    None, _testnet_ledger, TESTNET_CONTRACT_ALMANAC
+    None, _testnet_ledger, Address(TESTNET_CONTRACT_ALMANAC)
 )
 
 
@@ -394,7 +398,7 @@ class NameServiceContract(LedgerContract):
     def get_registration_tx(
         self,
         name: str,
-        wallet_address: str,
+        wallet_address: Address,
         agent_records: List[Dict[str, Any]],
         domain: str,
         test: bool,
@@ -415,7 +419,7 @@ class NameServiceContract(LedgerContract):
         """
         transaction = Transaction()
 
-        contract = (
+        contract = Address(
             TESTNET_CONTRACT_NAME_SERVICE if test else MAINNET_CONTRACT_NAME_SERVICE
         )
 
@@ -431,7 +435,7 @@ class NameServiceContract(LedgerContract):
                     wallet_address, contract, registration_msg, funds=f"{amount}{denom}"
                 )
             )
-        elif not self.is_owner(name, domain, wallet_address):
+        elif not self.is_owner(name, domain, str(wallet_address)):
             return None
 
         record_msg = {
@@ -473,15 +477,17 @@ class NameServiceContract(LedgerContract):
         chain_id = ledger.query_chain_id()
 
         records = parse_record_config(agent_records)
+        if not records:
+            raise ValueError("Invalid record configuration")
         agent_addresses = [val.get("address") for val in records]
 
         for agent_address in agent_addresses:
             if not get_almanac_contract(chain_id == "dorado-1").is_registered(
-                agent_address
+                agent_address  # type: ignore
             ):
                 logger.warning(
                     "Address %s needs to be registered in almanac contract "
-                    "to be registered in a domain",
+                    "to be registered in a domain.",
                     agent_address,
                 )
                 return
@@ -503,7 +509,7 @@ class NameServiceContract(LedgerContract):
 
         transaction = self.get_registration_tx(
             name,
-            str(wallet.address()),
+            wallet.address(),
             records,
             domain,
             chain_id == "dorado-1",
@@ -522,10 +528,10 @@ class NameServiceContract(LedgerContract):
 
 
 _mainnet_name_service_contract = NameServiceContract(
-    None, _mainnet_ledger, MAINNET_CONTRACT_NAME_SERVICE
+    None, _mainnet_ledger, Address(MAINNET_CONTRACT_NAME_SERVICE)
 )
 _testnet_name_service_contract = NameServiceContract(
-    None, _testnet_ledger, TESTNET_CONTRACT_NAME_SERVICE
+    None, _testnet_ledger, Address(TESTNET_CONTRACT_NAME_SERVICE)
 )
 
 
