@@ -2,6 +2,13 @@
 
 Ensuring the accuracy and functionality of your website is crucial for maintaining a professional online presence. Whether you're a business owner, a developer, or a content creator, having a tool that can efficiently validate your website is invaluable. That's why I've harnessed the power of Crew AI agent technology to develop a comprehensive website validation tool.
 
+## Table of Contents
+
+- [Introduction](#introduction)
+- [Features](#features)
+- [How It Works](#how-it-works)
+- [Installation](#installation)
+
 ## Introduction
 
 **Website Validator** is an innovative tool that leverages Crew AI agent technology to ensure your website is error-free and fully functional. This system checks for typos and identifies broken or invalid links, providing a detailed report to help you maintain a high-quality website.
