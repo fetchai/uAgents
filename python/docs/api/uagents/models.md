@@ -2,24 +2,13 @@
 
 # src.uagents.models
 
-<a id="src.uagents.models.Model"></a>
+<a id="src.uagents.models.ErrorMessage"></a>
 
-## Model Objects
-
-```python
-class Model(BaseModel)
-```
-
-Base class for all message models.
-
-<a id="src.uagents.models.Model.build_schema_digest"></a>
-
-#### build`_`schema`_`digest
+## ErrorMessage Objects
 
 ```python
-@staticmethod
-def build_schema_digest(model: Union["Model", Type["Model"]]) -> str
+class ErrorMessage(Model)
 ```
 
-Builds the schema digest for a given model.
+Error message model
 

@@ -48,28 +48,28 @@ Encode the payload value and store it in the envelope.
 #### decode`_`payload
 
 ```python
-def decode_payload() -> Optional[Any]
+def decode_payload() -> str
 ```
 
 Decode and retrieve the payload value from the envelope.
 
 **Returns**:
 
-- `Optional[Any]` - The decoded payload value, or None if payload is not present.
+- `str` - The decoded payload value, or '' if payload is not present.
 
 <a id="src.uagents.envelope.Envelope.sign"></a>
 
 #### sign
 
 ```python
-def sign(identity: Identity)
+def sign(signing_fn: Callable)
 ```
 
-Sign the envelope using the provided identity.
+Sign the envelope using the provided signing function.
 
 **Arguments**:
 
-- `identity` _Identity_ - The identity used for signing.
+- `signing_fn` _callback_ - The callback used for signing.
 
 <a id="src.uagents.envelope.Envelope.verify"></a>
 

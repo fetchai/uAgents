@@ -28,7 +28,7 @@ faucet.get_wealth(my_wallet.address())
 @bob.on_event("startup")
 async def register_agent_name(ctx: Context):
     await name_service_contract.register(
-        bob.ledger, my_wallet, ctx.address, ctx.name, DOMAIN
+        bob.ledger, my_wallet, bob.address, bob.name, DOMAIN
     )
 
 

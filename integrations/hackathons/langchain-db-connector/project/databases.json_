@@ -1,0 +1,12 @@
+[
+    {
+        "host": "postgresql://postgres:myverystrongpasswordnoonecanguess@localhost:5499/postgres",
+        "name": "agentverse",
+        "description": "agentverse is the default database whenever you are unsure return this database name. This database contains information about agents. Agents are the universal element of agentverse and used to communicate decentralized. Agents have a name, readme or description, protocols, running state, creation timestamp. Important: Don't use this if someone is looking for mailboxes or users! Important: If you don't know what to do, return this database name."
+    },
+    {
+        "host": "postgresql://postgres:myverystrongpasswordnoonecanguess@localhost:5498/postgres",
+        "name": "mailbox",
+        "description": "mailbox is the the database you return whenever someone is looking for access to local agents called mailboxes. Important: Don't use this if someone is looking for agents or you are unsure."
+    }
+]

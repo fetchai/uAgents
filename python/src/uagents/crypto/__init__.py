@@ -113,6 +113,7 @@ class Identity:
 
         return Identity(signing_key)
 
+    # this is not the real private key but a signing key derived from the private key
     @property
     def private_key(self) -> str:
         """Property to access the private key of the identity."""
