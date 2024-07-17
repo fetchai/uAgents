@@ -1,6 +1,6 @@
 # Website Validation
 
-Ensuring the accuracy and functionality of your website is crucial for maintaining a professional online presence. Whether you're a business owner, a developer, or a content creator, having a tool that can efficiently validate your website is invaluable. That's why I've harnessed the power of Fetch AI agent technology to develop a comprehensive website validation integration.
+Ensuring the accuracy and functionality of your website is crucial for maintaining a professional online presence. Whether you're a business owner, a developer, or a content creator, having a tool that can efficiently validate your website is invaluable. That's why I've harnessed the power of fetch.ai agent technology to develop a comprehensive website validation integration.
 
 ## Table of Contents
 
@@ -11,7 +11,7 @@ Ensuring the accuracy and functionality of your website is crucial for maintaini
 
 ## Introduction
 
-**Website Validator** is an innovative integration that leverages Fetch AI agent technology to ensure your website is error-free and fully functional. This system checks for typos and identifies broken or invalid links, providing a detailed report to help you maintain a high-quality website.
+**Website Validator** is an integration that leverages fetch.ai agent technology to ensure your website is error-free and fully functional. This system checks for typos and identifies broken or invalid links, providing a detailed report to help you maintain a high-quality website.
 
 ## Features
 
