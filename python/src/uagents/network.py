@@ -27,6 +27,7 @@ from uagents.config import (
     REGISTRATION_FEE,
     TESTNET_CONTRACT_ALMANAC,
     TESTNET_CONTRACT_NAME_SERVICE,
+    AgentEndpoint,
 )
 from uagents.utils import get_logger
 
@@ -189,7 +190,7 @@ class AlmanacContract(LedgerContract):
 
         return (expiry - height) * AVERAGE_BLOCK_INTERVAL
 
-    def get_endpoints(self, address: str):
+    def get_endpoints(self, address: str) -> Optional[List[AgentEndpoint]]:
         """
         Get the endpoints associated with an agent's registration.
 
@@ -204,7 +205,12 @@ class AlmanacContract(LedgerContract):
 
         if not response["record"]:
             return None
-        return response.get("record")[0]["record"]["service"]["endpoints"]
+
+        endpoints = []
+        for endpoint in response.get("record")[0]["record"]["service"]["endpoints"]:
+            endpoints.append(AgentEndpoint.model_validate(endpoint))
+
+        return endpoints
 
     def get_protocols(self, address: str):
         """
@@ -229,7 +235,7 @@ class AlmanacContract(LedgerContract):
         wallet: LocalWallet,
         agent_address: str,
         protocols: List[str],
-        endpoints: List[Dict[str, Any]],
+        endpoints: List[AgentEndpoint],
         signature: str,
     ):
         """
@@ -250,7 +256,7 @@ class AlmanacContract(LedgerContract):
                 "record": {
                     "service": {
                         "protocols": protocols,
-                        "endpoints": endpoints,
+                        "endpoints": [e.model_dump() for e in endpoints],
                     }
                 },
                 "signature": signature,
