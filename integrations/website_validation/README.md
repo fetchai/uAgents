@@ -1,6 +1,6 @@
 # Website Validation
 
-Ensuring the accuracy and functionality of your website is crucial for maintaining a professional online presence. Whether you're a business owner, a developer, or a content creator, having a tool that can efficiently validate your website is invaluable. That's why I've harnessed the power of Crew AI agent technology to develop a comprehensive website validation tool.
+Ensuring the accuracy and functionality of your website is crucial for maintaining a professional online presence. Whether you're a business owner, a developer, or a content creator, having a tool that can efficiently validate your website is invaluable. That's why I've harnessed the power of Fetch AI agent technology to develop a comprehensive website validation integration.
 
 ## Table of Contents
 
@@ -11,12 +11,12 @@ Ensuring the accuracy and functionality of your website is crucial for maintaini
 
 ## Introduction
 
-**Website Validator** is an innovative tool that leverages Crew AI agent technology to ensure your website is error-free and fully functional. This system checks for typos and identifies broken or invalid links, providing a detailed report to help you maintain a high-quality website.
+**Website Validator** is an innovative integration that leverages Fetch AI agent technology to ensure your website is error-free and fully functional. This system checks for typos and identifies broken or invalid links, providing a detailed report to help you maintain a high-quality website.
 
 ## Features
 
-- **Typo Detection**: The CrewAI agent scans your website content to identify and suggest corrections for any typos.
-- **Broken Link Detection**: The tool checks for broken or invalid links throughout your website, ensuring all links are functional.
+- **Typo Detection**: The agent scans your website content to identify and suggest corrections for any typos.
+- **Broken Link Detection**: The agent checks for broken or invalid links throughout your website, ensuring all links are functional.
 - **Comprehensive Reporting**: Receive detailed reports highlighting typos and broken links, allowing you to address issues promptly.
 
 ## How It Works
@@ -24,13 +24,13 @@ Ensuring the accuracy and functionality of your website is crucial for maintaini
 The Website Validator works through a seamless process to ensure your website is in top condition:
 
 1. **Input Website URL**: Enter the URL of the website you want to validate.
-2. **Check for Broken Links**: The tool first scans the website for any broken or invalid links, ensuring all hyperlinks are functional.
-3. **Scrape Website Data**: The tool scrapes the website content to prepare it for typo detection.
-4. **Typo Detection**: The CrewAI agent analyzes the scraped data to identify and suggest corrections for any typos.
+2. **Check for Broken Links**: The agent first scans the website for any broken or invalid links, ensuring all hyperlinks are functional.
+3. **Scrape Website Data**: The agent scrapes the website content to prepare it for typo detection.
+4. **Typo Detection**: The agent analyzes the scraped data to identify and suggest corrections for any typos.
 
 ## Installation
 
-To get started with **Startup Idea Analyser**, follow these steps:
+To get started with **Website Validation**, follow these steps:
 
 1. **Clone the repository**:
    ```bash

@@ -5,7 +5,8 @@ from dotenv import load_dotenv
 from uagents import Agent, Context, Field, Model, Protocol
 from uagents.setup import fund_agent_if_low
 
-from crewai_grammer_check import find_content_grammar_mistakes, scrape_website
+from grammer_check_agent_helper import (find_content_grammar_mistakes,
+                                        scrape_website)
 from utils import find_broken_links, format_errors
 
 load_dotenv()
