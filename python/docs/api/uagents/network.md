@@ -161,7 +161,7 @@ Get the expiry height of an agent's registration.
 #### get`_`endpoints
 
 ```python
-def get_endpoints(address: str)
+def get_endpoints(address: str) -> Optional[List[AgentEndpoint]]
 ```
 
 Get the endpoints associated with an agent's registration.
@@ -201,7 +201,7 @@ Get the protocols associated with an agent's registration.
 ```python
 async def register(ledger: LedgerClient, wallet: LocalWallet,
                    agent_address: str, protocols: List[str],
-                   endpoints: List[Dict[str, Any]], signature: str)
+                   endpoints: List[AgentEndpoint], signature: str)
 ```
 
 Register an agent with the Almanac contract.
