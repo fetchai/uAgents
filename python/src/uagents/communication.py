@@ -69,7 +69,9 @@ class Dispenser:
     """
 
     def __init__(self):
-        self._envelopes: List[Tuple[Envelope, List[str], asyncio.Future, bool]] = []
+        self._envelopes: asyncio.Queue[
+            Tuple[Envelope, List[str], asyncio.Future, bool]
+        ] = asyncio.Queue()
 
     def add_envelope(
         self,
@@ -87,24 +89,23 @@ class Dispenser:
             response_future (asyncio.Future): The future to set the response on.
             sync (bool, optional): True if the message is synchronous. Defaults to False.
         """
-        self._envelopes.append((envelope, endpoints, response_future, sync))
+        self._envelopes.put_nowait((envelope, endpoints, response_future, sync))
 
     async def run(self):
         """Run the dispenser routine."""
         while True:
-            for env, endpoints, response_future, sync in self._envelopes:
-                try:
-                    result = await send_exchange_envelope(
-                        envelope=env,
-                        endpoints=endpoints,
-                        sync=sync,
-                    )
-                    response_future.set_result(result)
-                except Exception as err:
-                    LOGGER.error(f"Failed to send envelope: {err}")
-                finally:  # sending an envelope is only tried once
-                    self._envelopes.remove((env, endpoints, response_future, sync))
-            await asyncio.sleep(0)
+            # get the message from the queue
+            env, endpoints, response_future, sync = await self._envelopes.get()
+
+            try:
+                result = await send_exchange_envelope(
+                    envelope=env,
+                    endpoints=endpoints,
+                    sync=sync,
+                )
+                response_future.set_result(result)
+            except Exception as err:
+                LOGGER.error(f"Failed to send envelope: {err}")
 
 
 async def dispatch_local_message(
@@ -157,7 +158,7 @@ async def send_exchange_envelope(
                 async with session.post(
                     endpoint,
                     headers=headers,
-                    data=envelope.json(),
+                    data=envelope.model_dump_json(),
                 ) as resp:
                     success = resp.status == 200
                     if success:
@@ -166,7 +167,7 @@ async def send_exchange_envelope(
                             if not envelope.verify():
                                 return Envelope.parse_obj(await resp.json())
                             return await dispatch_sync_response_envelope(
-                                Envelope.parse_obj(await resp.json())
+                                Envelope.model_validate(await resp.json())
                             )
                         return MsgStatus(
                             status=DeliveryStatus.DELIVERED,
@@ -194,8 +195,11 @@ async def send_exchange_envelope(
     )
 
 
-async def dispatch_sync_response_envelope(env: Envelope) -> MsgStatus:
+async def dispatch_sync_response_envelope(env: Envelope) -> Union[MsgStatus, Envelope]:
     """Dispatch a synchronous response envelope locally."""
+    # If there are no sinks registered, return the envelope back to the caller
+    if len(dispatcher.sinks) == 0:
+        return env
     await dispatcher.dispatch(
         env.sender,
         env.target,
@@ -284,7 +288,7 @@ async def send_message_raw(
             return response
         json_message = response.decode_payload()
         if response_type:
-            return response_type.parse_raw(json_message)
+            return response_type.model_validate(json_message)
         return json_message
     return response
 

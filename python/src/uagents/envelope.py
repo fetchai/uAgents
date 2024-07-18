@@ -5,7 +5,7 @@ import hashlib
 import struct
 from typing import Callable, Optional
 
-from pydantic import UUID4, BaseModel
+from pydantic import UUID4, BaseModel, ConfigDict
 from uagents.crypto import Identity
 from uagents.dispatch import JsonStr
 
@@ -20,7 +20,7 @@ class Envelope(BaseModel):
         target (str): The target's address.
         session (UUID4): The session UUID that persists for back-and-forth
         dialogues between agents.
-        schema_digest (str): The schema digest for the enclosed message (alias for protocol).
+        schema_digest (str): The schema digest for the enclosed message.
         protocol_digest (Optional[str]): The digest of the protocol associated with the message
         (optional).
         payload (Optional[str]): The encoded message payload of the envelope (optional).
@@ -40,8 +40,7 @@ class Envelope(BaseModel):
     nonce: Optional[int] = None
     signature: Optional[str] = None
 
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     def encode_payload(self, value: JsonStr):
         """

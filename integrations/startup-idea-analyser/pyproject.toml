@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "startup-idea-analyser-uagent-integration"
+version = "0.0.1"
+description = "Startup Idea Analyser with Crew AI agents and fetch.ai agents"
+authors = ["Pradhumn"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+uagents = "0.14.0"
+requests = "^2.31.0"
+uagents-ai-engine = "0.4.0"
+crewai = "0.36.0"
+python-dotenv = "1.0.1"
+langchain-google-genai = "1.0.7"

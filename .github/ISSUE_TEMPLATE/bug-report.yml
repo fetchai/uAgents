@@ -3,6 +3,7 @@ description: Report a bug.
 labels: ["bug", "unconfirmed"]
 assignees:
   - jrriehl
+  - lrahmani
 body:
   - type: markdown
     attributes:
@@ -25,7 +26,6 @@ body:
       description: Select the category that best describes the bug.
       options:
         - Bug (unexpected behavior)
-        - Documentation Issue (error or unclear information in docs)
         - Other
     validations:
       required: true

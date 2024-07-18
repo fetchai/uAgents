@@ -26,7 +26,7 @@ async def query(
         timeout (int): The timeout for the query in seconds. Defaults to 30.
 
     Returns:
-        Optional[Envelope]: The response envelope if successful, otherwise None.
+        Union[MsgStatus, Envelope]: The response envelope if successful, otherwise MsgStatus.
     """
     return await send_sync_message(
         destination=destination,

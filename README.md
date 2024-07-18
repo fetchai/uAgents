@@ -24,40 +24,48 @@ Get started with uAgents by installing it for Python 3.9 to 3.12:
 
 Build your first uAgent using the following script:
 
-    from uagents import Agent, Context
-    alice = Agent(name="alice", seed="alice recovery phrase")
+```python3
+from uagents import Agent, Context
+alice = Agent(name="alice", seed="alice recovery phrase")
+```
 
 Include a seed parameter when creating an agent to set fixed addresses, or leave it out to generate a new random address each time.
 
 #### Giving it a task
 
-Give it a simple task, such as greeting:
+Give it a simple task, such as a greeting:
 
-    @alice.on_interval(period=2.0)
-    async def say_hello(ctx: Context):
-        ctx.logger.info(f'hello, my name is {ctx.agent.name}')
+```python3
+@alice.on_interval(period=2.0)
+async def say_hello(ctx: Context):
+    ctx.logger.info(f'hello, my name is {ctx.agent.name}')
 
-    if __name__ == "__main__":
-        alice.run()
+if __name__ == "__main__":
+    alice.run()
+```
 
 #### Running the Agent
 
 So far, your code should look like this:
 
-    from uagents import Agent, Context
+```python3
+from uagents import Agent, Context
 
-    alice = Agent(name="alice", seed="alice recovery phrase")
+alice = Agent(name="alice", seed="alice recovery phrase")
 
-    @alice.on_interval(period=2.0)
-    async def say_hello(ctx: Context):
-        ctx.logger.info(f'hello, my name is {ctx.agent.name}')
+@alice.on_interval(period=2.0)
+async def say_hello(ctx: Context):
+    ctx.logger.info(f'hello, my name is {ctx.agent.name}')
 
-    if __name__ == "__main__":
-        alice.run()
+if __name__ == "__main__":
+    alice.run()
+```
 
 Run it using:
 
-    python agent.py
+```bash
+python agent.py
+```
 
 You should see the results in your terminal.
 

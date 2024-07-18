@@ -238,7 +238,7 @@ class ASGIServer:
             return
 
         try:
-            env: Envelope = Envelope.parse_obj(contents)
+            env = Envelope.model_validate(contents)
         except pydantic.ValidationError:
             await send(
                 {
@@ -310,7 +310,9 @@ class ASGIServer:
             if (env.expires is not None) and (
                 datetime.now() > datetime.fromtimestamp(env.expires)
             ):
-                response_msg = ErrorMessage(error="Query envelope expired").json()
+                response_msg = ErrorMessage(
+                    error="Query envelope expired"
+                ).model_dump_json()
                 schema_digest = ERROR_MESSAGE_DIGEST
             sender = env.target
             target = env.sender

@@ -350,7 +350,7 @@ class Dialogue(Protocol):
                 schema_digest=schema_digest,
                 sender=ctx.agent.address,
                 receiver=sender,
-                content=message.json(),  # type: ignore
+                content=message.model_dump_json(),  # type: ignore
             )
         return is_valid
 
@@ -474,13 +474,32 @@ class Dialogue(Protocol):
         )
         self._update_session_in_storage(session_id)
 
-    def get_conversation(self, session_id) -> Optional[List[Any]]:
+    def get_conversation(
+        self, session_id: UUID, message_filter: Optional[str] = None
+    ) -> List[Any]:
         """
-        Return the conversation of the given session from the dialogue instance.
+        Return the message history of the given session from the dialogue instance as
+        list of DialogueMessage.
+        This includes both sent and received messages.
 
-        This includes all messages that were sent and received for the session.
+        Args:
+            session_id (UUID): The ID of the session to get the conversation for.
+            message_filter (str): The name of the message type to filter for
+
+        Returns:
+            list(DialogueMessage): A list of all messages exchanged during the given session
+            list(DialogueMessage): Only messages of type 'message_filter' (Model.__name__)
+            from the given session
         """
-        return self._sessions.get(session_id)
+        conversation = self._sessions.get(session_id)
+        if message_filter is None:
+            return conversation
+
+        return [
+            message
+            for message in conversation
+            if message["message_type"] == message_filter
+        ]
 
     def get_edge(self, edge_name: str) -> Edge:
         """Return an edge from the dialogue instance."""
@@ -658,7 +677,7 @@ class Dialogue(Protocol):
                 schema_digest=message_schema_digest,
                 sender=ctx.agent.address,
                 receiver=status.destination,
-                content=message.json(),
+                content=message.model_dump_json(),
             )
             self.update_state(message_schema_digest, status.session)
 

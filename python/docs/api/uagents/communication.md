@@ -130,7 +130,8 @@ Method to send an exchange envelope.
 #### dispatch`_`sync`_`response`_`envelope
 
 ```python
-async def dispatch_sync_response_envelope(env: Envelope) -> MsgStatus
+async def dispatch_sync_response_envelope(
+        env: Envelope) -> Union[MsgStatus, Envelope]
 ```
 
 Dispatch a synchronous response envelope locally.
