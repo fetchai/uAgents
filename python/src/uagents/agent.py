@@ -660,8 +660,10 @@ class Agent(Sink):
         deployed_version = self._almanac_contract.get_contract_version()
         if deployed_version != ALMANAC_CONTRACT_VERSION:
             self._logger.warning(
-                f"Mismatch in almanac contract versions: supported ({ALMANAC_CONTRACT_VERSION}), deployed ({deployed_version}). "
-                "Update uAgents to the latest version for compatibility."
+                "Mismatch in almanac contract versions: supported (%s), deployed (%s). "
+                "Update uAgents to the latest version for compatibility.",
+                ALMANAC_CONTRACT_VERSION,
+                deployed_version
             )
 
         # register if not yet registered or registration is about to expire
