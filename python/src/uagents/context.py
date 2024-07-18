@@ -478,10 +478,8 @@ class InternalContext(Context):
                 message_schema_digest,
             )
 
-        # Resolve destination address or name using the resolver
-        destination_address, endpoints = await self._resolver.resolve(
-            parsed_address or parsed_name
-        )
+        # Resolve destination using the resolver
+        destination_address, endpoints = await self._resolver.resolve(destination)
 
         if not endpoints or not destination_address:
             log(self.logger, logging.ERROR, "Unable to resolve destination endpoint")
