@@ -150,6 +150,17 @@ class AlmanacContract(LedgerContract):
 
     """
 
+    def get_contract_version(self) -> str:
+        """
+        Get the version of the contract.
+
+        Returns:
+            str: The version of the contract.
+        """
+        query_msg = {"query_contract_state": {}}
+        response = self.query(query_msg)
+        return response["contract_version"]
+
     def is_registered(self, address: str) -> bool:
         """
         Check if an agent is registered in the Almanac contract.
