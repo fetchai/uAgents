@@ -663,7 +663,7 @@ class Agent(Sink):
                 "Mismatch in almanac contract versions: supported (%s), deployed (%s). "
                 "Update uAgents to the latest version for compatibility.",
                 ALMANAC_CONTRACT_VERSION,
-                deployed_version
+                deployed_version,
             )
 
         # register if not yet registered or registration is about to expire
