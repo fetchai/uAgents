@@ -85,7 +85,7 @@ class MailboxClient:
         Dispatches the incoming messages and adds the envelope to the deletion queue.
         """
         try:
-            env = Envelope.parse_obj(payload["envelope"])
+            env = Envelope.model_validate(payload["envelope"])
         except pydantic.ValidationError:
             self._logger.warning("Received invalid envelope")
             return
