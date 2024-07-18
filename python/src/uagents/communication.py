@@ -288,7 +288,7 @@ async def send_message_raw(
             return response
         json_message = response.decode_payload()
         if response_type:
-            return response_type.model_validate(json_message)
+            return response_type.model_validate_json(json_message)
         return json_message
     return response
 
