@@ -15,7 +15,7 @@ from uagents.crypto import Identity, is_user_address
 from uagents.dispatch import JsonStr, dispatcher
 from uagents.envelope import Envelope
 from uagents.models import Model
-from uagents.resolver import GlobalResolver, Resolver, parse_identifier
+from uagents.resolver import GlobalResolver, Resolver
 from uagents.utils import get_logger
 
 LOGGER = get_logger("dispenser", logging.DEBUG)
@@ -164,11 +164,10 @@ async def send_exchange_envelope(
                     if success:
                         if sync:
                             # If the message is synchronous but not verified, return the envelope
+                            env = Envelope.model_validate(await resp.json())
                             if not envelope.verify():
-                                return Envelope.parse_obj(await resp.json())
-                            return await dispatch_sync_response_envelope(
-                                Envelope.model_validate(await resp.json())
-                            )
+                                return env
+                            return await dispatch_sync_response_envelope(env)
                         return MsgStatus(
                             status=DeliveryStatus.DELIVERED,
                             detail="Message successfully delivered via HTTP",
@@ -245,18 +244,19 @@ async def send_message_raw(
         If the sender is a user address, the response envelope is returned.
         On failure, a message status is returned.
     """
-    sender_address = sender
+    if isinstance(sender, str) and is_user_address(sender):
+        sender_address = sender
     if sender is None:
         sender = Identity.generate()
     if isinstance(sender, Identity):
         sender_address = sender.address
+    if not sender_address:
+        raise ValueError("Invalid sender address")
 
     if resolver is None:
         resolver = GlobalResolver()
 
-    _, _, parsed_address = parse_identifier(destination)
-
-    destination_address, endpoints = await resolver.resolve(parsed_address)
+    destination_address, endpoints = await resolver.resolve(destination)
     if not endpoints or not destination_address:
         return MsgStatus(
             status=DeliveryStatus.FAILED,
@@ -323,7 +323,7 @@ async def send_message(
     return await send_message_raw(
         destination,
         Model.build_schema_digest(message),
-        message.json(),
+        message.model_dump_json(),
         response_type,
         sender,
         resolver,
@@ -379,7 +379,9 @@ def enclose_response(
         str: The JSON representation of the response envelope.
     """
     schema_digest = Model.build_schema_digest(message)
-    return enclose_response_raw(message.json(), schema_digest, sender, session, target)
+    return enclose_response_raw(
+        message.model_dump_json(), schema_digest, sender, session, target
+    )
 
 
 def enclose_response_raw(
@@ -410,4 +412,4 @@ def enclose_response_raw(
         schema_digest=schema_digest,
     )
     response_env.encode_payload(json_message)
-    return response_env.json()
+    return response_env.model_dump_json()

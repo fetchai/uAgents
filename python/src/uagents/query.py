@@ -28,7 +28,7 @@ async def query(
     Returns:
         Union[MsgStatus, Envelope]: The response envelope if successful, otherwise MsgStatus.
     """
-    return await send_sync_message(
+    response = await send_sync_message(
         destination=destination,
         message=message,
         response_type=None,
@@ -36,3 +36,6 @@ async def query(
         resolver=resolver,
         timeout=timeout,
     )
+    if isinstance(response, (MsgStatus, Envelope)):
+        return response
+    raise ValueError("Invalid response received.")
