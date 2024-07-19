@@ -158,7 +158,10 @@ class ASGIServer:
         self._logger.info(
             f"Starting server on http://{HOST}:{self._port} (Press CTRL+C to quit)"
         )
-        await self._server.serve()
+        try:
+            await self._server.serve()
+        except KeyboardInterrupt:
+            self._logger.info("Shutting down server")
 
     async def __call__(self, scope, receive, send):  #  pylint: disable=too-many-branches
         """

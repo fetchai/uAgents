@@ -161,7 +161,7 @@ Get the expiry height of an agent's registration.
 #### get`_`endpoints
 
 ```python
-def get_endpoints(address: str) -> Optional[List[AgentEndpoint]]
+def get_endpoints(address: str) -> List[AgentEndpoint]
 ```
 
 Get the endpoints associated with an agent's registration.
