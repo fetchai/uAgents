@@ -201,7 +201,7 @@ class AlmanacContract(LedgerContract):
 
         return (expiry - height) * AVERAGE_BLOCK_INTERVAL
 
-    def get_endpoints(self, address: str) -> Optional[List[AgentEndpoint]]:
+    def get_endpoints(self, address: str) -> List[AgentEndpoint]:
         """
         Get the endpoints associated with an agent's registration.
 
@@ -215,7 +215,7 @@ class AlmanacContract(LedgerContract):
         response = self.query(query_msg)
 
         if not response["record"]:
-            return None
+            return []
 
         endpoints = []
         for endpoint in response.get("record")[0]["record"]["service"]["endpoints"]:

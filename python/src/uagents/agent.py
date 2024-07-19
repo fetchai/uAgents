@@ -33,6 +33,7 @@ from uagents.config import (
     REGISTRATION_RETRY_INTERVAL_SECONDS,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     TESTNET_PREFIX,
+    AgentEndpoint,
     parse_agentverse_config,
     parse_endpoint_config,
 )
@@ -198,7 +199,7 @@ class Agent(Sink):
         _resolver (Resolver): The resolver for agent communication.
         _loop (asyncio.AbstractEventLoop): The asyncio event loop used by the agent.
         _logger: The logger instance for logging agent activities.
-        _endpoints (List[dict]): List of endpoints at which the agent is reachable.
+        _endpoints (List[AgentEndpoint]): List of endpoints at which the agent is reachable.
         _use_mailbox (bool): Indicates if the agent uses a mailbox for communication.
         _agentverse (dict): Agentverse configuration settings.
         _mailbox_client (MailboxClient): The client for interacting with the agentverse mailbox.
@@ -317,10 +318,10 @@ class Agent(Sink):
             self._mailbox_client = MailboxClient(self, self._logger)
             # if mailbox is provided, override endpoints with mailbox endpoint
             self._endpoints = [
-                {
-                    "url": f"{self.mailbox['http_prefix']}://{self.mailbox['base_url']}/v1/submit",
-                    "weight": 1,
-                }
+                AgentEndpoint(
+                    url=f"{self.mailbox['http_prefix']}://{self.mailbox['base_url']}/v1/submit",
+                    weight=1,
+                ),
             ]
         else:
             self._mailbox_client = None
@@ -614,12 +615,12 @@ class Agent(Sink):
             self._almanac_contract.get_sequence(self.address),
         )
 
-    def update_endpoints(self, endpoints: List[Dict[str, Any]]):
+    def update_endpoints(self, endpoints: List[AgentEndpoint]):
         """
         Update the list of endpoints.
 
         Args:
-            endpoints (List[Dict[str, Any]]): List of endpoint dictionaries.
+            endpoints (List[AgentEndpoint]): List of endpoint dictionaries.
 
         """
 
@@ -681,7 +682,7 @@ class Agent(Sink):
                     "I do not have enough funds to register on Almanac contract"
                 )
                 if self._test:
-                    add_testnet_funds(str(self.wallet.address()))
+                    add_testnet_funds(self.wallet.address().data)
                     self._logger.info(
                         f"Adding testnet funds to {self.wallet.address()}"
                     )
