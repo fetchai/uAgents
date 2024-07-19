@@ -9,7 +9,7 @@
 ```python
 def parse_endpoint_config(
     endpoint: Optional[Union[str, List[str], Dict[str, dict]]]
-) -> Optional[List[Dict[str, Any]]]
+) -> List[AgentEndpoint]
 ```
 
 Parse the user-provided endpoint configuration.
