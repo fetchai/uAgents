@@ -429,9 +429,9 @@ class NameServiceContract(LedgerContract):
         Returns:
             bool: True if the domain is public, False otherwise.
         """
-        res = self.query_contract({"query_domain_flags": {"domain": domain.split(".")[-1]}}).get(
-            "domain_flags"
-        )
+        res = self.query_contract(
+            {"query_domain_flags": {"domain": domain.split(".")[-1]}}
+        ).get("domain_flags")
         if res:
             return res["web3_flags"]["is_public"]
         return False
@@ -483,7 +483,9 @@ class NameServiceContract(LedgerContract):
         )
 
         if self.is_name_available(name, domain):
-            price_per_second = self.query_contract({"contract_state": {}})["price_per_second"]
+            price_per_second = self.query_contract({"contract_state": {}})[
+                "price_per_second"
+            ]
             amount = int(price_per_second["amount"]) * 86400
             denom = price_per_second["denom"]
 
