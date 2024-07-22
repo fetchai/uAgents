@@ -261,29 +261,32 @@ class ASGIServer:
             return
 
         expects_response = headers.get(b"x-uagents-connection") == b"sync"
-        do_verify = not is_user_address(env.sender)
 
         if expects_response:
             # Add a future that will be resolved once the query is answered
             self._queries[env.sender] = asyncio.Future()
 
-        if do_verify and env.verify() is False:
-            await send(
-                {
-                    "type": "http.response.start",
-                    "status": 400,
-                    "headers": [
-                        [b"content-type", b"application/json"],
-                    ],
-                }
-            )
-            await send(
-                {
-                    "type": "http.response.body",
-                    "body": b'{"error": "signature verification failed"}',
-                }
-            )
-            return
+        if not is_user_address(env.sender):  # verify signature if sent from agent
+            try:
+                env.verify()
+            except Exception as err:
+                self._logger.warning(f"Failed to verify envelope: {err}")
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 400,
+                        "headers": [
+                            [b"content-type", b"application/json"],
+                        ],
+                    }
+                )
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": b'{"error": "signature verification failed"}',
+                    }
+                )
+                return
 
         if not dispatcher.contains(env.target):
             await send(

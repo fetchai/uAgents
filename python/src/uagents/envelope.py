@@ -83,8 +83,7 @@ class Envelope(BaseModel):
             bool: True if the signature is valid, False otherwise.
         """
         if self.signature is None:
-            return False
-
+            raise ValueError("Envelope signature is missing")
         return Identity.verify_digest(self.sender, self._digest(), self.signature)
 
     def _digest(self) -> bytes:

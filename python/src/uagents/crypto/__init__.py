@@ -195,9 +195,4 @@ class Identity:
         # build the verifying key
         verifying_key = ecdsa.VerifyingKey.from_string(pk_data, curve=ecdsa.SECP256k1)
 
-        try:
-            result = verifying_key.verify_digest(sig_data, digest)
-        except ecdsa.keys.BadSignatureError:
-            return False
-
-        return result
+        return verifying_key.verify_digest(sig_data, digest)
