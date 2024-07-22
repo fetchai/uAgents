@@ -1203,4 +1203,8 @@ class Bureau:
         if not self._use_mailbox:
             tasks.append(self._loop.create_task(self._server.serve()))
 
-        self._loop.run_until_complete(asyncio.gather(*tasks))
+        try:
+            self._loop.run_until_complete(asyncio.gather(*tasks))
+        finally:
+            for agent in self._agents:
+                self._loop.run_until_complete(agent._shutdown())
