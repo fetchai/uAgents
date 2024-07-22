@@ -149,7 +149,7 @@ class AlmanacContract(LedgerContract):
     registration, and getting the endpoints associated with an agent's registration.
     """
 
-    def query_with_checks(self, query_msg: Dict[str, Any]) -> Any:
+    def query_contract(self, query_msg: Dict[str, Any]) -> Any:
         """
         Execute a query with additional checks and error handling.
 
@@ -179,8 +179,8 @@ class AlmanacContract(LedgerContract):
             str: The version of the contract.
         """
         query_msg = {"query_contract_state": {}}
-        response = self.query_with_checks(query_msg)
-        
+        response = self.query_contract(query_msg)
+
         return response["contract_version"]
 
     def is_registered(self, address: str) -> bool:
@@ -194,7 +194,7 @@ class AlmanacContract(LedgerContract):
             bool: True if the agent is registered, False otherwise.
         """
         query_msg = {"query_records": {"agent_address": address}}
-        response = self.query_with_checks(query_msg)
+        response = self.query_contract(query_msg)
 
         return bool(response.get("record"))
 
@@ -209,10 +209,10 @@ class AlmanacContract(LedgerContract):
             int: The expiry height of the agent's registration.
         """
         query_msg = {"query_records": {"agent_address": address}}
-        response = self.query_with_checks(query_msg)
+        response = self.query_contract(query_msg)
 
         if not response.get("record"):
-            contract_state = self.query_with_checks({"query_contract_state": {}})
+            contract_state = self.query_contract({"query_contract_state": {}})
             expiry = contract_state.get("state", {}).get("expiry_height", 0)
             return expiry * AVERAGE_BLOCK_INTERVAL
 
@@ -232,7 +232,7 @@ class AlmanacContract(LedgerContract):
             List[AgentEndpoint]: The endpoints associated with the agent's registration.
         """
         query_msg = {"query_records": {"agent_address": address}}
-        response = self.query_with_checks(query_msg)
+        response = self.query_contract(query_msg)
 
         if not response.get("record"):
             return []
@@ -254,7 +254,7 @@ class AlmanacContract(LedgerContract):
             Any: The protocols associated with the agent's registration.
         """
         query_msg = {"query_records": {"agent_address": address}}
-        response = self.query_with_checks(query_msg)
+        response = self.query_contract(query_msg)
 
         if not response.get("record"):
             return None
@@ -325,7 +325,7 @@ class AlmanacContract(LedgerContract):
             int: The agent's sequence number.
         """
         query_msg = {"query_sequence": {"agent_address": address}}
-        sequence = self.query_with_checks(query_msg)["sequence"]
+        sequence = self.query_contract(query_msg)["sequence"]
 
         return sequence
 
@@ -362,7 +362,7 @@ class NameServiceContract(LedgerContract):
     obtaining registration transaction details, and registering a name within a domain.
     """
 
-    def query_with_checks(self, query_msg: Dict[str, Any]) -> Any:
+    def query_contract(self, query_msg: Dict[str, Any]) -> Any:
         """
         Execute a query with additional checks and error handling.
 
@@ -396,7 +396,7 @@ class NameServiceContract(LedgerContract):
             bool: True if the name is available, False otherwise.
         """
         query_msg = {"domain_record": {"domain": f"{name}.{domain}"}}
-        return self.query_with_checks(query_msg)["is_available"]
+        return self.query_contract(query_msg)["is_available"]
 
     def is_owner(self, name: str, domain: str, wallet_address: str) -> bool:
         """
@@ -416,7 +416,7 @@ class NameServiceContract(LedgerContract):
                 "owner": wallet_address,
             }
         }
-        permission = self.query_with_checks(query_msg)["permissions"]
+        permission = self.query_contract(query_msg)["permissions"]
         return permission == "admin"
 
     def is_domain_public(self, domain: str) -> bool:
@@ -429,7 +429,7 @@ class NameServiceContract(LedgerContract):
         Returns:
             bool: True if the domain is public, False otherwise.
         """
-        res = self.query_with_checks({"query_domain_flags": {"domain": domain.split(".")[-1]}}).get(
+        res = self.query_contract({"query_domain_flags": {"domain": domain.split(".")[-1]}}).get(
             "domain_flags"
         )
         if res:
@@ -449,7 +449,7 @@ class NameServiceContract(LedgerContract):
             details of a record associated with the given name.
         """
         query_msg = {"domain_record": {"domain": f"{name}.{domain}"}}
-        result = self.query_with_checks(query_msg)
+        result = self.query_contract(query_msg)
         if result["record"] is not None:
             return result["record"]["records"][0]["agent_address"]["records"]
         return []
@@ -483,7 +483,7 @@ class NameServiceContract(LedgerContract):
         )
 
         if self.is_name_available(name, domain):
-            price_per_second = self.query_with_checks({"contract_state": {}})["price_per_second"]
+            price_per_second = self.query_contract({"contract_state": {}})["price_per_second"]
             amount = int(price_per_second["amount"]) * 86400
             denom = price_per_second["denom"]
 
