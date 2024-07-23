@@ -232,17 +232,17 @@ class AlmanacContract(LedgerContract):
     def get_registration_msg(
         self,
         protocols: List[str],
-        endpoints: List[Dict[str, Any]],
+        endpoints: List[AgentEndpoint],
         signature: str,
         sequence: int,
         address: str,
-    ):
+    ) -> Dict[str, Any]:
         return {
             "register": {
                 "record": {
                     "service": {
                         "protocols": protocols,
-                        "endpoints": endpoints,
+                        "endpoints": [e.model_dump() for e in endpoints],
                     }
                 },
                 "signature": signature,
@@ -271,24 +271,19 @@ class AlmanacContract(LedgerContract):
             endpoints (List[Dict[str, Any]]): List of endpoint dictionaries.
             signature (str): The agent's signature.
         """
-        transaction = Transaction()
-
-        almanac_msg = {
-            "register": {
-                "record": {
-                    "service": {
-                        "protocols": protocols,
-                        "endpoints": [e.model_dump() for e in endpoints],
-                    }
-                },
-                "signature": signature,
-                "sequence": self.get_sequence(agent_address),
-                "agent_address": agent_address,
-            }
-        }
-
         if not self.address:
             raise ValueError("Contract address not set")
+
+        transaction = Transaction()
+
+        sequence = self.get_sequence(agent_address)
+        almanac_msg = self.get_registration_msg(
+            protocols=protocols,
+            endpoints=endpoints,
+            signature=signature,
+            sequence=sequence,
+            address=agent_address,
+        )
 
         transaction.add_message(
             create_cosmwasm_execute_msg(
@@ -427,7 +422,7 @@ class NameServiceContract(LedgerContract):
         self,
         name: str,
         wallet_address: Address,
-        agent_records: List[Dict[str, Any]],
+        agent_records: List[Dict[str, Any]] | str,
         domain: str,
         test: bool,
     ):

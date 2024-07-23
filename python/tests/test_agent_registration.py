@@ -1,19 +1,18 @@
 # pylint: disable=protected-access
-# ruff: noqa
 import hashlib
 import json
 import unittest
 from typing import Any, Dict, List
 
+from cosmpy.protos.cosmos.base.v1beta1.coin_pb2 import Coin
 from uagents import Agent
 from uagents.crypto import Identity, encode_length_prefixed
 from uagents.network import get_name_service_contract
-from cosmpy.protos.cosmos.base.v1beta1.coin_pb2 import Coin
 
 EXPECTED_FUNDS = Coin(amount="8640000000000000", denom="atestfet")
 
 
-def generate_digest(agent_address: str, contract_address: str, sequence: int) -> bool:
+def generate_digest(agent_address: str, contract_address: str, sequence: int) -> bytes:
     hasher = hashlib.sha256()
     hasher.update(encode_length_prefixed(contract_address))
     hasher.update(encode_length_prefixed(agent_address))
@@ -23,8 +22,6 @@ def generate_digest(agent_address: str, contract_address: str, sequence: int) ->
 
 def validate_registration_msg(msg: Dict[str, Any]) -> bool:
     try:
-        if not isinstance(msg, dict):
-            return False
         if "register" not in msg:
             return False
 
@@ -76,8 +73,6 @@ def validate_tx_msgs(
     msgs: List[Any], wallet_address: str, contract_address: str
 ) -> bool:
     try:
-        if not isinstance(msgs, list):
-            return False
         for msg in msgs:
             if not (msg.sender and msg.contract and msg.msg):
                 return False
@@ -106,7 +101,7 @@ def validate_tx_msgs(
         return False
 
 
-def mock_almanac_registration(almanac_msg: str, digest: bytes):
+def mock_almanac_registration(almanac_msg: Dict[str, Any], digest: bytes):
     registration = almanac_msg["register"]
     return Identity.verify_digest(
         registration["agent_address"], digest, registration["signature"]
@@ -140,13 +135,19 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
 
         name_service_contract = get_name_service_contract()
 
+        if not name_service_contract.address:
+            self.fail("Name service contract address is invalid")
+
         tx = name_service_contract.get_registration_tx(
             agent.name, agent.wallet.address(), agent.address, "example.agent", True
         )
 
+        if not tx:
+            self.fail("Name service registration TX is invalid")
+
         self.assertTrue(
             validate_tx_msgs(
-                tx.msgs, str(agent.wallet.address()), name_service_contract.address
+                tx.msgs, str(agent.wallet.address()), name_service_contract.address.data
             ),
             "Name service registration TX is invalid",
         )
