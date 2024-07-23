@@ -27,6 +27,7 @@ from uagents.config import (
     REGISTRATION_FEE,
     TESTNET_CONTRACT_ALMANAC,
     TESTNET_CONTRACT_NAME_SERVICE,
+    AgentEndpoint,
 )
 from uagents.utils import get_logger
 
@@ -189,7 +190,7 @@ class AlmanacContract(LedgerContract):
 
         return (expiry - height) * AVERAGE_BLOCK_INTERVAL
 
-    def get_endpoints(self, address: str):
+    def get_endpoints(self, address: str) -> List[AgentEndpoint]:
         """
         Get the endpoints associated with an agent's registration.
 
@@ -203,8 +204,13 @@ class AlmanacContract(LedgerContract):
         response = self.query(query_msg)
 
         if not response["record"]:
-            return None
-        return response.get("record")[0]["record"]["service"]["endpoints"]
+            return []
+
+        endpoints = []
+        for endpoint in response.get("record")[0]["record"]["service"]["endpoints"]:
+            endpoints.append(AgentEndpoint.model_validate(endpoint))
+
+        return endpoints
 
     def get_protocols(self, address: str):
         """
@@ -251,7 +257,7 @@ class AlmanacContract(LedgerContract):
         wallet: LocalWallet,
         agent_address: str,
         protocols: List[str],
-        endpoints: List[Dict[str, Any]],
+        endpoints: List[AgentEndpoint],
         signature: str,
     ):
         """
@@ -267,10 +273,19 @@ class AlmanacContract(LedgerContract):
         """
         transaction = Transaction()
 
-        sequence = self.get_sequence(agent_address)
-        almanac_msg = self.get_registration_msg(
-            protocols, endpoints, signature, sequence, agent_address
-        )
+        almanac_msg = {
+            "register": {
+                "record": {
+                    "service": {
+                        "protocols": protocols,
+                        "endpoints": [e.model_dump() for e in endpoints],
+                    }
+                },
+                "signature": signature,
+                "sequence": self.get_sequence(agent_address),
+                "agent_address": agent_address,
+            }
+        }
 
         if not self.address:
             raise ValueError("Contract address not set")
