@@ -1,0 +1,6 @@
+{
+    "title": "T5 Base",
+    "description": "The T5 model is a Text-to-Text Transfer Transformer model that was developed by Google Research.",
+    "categories":   ["Text Classification", "Text Generation","Hugging Face"],
+    "deltav": false
+}

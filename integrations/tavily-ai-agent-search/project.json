@@ -1,0 +1,6 @@
+{
+    "title": "Tavily AI Agent Search",
+    "description": "This integration leverages the Tavily AI Search API to empower an AI agent with advanced search capabilities",
+    "categories": ["AI-Powered Search", "Semantic Search"],
+    "deltav": true
+}

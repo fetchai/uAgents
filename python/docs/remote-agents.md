@@ -139,11 +139,11 @@ API_KEY = "put_your_API_key_here"
 agent = Agent(
     name="alice",
     seed=SEED_PHRASE,
-    mailbox=f"{API_KEY}@wss://agentverse.ai",
+    mailbox=f"{API_KEY}@https://agentverse.ai",
 )
 ```
 
-Now, you can recreate the example we showed at the begining of this section also registering agent `bob` in [The Agentverse Explorer](https://agentverse.ai/) and adding the missing imports, models and handlers.
+Now, you can recreate the example we showed at the beginning of this section also registering agent `bob` in [The Agentverse Explorer](https://agentverse.ai/) and adding the missing imports, models and handlers.
 
 
 ## Managed Agents on Agentverse

@@ -9,14 +9,16 @@ Agent's Setup.
 #### fund`_`agent`_`if`_`low
 
 ```python
-def fund_agent_if_low(wallet_address: str)
+def fund_agent_if_low(wallet_address: str,
+                      min_balance: int = REGISTRATION_FEE)
 ```
 
-Checks the agent's wallet balance and adds funds if it's below the registration fee.
+Checks the agent's wallet balance and adds testnet funds if it's below min_balance.
 
 **Arguments**:
 
 - `wallet_address` _str_ - The wallet address of the agent.
+- `min_balance` _int_ - The minimum balance required.
   
 
 **Returns**:

@@ -2,34 +2,37 @@
 
 import requests
 from cosmpy.crypto.address import Address
-
 from uagents import Agent
-from uagents.config import REGISTRATION_FEE, get_logger
-from uagents.network import get_ledger, get_faucet
+from uagents.config import REGISTRATION_FEE
+from uagents.network import get_faucet, get_ledger
+from uagents.utils import get_logger
 
 LOGGER = get_logger("setup")
 
 
-def fund_agent_if_low(wallet_address: str):
+def fund_agent_if_low(wallet_address: str, min_balance: int = REGISTRATION_FEE):
     """
-    Checks the agent's wallet balance and adds funds if it's below the registration fee.
+    Checks the agent's wallet balance and adds testnet funds if it's below min_balance.
 
     Args:
         wallet_address (str): The wallet address of the agent.
+        min_balance (int): The minimum balance required.
 
     Returns:
         None
     """
-    ledger = get_ledger()
+    ledger = get_ledger(test=True)
     faucet = get_faucet()
 
     agent_balance = ledger.query_bank_balance(Address(wallet_address))
 
-    if agent_balance < REGISTRATION_FEE:
-        # Add tokens to agent's wallet
-        LOGGER.info("Adding funds to agent...")
-        faucet.get_wealth(wallet_address)
-        LOGGER.info("Adding funds to agent...complete")
+    if agent_balance < min_balance:
+        try:
+            LOGGER.info("Adding testnet funds to agent...")
+            faucet.get_wealth(wallet_address)
+            LOGGER.info("Adding testnet funds to agent...complete")
+        except Exception as ex:
+            LOGGER.error(f"Failed to add testnet funds to agent: {str(ex)}")
 
 
 def register_agent_with_mailbox(agent: Agent, email: str):
@@ -52,6 +55,6 @@ def register_agent_with_mailbox(agent: Agent, email: str):
     )
     if resp.status_code == 200:
         LOGGER.info("Registered agent on mailbox server")
-        mailbox["api_key"] = resp.json()["api_key"]
+        mailbox["agent_mailbox_key"] = resp.json()["agent_mailbox_key"]
     else:
         LOGGER.exception("Failed to register agent on mailbox server")

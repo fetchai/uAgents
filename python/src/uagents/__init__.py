@@ -1,4 +1,4 @@
-from .context import Context
-from .protocol import Protocol
-from .models import Model
-from .agent import Agent, Bureau
+from .agent import Agent, Bureau  # noqa
+from .context import Context  # noqa
+from .models import Model, Field  # noqa
+from .protocol import Protocol  # noqa

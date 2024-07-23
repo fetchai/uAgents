@@ -3,12 +3,11 @@ from protocols.query import (
     QueryTableRequest,
     QueryTableResponse,
 )
-
 from uagents import Agent, Context
-from uagents.setup import fund_agent_if_low
 
-
-RESTAURANT_ADDRESS = "agent1qfpqn9jhvp9cg33f27q6jvmuv52dgyg9rfuu37rmxrletlqe7lewwjed5gy"
+RESTAURANT_ADDRESS = (
+    "test-agent://agent1qfpqn9jhvp9cg33f27q6jvmuv52dgyg9rfuu37rmxrletlqe7lewwjed5gy"
+)
 
 user = Agent(
     name="user",
@@ -19,7 +18,6 @@ user = Agent(
     },
 )
 
-fund_agent_if_low(user.wallet.address())
 
 table_query = QueryTableRequest(
     guests=3,

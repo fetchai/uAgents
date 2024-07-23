@@ -1,11 +1,11 @@
 """This tool generates the API docs."""
+
 import argparse
 import re
 import shutil
 import subprocess  # nosec
 import sys
 from pathlib import Path
-
 
 DOCS_DIR = Path("docs/")
 API_DIR = DOCS_DIR / "api/"
@@ -29,7 +29,7 @@ def create_subdir(path: str) -> None:
 
 def replace_underscores(text: str) -> str:
     """
-    Replace escaped underscores in a text.
+    Replace escaped underscores in text.
     :param text: the text to replace underscores in
     :return: the processed text
     """

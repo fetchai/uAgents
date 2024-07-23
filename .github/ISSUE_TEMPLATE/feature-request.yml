@@ -1,0 +1,37 @@
+name: ☝️Feature request
+description: Suggest an idea.
+labels: ["enhancement", "unconfirmed"]
+assignees:
+  - jrriehl
+  - lrahmani
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a new idea! Please complete the following so we have everything to get started.
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      description: Please confirm before submitting a feature request.
+      options:
+        - label: I checked the [documentation](https://fetch.ai/docs) and made sure this feature does not already exist
+          required: true
+        - label: I checked the [existing issues](https://github.com/fetchai/uAgents/issues) to make sure this feature has not already been requested
+          required: true
+  - type: textarea
+    id: feature
+    attributes:
+      label: Feature
+      description: |
+        Provide a description of the feature you would like to see implemented.
+    validations:
+      required: true
+  - type: textarea
+    id: info
+    attributes:
+      label: Additional Information (Optional)
+      description: |
+        Add any other context, screenshots, or information that could be helpful for understanding your feature request.
+    validations:
+      required: false

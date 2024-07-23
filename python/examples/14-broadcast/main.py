@@ -1,5 +1,4 @@
 from uagents import Agent, Bureau, Context, Model, Protocol
-from uagents.setup import fund_agent_if_low
 
 # create agents
 # alice and bob will support the protocol
@@ -7,10 +6,6 @@ from uagents.setup import fund_agent_if_low
 alice = Agent(name="alice", seed="alice recovery phrase")
 bob = Agent(name="bob", seed="bob recovery phrase")
 charles = Agent(name="charles", seed="charles recovery phrase")
-
-fund_agent_if_low(alice.wallet.address())
-fund_agent_if_low(bob.wallet.address())
-fund_agent_if_low(charles.wallet.address())
 
 
 class BroadcastExampleRequest(Model):
@@ -27,7 +22,9 @@ proto = Protocol(name="proto", version="1.0")
 
 @proto.on_message(model=BroadcastExampleRequest, replies=BroadcastExampleResponse)
 async def handle_request(ctx: Context, sender: str, _msg: BroadcastExampleRequest):
-    await ctx.send(sender, BroadcastExampleResponse(text=f"Hello from {ctx.name}"))
+    await ctx.send(
+        sender, BroadcastExampleResponse(text=f"Hello from {ctx.agent.name}")
+    )
 
 
 # include protocol
@@ -40,7 +37,8 @@ bob.include(proto)
 # let charles send the message to all agents supporting the protocol
 @charles.on_interval(period=5)
 async def say_hello(ctx: Context):
-    await ctx.experimental_broadcast(proto.digest, message=BroadcastExampleRequest())
+    status_list = await ctx.broadcast(proto.digest, message=BroadcastExampleRequest())
+    ctx.logger.info(f"Trying to contact {len(status_list)} agents.")
 
 
 @charles.on_message(model=BroadcastExampleResponse)

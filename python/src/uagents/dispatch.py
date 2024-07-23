@@ -1,6 +1,6 @@
+import uuid
 from abc import ABC, abstractmethod
 from typing import Dict, Set
-import uuid
 
 JsonStr = str
 
@@ -19,11 +19,15 @@ class Sink(ABC):
 
 class Dispatcher:
     """
-    Dispatches messages to sinks.
+    Dispatches incoming messages to internal sinks.
     """
 
     def __init__(self):
         self._sinks: Dict[str, Set[Sink]] = {}
+
+    @property
+    def sinks(self) -> Dict[str, Set[Sink]]:
+        return self._sinks
 
     def register(self, address: str, sink: Sink):
         destinations = self._sinks.get(address, set())

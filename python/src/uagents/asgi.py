@@ -7,14 +7,14 @@ from typing import Dict, Optional
 import pydantic
 import uvicorn
 from requests.structures import CaseInsensitiveDict
-
-from uagents.config import get_logger
+from uagents.config import RESPONSE_TIME_HINT_SECONDS
+from uagents.context import ERROR_MESSAGE_DIGEST
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
 from uagents.models import ErrorMessage
 from uagents.query import enclose_response_raw
-
+from uagents.utils import get_logger
 
 HOST = "0.0.0.0"
 
@@ -70,6 +70,85 @@ class ASGIServer:
         """
         return self._server
 
+    async def handle_readiness_probe(self, headers: CaseInsensitiveDict, send):
+        """
+        Handle a readiness probe sent via the HEAD method.
+        """
+        if b"x-uagents-address" not in headers:
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [
+                        [b"x-uagents-status", b"indeterminate"],
+                    ],
+                }
+            )
+        else:
+            address = headers[b"x-uagents-address"].decode()
+            if not dispatcher.contains(address):
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 200,
+                        "headers": [
+                            [b"x-uagents-status", b"not-ready"],
+                        ],
+                    }
+                )
+            else:
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 200,
+                        "headers": [
+                            [b"x-uagents-status", b"ready"],
+                            [
+                                b"x-uagents-response-time-hint",
+                                str(RESPONSE_TIME_HINT_SECONDS).encode(),
+                            ],
+                        ],
+                    }
+                )
+
+    async def handle_missing_content_type(self, headers: CaseInsensitiveDict, send):
+        """
+        Handle missing content type header.
+        """
+        # if connecting from browser, return a 200 OK
+        if b"user-agent" in headers:
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [
+                        [b"content-type", b"application/json"],
+                    ],
+                }
+            )
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": b'{"status": "OK - Agent is running"}',
+                }
+            )
+        else:  # otherwise, return a 400 Bad Request
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 400,
+                    "headers": [
+                        [b"content-type", b"application/json"],
+                    ],
+                }
+            )
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": b'{"error": "missing header: content-type"}',
+                }
+            )
+
     async def serve(self):
         """
         Start the server.
@@ -79,11 +158,12 @@ class ASGIServer:
         self._logger.info(
             f"Starting server on http://{HOST}:{self._port} (Press CTRL+C to quit)"
         )
-        await self._server.serve()
+        try:
+            await self._server.serve()
+        except KeyboardInterrupt:
+            self._logger.info("Shutting down server")
 
-    async def __call__(
-        self, scope, receive, send
-    ):  #  pylint: disable=too-many-branches
+    async def __call__(self, scope, receive, send):  #  pylint: disable=too-many-branches
         """
         Handle an incoming ASGI message, dispatching the envelope to the appropriate handler,
         and waiting for any queries to be resolved.
@@ -110,40 +190,13 @@ class ASGIServer:
 
         headers = CaseInsensitiveDict(scope.get("headers", {}))
 
+        request_method = scope["method"]
+        if request_method == "HEAD":
+            await self.handle_readiness_probe(headers, send)
+            return
+
         if b"content-type" not in headers:
-            # if connecting from browser, return a 200 OK
-            if b"user-agent" in headers:
-                await send(
-                    {
-                        "type": "http.response.start",
-                        "status": 200,
-                        "headers": [
-                            [b"content-type", b"application/json"],
-                        ],
-                    }
-                )
-                await send(
-                    {
-                        "type": "http.response.body",
-                        "body": b'{"status": "OK - Agent is running"}',
-                    }
-                )
-            else:  # otherwise, return a 400 Bad Request
-                await send(
-                    {
-                        "type": "http.response.start",
-                        "status": 400,
-                        "headers": [
-                            [b"content-type", b"application/json"],
-                        ],
-                    }
-                )
-                await send(
-                    {
-                        "type": "http.response.body",
-                        "body": b'{"error": "missing header: content-type"}',
-                    }
-                )
+            await self.handle_missing_content_type(headers, send)
             return
 
         if b"application/json" not in headers[b"content-type"]:
@@ -166,10 +219,29 @@ class ASGIServer:
 
         # read the entire payload
         raw_contents = await _read_asgi_body(receive)
-        contents = json.loads(raw_contents.decode())
 
         try:
-            env: Envelope = Envelope.parse_obj(contents)
+            contents = json.loads(raw_contents.decode())
+        except (AttributeError, UnicodeDecodeError, json.JSONDecodeError):
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 400,
+                    "headers": [
+                        [b"content-type", b"application/json"],
+                    ],
+                }
+            )
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": b'{"error": "empty or invalid payload"}',
+                }
+            )
+            return
+
+        try:
+            env = Envelope.model_validate(contents)
         except pydantic.ValidationError:
             await send(
                 {
@@ -188,30 +260,33 @@ class ASGIServer:
             )
             return
 
-        expects_response = b"sync" == headers.get(b"x-uagents-connection")
-        do_verify = not is_user_address(env.sender)
+        expects_response = headers.get(b"x-uagents-connection") == b"sync"
 
         if expects_response:
             # Add a future that will be resolved once the query is answered
             self._queries[env.sender] = asyncio.Future()
 
-        if do_verify and env.verify() is False:
-            await send(
-                {
-                    "type": "http.response.start",
-                    "status": 400,
-                    "headers": [
-                        [b"content-type", b"application/json"],
-                    ],
-                }
-            )
-            await send(
-                {
-                    "type": "http.response.body",
-                    "body": b'{"error": "signature verification failed"}',
-                }
-            )
-            return
+        if not is_user_address(env.sender):  # verify signature if sent from agent
+            try:
+                env.verify()
+            except Exception as err:
+                self._logger.warning(f"Failed to verify envelope: {err}")
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 400,
+                        "headers": [
+                            [b"content-type", b"application/json"],
+                        ],
+                    }
+                )
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": b'{"error": "signature verification failed"}',
+                    }
+                )
+                return
 
         if not dispatcher.contains(env.target):
             await send(
@@ -238,12 +313,17 @@ class ASGIServer:
         # wait for any queries to be resolved
         if expects_response:
             response_msg, schema_digest = await self._queries[env.sender]
-            if env.expires is not None:
-                if datetime.now() > datetime.fromtimestamp(env.expires):
-                    response_msg = ErrorMessage(error="Query envelope expired")
+            if (env.expires is not None) and (
+                datetime.now() > datetime.fromtimestamp(env.expires)
+            ):
+                response_msg = ErrorMessage(
+                    error="Query envelope expired"
+                ).model_dump_json()
+                schema_digest = ERROR_MESSAGE_DIGEST
             sender = env.target
+            target = env.sender
             response = enclose_response_raw(
-                response_msg, schema_digest, sender, str(env.session)
+                response_msg, schema_digest, sender, env.session, target=target
             )
         else:
             response = "{}"

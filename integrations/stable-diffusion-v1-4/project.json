@@ -1,0 +1,9 @@
+{
+    "title": "Stable Diffusion V1",
+    "description": "Stable Diffusion model with this image generator. Stable Diffusion, an avant-garde image synthesis model, seamlessly melds the capabilities of both CLIP and Diffusion techniques, churning out visually arresting images from textual descriptions",
+    "categories": [
+        "Text-to-Image",
+        "Hugging Face"
+    ],
+    "deltav": false
+}

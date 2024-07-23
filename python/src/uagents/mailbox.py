@@ -5,14 +5,14 @@ from typing import Optional
 
 import aiohttp
 import pydantic
-from aiohttp.client_exceptions import ClientConnectorError
-from websockets import connect
 import websockets.exceptions
-
-from uagents.config import get_logger, MAILBOX_POLL_INTERVAL_SECONDS
+from aiohttp.client_exceptions import ClientConnectorError
+from uagents.config import MAILBOX_POLL_INTERVAL_SECONDS
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
+from uagents.utils import get_logger
+from websockets import connect
 
 
 class MailboxClient:
@@ -36,13 +36,13 @@ class MailboxClient:
         return self._agent.mailbox["base_url"]
 
     @property
-    def api_key(self):
+    def agent_mailbox_key(self):
         """
-        Property to access the api key of the mailbox server.
+        Property to access the agent_mailbox_key of the mailbox server.
 
-        Returns: The api key of the mailbox server.
+        Returns: The agent_mailbox_key of the mailbox server.
         """
-        return self._agent.mailbox["api_key"]
+        return self._agent.mailbox["agent_mailbox_key"]
 
     @property
     def protocol(self):
@@ -85,16 +85,19 @@ class MailboxClient:
         Dispatches the incoming messages and adds the envelope to the deletion queue.
         """
         try:
-            env = Envelope.parse_obj(payload["envelope"])
+            env = Envelope.model_validate(payload["envelope"])
         except pydantic.ValidationError:
             self._logger.warning("Received invalid envelope")
             return
 
-        do_verify = not is_user_address(env.sender)
-
-        if do_verify and env.verify() is False:
-            self._logger.warning("Received envelope that failed verification")
-            return
+        if not is_user_address(env.sender):  # verify signature if sent from agent
+            try:
+                env.verify()
+            except Exception as err:
+                self._logger.warning(
+                    "Received envelope that failed verification: %s", err
+                )
+                return
 
         if not dispatcher.contains(env.target):
             self._logger.warning("Received envelope for unrecognized address")
@@ -215,7 +218,7 @@ class MailboxClient:
                 data=json.dumps(
                     {
                         "address": self._agent.address,
-                        "api_key": self.api_key,
+                        "agent_mailbox_key": self.agent_mailbox_key,
                         "challenge": challenge,
                         "challenge_response": self._agent.sign(challenge.encode()),
                     }

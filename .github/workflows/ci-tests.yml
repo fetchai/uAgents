@@ -15,7 +15,8 @@ jobs:
     outputs:
       uagents: ${{ steps.files-changed.outputs.uagents }}
     steps:
-      - uses: dorny/paths-filter@v2
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
         id: files-changed
         with:
           filters: |
@@ -26,7 +27,6 @@ jobs:
   tests:
     name: Tests
     needs: check-if-files-changed
-    if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
 
     defaults:
       run:
@@ -35,39 +35,47 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: [ "3.8", "3.9", "3.10", "3.11" ]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
         include:
           - os: macos-latest
-            python-version: "3.10.10"
+            python-version: "3.11"
           - os: windows-latest
-            python-version: "3.10.10"
+            python-version: "3.11"
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v3
+      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+        uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+        name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      - uses: snok/install-poetry@v1
+      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+        uses: snok/install-poetry@v1
         with:
           virtualenvs-create: true
           virtualenvs-in-project: true
-          version: 1.3.2
 
-      - name: Load cached venv
+      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+        name: Load cached venv
         id: cached-poetry-dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
-      - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+      - if: ${{
+          needs.check-if-files-changed.outputs.uagents == 'true' &&
+          steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+          }}
+        name: Install dependencies
         run: poetry install --no-interaction --no-root
-      - run: poetry install --no-interaction
-      - name: Run tests
+      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+        run: poetry install --no-interaction
+      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+        name: Run tests
         run: |
           source $VENV
           poetry run pytest
@@ -75,7 +83,6 @@ jobs:
   linting:
     name: Lint & Formatting
     needs: check-if-files-changed
-    if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
 
     defaults:
       run:
@@ -84,31 +91,41 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ "3.10" ]
+        python-version: ["3.10"]
 
     steps:
-      - uses: actions/checkout@v3
+      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+        uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+        name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      - uses: snok/install-poetry@v1
+      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+        uses: snok/install-poetry@v1
         with:
           virtualenvs-create: true
           virtualenvs-in-project: true
 
-      - name: Load cached venv
+      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+        name: Load cached venv
         id: cached-poetry-dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
-      - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --no-root
+      - if: ${{
+          needs.check-if-files-changed.outputs.uagents == 'true' &&
+          steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+          }}
+        name: Install dependencies
+        run: poetry install -E all --no-interaction --no-root
 
-      - run: poetry install --no-interaction
-      - run: poetry run black --check .
-      - run: poetry run pylint $(git ls-files '*.py')
+      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+        run: poetry install -E all --no-interaction
+      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+        run: poetry run ruff check .
+      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+        run: poetry run ruff format --check .

@@ -1,14 +1,10 @@
 from datetime import datetime
-from pytz import utc
-
-from tortoise import Tortoise
 
 from protocols.cleaning import cleaning_proto
 from protocols.cleaning.models import Availability, Provider, Service, ServiceType
-
+from pytz import utc
+from tortoise import Tortoise
 from uagents import Agent, Context
-from uagents.setup import fund_agent_if_low
-
 
 cleaner = Agent(
     name="cleaner",
@@ -18,8 +14,6 @@ cleaner = Agent(
         "http://127.0.0.1:8001/submit": {},
     },
 )
-
-fund_agent_if_low(cleaner.wallet.address())
 
 
 # build the cleaning service agent from the cleaning protocol
