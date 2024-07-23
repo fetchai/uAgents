@@ -422,7 +422,7 @@ class NameServiceContract(LedgerContract):
         self,
         name: str,
         wallet_address: Address,
-        agent_records: List[Dict[str, Any]] | str,
+        agent_records: Union[List[Dict[str, Any]], str],
         domain: str,
         test: bool,
     ):
