@@ -3,7 +3,7 @@ from uagents.experimental.dialogues import Dialogue
 
 
 def generate_graph(dialogue: Dialogue):
-    """Create a graphviz diagram of the Dialogue's DAG to visually verify it
+    """Create a graphviz diagram of the Dialogue's state graph to visually verify it
 
     Note requires local installation of Graphviz,
     e.g. `brew install graphviz` on macOS"""
