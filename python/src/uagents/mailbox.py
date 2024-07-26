@@ -7,10 +7,11 @@ import aiohttp
 import pydantic
 import websockets.exceptions
 from aiohttp.client_exceptions import ClientConnectorError
-from uagents.config import MAILBOX_POLL_INTERVAL_SECONDS, get_logger
+from uagents.config import MAILBOX_POLL_INTERVAL_SECONDS
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
+from uagents.utils import get_logger
 from websockets import connect
 
 
@@ -84,16 +85,19 @@ class MailboxClient:
         Dispatches the incoming messages and adds the envelope to the deletion queue.
         """
         try:
-            env = Envelope.parse_obj(payload["envelope"])
+            env = Envelope.model_validate(payload["envelope"])
         except pydantic.ValidationError:
             self._logger.warning("Received invalid envelope")
             return
 
-        do_verify = not is_user_address(env.sender)
-
-        if do_verify and env.verify() is False:
-            self._logger.warning("Received envelope that failed verification")
-            return
+        if not is_user_address(env.sender):  # verify signature if sent from agent
+            try:
+                env.verify()
+            except Exception as err:
+                self._logger.warning(
+                    "Received envelope that failed verification: %s", err
+                )
+                return
 
         if not dispatcher.contains(env.target):
             self._logger.warning("Received envelope for unrecognized address")

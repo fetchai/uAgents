@@ -20,5 +20,5 @@ Abstract base class for sinks that handle messages.
 class Dispatcher()
 ```
 
-Dispatches messages to sinks.
+Dispatches incoming messages to internal sinks.
 

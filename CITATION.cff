@@ -1,0 +1,8 @@
+cff-version: 1.2.0
+message: "If you use uAgents in your research or project, please cite it as follows:"
+title: μAgents Library
+authors:
+  - family-names: Fetch.ai
+date-released: "2022-09-28"
+url: "https://github.com/fetchai/uAgents"
+license: "Apache-2.0"
