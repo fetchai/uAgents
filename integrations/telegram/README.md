@@ -37,6 +37,7 @@ or
 \`\`\`bash
 python3 main.py
 \`\`\`
+
 ### Expected Output
 
 Look for the following output in the console:
