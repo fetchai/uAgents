@@ -17,6 +17,7 @@ The Telegram Agent is a Python agent that serves as an intermediary between othe
 1. Go to `@BotFather` on Telegram.
 2. Create a new bot or use an existing one to get the token.
 3. Remember your bot token and put it later in TELEGRAM_BOT_TOKEN var.
+
 ### Variables Setup
 
 \`\`\`
