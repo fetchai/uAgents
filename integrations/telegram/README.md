@@ -4,30 +4,23 @@ The Telegram Agent is a Python agent that serves as an intermediary between othe
 
 ## Prerequisites
 
-- Python (v3.7+ recommended)
+- Python (v3.9+ recommended)
 - Poetry (A Python packaging and dependency management tool)
 
 ## Setup
+- pip install uAgents
+- pip install telegram
+- pip install python-telegram-bot
 
 ### Obtain Telegram Bot Token
 
 1. Go to `@BotFather` on Telegram.
 2. Create a new bot or use an existing one to get the token.
-
-### Environment Setup
-
-Create a `.env` file in your project's directory and set your Telegram Bot Token:
+3. Remember your bot token and put it later in TELEGRAM_BOT_TOKEN var.
+### Variables Setup
 
 \`\`\`
 TELEGRAM_BOT_TOKEN="Your_Telegram_Bot_Token_Here"
-\`\`\`
-
-Load the environment variables from `.env` and install dependencies:
-
-\`\`\`bash
-cd your_project_directory
-source .env
-poetry install
 \`\`\`
 
 ## Running The Script
@@ -38,6 +31,11 @@ To run the agent, use the following command:
 poetry run python main.py
 \`\`\`
 
+or
+
+\`\`\`bash
+python3 main.py
+\`\`\`
 ### Expected Output
 
 Look for the following output in the console:
