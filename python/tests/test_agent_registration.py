@@ -61,10 +61,7 @@ def validate_registration_msg(msg: Dict[str, Any]) -> bool:
             return False
         if not isinstance(register["sequence"], int):
             return False
-        if not isinstance(register["agent_address"], str):
-            return False
-
-        return True
+        return isinstance(register["agent_address"], str)
     except KeyError:
         return False
 
