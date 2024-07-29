@@ -118,6 +118,44 @@ This class provides methods to interact with the Almanac contract, including
 checking if an agent is registered, retrieving the expiry height of an agent's
 registration, and getting the endpoints associated with an agent's registration.
 
+<a id="src.uagents.network.AlmanacContract.query_contract"></a>
+
+#### query`_`contract
+
+```python
+def query_contract(query_msg: Dict[str, Any]) -> Any
+```
+
+Execute a query with additional checks and error handling.
+
+**Arguments**:
+
+- `query_msg` _Dict[str, Any]_ - The query message.
+  
+
+**Returns**:
+
+- `Any` - The query response.
+  
+
+**Raises**:
+
+- `RuntimeError` - If the contract address is not set or the query fails.
+
+<a id="src.uagents.network.AlmanacContract.get_contract_version"></a>
+
+#### get`_`contract`_`version
+
+```python
+def get_contract_version() -> str
+```
+
+Get the version of the contract.
+
+**Returns**:
+
+- `str` - The version of the contract.
+
 <a id="src.uagents.network.AlmanacContract.is_registered"></a>
 
 #### is`_`registered
@@ -173,7 +211,7 @@ Get the endpoints associated with an agent's registration.
 
 **Returns**:
 
-- `Any` - The endpoints associated with the agent's registration.
+- `List[AgentEndpoint]` - The endpoints associated with the agent's registration.
 
 <a id="src.uagents.network.AlmanacContract.get_protocols"></a>
 
@@ -267,12 +305,36 @@ This class provides methods to interact with the NameService contract, including
 checking name availability, checking ownership, querying domain public status,
 obtaining registration transaction details, and registering a name within a domain.
 
+<a id="src.uagents.network.NameServiceContract.query_contract"></a>
+
+#### query`_`contract
+
+```python
+def query_contract(query_msg: Dict[str, Any]) -> Any
+```
+
+Execute a query with additional checks and error handling.
+
+**Arguments**:
+
+- `query_msg` _Dict[str, Any]_ - The query message.
+  
+
+**Returns**:
+
+- `Any` - The query response.
+  
+
+**Raises**:
+
+- `RuntimeError` - If the contract address is not set or the query fails.
+
 <a id="src.uagents.network.NameServiceContract.is_name_available"></a>
 
 #### is`_`name`_`available
 
 ```python
-def is_name_available(name: str, domain: str)
+def is_name_available(name: str, domain: str) -> bool
 ```
 
 Check if a name is available within a domain.
@@ -292,7 +354,7 @@ Check if a name is available within a domain.
 #### is`_`owner
 
 ```python
-def is_owner(name: str, domain: str, wallet_address: str)
+def is_owner(name: str, domain: str, wallet_address: str) -> bool
 ```
 
 Check if the provided wallet address is the owner of a name within a domain.
@@ -313,7 +375,7 @@ Check if the provided wallet address is the owner of a name within a domain.
 #### is`_`domain`_`public
 
 ```python
-def is_domain_public(domain: str)
+def is_domain_public(domain: str) -> bool
 ```
 
 Check if a domain is public.
@@ -354,8 +416,8 @@ Retrieve the previous records for a given name within a specified domain.
 
 ```python
 def get_registration_tx(name: str, wallet_address: Address,
-                        agent_records: List[Dict[str, Any]], domain: str,
-                        test: bool)
+                        agent_records: Union[List[Dict[str, Any]],
+                                             str], domain: str, test: bool)
 ```
 
 Get the registration transaction for registering a name within a domain.
