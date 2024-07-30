@@ -1,11 +1,6 @@
-import logging
-import sys
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union
 
-from uvicorn.logging import DefaultFormatter
-
-logging.basicConfig(level=logging.INFO)
-
+from pydantic import BaseModel
 
 AGENT_PREFIX = "agent"
 LEDGER_PREFIX = "fetch"
@@ -31,6 +26,7 @@ REGISTRATION_DENOM = "atestfet"
 REGISTRATION_UPDATE_INTERVAL_SECONDS = 3600
 REGISTRATION_RETRY_INTERVAL_SECONDS = 60
 AVERAGE_BLOCK_INTERVAL = 6
+ALMANAC_CONTRACT_VERSION = "1.0.0"
 
 AGENTVERSE_URL = "https://agentverse.ai"
 ALMANAC_API_URL = AGENTVERSE_URL + "/v1/almanac/"
@@ -44,37 +40,46 @@ DEFAULT_MAX_ENDPOINTS = 10
 DEFAULT_SEARCH_LIMIT = 100
 
 
+class AgentEndpoint(BaseModel):
+    url: str
+    weight: int
+
+
 def parse_endpoint_config(
     endpoint: Optional[Union[str, List[str], Dict[str, dict]]],
-) -> List[Dict[str, Any]]:
+) -> List[AgentEndpoint]:
     """
     Parse the user-provided endpoint configuration.
 
     Returns:
-        List[Dict[str, Any]]: The parsed endpoint configuration.
+        Optional[List[Dict[str, Any]]]: The parsed endpoint configuration.
     """
     if isinstance(endpoint, dict):
         endpoints = [
-            {"url": val[0], "weight": val[1].get("weight") or 1}
+            AgentEndpoint.model_validate(
+                {"url": val[0], "weight": val[1].get("weight") or 1}
+            )
             for val in endpoint.items()
         ]
     elif isinstance(endpoint, list):
-        endpoints = [{"url": val, "weight": 1} for val in endpoint]
+        endpoints = [
+            AgentEndpoint.model_validate({"url": val, "weight": 1}) for val in endpoint
+        ]
     elif isinstance(endpoint, str):
-        endpoints = [{"url": endpoint, "weight": 1}]
+        endpoints = [AgentEndpoint.model_validate({"url": endpoint, "weight": 1})]
     else:
-        endpoints = None
+        endpoints = []
     return endpoints
 
 
 def parse_agentverse_config(
     config: Optional[Union[str, Dict[str, str]]] = None,
-) -> Dict[str, str]:
+) -> Dict[str, Union[str, bool, None]]:
     """
-    Parse the user-provided agentverse configutation.
+    Parse the user-provided agentverse configuration.
 
     Returns:
-        Dict[str, str]: The parsed agentverse configuration.
+        Dict[str, Union[str, bool, None]]: The parsed agentverse configuration.
     """
     agent_mailbox_key = None
     base_url = AGENTVERSE_URL
@@ -102,16 +107,3 @@ def parse_agentverse_config(
         "http_prefix": http_prefix,
         "use_mailbox": agent_mailbox_key is not None,
     }
-
-
-def get_logger(logger_name):
-    """Get a logger with the given name using uvicorn's default formatter."""
-    logger = logging.getLogger(logger_name)
-    logger.setLevel(logging.INFO)
-    log_handler = logging.StreamHandler(sys.stdout)
-    log_handler.setFormatter(
-        DefaultFormatter(fmt="%(levelprefix)s [%(name)5s]: %(message)s")
-    )
-    logger.addHandler(log_handler)
-    logger.propagate = False
-    return logger

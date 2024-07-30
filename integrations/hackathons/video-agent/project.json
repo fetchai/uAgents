@@ -1,0 +1,12 @@
+{
+  "title": "Video Agent",
+  "description": "Video Agent is a video summarization and text generation tool that uses AI to automatically generate a summary of a video or an article about a video. This agent is also capable of answering questions about the video's content.",
+  "categories": [
+    "Video Summarization",
+    "Text Generation from Video",
+    "Video to Text",
+    "AI-Powered Search",
+    "Video Question Answering"
+  ],
+  "deltav": true
+}

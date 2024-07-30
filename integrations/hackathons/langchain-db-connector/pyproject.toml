@@ -1,0 +1,39 @@
+[tool.poetry]
+name = "project"
+version = "0.1.0"
+description = ""
+authors = [
+    "Archento <crossmail@gmx.de>",
+    "Dominic Zettl <dominic.zettl@fetch.ai>",
+]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+uagents = "^0.11.0"
+langchain = "^0.1.12"
+python-dotenv = "^1.0.1"
+langchain-openai = "^0.0.8"
+psycopg = {extras = ["binary"], version = "^3.1.18"}
+langchain-community = "^0.0.28"
+psycopg2-binary = "^2.9.9"
+faiss-cpu = "^1.8.0"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.3.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 88
+indent-width = 4
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "B", "SIM", "I", "N", "PL"]
+ignore = []
+
+fixable = ["ALL"]
+unfixable = []
