@@ -968,13 +968,13 @@ class Agent(Sink):
             except Exception as ex:
                 self._logger.exception(f"Exception in shutdown handler: {ex}")
 
-    def setup(self):
+    async def setup(self):
         """
         Include the internal agent protocol, run startup tasks, and start background tasks.
         """
         self.include(self._protocol)
         self.start_message_dispenser()
-        self._loop.run_until_complete(self._startup())
+        await self._startup()
         self.start_message_receivers()
         self.start_interval_tasks()
 
@@ -1009,20 +1009,26 @@ class Agent(Sink):
             ]:
                 self._loop.create_task(task)
 
+    async def run_async(self):
+        """
+        Create all tasks for the agent.
+
+        """
+        await self.setup()
+        try:
+            if self._use_mailbox and self._mailbox_client is not None:
+                await self._mailbox_client.run()
+            else:
+                await self._server.serve()
+        finally:
+            await self._shutdown()
+
     def run(self):
         """
         Run the agent.
 
         """
-        self.setup()
-        try:
-            if self._use_mailbox and self._mailbox_client is not None:
-                self._loop.create_task(self._mailbox_client.process_deletion_queue())
-                self._loop.run_until_complete(self._mailbox_client.run())
-            else:
-                self._loop.run_until_complete(self._server.serve())
-        finally:
-            self._loop.run_until_complete(self._shutdown())
+        self._loop.run_until_complete(self.run_async())
 
     def get_message_protocol(
         self, message_schema_digest
@@ -1185,14 +1191,14 @@ class Bureau:
             agent.update_endpoints(self._endpoints)
         self._agents.append(agent)
 
-    def run(self):
+    async def run_async(self):
         """
         Run the agents managed by the bureau.
 
         """
         tasks = []
         for agent in self._agents:
-            agent.setup()
+            await agent.setup()
             if agent.agentverse["use_mailbox"] and agent.mailbox_client is not None:
                 tasks.append(
                     self._loop.create_task(
@@ -1204,7 +1210,13 @@ class Bureau:
             tasks.append(self._loop.create_task(self._server.serve()))
 
         try:
-            self._loop.run_until_complete(asyncio.gather(*tasks))
+            await asyncio.gather(*tasks)
         finally:
-            for agent in self._agents:
-                self._loop.run_until_complete(agent._shutdown())
+            await asyncio.gather(*[agent._shutdown() for agent in self._agents])
+
+    def run(self):
+        """
+        Run the bureau.
+
+        """
+        self._loop.run_until_complete(self.run_async())
