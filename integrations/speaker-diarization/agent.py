@@ -4,7 +4,6 @@ from ai_engine import UAgentResponse, UAgentResponseType
 from dotenv import load_dotenv
 from uagents import Agent, Context, Field, Model, Protocol
 from uagents.setup import fund_agent_if_low
-
 from utils import perform_speaker_diarization
 
 load_dotenv()
@@ -36,8 +35,11 @@ async def message_handler(ctx: Context, sender: str, msg: SpeakerDiarizationInpu
     ctx.logger.info(f"Received webiste {sender} url: {msg.url}.")
     try:
         result = perform_speaker_diarization(HUGGING_FACE_TOKEN, msg.url)
+        final_output=""
+        for i in result:
+            final_output += f"Speaker : {i['speaker']} ; duration : {i['end']-i['start']} \n"
         await ctx.send(
-            sender, UAgentResponse(message=str(result), type=UAgentResponseType.FINAL)
+            sender, UAgentResponse(message=final_output, type=UAgentResponseType.FINAL)
         )
     except Exception as e:
         ctx.logger.error(f"Somethig went wrong while diarization. {e}")
