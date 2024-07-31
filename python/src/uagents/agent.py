@@ -1150,6 +1150,7 @@ class Bureau:
         agents: Optional[List[Agent]] = None,
         port: Optional[int] = None,
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
         log_level: Union[int, str] = logging.INFO,
     ):
         """
@@ -1160,7 +1161,10 @@ class Bureau:
             endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration
             for the bureau.
         """
-        self._loop = asyncio.get_event_loop_policy().get_event_loop()
+        if loop is not None:
+            self._loop = loop
+        else:
+            self._loop = asyncio.get_event_loop_policy().get_event_loop()
         self._agents: List[Agent] = []
         self._endpoints = parse_endpoint_config(endpoint)
         self._port = port or 8000
