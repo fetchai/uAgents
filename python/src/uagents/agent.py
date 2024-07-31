@@ -938,8 +938,12 @@ class Agent(Sink):
         Perform startup actions.
 
         """
-        if self._endpoints is not None:
+        if self._endpoints:
             await self._registration_loop()
+        else:
+            self._logger.warning(
+                "No endpoints provided. Skipping registration: Agent won't be reachable."
+            )
         for handler in self._on_startup:
             try:
                 await handler(self._ctx)
