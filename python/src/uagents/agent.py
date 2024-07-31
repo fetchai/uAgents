@@ -290,10 +290,7 @@ class Agent(Sink):
             else GlobalResolver(max_endpoints=max_resolver_endpoints)
         )
 
-        if loop is not None:
-            self._loop = loop
-        else:
-            self._loop = asyncio.get_event_loop_policy().get_event_loop()
+        self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
 
         # initialize wallet and identity
         self._initialize_wallet_and_identity(seed, name, wallet_key_derivation_index)
@@ -1161,10 +1158,7 @@ class Bureau:
             endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration
             for the bureau.
         """
-        if loop is not None:
-            self._loop = loop
-        else:
-            self._loop = asyncio.get_event_loop_policy().get_event_loop()
+        self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
         self._agents: List[Agent] = []
         self._endpoints = parse_endpoint_config(endpoint)
         self._port = port or 8000
