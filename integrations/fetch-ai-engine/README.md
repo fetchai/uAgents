@@ -9,7 +9,7 @@ This package provides the necessary types for integrating AI-Engine with UAgents
 To install the package, use the following command:
 
 ```bash
-pip install uagents
+pip install uagents-ai-engine
 ```
 
 ## Usage
@@ -20,9 +20,14 @@ To use the models provided by this package, import them as follows:
 
 ```python
 from ai_engine.types import UAgentResponseType, KeyValue, UAgentResponse, BookingRequest
+from ai_engine.chitchat import ChitChatDialogue
+from ai_engine.messages import DialogueMessage
+from ai_engine.dialogue import EdgeMetadata, EdgeDescription
 ```
 
-### Models
+### 📦 Components
+
+### 1. Response Models
 
 #### UAgentResponseType
 
@@ -93,6 +98,128 @@ class BookingRequest(Model):
 - `user_email`: The email address of the user.
 - `user_full_name`: The full name of the user.
 
+### 2. Dialogue Management
+
+#### ChitChatDialogue
+
+A specific dialogue class for AI-enabled chit-chat:
+
+```python
+class ChitChatDialogue(Dialogue):
+    def on_initiate_session(self, model: Type[Model]):
+        # ... (session initiation logic)
+
+    def on_reject_session(self, model: Type[Model]):
+        # ... (session rejection logic)
+
+    def on_start_dialogue(self, model: Type[Model]):
+        # ... (dialogue start logic)
+
+    def on_continue_dialogue(self, model: Type[Model]):
+        # ... (dialogue continuation logic)
+
+    def on_end_session(self, model: Type[Model]):
+        # ... (session end logic)
+```
+
+How to initialize a `ChitChatDialogue` instance:
+
+```python
+
+agent = Agent()
+
+# instantiate the dialogues
+chitchat_dialogue = ChitChatDialogue(
+    version="0.1",
+    storage=agent.storage,
+)
+```
+
+For a more in depth example, see the [ChitChatDialogue](https://github.com/fetchai/uAgents/blob/main/integrations/fetch-ai-engine/examples/simple_agent.py) example.
+
+### 3. Extending Dialogue with Metadata
+
+#### EdgeMetadata
+
+Metadata for the edges to specify targets and observability:
+
+- `system` implies AI Engine processing
+- `user` is direct message to the user
+- `ai` is a message to the AI Engine
+- `agent` is a message to the agent.
+
+```python
+class EdgeMetadata(BaseModel):
+    target: Literal["user", "ai", "system", "agent"]
+    observable: bool
+```
+
+#### EdgeDescription
+
+A structured description for the edge:
+
+```python
+class EdgeDescription(BaseModel):
+    description: str
+    metadata: EdgeMetadata
+```
+
+### Create Edge Function
+
+Function to create an edge with metadata:
+
+```python
+init_session = create_edge(
+    name="Initiate session",
+    description="Every dialogue starts with this transition.",
+    target="user",
+    observable=True,
+    parent=default_state,
+    child=init_state,
+)
+```
+
+### 3. Message Types
+
+#### BaseMessage
+
+A base model for all messages:
+
+```python
+class BaseMessage(Model):
+    message_id: UUID
+    timestamp: datetime
+```
+
+#### DialogueMessage
+
+A model for generic dialogue messages:
+
+```python
+class DialogueMessage(BaseMessage):
+    type: Literal["agent_message", "agent_json", "user_message"]
+    agent_message: Optional[str]
+    agent_json: Optional[AgentJSON]
+    user_message: Optional[str]
+```
+
+Can be initialized as follows, we'll call this class `ChitChatDialogueMessage`:
+
+```python
+class ChitChatDialogueMessage(DialogueMessage):
+    """ChitChat dialogue message"""
+
+    pass
+```
+
+And then use it as follows:
+
+```python
+@chitchat_dialogue.on_continue_dialogue(ChitChatDialogueMessage)
+```
+
+Where `chitchat_dialogue` is defined above in the `ChitChatDialogue` section and `on_continue_dialogue` is a method of the `ChitChatDialogue` class that can be extended.
+
 ## AI-Engine Integration
 
 This integration adds the required types for AI-Engine to interact with UAgents effectively. The `UAgentResponse` model serves as the primary structure for agent responses, while `BookingRequest` handles user booking requests.
@@ -102,5 +229,5 @@ This integration adds the required types for AI-Engine to interact with UAgents 
 `UAgentResponse` digest:
 
 ```
-model:66841ea279697fd62a029c37b7297e4097966361407a2cc49cd1e7defb924685
+model:cf0d1367c5f9ed8a269de559b2fbca4b653693bb8315d47eda146946a168200e
 ```
