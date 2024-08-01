@@ -21,7 +21,7 @@ Represents an envelope for message communication between agents.
 - `target` _str_ - The target's address.
 - `session` _UUID4_ - The session UUID that persists for back-and-forth
   dialogues between agents.
-- `schema_digest` _str_ - The schema digest for the enclosed message (alias for protocol).
+- `schema_digest` _str_ - The schema digest for the enclosed message.
 - `protocol_digest` _Optional[str]_ - The digest of the protocol associated with the message
   (optional).
 - `payload` _Optional[str]_ - The encoded message payload of the envelope (optional).
@@ -48,14 +48,14 @@ Encode the payload value and store it in the envelope.
 #### decode`_`payload
 
 ```python
-def decode_payload() -> Optional[Any]
+def decode_payload() -> str
 ```
 
 Decode and retrieve the payload value from the envelope.
 
 **Returns**:
 
-- `Optional[Any]` - The decoded payload value, or None if payload is not present.
+- `str` - The decoded payload value, or '' if payload is not present.
 
 <a id="src.uagents.envelope.Envelope.sign"></a>
 

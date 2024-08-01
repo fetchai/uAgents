@@ -7,12 +7,13 @@ from typing import Dict, Optional
 import pydantic
 import uvicorn
 from requests.structures import CaseInsensitiveDict
+from uagents.communication import enclose_response_raw
 from uagents.config import RESPONSE_TIME_HINT_SECONDS
+from uagents.context import ERROR_MESSAGE_DIGEST
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
 from uagents.models import ErrorMessage
-from uagents.query import enclose_response_raw
 from uagents.utils import get_logger
 
 HOST = "0.0.0.0"
@@ -157,7 +158,10 @@ class ASGIServer:
         self._logger.info(
             f"Starting server on http://{HOST}:{self._port} (Press CTRL+C to quit)"
         )
-        await self._server.serve()
+        try:
+            await self._server.serve()
+        except KeyboardInterrupt:
+            self._logger.info("Shutting down server")
 
     async def __call__(self, scope, receive, send):  #  pylint: disable=too-many-branches
         """
@@ -237,7 +241,7 @@ class ASGIServer:
             return
 
         try:
-            env: Envelope = Envelope.parse_obj(contents)
+            env = Envelope.model_validate(contents)
         except pydantic.ValidationError:
             await send(
                 {
@@ -257,29 +261,32 @@ class ASGIServer:
             return
 
         expects_response = headers.get(b"x-uagents-connection") == b"sync"
-        do_verify = not is_user_address(env.sender)
 
         if expects_response:
             # Add a future that will be resolved once the query is answered
             self._queries[env.sender] = asyncio.Future()
 
-        if do_verify and env.verify() is False:
-            await send(
-                {
-                    "type": "http.response.start",
-                    "status": 400,
-                    "headers": [
-                        [b"content-type", b"application/json"],
-                    ],
-                }
-            )
-            await send(
-                {
-                    "type": "http.response.body",
-                    "body": b'{"error": "signature verification failed"}',
-                }
-            )
-            return
+        if not is_user_address(env.sender):  # verify signature if sent from agent
+            try:
+                env.verify()
+            except Exception as err:
+                self._logger.warning(f"Failed to verify envelope: {err}")
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 400,
+                        "headers": [
+                            [b"content-type", b"application/json"],
+                        ],
+                    }
+                )
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": b'{"error": "signature verification failed"}',
+                    }
+                )
+                return
 
         if not dispatcher.contains(env.target):
             await send(
@@ -309,11 +316,14 @@ class ASGIServer:
             if (env.expires is not None) and (
                 datetime.now() > datetime.fromtimestamp(env.expires)
             ):
-                response_msg = ErrorMessage(error="Query envelope expired")
+                response_msg = ErrorMessage(
+                    error="Query envelope expired"
+                ).model_dump_json()
+                schema_digest = ERROR_MESSAGE_DIGEST
             sender = env.target
             target = env.sender
             response = enclose_response_raw(
-                response_msg, schema_digest, sender, str(env.session), target=target
+                response_msg, schema_digest, sender, env.session, target=target
             )
         else:
             response = "{}"

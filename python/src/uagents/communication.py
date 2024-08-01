@@ -3,19 +3,19 @@
 import asyncio
 import logging
 import uuid
-from ast import Tuple
 from dataclasses import dataclass
 from enum import Enum
 from time import time
-from typing import Any, List, Optional, Type, Union
+from typing import Any, List, Optional, Tuple, Type, Union
 
 import aiohttp
-from pydantic import ValidationError
-from uagents.crypto import Identity
+from pydantic import UUID4, ValidationError
+from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
+from uagents.crypto import Identity, is_user_address
 from uagents.dispatch import JsonStr, dispatcher
 from uagents.envelope import Envelope
 from uagents.models import Model
-from uagents.resolver import GlobalResolver, Resolver, parse_identifier
+from uagents.resolver import GlobalResolver, Resolver
 from uagents.utils import get_logger
 
 LOGGER = get_logger("dispenser", logging.DEBUG)
@@ -53,12 +53,14 @@ class MsgStatus:
         detail (str): The details of the message delivery.
         destination (str): The destination address of the message.
         endpoint (str): The endpoint the message was sent to.
+        session (Optional[uuid.UUID]): The session ID of the message.
     """
 
     status: DeliveryStatus
     detail: str
     destination: str
     endpoint: str
+    session: Optional[uuid.UUID] = None
 
 
 class Dispenser:
@@ -67,7 +69,9 @@ class Dispenser:
     """
 
     def __init__(self):
-        self._envelopes: List[Tuple[Envelope, List[str], asyncio.Future, bool]] = []
+        self._envelopes: asyncio.Queue[
+            Tuple[Envelope, List[str], asyncio.Future, bool]
+        ] = asyncio.Queue()
 
     def add_envelope(
         self,
@@ -85,24 +89,23 @@ class Dispenser:
             response_future (asyncio.Future): The future to set the response on.
             sync (bool, optional): True if the message is synchronous. Defaults to False.
         """
-        self._envelopes.append((envelope, endpoints, response_future, sync))
+        self._envelopes.put_nowait((envelope, endpoints, response_future, sync))
 
     async def run(self):
         """Run the dispenser routine."""
         while True:
-            for env, endpoints, response_future, sync in self._envelopes:
-                try:
-                    result = await send_exchange_envelope(
-                        envelope=env,
-                        endpoints=endpoints,
-                        sync=sync,
-                    )
-                    response_future.set_result(result)
-                except Exception as err:
-                    LOGGER.error(f"Failed to send envelope: {err}")
-                finally:  # sending an envelope is only tried once
-                    self._envelopes.remove((env, endpoints, response_future, sync))
-            await asyncio.sleep(0)
+            # get the message from the queue
+            env, endpoints, response_future, sync = await self._envelopes.get()
+
+            try:
+                result = await send_exchange_envelope(
+                    envelope=env,
+                    endpoints=endpoints,
+                    sync=sync,
+                )
+                response_future.set_result(result)
+            except Exception as err:
+                LOGGER.error(f"Failed to send envelope: {err}")
 
 
 async def dispatch_local_message(
@@ -125,6 +128,7 @@ async def dispatch_local_message(
         detail="Message dispatched locally",
         destination=destination,
         endpoint="",
+        session=session_id,
     )
 
 
@@ -147,51 +151,54 @@ async def send_exchange_envelope(
     headers = {"content-type": "application/json"}
     if sync:
         headers["x-uagents-connection"] = "sync"
+    errors = []
     for endpoint in endpoints:
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     endpoint,
                     headers=headers,
-                    data=envelope.json(),
+                    data=envelope.model_dump_json(),
                 ) as resp:
                     success = resp.status == 200
                     if success:
                         if sync:
-                            return await dispatch_sync_response_envelope(
-                                Envelope.parse_obj(await resp.json())
-                            )
+                            # If the message is synchronous but not verified, return the envelope
+                            env = Envelope.model_validate(await resp.json())
+                            if not envelope.verify():
+                                return env
+                            return await dispatch_sync_response_envelope(env)
                         return MsgStatus(
                             status=DeliveryStatus.DELIVERED,
                             detail="Message successfully delivered via HTTP",
                             destination=envelope.target,
                             endpoint=endpoint,
+                            session=envelope.session,
                         )
-                LOGGER.warning(
-                    f"Failed to send message to {envelope.target} @ {endpoint}: "
-                    + (await resp.text()),
-                )
+                errors.append(await resp.text())
         except aiohttp.ClientConnectorError as ex:
-            LOGGER.warning(f"Failed to connect to {endpoint}: {ex}")
+            errors.append(f"Failed to connect: {ex}")
         except ValidationError as ex:
-            LOGGER.warning(
-                f"Sync message to {envelope.target} @ {endpoint} got invalid response: {ex}",
-            )
+            errors.append(f"Invalid sync response: {ex}")
         except Exception as ex:
-            LOGGER.warning(
-                f"Failed to send message to {envelope.target} @ {endpoint}: {ex}",
-            )
-    LOGGER.error(f"Failed to deliver message to {envelope.target}")
+            errors.append(f"Failed to send message: {ex}")
+    LOGGER.error(
+        f"Failed to deliver message to {envelope.target} @ {endpoints}: " + str(errors)
+    )
     return MsgStatus(
         status=DeliveryStatus.FAILED,
         detail="Message delivery failed",
         destination=envelope.target,
         endpoint="",
+        session=envelope.session,
     )
 
 
-async def dispatch_sync_response_envelope(env: Envelope) -> MsgStatus:
+async def dispatch_sync_response_envelope(env: Envelope) -> Union[MsgStatus, Envelope]:
     """Dispatch a synchronous response envelope locally."""
+    # If there are no sinks registered, return the envelope back to the caller
+    if len(dispatcher.sinks) == 0:
+        return env
     await dispatcher.dispatch(
         env.sender,
         env.target,
@@ -204,6 +211,124 @@ async def dispatch_sync_response_envelope(env: Envelope) -> MsgStatus:
         detail="Sync message successfully delivered via HTTP",
         destination=env.target,
         endpoint="",
+        session=env.session,
+    )
+
+
+async def send_message_raw(
+    destination: str,
+    message_schema_digest: str,
+    message_body: JsonStr,
+    response_type: Optional[Type[Model]] = None,
+    sender: Optional[Union[Identity, str]] = None,
+    resolver: Optional[Resolver] = None,
+    timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+    sync: bool = False,
+) -> Union[Model, JsonStr, MsgStatus, Envelope]:
+    """
+    Standalone function to send a message to an agent.
+
+    Args:
+        destination (str): The destination address to send the message to.
+        message_schema_digest (str): The schema digest of the message.
+        message_body (JsonStr): The JSON-formatted message to be sent.
+        response_type (Optional[Type[Model]]): The optional type of the response message.
+        sender (Optional[Union[Identity, str]]): The optional sender identity or user address.
+        resolver (Optional[Resolver]): The optional resolver for address-to-endpoint resolution.
+        timeout (int): The timeout for the message response in seconds. Defaults to 30.
+        sync (bool): True if the message is synchronous.
+
+    Returns:
+        Union[Model, JsonStr, MsgStatus, Envelope]: On success, if the response type is provided,
+        the response message is returned with that type. Otherwise, the JSON message is returned.
+        If the sender is a user address, the response envelope is returned.
+        On failure, a message status is returned.
+    """
+    if isinstance(sender, str) and is_user_address(sender):
+        sender_address = sender
+    if sender is None:
+        sender = Identity.generate()
+    if isinstance(sender, Identity):
+        sender_address = sender.address
+    if not sender_address:
+        raise ValueError("Invalid sender address")
+
+    if resolver is None:
+        resolver = GlobalResolver()
+
+    destination_address, endpoints = await resolver.resolve(destination)
+    if not endpoints or not destination_address:
+        return MsgStatus(
+            status=DeliveryStatus.FAILED,
+            detail="Failed to resolve destination address",
+            destination=destination,
+            endpoint="",
+            session=None,
+        )
+
+    env = Envelope(
+        version=1,
+        sender=sender_address,
+        target=destination_address,
+        session=uuid.uuid4(),
+        schema_digest=message_schema_digest,
+        expires=int(time()) + timeout,
+    )
+    env.encode_payload(message_body)
+    if not is_user_address(sender_address) and isinstance(sender, Identity):
+        env.sign(sender.sign_digest)
+
+    response = await send_exchange_envelope(
+        envelope=env,
+        endpoints=endpoints,
+        sync=sync,
+    )
+    if isinstance(response, Envelope):
+        if not env.verify():
+            return response
+        json_message = response.decode_payload()
+        if response_type:
+            return response_type.model_validate_json(json_message)
+        return json_message
+    return response
+
+
+async def send_message(
+    destination: str,
+    message: Model,
+    response_type: Optional[Type[Model]] = None,
+    sender: Optional[Union[Identity, str]] = None,
+    resolver: Optional[Resolver] = None,
+    timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+    sync: bool = False,
+) -> Union[Model, JsonStr, MsgStatus, Envelope]:
+    """
+    Standalone function to send a message to an agent.
+
+    Args:
+        destination (str): The destination address to send the message to.
+        message (Model): The message to be sent.
+        response_type (Optional[Type[Model]]): The optional type of the response message.
+        sender (Optional[Union[Identity, str]]): The optional sender identity or user address.
+        resolver (Optional[Resolver]): The optional resolver for address-to-endpoint resolution.
+        timeout (int): The timeout for the message response in seconds. Defaults to 30.
+        sync (bool): True if the message is synchronous.
+
+    Returns:
+        Union[Model, JsonStr, MsgStatus, Envelope]: On success, if the response type is provided,
+        the response message is returned with that type. Otherwise, the JSON message is returned.
+        If the sender is a user address, the response envelope is returned.
+        On failure, a message status is returned.
+    """
+    return await send_message_raw(
+        destination,
+        Model.build_schema_digest(message),
+        message.model_dump_json(),
+        response_type,
+        sender,
+        resolver,
+        timeout,
+        sync,
     )
 
 
@@ -211,61 +336,80 @@ async def send_sync_message(
     destination: str,
     message: Model,
     response_type: Optional[Type[Model]] = None,
-    sender: Optional[Identity] = None,
+    sender: Optional[Union[Identity, str]] = None,
     resolver: Optional[Resolver] = None,
-    timeout: int = 30,
-) -> Union[Model, JsonStr, MsgStatus]:
+    timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+) -> Union[Model, JsonStr, MsgStatus, Envelope]:
     """
     Standalone function to send a synchronous message to an agent.
 
     Args:
         destination (str): The destination address to send the message to.
         message (Model): The message to be sent.
-        response_type (Type[Model]): The optional type of the response message.
-        sender (Identity): The optional sender identity (defaults to a generated identity).
-        resolver (Resolver): The optional resolver for address-to-endpoint resolution.
-        timeout (int): The optional timeout for the message response in seconds.
+        response_type (Optional[Type[Model]]): The optional type of the response message.
+        sender (Optional[Union[Identity, str]]): The optional sender identity or user address.
+        resolver (Optional[Resolver]): The optional resolver for address-to-endpoint resolution.
+        timeout (int): The timeout for the message response in seconds. Defaults to 30.
+        sync (bool): True if the message is synchronous.
 
     Returns:
-        Union[Model, JsonStr, MsgStatus]: On success, if the response type is provided, the response
-        message is returned with that type. Otherwise, the JSON message is returned. On failure, a
-        message status is returned.
+        Union[Model, JsonStr, MsgStatus, Envelope]: On success, if the response type is provided,
+        the response message is returned with that type. Otherwise, the JSON message is returned.
+        If the sender is a user address, the response envelope is returned.
+        On failure, a message status is returned.
     """
-    if sender is None:
-        sender = Identity.generate()
-    if resolver is None:
-        resolver = GlobalResolver()
+    return await send_message(
+        destination, message, response_type, sender, resolver, timeout, True
+    )
 
-    _, _, parsed_address = parse_identifier(destination)
 
-    destination_address, endpoints = await resolver.resolve(parsed_address)
-    if not endpoints or not destination_address:
-        return MsgStatus(
-            status=DeliveryStatus.FAILED,
-            detail="Failed to resolve destination address",
-            destination=destination,
-            endpoint="",
-        )
+def enclose_response(
+    message: Model, sender: str, session: UUID4, target: str = ""
+) -> str:
+    """
+    Enclose a response message within an envelope.
 
-    env = Envelope(
+    Args:
+        message (Model): The response message to enclose.
+        sender (str): The sender's address.
+        session (str): The session identifier.
+        target (str): The target address.
+
+    Returns:
+        str: The JSON representation of the response envelope.
+    """
+    schema_digest = Model.build_schema_digest(message)
+    return enclose_response_raw(
+        message.model_dump_json(), schema_digest, sender, session, target
+    )
+
+
+def enclose_response_raw(
+    json_message: JsonStr,
+    schema_digest: str,
+    sender: str,
+    session: UUID4,
+    target: str = "",
+) -> str:
+    """
+    Enclose a raw response message within an envelope.
+
+    Args:
+        json_message (JsonStr): The JSON-formatted response message to enclose.
+        schema_digest (str): The schema digest of the message.
+        sender (str): The sender's address.
+        session (UUID4): The session identifier.
+        target (str): The target address.
+
+    Returns:
+        str: The JSON representation of the response envelope.
+    """
+    response_env = Envelope(
         version=1,
-        sender=sender.address,
-        target=destination_address,
-        session=uuid.uuid4(),
-        schema_digest=Model.build_schema_digest(message),
-        expires=int(time()) + timeout,
+        sender=sender,
+        target=target,
+        session=session,
+        schema_digest=schema_digest,
     )
-    env.encode_payload(message.json())
-    env.sign(sender.sign_digest)
-
-    response = await send_exchange_envelope(
-        envelope=env,
-        endpoints=endpoints,
-        sync=True,
-    )
-    if isinstance(response, Envelope):
-        json_message = response.decode_payload()
-        if response_type:
-            return response_type.parse_raw(json_message)
-        return json_message
-    return response
+    response_env.encode_payload(json_message)
+    return response_env.model_dump_json()

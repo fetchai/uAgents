@@ -3,9 +3,9 @@
 import base64
 import hashlib
 import struct
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
-from pydantic import UUID4, BaseModel
+from pydantic import UUID4, BaseModel, ConfigDict
 from uagents.crypto import Identity
 from uagents.dispatch import JsonStr
 
@@ -20,7 +20,7 @@ class Envelope(BaseModel):
         target (str): The target's address.
         session (UUID4): The session UUID that persists for back-and-forth
         dialogues between agents.
-        schema_digest (str): The schema digest for the enclosed message (alias for protocol).
+        schema_digest (str): The schema digest for the enclosed message.
         protocol_digest (Optional[str]): The digest of the protocol associated with the message
         (optional).
         payload (Optional[str]): The encoded message payload of the envelope (optional).
@@ -40,8 +40,7 @@ class Envelope(BaseModel):
     nonce: Optional[int] = None
     signature: Optional[str] = None
 
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
     def encode_payload(self, value: JsonStr):
         """
@@ -52,15 +51,15 @@ class Envelope(BaseModel):
         """
         self.payload = base64.b64encode(value.encode()).decode()
 
-    def decode_payload(self) -> Optional[Any]:
+    def decode_payload(self) -> str:
         """
         Decode and retrieve the payload value from the envelope.
 
         Returns:
-            Optional[Any]: The decoded payload value, or None if payload is not present.
+            str: The decoded payload value, or '' if payload is not present.
         """
         if self.payload is None:
-            return None
+            return ""
 
         return base64.b64decode(self.payload).decode()
 
@@ -84,8 +83,7 @@ class Envelope(BaseModel):
             bool: True if the signature is valid, False otherwise.
         """
         if self.signature is None:
-            return False
-
+            raise ValueError("Envelope signature is missing")
         return Identity.verify_digest(self.sender, self._digest(), self.signature)
 
     def _digest(self) -> bytes:

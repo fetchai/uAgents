@@ -128,7 +128,7 @@ An agent that interacts within a communication environment.
 - `_resolver` _Resolver_ - The resolver for agent communication.
 - `_loop` _asyncio.AbstractEventLoop_ - The asyncio event loop used by the agent.
 - `_logger` - The logger instance for logging agent activities.
-- `_endpoints` _List[dict]_ - List of endpoints at which the agent is reachable.
+- `_endpoints` _List[AgentEndpoint]_ - List of endpoints at which the agent is reachable.
 - `_use_mailbox` _bool_ - Indicates if the agent uses a mailbox for communication.
 - `_agentverse` _dict_ - Agentverse configuration settings.
 - `_mailbox_client` _MailboxClient_ - The client for interacting with the agentverse mailbox.
@@ -183,12 +183,11 @@ def __init__(name: Optional[str] = None,
              agentverse: Optional[Union[str, Dict[str, str]]] = None,
              mailbox: Optional[Union[str, Dict[str, str]]] = None,
              resolve: Optional[Resolver] = None,
-             enable_wallet_messaging: Optional[Union[bool, Dict[str,
-                                                                str]]] = False,
+             enable_wallet_messaging: Union[bool, Dict[str, str]] = False,
              wallet_key_derivation_index: Optional[int] = 0,
              max_resolver_endpoints: Optional[int] = None,
              version: Optional[str] = None,
-             test: Optional[bool] = True,
+             test: bool = True,
              loop: Optional[asyncio.AbstractEventLoop] = None,
              log_level: Union[int, str] = logging.INFO)
 ```
@@ -357,14 +356,14 @@ Get the agentverse configuration of the agent.
 
 ```python
 @property
-def mailbox_client() -> MailboxClient
+def mailbox_client() -> Optional[MailboxClient]
 ```
 
 Get the mailbox client used by the agent for mailbox communication.
 
 **Returns**:
 
-- `MailboxClient` - The mailbox client instance.
+- `Optional[MailboxClient]` - The mailbox client instance.
 
 <a id="src.uagents.agent.Agent.balance"></a>
 
@@ -474,14 +473,14 @@ Sign the registration data for Almanac contract.
 #### update`_`endpoints
 
 ```python
-def update_endpoints(endpoints: List[Dict[str, Any]])
+def update_endpoints(endpoints: List[AgentEndpoint])
 ```
 
 Update the list of endpoints.
 
 **Arguments**:
 
-- `endpoints` _List[Dict[str, Any]]_ - List of endpoint dictionaries.
+- `endpoints` _List[AgentEndpoint]_ - List of endpoint dictionaries.
 
 <a id="src.uagents.agent.Agent.update_loop"></a>
 
@@ -552,7 +551,7 @@ Decorator to register an interval handler for the provided period.
 
 ```python
 def on_query(model: Type[Model],
-             replies: Optional[Union[Model, Set[Model]]] = None)
+             replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None)
 ```
 
 Set up a query event with a callback.
@@ -608,6 +607,16 @@ Decorator to register an event handler for a specific event type.
 **Returns**:
 
 - `Callable` - The decorator function for registering event handlers.
+
+<a id="src.uagents.agent.Agent.on_wallet_message"></a>
+
+#### on`_`wallet`_`message
+
+```python
+def on_wallet_message()
+```
+
+Add a handler for wallet messages.
 
 <a id="src.uagents.agent.Agent.include"></a>
 
@@ -712,6 +721,17 @@ def run()
 
 Run the agent.
 
+<a id="src.uagents.agent.Agent.get_message_protocol"></a>
+
+#### get`_`message`_`protocol
+
+```python
+def get_message_protocol(
+        message_schema_digest) -> Optional[Tuple[str, Protocol]]
+```
+
+Get the protocol for a given message schema digest.
+
 <a id="src.uagents.agent.Bureau"></a>
 
 ## Bureau Objects
@@ -726,6 +746,7 @@ This class manages a collection of agents and orchestrates their execution.
 
 **Arguments**:
 
+- `agents` _Optional[List[Agent]]_ - The list of agents to be managed by the bureau.
 - `port` _Optional[int]_ - The port number for the server.
 - `endpoint` _Optional[Union[str, List[str], Dict[str, dict]]]_ - Configuration
   for agent endpoints.
@@ -734,7 +755,8 @@ This class manages a collection of agents and orchestrates their execution.
 **Attributes**:
 
 - `_loop` _asyncio.AbstractEventLoop_ - The event loop.
-- `_agents` _List[Agent]_ - The list of agents contained in the bureau.
+- `_agents` _List[Agent]_ - The list of agents to be managed by the bureau.
+- `_registered_agents` _List[Agent]_ - The list of agents contained in the bureau.
 - `_endpoints` _List[Dict[str, Any]]_ - The endpoint configuration for the bureau.
 - `_port` _int_ - The port on which the bureau's server runs.
 - `_queries` _Dict[str, asyncio.Future]_ - Dictionary mapping query senders to their
@@ -749,7 +771,8 @@ This class manages a collection of agents and orchestrates their execution.
 #### `__`init`__`
 
 ```python
-def __init__(port: Optional[int] = None,
+def __init__(agents: Optional[List[Agent]] = None,
+             port: Optional[int] = None,
              endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
              log_level: Union[int, str] = logging.INFO)
 ```

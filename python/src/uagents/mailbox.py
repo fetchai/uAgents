@@ -85,16 +85,19 @@ class MailboxClient:
         Dispatches the incoming messages and adds the envelope to the deletion queue.
         """
         try:
-            env = Envelope.parse_obj(payload["envelope"])
+            env = Envelope.model_validate(payload["envelope"])
         except pydantic.ValidationError:
             self._logger.warning("Received invalid envelope")
             return
 
-        do_verify = not is_user_address(env.sender)
-
-        if do_verify and env.verify() is False:
-            self._logger.warning("Received envelope that failed verification")
-            return
+        if not is_user_address(env.sender):  # verify signature if sent from agent
+            try:
+                env.verify()
+            except Exception as err:
+                self._logger.warning(
+                    "Received envelope that failed verification: %s", err
+                )
+                return
 
         if not dispatcher.contains(env.target):
             self._logger.warning("Received envelope for unrecognized address")

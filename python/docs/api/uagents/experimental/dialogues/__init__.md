@@ -74,7 +74,7 @@ Set the message handler that will be called when a message is received.
 
 ```python
 @property
-def efunc() -> MessageCallback
+def efunc() -> Optional[MessageCallback]
 ```
 
 The edge handler that is associated with the edge.
@@ -264,12 +264,25 @@ Add a message to the conversation of the given session within the dialogue insta
 #### get`_`conversation
 
 ```python
-def get_conversation(session_id) -> Optional[List[Any]]
+def get_conversation(session_id: UUID,
+                     message_filter: Optional[str] = None) -> List[Any]
 ```
 
-Return the conversation of the given session from the dialogue instance.
+Return the message history of the given session from the dialogue instance as
+list of DialogueMessage.
+This includes both sent and received messages.
 
-This includes all messages that were sent and received for the session.
+**Arguments**:
+
+- `session_id` _UUID_ - The ID of the session to get the conversation for.
+- `message_filter` _str_ - The name of the message type to filter for
+  
+
+**Returns**:
+
+- `list(DialogueMessage)` - A list of all messages exchanged during the given session
+- `list(DialogueMessage)` - Only messages of type 'message_filter' (Model.__name__)
+  from the given session
 
 <a id="src.uagents.experimental.dialogues.__init__.Dialogue.get_edge"></a>
 
@@ -358,7 +371,7 @@ and recalculate the digest.
 
 ```python
 async def start_dialogue(ctx: Context, destination: str,
-                         message: Model) -> MsgStatus
+                         message: Model) -> List[MsgStatus]
 ```
 
 Start a dialogue with a message.
@@ -366,7 +379,7 @@ Start a dialogue with a message.
 **Arguments**:
 
 - `ctx` _Context_ - The current message context
-- `destination` _str_ - Agent address of the receiver
+- `destination` _str_ - Either the agent address of the receiver or a protocol digest
 - `message` _Model_ - The current message to send
   
 

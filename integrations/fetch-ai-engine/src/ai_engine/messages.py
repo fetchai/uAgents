@@ -1,9 +1,8 @@
-from pydantic import BaseModel, Field, Extra
-from typing import Optional
+from pydantic.v1 import BaseModel, Field, Extra
 from uagents import Model
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
-from typing import Optional, List, Optional, Literal, Union
+from typing import Optional, List, Literal, Union
 
 
 # here are some message types that is currently supported by DeltaV
