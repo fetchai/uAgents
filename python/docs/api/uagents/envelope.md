@@ -83,5 +83,11 @@ Verify the envelope's signature.
 
 **Returns**:
 
-- `bool` - True if the signature is valid, False otherwise.
+- `bool` - True if the signature is valid.
+  
+
+**Raises**:
+
+- `ValueError` - If the signature is missing.
+- `ecdsa.BadSignatureError` - If the signature is invalid.
 
