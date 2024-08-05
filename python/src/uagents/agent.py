@@ -609,6 +609,20 @@ class Agent(Sink):
         """
         return self._identity.sign_digest(digest)
 
+    def sign_registration(self) -> str:
+        """
+        Sign the registration data for Almanac contract.
+        Returns:
+            str: The signature of the registration data.
+        Raises:
+            AssertionError: If the Almanac contract address is None.
+        """
+        assert self._almanac_contract.address is not None
+        return self._identity.sign_registration(
+            str(self._almanac_contract.address),
+            self._almanac_contract.get_sequence(self.address),
+        )
+
     def update_endpoints(self, endpoints: List[AgentEndpoint]):
         """
         Update the list of endpoints.
