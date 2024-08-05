@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import requests
+from dateutil import parser
 from uagents.config import (
     AGENT_ADDRESS_LENGTH,
     AGENT_PREFIX,
@@ -292,7 +293,7 @@ class AlmanacApiResolver(Resolver):
             if expiry_str is None:
                 return None, []
 
-            expiry = datetime.fromisoformat(expiry_str)
+            expiry = parser.parse(expiry_str)
             current_time = datetime.now(timezone.utc)
             endpoint_list = agent.get("endpoints", [])
 
