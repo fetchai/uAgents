@@ -7,7 +7,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Type
 from uuid import UUID
 
 from uagents import Context, Model, Protocol
-from uagents.context import DeliveryStatus, ExternalContext, MsgStatus
+from uagents.context import DeliveryStatus, MsgStatus
 from uagents.dispatch import JsonStr
 from uagents.models import ErrorMessage
 from uagents.storage import KeyValueStore, StorageAPI
@@ -357,13 +357,15 @@ class Dialogue(Protocol):
     def _post_handle_hook(self, ctx: Context, sender: str, msg_in: Type[Model]) -> bool:
         if not ctx.session:
             raise ValueError("Session ID must not be None!")
-        if not isinstance(ctx, ExternalContext):
-            raise ValueError("Context must be an ExternalContext instance!")
+        try:
+            outbound_messages = getattr(ctx, "outbound_messages", {})
+        except AttributeError as exc:
+            raise ValueError("Context must be an ExternalContext instance!") from exc
 
-        if self.is_finished(ctx.session) or not ctx.outbound_messages:
+        if self.is_finished(ctx.session) or not outbound_messages:
             return True
         inbound_schema_digest = Model.build_schema_digest(msg_in)
-        outbound_message_content, outbound_schema_digest = ctx.outbound_messages[sender]
+        outbound_message_content, outbound_schema_digest = outbound_messages[sender]
         if not self.is_valid_reply(inbound_schema_digest, outbound_schema_digest):
             return False
 
@@ -491,7 +493,7 @@ class Dialogue(Protocol):
             list(DialogueMessage): Only messages of type 'message_filter' (Model.__name__)
             from the given session
         """
-        conversation = self._sessions.get(session_id)
+        conversation = self._sessions.get(session_id, [])
         if message_filter is None:
             return conversation
 
