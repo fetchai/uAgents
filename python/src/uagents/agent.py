@@ -49,7 +49,6 @@ from uagents.dispatch import JsonStr, Sink, dispatcher
 from uagents.mailbox import MailboxClient
 from uagents.models import ErrorMessage, Model
 from uagents.network import (
-    AgentEndpoint,
     InsufficientFundsError,
     get_almanac_contract,
     get_ledger,
@@ -664,10 +663,6 @@ class Agent(Sink):
         if necessary.
 
         """
-        await self._registration_policy.register(
-            self.address, list(self.protocols.keys()), self._endpoints
-        )
-
         # Check if the deployed contract version matches the supported version
         deployed_version = self._almanac_contract.get_contract_version()
         if deployed_version != ALMANAC_CONTRACT_VERSION:
@@ -678,43 +673,9 @@ class Agent(Sink):
                 deployed_version,
             )
 
-        # register if not yet registered or registration is about to expire
-        # or anything has changed from the last registration
-        if (
-            not self._almanac_contract.is_registered(self.address)
-            or self._almanac_contract.get_expiry(self.address)
-            < REGISTRATION_UPDATE_INTERVAL_SECONDS
-            or self._endpoints != self._almanac_contract.get_endpoints(self.address)
-            or list(self.protocols.keys())
-            != self._almanac_contract.get_protocols(self.address)
-        ):
-            if self.balance < REGISTRATION_FEE:
-                self._logger.warning(
-                    "I do not have enough funds to register on Almanac contract"
-                )
-                if self._test:
-                    add_testnet_funds(self.wallet.address().data)
-                    self._logger.info(
-                        f"Adding testnet funds to {self.wallet.address()}"
-                    )
-                else:
-                    self._logger.info(
-                        f"Send funds to wallet address: {self.wallet.address()}"
-                    )
-                raise InsufficientFundsError()
-            self._logger.info("Registering on almanac contract...")
-            signature = self.sign_registration()
-            await self._almanac_contract.register(
-                self.ledger,
-                self.wallet,
-                self.address,
-                list(self.protocols.keys()),
-                self._endpoints,
-                signature,
-            )
-            self._logger.info("Registering on almanac contract...complete")
-        else:
-            self._logger.info("Almanac registration is up to date!")
+        await self._registration_policy.register(
+            self.address, list(self.protocols.keys()), self._endpoints
+        )
 
     async def _registration_loop(self):
         """
