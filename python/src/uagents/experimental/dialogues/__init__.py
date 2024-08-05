@@ -358,7 +358,7 @@ class Dialogue(Protocol):
         if not ctx.session:
             raise ValueError("Session ID must not be None!")
         try:
-            outbound_messages = getattr(ctx, "outbound_messages", {})
+            outbound_messages = ctx.outbound_messages  # type: ignore
         except AttributeError as exc:
             raise ValueError("Context must be an ExternalContext instance!") from exc
 
