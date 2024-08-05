@@ -339,8 +339,9 @@ class InternalContext(Context):
         ):
             log(logger, logging.ERROR, f"Invalid protocol digest: {protocol_digest}")
             return []
+        almanac_api_url = getattr(self._resolver, "_almanac_api_url", ALMANAC_API_URL)
         response = requests.post(
-            url=ALMANAC_API_URL + "search",
+            url=almanac_api_url + "search",
             json={"text": protocol_digest[6:]},
             timeout=DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
         )
