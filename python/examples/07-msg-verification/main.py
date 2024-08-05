@@ -49,13 +49,15 @@ async def bob_rx_message(ctx: Context, sender: str, msg: Message):
 
     ctx.logger.info(f"Received message from {sender}: {msg.message}")
 
-    msg = "Hello there alice."
-    digest = encode(msg)
+    outbound_msg = "Hello there alice."
+    digest = encode(outbound_msg)
 
     # send the response
     await ctx.send(
         alice.address,
-        Message(message=msg, digest=digest.hex(), signature=bob.sign_digest(digest)),
+        Message(
+            message=outbound_msg, digest=digest.hex(), signature=bob.sign_digest(digest)
+        ),
     )
 
 

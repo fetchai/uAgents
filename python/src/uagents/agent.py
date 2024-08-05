@@ -25,12 +25,14 @@ from pydantic import ValidationError
 from uagents.asgi import ASGIServer
 from uagents.communication import Dispenser, MsgDigest
 from uagents.config import (
+    ALMANAC_CONTRACT_VERSION,
     AVERAGE_BLOCK_INTERVAL,
     LEDGER_PREFIX,
     MAINNET_PREFIX,
     REGISTRATION_RETRY_INTERVAL_SECONDS,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     TESTNET_PREFIX,
+    AgentEndpoint,
     parse_agentverse_config,
     parse_endpoint_config,
 )
@@ -200,7 +202,7 @@ class Agent(Sink):
         _resolver (Resolver): The resolver for agent communication.
         _loop (asyncio.AbstractEventLoop): The asyncio event loop used by the agent.
         _logger: The logger instance for logging agent activities.
-        _endpoints (List[dict]): List of endpoints at which the agent is reachable.
+        _endpoints (List[AgentEndpoint]): List of endpoints at which the agent is reachable.
         _use_mailbox (bool): Indicates if the agent uses a mailbox for communication.
         _agentverse (dict): Agentverse configuration settings.
         _mailbox_client (MailboxClient): The client for interacting with the agentverse mailbox.
@@ -286,16 +288,8 @@ class Agent(Sink):
         """
         self._name = name
         self._port = port if port is not None else 8000
-        self._resolver = (
-            resolve
-            if resolve is not None
-            else GlobalResolver(max_endpoints=max_resolver_endpoints)
-        )
 
-        if loop is not None:
-            self._loop = loop
-        else:
-            self._loop = asyncio.get_event_loop_policy().get_event_loop()
+        self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
 
         # initialize wallet and identity
         self._initialize_wallet_and_identity(seed, name, wallet_key_derivation_index)
@@ -329,6 +323,11 @@ class Agent(Sink):
             ]
         else:
             self._mailbox_client = None
+
+        self._resolver = resolve or GlobalResolver(
+            max_endpoints=max_resolver_endpoints,
+            almanac_api_url=f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/v1/almanac/",
+        )
 
         self._ledger = get_ledger(test)
         self._almanac_contract = get_almanac_contract(test)
@@ -615,7 +614,7 @@ class Agent(Sink):
         Update the list of endpoints.
 
         Args:
-            endpoints (List[Dict[str, Any]]): List of endpoint dictionaries.
+            endpoints (List[AgentEndpoint]): List of endpoint dictionaries.
 
         """
 
@@ -654,6 +653,54 @@ class Agent(Sink):
         await self._registration_policy.register(
             self.address, list(self.protocols.keys()), self._endpoints
         )
+
+        # Check if the deployed contract version matches the supported version
+        deployed_version = self._almanac_contract.get_contract_version()
+        if deployed_version != ALMANAC_CONTRACT_VERSION:
+            self._logger.warning(
+                "Mismatch in almanac contract versions: supported (%s), deployed (%s). "
+                "Update uAgents to the latest version for compatibility.",
+                ALMANAC_CONTRACT_VERSION,
+                deployed_version,
+            )
+
+        # register if not yet registered or registration is about to expire
+        # or anything has changed from the last registration
+        if (
+            not self._almanac_contract.is_registered(self.address)
+            or self._almanac_contract.get_expiry(self.address)
+            < REGISTRATION_UPDATE_INTERVAL_SECONDS
+            or self._endpoints != self._almanac_contract.get_endpoints(self.address)
+            or list(self.protocols.keys())
+            != self._almanac_contract.get_protocols(self.address)
+        ):
+            if self.balance < REGISTRATION_FEE:
+                self._logger.warning(
+                    "I do not have enough funds to register on Almanac contract"
+                )
+                if self._test:
+                    add_testnet_funds(self.wallet.address().data)
+                    self._logger.info(
+                        f"Adding testnet funds to {self.wallet.address()}"
+                    )
+                else:
+                    self._logger.info(
+                        f"Send funds to wallet address: {self.wallet.address()}"
+                    )
+                raise InsufficientFundsError()
+            self._logger.info("Registering on almanac contract...")
+            signature = self.sign_registration()
+            await self._almanac_contract.register(
+                self.ledger,
+                self.wallet,
+                self.address,
+                list(self.protocols.keys()),
+                self._endpoints,
+                signature,
+            )
+            self._logger.info("Registering on almanac contract...complete")
+        else:
+            self._logger.info("Almanac registration is up to date!")
 
     async def _registration_loop(self):
         """
@@ -892,9 +939,13 @@ class Agent(Sink):
         Perform startup actions.
 
         """
-        if self._endpoints is not None:
+        if self._endpoints:
             await self._registration_loop()
 
+        else:
+            self._logger.warning(
+                "No endpoints provided. Skipping registration: Agent won't be reachable."
+            )
         for handler in self._on_startup:
             try:
                 await handler(self._ctx)
@@ -920,13 +971,13 @@ class Agent(Sink):
             except Exception as ex:
                 self._logger.exception(f"Exception in shutdown handler: {ex}")
 
-    def setup(self):
+    async def setup(self):
         """
         Include the internal agent protocol, run startup tasks, and start background tasks.
         """
         self.include(self._protocol)
         self.start_message_dispenser()
-        self._loop.run_until_complete(self._startup())
+        await self._startup()
         self.start_message_receivers()
         self.start_interval_tasks()
 
@@ -961,20 +1012,26 @@ class Agent(Sink):
             ]:
                 self._loop.create_task(task)
 
+    async def run_async(self):
+        """
+        Create all tasks for the agent.
+
+        """
+        await self.setup()
+        try:
+            if self._use_mailbox and self._mailbox_client is not None:
+                await self._mailbox_client.run()
+            else:
+                await self._server.serve()
+        finally:
+            await self._shutdown()
+
     def run(self):
         """
         Run the agent.
 
         """
-        self.setup()
-        try:
-            if self._use_mailbox and self._mailbox_client is not None:
-                self._loop.create_task(self._mailbox_client.process_deletion_queue())
-                self._loop.run_until_complete(self._mailbox_client.run())
-            else:
-                self._loop.run_until_complete(self._server.serve())
-        finally:
-            self._loop.run_until_complete(self._shutdown())
+        self._loop.run_until_complete(self.run_async())
 
     def get_message_protocol(
         self, message_schema_digest
@@ -1096,6 +1153,7 @@ class Bureau:
         agents: Optional[List[Agent]] = None,
         port: Optional[int] = None,
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
         log_level: Union[int, str] = logging.INFO,
     ):
         """
@@ -1106,7 +1164,7 @@ class Bureau:
             endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration
             for the bureau.
         """
-        self._loop = asyncio.get_event_loop_policy().get_event_loop()
+        self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
         self._agents: List[Agent] = []
         self._endpoints = parse_endpoint_config(endpoint)
         self._port = port or 8000
@@ -1137,14 +1195,14 @@ class Bureau:
             agent.update_endpoints(self._endpoints)
         self._agents.append(agent)
 
-    def run(self):
+    async def run_async(self):
         """
         Run the agents managed by the bureau.
 
         """
         tasks = []
         for agent in self._agents:
-            agent.setup()
+            await agent.setup()
             if agent.agentverse["use_mailbox"] and agent.mailbox_client is not None:
                 tasks.append(
                     self._loop.create_task(
@@ -1155,4 +1213,14 @@ class Bureau:
         if not self._use_mailbox:
             tasks.append(self._loop.create_task(self._server.serve()))
 
-        self._loop.run_until_complete(asyncio.gather(*tasks))
+        try:
+            await asyncio.gather(*tasks)
+        finally:
+            await asyncio.gather(*[agent._shutdown() for agent in self._agents])
+
+    def run(self):
+        """
+        Run the bureau.
+
+        """
+        self._loop.run_until_complete(self.run_async())

@@ -12,7 +12,7 @@ Query Envelopes.
 async def query(destination: str,
                 message: Model,
                 resolver: Optional[Resolver] = None,
-                timeout: int = 30) -> Optional[Envelope]
+                timeout: int = 30) -> Union[MsgStatus, Envelope]
 ```
 
 Query a remote agent with a message and retrieve the response envelope.
@@ -28,57 +28,5 @@ Query a remote agent with a message and retrieve the response envelope.
 
 **Returns**:
 
-- `Optional[Envelope]` - The response envelope if successful, otherwise None.
-
-<a id="src.uagents.query.enclose_response"></a>
-
-#### enclose`_`response
-
-```python
-def enclose_response(message: Model,
-                     sender: str,
-                     session: UUID4,
-                     target: str = "") -> str
-```
-
-Enclose a response message within an envelope.
-
-**Arguments**:
-
-- `message` _Model_ - The response message to enclose.
-- `sender` _str_ - The sender's address.
-- `session` _str_ - The session identifier.
-- `target` _str_ - The target address.
-  
-
-**Returns**:
-
-- `str` - The JSON representation of the response envelope.
-
-<a id="src.uagents.query.enclose_response_raw"></a>
-
-#### enclose`_`response`_`raw
-
-```python
-def enclose_response_raw(json_message: JsonStr,
-                         schema_digest: str,
-                         sender: str,
-                         session: UUID4,
-                         target: str = "") -> str
-```
-
-Enclose a raw response message within an envelope.
-
-**Arguments**:
-
-- `json_message` _JsonStr_ - The JSON-formatted response message to enclose.
-- `schema_digest` _str_ - The schema digest of the message.
-- `sender` _str_ - The sender's address.
-- `session` _UUID4_ - The session identifier.
-- `target` _str_ - The target address.
-  
-
-**Returns**:
-
-- `str` - The JSON representation of the response envelope.
+  Union[MsgStatus, Envelope]: The response envelope if successful, otherwise MsgStatus.
 

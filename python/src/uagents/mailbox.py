@@ -64,6 +64,12 @@ class MailboxClient:
 
     async def run(self):
         """
+        Runs the mailbox client.
+        """
+        await asyncio.gather(self.start_polling(), self.process_deletion_queue())
+
+    async def start_polling(self):
+        """
         Runs the mailbox client. Acquires an access token if needed and then starts a polling loop.
         """
         self._logger.info(f"Connecting to mailbox server at {self.base_url}")
@@ -90,11 +96,14 @@ class MailboxClient:
             self._logger.warning("Received invalid envelope")
             return
 
-        do_verify = not is_user_address(env.sender)
-
-        if do_verify and env.verify() is False:
-            self._logger.warning("Received envelope that failed verification")
-            return
+        if not is_user_address(env.sender):  # verify signature if sent from agent
+            try:
+                env.verify()
+            except Exception as err:
+                self._logger.warning(
+                    "Received envelope that failed verification: %s", err
+                )
+                return
 
         if not dispatcher.contains(env.target):
             self._logger.warning("Received envelope for unrecognized address")

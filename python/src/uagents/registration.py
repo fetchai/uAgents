@@ -40,7 +40,7 @@ class AgentRegistrationAttestation(BaseModel):
 
     def verify(self) -> bool:
         if self.signature is None:
-            return False
+            raise ValueError("Attestation signature is missing")
         return Identity.verify_digest(
             self.agent_address, self._build_digest(), self.signature
         )

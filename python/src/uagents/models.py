@@ -14,8 +14,8 @@ class Model(BaseModel):
         return self.json()
 
     @classmethod
-    def model_validate(cls, obj: Any) -> "Model":
-        return cls.parse_obj(obj)
+    def model_validate_json(cls, obj: Any) -> "Model":
+        return cls.parse_raw(obj)
 
     @staticmethod
     def build_schema_digest(model: Union["Model", Type["Model"]]) -> str:

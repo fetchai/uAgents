@@ -339,8 +339,13 @@ class InternalContext(Context):
         ):
             log(logger, logging.ERROR, f"Invalid protocol digest: {protocol_digest}")
             return []
+        almanac_api_url = getattr(
+            getattr(self._resolver, "_almanac_api_resolver", None),
+            "_almanac_api_url",
+            ALMANAC_API_URL,
+        )
         response = requests.post(
-            url=ALMANAC_API_URL + "search",
+            url=almanac_api_url + "search",
             json={"text": protocol_digest[6:]},
             timeout=DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
         )
@@ -478,10 +483,8 @@ class InternalContext(Context):
                 message_schema_digest,
             )
 
-        # Resolve destination address or name using the resolver
-        destination_address, endpoints = await self._resolver.resolve(
-            parsed_address or parsed_name
-        )
+        # Resolve destination using the resolver
+        destination_address, endpoints = await self._resolver.resolve(destination)
 
         if not endpoints or not destination_address:
             log(self.logger, logging.ERROR, "Unable to resolve destination endpoint")

@@ -147,8 +147,41 @@ class AlmanacContract(LedgerContract):
     This class provides methods to interact with the Almanac contract, including
     checking if an agent is registered, retrieving the expiry height of an agent's
     registration, and getting the endpoints associated with an agent's registration.
-
     """
+
+    def query_contract(self, query_msg: Dict[str, Any]) -> Any:
+        """
+        Execute a query with additional checks and error handling.
+
+        Args:
+            query_msg (Dict[str, Any]): The query message.
+
+        Returns:
+            Any: The query response.
+
+        Raises:
+            RuntimeError: If the contract address is not set or the query fails.
+        """
+        try:
+            response = self.query(query_msg)
+            if not isinstance(response, dict):
+                raise ValueError("Invalid response format")
+            return response
+        except Exception as e:
+            logger.error(f"Query failed: {e}")
+            raise
+
+    def get_contract_version(self) -> str:
+        """
+        Get the version of the contract.
+
+        Returns:
+            str: The version of the contract.
+        """
+        query_msg = {"query_contract_state": {}}
+        response = self.query_contract(query_msg)
+
+        return response["contract_version"]
 
     def is_registered(self, address: str) -> bool:
         """
@@ -161,11 +194,9 @@ class AlmanacContract(LedgerContract):
             bool: True if the agent is registered, False otherwise.
         """
         query_msg = {"query_records": {"agent_address": address}}
-        response = self.query(query_msg)
+        response = self.query_contract(query_msg)
 
-        if not response["record"]:
-            return False
-        return True
+        return bool(response.get("record"))
 
     def get_expiry(self, address: str) -> int:
         """
@@ -178,15 +209,15 @@ class AlmanacContract(LedgerContract):
             int: The expiry height of the agent's registration.
         """
         query_msg = {"query_records": {"agent_address": address}}
-        response = self.query(query_msg)
+        response = self.query_contract(query_msg)
 
-        if not response["record"]:
-            contract_state = self.query({"query_contract_state": {}})
-            expiry = contract_state.get("state").get("expiry_height")
+        if not response.get("record"):
+            contract_state = self.query_contract({"query_contract_state": {}})
+            expiry = contract_state.get("state", {}).get("expiry_height", 0)
             return expiry * AVERAGE_BLOCK_INTERVAL
 
-        expiry = response.get("record")[0].get("expiry")
-        height = response.get("height")
+        expiry = response["record"][0].get("expiry", 0)
+        height = response.get("height", 0)
 
         return (expiry - height) * AVERAGE_BLOCK_INTERVAL
 
@@ -198,16 +229,16 @@ class AlmanacContract(LedgerContract):
             address (str): The agent's address.
 
         Returns:
-            Any: The endpoints associated with the agent's registration.
+            List[AgentEndpoint]: The endpoints associated with the agent's registration.
         """
         query_msg = {"query_records": {"agent_address": address}}
-        response = self.query(query_msg)
+        response = self.query_contract(query_msg)
 
-        if not response["record"]:
-            return None
+        if not response.get("record"):
+            return []
 
         endpoints = []
-        for endpoint in response.get("record")[0]["record"]["service"]["endpoints"]:
+        for endpoint in response["record"][0]["record"]["service"]["endpoints"]:
             endpoints.append(AgentEndpoint.model_validate(endpoint))
 
         return endpoints
@@ -223,11 +254,34 @@ class AlmanacContract(LedgerContract):
             Any: The protocols associated with the agent's registration.
         """
         query_msg = {"query_records": {"agent_address": address}}
-        response = self.query(query_msg)
+        response = self.query_contract(query_msg)
 
-        if not response["record"]:
+        if not response.get("record"):
             return None
-        return response.get("record")[0]["record"]["service"]["protocols"]
+
+        return response["record"][0]["record"]["service"]["protocols"]
+
+    def get_registration_msg(
+        self,
+        protocols: List[str],
+        endpoints: List[AgentEndpoint],
+        signature: str,
+        sequence: int,
+        address: str,
+    ) -> Dict[str, Any]:
+        return {
+            "register": {
+                "record": {
+                    "service": {
+                        "protocols": protocols,
+                        "endpoints": [e.model_dump() for e in endpoints],
+                    }
+                },
+                "signature": signature,
+                "sequence": sequence,
+                "agent_address": address,
+            }
+        }
 
     async def register(
         self,
@@ -249,24 +303,19 @@ class AlmanacContract(LedgerContract):
             endpoints (List[Dict[str, Any]]): List of endpoint dictionaries.
             signature (str): The agent's signature.
         """
-        transaction = Transaction()
-
-        almanac_msg = {
-            "register": {
-                "record": {
-                    "service": {
-                        "protocols": protocols,
-                        "endpoints": [e.model_dump() for e in endpoints],
-                    }
-                },
-                "signature": signature,
-                "sequence": self.get_sequence(agent_address),
-                "agent_address": agent_address,
-            }
-        }
-
         if not self.address:
             raise ValueError("Contract address not set")
+
+        transaction = Transaction()
+
+        sequence = self.get_sequence(agent_address)
+        almanac_msg = self.get_registration_msg(
+            protocols=protocols,
+            endpoints=endpoints,
+            signature=signature,
+            sequence=sequence,
+            address=agent_address,
+        )
 
         transaction.add_message(
             create_cosmwasm_execute_msg(
@@ -293,7 +342,7 @@ class AlmanacContract(LedgerContract):
             int: The agent's sequence number.
         """
         query_msg = {"query_sequence": {"agent_address": address}}
-        sequence = self.query(query_msg)["sequence"]
+        sequence = self.query_contract(query_msg)["sequence"]
 
         return sequence
 
@@ -328,10 +377,31 @@ class NameServiceContract(LedgerContract):
     This class provides methods to interact with the NameService contract, including
     checking name availability, checking ownership, querying domain public status,
     obtaining registration transaction details, and registering a name within a domain.
-
     """
 
-    def is_name_available(self, name: str, domain: str):
+    def query_contract(self, query_msg: Dict[str, Any]) -> Any:
+        """
+        Execute a query with additional checks and error handling.
+
+        Args:
+            query_msg (Dict[str, Any]): The query message.
+
+        Returns:
+            Any: The query response.
+
+        Raises:
+            RuntimeError: If the contract address is not set or the query fails.
+        """
+        try:
+            response = self.query(query_msg)
+            if not isinstance(response, dict):
+                raise ValueError("Invalid response format")
+            return response
+        except Exception as e:
+            logger.error(f"Query failed: {e}")
+            raise
+
+    def is_name_available(self, name: str, domain: str) -> bool:
         """
         Check if a name is available within a domain.
 
@@ -343,9 +413,9 @@ class NameServiceContract(LedgerContract):
             bool: True if the name is available, False otherwise.
         """
         query_msg = {"domain_record": {"domain": f"{name}.{domain}"}}
-        return self.query(query_msg)["is_available"]
+        return self.query_contract(query_msg)["is_available"]
 
-    def is_owner(self, name: str, domain: str, wallet_address: str):
+    def is_owner(self, name: str, domain: str, wallet_address: str) -> bool:
         """
         Check if the provided wallet address is the owner of a name within a domain.
 
@@ -363,10 +433,10 @@ class NameServiceContract(LedgerContract):
                 "owner": wallet_address,
             }
         }
-        permission = self.query(query_msg)["permissions"]
+        permission = self.query_contract(query_msg)["permissions"]
         return permission == "admin"
 
-    def is_domain_public(self, domain: str):
+    def is_domain_public(self, domain: str) -> bool:
         """
         Check if a domain is public.
 
@@ -376,9 +446,9 @@ class NameServiceContract(LedgerContract):
         Returns:
             bool: True if the domain is public, False otherwise.
         """
-        res = self.query({"query_domain_flags": {"domain": domain.split(".")[-1]}}).get(
-            "domain_flags"
-        )
+        res = self.query_contract(
+            {"query_domain_flags": {"domain": domain.split(".")[-1]}}
+        ).get("domain_flags")
         if res:
             return res["web3_flags"]["is_public"]
         return False
@@ -396,7 +466,7 @@ class NameServiceContract(LedgerContract):
             details of a record associated with the given name.
         """
         query_msg = {"domain_record": {"domain": f"{name}.{domain}"}}
-        result = self.query(query_msg)
+        result = self.query_contract(query_msg)
         if result["record"] is not None:
             return result["record"]["records"][0]["agent_address"]["records"]
         return []
@@ -405,7 +475,7 @@ class NameServiceContract(LedgerContract):
         self,
         name: str,
         wallet_address: Address,
-        agent_records: List[Dict[str, Any]],
+        agent_records: Union[List[Dict[str, Any]], str],
         domain: str,
         test: bool,
     ):
@@ -430,7 +500,9 @@ class NameServiceContract(LedgerContract):
         )
 
         if self.is_name_available(name, domain):
-            price_per_second = self.query({"contract_state": {}})["price_per_second"]
+            price_per_second = self.query_contract({"contract_state": {}})[
+                "price_per_second"
+            ]
             amount = int(price_per_second["amount"]) * 86400
             denom = price_per_second["denom"]
 
@@ -531,6 +603,35 @@ class NameServiceContract(LedgerContract):
         )
         await wait_for_tx_to_complete(transaction.tx_hash, ledger)
         logger.info("Registering name...complete")
+
+    async def unregister(
+        self,
+        name: str,
+        domain: str,
+        wallet: LocalWallet,
+    ):
+        """
+        Unregister a name within a domain using the NameService contract.
+
+        Args:
+            name (str): The name to be unregistered.
+            domain (str): The domain in which the name is registered.
+            wallet (LocalWallet): The wallet of the agent.
+        """
+        logger.info("Unregistering name...")
+
+        if self.is_name_available(name, domain):
+            logger.warning("Nothing to unregister... (name is not registered)")
+            return
+
+        msg = {
+            "remove_domain": {
+                "domain": f"{name}.{domain}",
+            }
+        }
+        self.execute(msg, wallet).wait_to_complete()
+
+        logger.info("Unregistering name...complete")
 
 
 _mainnet_name_service_contract = NameServiceContract(

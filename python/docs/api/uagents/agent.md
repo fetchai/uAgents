@@ -128,7 +128,7 @@ An agent that interacts within a communication environment.
 - `_resolver` _Resolver_ - The resolver for agent communication.
 - `_loop` _asyncio.AbstractEventLoop_ - The asyncio event loop used by the agent.
 - `_logger` - The logger instance for logging agent activities.
-- `_endpoints` _List[dict]_ - List of endpoints at which the agent is reachable.
+- `_endpoints` _List[AgentEndpoint]_ - List of endpoints at which the agent is reachable.
 - `_use_mailbox` _bool_ - Indicates if the agent uses a mailbox for communication.
 - `_agentverse` _dict_ - Agentverse configuration settings.
 - `_mailbox_client` _MailboxClient_ - The client for interacting with the agentverse mailbox.
@@ -473,14 +473,14 @@ Sign the registration data for Almanac contract.
 #### update`_`endpoints
 
 ```python
-def update_endpoints(endpoints: List[Dict[str, Any]])
+def update_endpoints(endpoints: List[AgentEndpoint])
 ```
 
 Update the list of endpoints.
 
 **Arguments**:
 
-- `endpoints` _List[Dict[str, Any]]_ - List of endpoint dictionaries.
+- `endpoints` _List[AgentEndpoint]_ - List of endpoint dictionaries.
 
 <a id="src.uagents.agent.Agent.update_loop"></a>
 

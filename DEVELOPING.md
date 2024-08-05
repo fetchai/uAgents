@@ -9,17 +9,18 @@
 ## <a name="get"></a> Getting the Source
 
 <!-- markdown-link-check-disable -->
+
 1. Fork the [repository](https://github.com/fetchai/uAgents.git).
 2. Clone your fork of the repository:
     <!-- markdown-link-check-enable -->
 
-   ``` shell
+   ```shell
    git clone https://github.com/fetchai/uAgents.git
    ```
 
 3. Define an `upstream` remote pointing back to the main uAgents repository:
 
-   ``` shell
+   ```shell
    git remote add upstream https://github.com/fetchai/uAgents.git
    ```
 
@@ -58,5 +59,7 @@ To run tests use the following command:
 ## <a name="contributing"></a>Contributing
 
 <!-- markdown-link-check-disable -->
+
 For instructions on how to contribute to the project (e.g. creating Pull Requests, commit message convention, etc), see the [contributing guide](CONTRIBUTING.md).
+
 <!-- markdown-link-check-enable -->
