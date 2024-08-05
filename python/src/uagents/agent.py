@@ -284,11 +284,6 @@ class Agent(Sink):
         """
         self._name = name
         self._port = port if port is not None else 8000
-        self._resolver = (
-            resolve
-            if resolve is not None
-            else GlobalResolver(max_endpoints=max_resolver_endpoints)
-        )
 
         if loop is not None:
             self._loop = loop
@@ -325,6 +320,11 @@ class Agent(Sink):
             ]
         else:
             self._mailbox_client = None
+
+        self._resolver = resolve or GlobalResolver(
+            max_endpoints=max_resolver_endpoints,
+            almanac_api_url=f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/v1/almanac/",
+        )
 
         self._ledger = get_ledger(test)
         self._almanac_contract = get_almanac_contract(test)
