@@ -12,23 +12,23 @@ class StorageAPI(ABC):
 
     @abstractmethod
     def get(self, key: str) -> Optional[Any]:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def has(self, key: str) -> bool:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def set(self, key: str, value: Any):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def remove(self, key: str):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def clear(self):
-        pass
+        raise NotImplementedError
 
 
 class KeyValueStore(StorageAPI):

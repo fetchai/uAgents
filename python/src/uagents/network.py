@@ -604,6 +604,35 @@ class NameServiceContract(LedgerContract):
         await wait_for_tx_to_complete(transaction.tx_hash, ledger)
         logger.info("Registering name...complete")
 
+    async def unregister(
+        self,
+        name: str,
+        domain: str,
+        wallet: LocalWallet,
+    ):
+        """
+        Unregister a name within a domain using the NameService contract.
+
+        Args:
+            name (str): The name to be unregistered.
+            domain (str): The domain in which the name is registered.
+            wallet (LocalWallet): The wallet of the agent.
+        """
+        logger.info("Unregistering name...")
+
+        if self.is_name_available(name, domain):
+            logger.warning("Nothing to unregister... (name is not registered)")
+            return
+
+        msg = {
+            "remove_domain": {
+                "domain": f"{name}.{domain}",
+            }
+        }
+        self.execute(msg, wallet).wait_to_complete()
+
+        logger.info("Unregistering name...complete")
+
 
 _mainnet_name_service_contract = NameServiceContract(
     None, _mainnet_ledger, Address(MAINNET_CONTRACT_NAME_SERVICE)

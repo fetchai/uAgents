@@ -284,16 +284,8 @@ class Agent(Sink):
         """
         self._name = name
         self._port = port if port is not None else 8000
-        self._resolver = (
-            resolve
-            if resolve is not None
-            else GlobalResolver(max_endpoints=max_resolver_endpoints)
-        )
 
-        if loop is not None:
-            self._loop = loop
-        else:
-            self._loop = asyncio.get_event_loop_policy().get_event_loop()
+        self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
 
         # initialize wallet and identity
         self._initialize_wallet_and_identity(seed, name, wallet_key_derivation_index)
@@ -325,6 +317,11 @@ class Agent(Sink):
             ]
         else:
             self._mailbox_client = None
+
+        self._resolver = resolve or GlobalResolver(
+            max_endpoints=max_resolver_endpoints,
+            almanac_api_url=f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/v1/almanac/",
+        )
 
         self._ledger = get_ledger(test)
         self._almanac_contract = get_almanac_contract(test)
@@ -941,8 +938,12 @@ class Agent(Sink):
         Perform startup actions.
 
         """
-        if self._endpoints is not None:
+        if self._endpoints:
             await self._registration_loop()
+        else:
+            self._logger.warning(
+                "No endpoints provided. Skipping registration: Agent won't be reachable."
+            )
         for handler in self._on_startup:
             try:
                 await handler(self._ctx)
@@ -968,13 +969,13 @@ class Agent(Sink):
             except Exception as ex:
                 self._logger.exception(f"Exception in shutdown handler: {ex}")
 
-    def setup(self):
+    async def setup(self):
         """
         Include the internal agent protocol, run startup tasks, and start background tasks.
         """
         self.include(self._protocol)
         self.start_message_dispenser()
-        self._loop.run_until_complete(self._startup())
+        await self._startup()
         self.start_message_receivers()
         self.start_interval_tasks()
 
@@ -1009,20 +1010,26 @@ class Agent(Sink):
             ]:
                 self._loop.create_task(task)
 
+    async def run_async(self):
+        """
+        Create all tasks for the agent.
+
+        """
+        await self.setup()
+        try:
+            if self._use_mailbox and self._mailbox_client is not None:
+                await self._mailbox_client.run()
+            else:
+                await self._server.serve()
+        finally:
+            await self._shutdown()
+
     def run(self):
         """
         Run the agent.
 
         """
-        self.setup()
-        try:
-            if self._use_mailbox and self._mailbox_client is not None:
-                self._loop.create_task(self._mailbox_client.process_deletion_queue())
-                self._loop.run_until_complete(self._mailbox_client.run())
-            else:
-                self._loop.run_until_complete(self._server.serve())
-        finally:
-            self._loop.run_until_complete(self._shutdown())
+        self._loop.run_until_complete(self.run_async())
 
     def get_message_protocol(
         self, message_schema_digest
@@ -1144,6 +1151,7 @@ class Bureau:
         agents: Optional[List[Agent]] = None,
         port: Optional[int] = None,
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
         log_level: Union[int, str] = logging.INFO,
     ):
         """
@@ -1154,7 +1162,7 @@ class Bureau:
             endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration
             for the bureau.
         """
-        self._loop = asyncio.get_event_loop_policy().get_event_loop()
+        self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
         self._agents: List[Agent] = []
         self._endpoints = parse_endpoint_config(endpoint)
         self._port = port or 8000
@@ -1185,14 +1193,14 @@ class Bureau:
             agent.update_endpoints(self._endpoints)
         self._agents.append(agent)
 
-    def run(self):
+    async def run_async(self):
         """
         Run the agents managed by the bureau.
 
         """
         tasks = []
         for agent in self._agents:
-            agent.setup()
+            await agent.setup()
             if agent.agentverse["use_mailbox"] and agent.mailbox_client is not None:
                 tasks.append(
                     self._loop.create_task(
@@ -1204,7 +1212,13 @@ class Bureau:
             tasks.append(self._loop.create_task(self._server.serve()))
 
         try:
-            self._loop.run_until_complete(asyncio.gather(*tasks))
+            await asyncio.gather(*tasks)
         finally:
-            for agent in self._agents:
-                self._loop.run_until_complete(agent._shutdown())
+            await asyncio.gather(*[agent._shutdown() for agent in self._agents])
+
+    def run(self):
+        """
+        Run the bureau.
+
+        """
+        self._loop.run_until_complete(self.run_async())
