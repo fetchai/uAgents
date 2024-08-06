@@ -19,15 +19,24 @@ pip install uagents-ai-engine
 To use the models provided by this package, import them as follows:
 
 ```python
-from ai_engine.types import UAgentResponseType, KeyValue, UAgentResponse, BookingRequest
 from ai_engine.chitchat import ChitChatDialogue
 from ai_engine.messages import DialogueMessage
 from ai_engine.dialogue import EdgeMetadata, EdgeDescription
 ```
 
+The `chitchat`, `messages`, and `dialogue` modules provide essential classes, types, and functions to facilitate structured and dynamic interactions with the agent. These modules support an open-ended communication model, allowing users to engage in an ongoing dialogue with the agent. After each user message, the agent responds, enabling a continuous and interactive conversation that can proceed as long as needed.
+
+```python
+from ai_engine.types import UAgentResponseType, KeyValue, UAgentResponse, BookingRequest
+```
+
+The `types` module offers a comprehensive set of models for handling responses, key-value pairs, and booking requests. This module is designed for scenarios where a single exchange is sufficient. The user sends a message, receives a well-structured response from the agent, and the interaction concludes efficiently. This approach is ideal for straightforward queries and tasks.
+
 ### 📦 Components
 
 ### 1. Response Models
+
+The following classes are used for non-dialogue agent communication.
 
 #### UAgentResponseType
 
@@ -102,7 +111,7 @@ class BookingRequest(Model):
 
 #### ChitChatDialogue
 
-A specific dialogue class for AI-enabled chit-chat:
+A specific dialogue class for AI-Engine enabled chit-chat:
 
 ```python
 class ChitChatDialogue(Dialogue):
@@ -180,6 +189,8 @@ init_session = create_edge(
 ```
 
 ### 3. Message Types
+
+The following classes are used for dialogue agent communication.
 
 #### BaseMessage
 
