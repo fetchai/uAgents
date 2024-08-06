@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "multi-modal-sentiment-analysis"
+version = "1.0.0"
+description = "A system for multi-modal sentiment analysis using BLIP for image captioning and sentiment analysis."
+authors = ["Your Name <your.email@example.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+blip = "1.0.0"
+transformers = "^4.21.0"
+Pillow = "^9.2.0"
+uAgents = "0.1.0"
+
+[tool.poetry.scripts]
+blip_caption = "src.blip_caption:generate_caption"
+sentiment_analysis = "src.sentiment_analysis:analyze_sentiment"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
