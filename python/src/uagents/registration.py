@@ -217,6 +217,7 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
             self._logger.warning(
                 "Failed to register on Almanac contract due to insufficient funds"
             )
+            raise
         except Exception as e:
             self._logger.error(f"Failed to register on Almanac contract: {e}")
             raise
