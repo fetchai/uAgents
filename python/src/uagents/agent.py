@@ -323,9 +323,10 @@ class Agent(Sink):
         else:
             self._mailbox_client = None
 
+        almanac_api_url = f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/v1/almanac"
         self._resolver = resolve or GlobalResolver(
             max_endpoints=max_resolver_endpoints,
-            almanac_api_url=f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/v1/almanac/",
+            almanac_api_url=almanac_api_url,
         )
 
         self._ledger = get_ledger(test)
@@ -352,6 +353,7 @@ class Agent(Sink):
             self._almanac_contract,
             self._test,
             logger=self._logger,
+            almanac_api=almanac_api_url,
         )
 
         self.initialize_wallet_messaging(enable_wallet_messaging)

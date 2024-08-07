@@ -345,7 +345,7 @@ class InternalContext(Context):
             ALMANAC_API_URL,
         )
         response = requests.post(
-            url=almanac_api_url + "search",
+            url=almanac_api_url + "/search",
             json={"text": protocol_digest[6:]},
             timeout=DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
         )
