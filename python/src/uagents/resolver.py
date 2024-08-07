@@ -277,7 +277,7 @@ class AlmanacApiResolver(Resolver):
         """
         try:
             _, _, address = parse_identifier(destination)
-            response = requests.get(f"{self._almanac_api_url}agents/{address}")
+            response = requests.get(f"{self._almanac_api_url}/agents/{address}")
 
             if response.status_code != 200:
                 if response.status_code != 404:
