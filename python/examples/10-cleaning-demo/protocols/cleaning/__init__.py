@@ -65,7 +65,7 @@ def in_service_region(
 
 @cleaning_proto.on_message(model=ServiceRequest, replies=ServiceResponse)
 async def handle_query_request(ctx: Context, sender: str, msg: ServiceRequest):
-    provider = await Provider.filter(name=ctx.name).first()
+    provider = await Provider.filter(name=ctx.agent.name).first()
     availability = await Availability.get(provider=provider)
     services = [int(service.type) for service in await provider.services]
     markup = provider.markup
@@ -94,7 +94,7 @@ async def handle_query_request(ctx: Context, sender: str, msg: ServiceRequest):
 
 @cleaning_proto.on_message(model=ServiceBooking, replies=BookingResponse)
 async def handle_book_request(ctx: Context, sender: str, msg: ServiceBooking):
-    provider = await Provider.filter(name=ctx.name).first()
+    provider = await Provider.filter(name=ctx.agent.name).first()
     availability = await Availability.get(provider=provider)
     services = [int(service.type) for service in await provider.services]
 
