@@ -156,20 +156,19 @@ class ASGIServer:
         Handle retrieval of stored messages.
         """
         messages = ctx._message_store.get_messages(ctx.address)
-        response = {
-            "messages": messages
-        }
-        await send({
-            "type": "http.response.start",
-            "status": 200,
-            "headers": [
-                [b"content-type", b"application/json"],
-            ],
-        })
-        await send({
-            "type": "http.response.body",
-            "body": json.dumps(response).encode()
-        })
+        response = {"messages": messages}
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [
+                    [b"content-type", b"application/json"],
+                ],
+            }
+        )
+        await send(
+            {"type": "http.response.body", "body": json.dumps(response).encode()}
+        )
 
     async def serve(self):
         """

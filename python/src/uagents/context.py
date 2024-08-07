@@ -470,13 +470,16 @@ class InternalContext(Context):
         )
 
         if self._message_store is not None:
-            self._message_store.add_message(self.address, {
-                "type": "sent",
-                "destination": destination,
-                "message": message.json(),
-                "timestamp": time(),
-                "status": msg_status.status
-            })
+            self._message_store.add_message(
+                self.address,
+                {
+                    "type": "sent",
+                    "destination": destination,
+                    "message": message.json(),
+                    "timestamp": time(),
+                    "status": msg_status.status,
+                },
+            )
 
         return msg_status
 
@@ -728,12 +731,15 @@ class ExternalContext(InternalContext):
         )
 
         if self._message_store is not None:
-            self._message_store.add_message(self.agent.address, {
-                "type": "sent",
-                "destination": destination,
-                "message": message.model_dump_json(),
-                "timestamp": time(),
-                "status": msg_status.status
-            })
+            self._message_store.add_message(
+                self.agent.address,
+                {
+                    "type": "sent",
+                    "destination": destination,
+                    "message": message.model_dump_json(),
+                    "timestamp": time(),
+                    "status": msg_status.status,
+                },
+            )
 
         return msg_status

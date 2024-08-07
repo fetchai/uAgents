@@ -911,13 +911,16 @@ class Agent(Sink):
             session (uuid.UUID): The session UUID.
 
         """
-        self._message_store.add_message(self.address, {
-            "type": "received",
-            "sender": sender,
-            "schema_digest": schema_digest,
-            "message": message,
-            "timestamp": time(),
-        })
+        self._message_store.add_message(
+            self.address,
+            {
+                "type": "received",
+                "sender": sender,
+                "schema_digest": schema_digest,
+                "message": message,
+                "timestamp": time(),
+            },
+        )
         await self._message_queue.put((schema_digest, sender, message, session))
 
     async def _startup(self):
