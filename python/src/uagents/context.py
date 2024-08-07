@@ -64,7 +64,7 @@ class MessageStore:
     def add_message(self, agent_id: str, message: dict):
         """
         Store a message for an agent.
-        
+
         Args:
             agent_id (str): The identifier of the agent.
             message (dict): The message details to store.
@@ -76,10 +76,10 @@ class MessageStore:
     def get_messages(self, agent_id: str) -> List[dict]:
         """
         Retrieve messages for an agent.
-        
+
         Args:
             agent_id (str): The identifier of the agent.
-        
+
         Returns:
             List[dict]: A list of messages.
         """
@@ -296,7 +296,7 @@ class InternalContext(Context):
         interval_messages: Optional[Set[str]] = None,
         wallet_messaging_client: Optional[Any] = None,
         logger: Optional[logging.Logger] = None,
-        message_store: Optional[MessageStore] = None, 
+        message_store: Optional[MessageStore] = None,
     ):
         self._agent = agent
         self._storage = storage
@@ -477,7 +477,7 @@ class InternalContext(Context):
                 "timestamp": time(),
                 "status": msg_status.status
             })
-        
+
         return msg_status
 
     async def send_raw(

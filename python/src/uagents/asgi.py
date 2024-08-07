@@ -9,7 +9,7 @@ import uvicorn
 from requests.structures import CaseInsensitiveDict
 from uagents.communication import enclose_response_raw
 from uagents.config import RESPONSE_TIME_HINT_SECONDS
-from uagents.context import ERROR_MESSAGE_DIGEST
+from uagents.context import ERROR_MESSAGE_DIGEST, Context
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
@@ -42,7 +42,7 @@ class ASGIServer:
     def __init__(
         self,
         port: int,
-        ctx: "Context",
+        ctx: Context,
         loop: asyncio.AbstractEventLoop,
         queries: Dict[str, asyncio.Future],
         logger: Optional[Logger] = None,
