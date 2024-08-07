@@ -42,6 +42,7 @@ class ASGIServer:
     def __init__(
         self,
         port: int,
+        ctx: "Context",
         loop: asyncio.AbstractEventLoop,
         queries: Dict[str, asyncio.Future],
         logger: Optional[Logger] = None,
@@ -60,6 +61,7 @@ class ASGIServer:
         self._queries = queries
         self._logger = logger or get_logger("server")
         self._server = None
+        self._ctx = ctx
 
     @property
     def server(self):
@@ -149,6 +151,26 @@ class ASGIServer:
                 }
             )
 
+    async def handle_get_messages(self, ctx, send):
+        """
+        Handle retrieval of stored messages.
+        """
+        messages = ctx._message_store.get_messages(ctx.address)
+        response = {
+            "messages": messages
+        }
+        await send({
+            "type": "http.response.start",
+            "status": 200,
+            "headers": [
+                [b"content-type", b"application/json"],
+            ],
+        })
+        await send({
+            "type": "http.response.body",
+            "body": json.dumps(response).encode()
+        })
+
     async def serve(self):
         """
         Start the server.
@@ -173,6 +195,13 @@ class ASGIServer:
 
         assert scope["type"] == "http"
 
+        request_method = scope["method"]
+        path = scope["path"]
+
+        if request_method == "GET" and path == "/messages":
+            await self.handle_get_messages(self._ctx, send)
+            return
+
         if scope["path"] != "/submit":
             await send(
                 {
@@ -190,7 +219,6 @@ class ASGIServer:
 
         headers = CaseInsensitiveDict(scope.get("headers", {}))
 
-        request_method = scope["method"]
         if request_method == "HEAD":
             await self.handle_readiness_probe(headers, send)
             return

@@ -57,6 +57,35 @@ WalletMessageCallback = Callable[["Context", Any], Awaitable[None]]
 ERROR_MESSAGE_DIGEST = Model.build_schema_digest(ErrorMessage)
 
 
+class MessageStore:
+    def __init__(self, storage: KeyValueStore):
+        self._storage = storage
+
+    def add_message(self, agent_id: str, message: dict):
+        """
+        Store a message for an agent.
+        
+        Args:
+            agent_id (str): The identifier of the agent.
+            message (dict): The message details to store.
+        """
+        messages = self._storage.get(agent_id) or []
+        messages.append(message)
+        self._storage.set(agent_id, messages)
+
+    def get_messages(self, agent_id: str) -> List[dict]:
+        """
+        Retrieve messages for an agent.
+        
+        Args:
+            agent_id (str): The identifier of the agent.
+        
+        Returns:
+            List[dict]: A list of messages.
+        """
+        return self._storage.get(agent_id) or []
+
+
 class Context(ABC):
     # pylint: disable=unnecessary-pass
     """
@@ -267,6 +296,7 @@ class InternalContext(Context):
         interval_messages: Optional[Set[str]] = None,
         wallet_messaging_client: Optional[Any] = None,
         logger: Optional[logging.Logger] = None,
+        message_store: Optional[MessageStore] = None, 
     ):
         self._agent = agent
         self._storage = storage
@@ -278,6 +308,7 @@ class InternalContext(Context):
         self._interval_messages = interval_messages
         self._wallet_messaging_client = wallet_messaging_client
         self._outbound_messages: Dict[str, Tuple[JsonStr, str]] = {}
+        self._message_store = message_store
 
     @property
     def agent(self) -> AgentRepresentation:
@@ -430,13 +461,24 @@ class InternalContext(Context):
                 session=self._session,
             )
 
-        return await self.send_raw(
+        msg_status = await self.send_raw(
             destination,
             schema_digest,
             message_body,
             sync=sync,
             timeout=timeout,
         )
+
+        if self._message_store is not None:
+            self._message_store.add_message(self.address, {
+                "type": "sent",
+                "destination": destination,
+                "message": message.json(),
+                "timestamp": time(),
+                "status": msg_status.status
+            })
+        
+        return msg_status
 
     async def send_raw(
         self,
@@ -587,6 +629,7 @@ class ExternalContext(InternalContext):
         queries: Optional[Dict[str, asyncio.Future]] = None,
         replies: Optional[Dict[str, Dict[str, Type[Model]]]] = None,
         protocol: Optional[Tuple[str, Protocol]] = None,
+        message_store: Optional[MessageStore] = None,
         **kwargs,
     ):
         """
@@ -607,6 +650,7 @@ class ExternalContext(InternalContext):
         self._replies = replies
         self._message_received = message_received
         self._protocol = protocol or ("", None)
+        self._message_store = message_store
 
     def _is_valid_reply(self, message_schema_digest: str) -> bool:
         """
@@ -673,7 +717,7 @@ class ExternalContext(InternalContext):
                 session=self._session,
             )
 
-        return await self.send_raw(
+        msg_status = await self.send_raw(
             destination,
             schema_digest,
             message.model_dump_json(),
@@ -682,3 +726,14 @@ class ExternalContext(InternalContext):
             protocol_digest=self._protocol[0],
             queries=self._queries,
         )
+
+        if self._message_store is not None:
+            self._message_store.add_message(self.agent.address, {
+                "type": "sent",
+                "destination": destination,
+                "message": message.model_dump_json(),
+                "timestamp": time(),
+                "status": msg_status.status
+            })
+
+        return msg_status
