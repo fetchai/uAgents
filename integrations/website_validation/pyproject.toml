@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "website_validation"
+version = "0.1.0"
+description = "this will validate the website which finds the broken or invalid links and typos in the website"
+authors = ["Pradhumn"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+crewai = "0.36.0"
+python-dotenv = "1.0.1"
+validators = "0.30.0"
+uagents = "0.14.0"
+uagents-ai-engine = "0.4.0"
+langchain = "^0.2.8"
