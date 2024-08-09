@@ -1,0 +1,3 @@
+uagents
+python-pptx
+requests
