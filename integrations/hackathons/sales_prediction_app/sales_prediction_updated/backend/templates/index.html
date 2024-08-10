@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Sales Prediction</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+
+<body>
+    <h1>Sales Prediction</h1>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" name="file" id="fileInput" accept=".csv">
+        <button type="submit">Upload and Predict</button>
+    </form>
+
+    <h2>Predicted Average Monthly Sales:</h2>
+    <div id="predictions"></div>
+
+    <script>
+        $(document).ready(function () {
+            $('#uploadForm').on('submit', function (event) {
+                event.preventDefault();
+
+                var formData = new FormData();
+                formData.append('file', $('#fileInput')[0].files[0]);
+
+                $.ajax({
+                    url: '/upload',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (response) {
+                        var predictionsDiv = $('#predictions');
+                        predictionsDiv.empty();
+
+                        if (response && response.error) {
+                            predictionsDiv.append('<p>Error: ' + response.error + '</p>');
+                        } else if (Array.isArray(response)) {
+                            var table = $('<table border="1"></table>');
+                            var headerRow = $('<tr><th>Month</th><th>Average Predicted Sales</th></tr>');
+                            table.append(headerRow);
+
+                            for (var i = 0; i < response.length; i++) {
+                                var row = $('<tr></tr>');
+                                row.append('<td>Month ' + (i + 1) + '</td>');
+                                row.append('<td>$' + response[i].toFixed(2) + '</td>');
+                                table.append(row);
+                            }
+
+                            predictionsDiv.append(table);
+                        } else {
+                            predictionsDiv.append('<p>Error: Unexpected response format</p>');
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        var errorMessage = 'An error occurred: ' + error;
+                        if (xhr.responseJSON && xhr.responseJSON.error) {
+                            errorMessage += '<br>Details: ' + xhr.responseJSON.error;
+                        }
+                        $('#predictions').html('<p>' + errorMessage + '</p>');
+                        console.error('AJAX Error:', status, error);
+                        console.error('Response Text:', xhr.responseText);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>

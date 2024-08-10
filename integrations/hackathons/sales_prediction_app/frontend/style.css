@@ -1,0 +1,13 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+}
+h1 {
+    color: #333;
+}
+#upload-form {
+    margin-bottom: 20px;
+}
+#result {
+    margin-top: 20px;
+}

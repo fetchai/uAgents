@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Prediction Results</title>
+</head>
+<body>
+    <form id="upload-form">
+        <input type="file" id="file-input" name="file" accept=".csv">
+        <button type="submit">Upload</button>
+    </form>
+    
+    <h2>Predicted Sales:</h2>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>MSRP</th>
+                <th>Price Each</th>
+                <th>Quantity Ordered</th>
+                <th>Predicted Sales</th>
+            </tr>
+        </thead>
+        <tbody id="predictions-table"></tbody>
+    </table>
+
+    <script src="script.js"></script>  
+</body>
+</html>
