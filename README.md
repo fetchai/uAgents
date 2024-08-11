@@ -6,7 +6,7 @@ uAgents is a library developed by Fetch.ai that allows for creating autonomous A
 
 ## 🚀 Features
 
-- 🤖 **Easy creation and management**: Create any type of agent you can think of and put into code.
+- 🤖 **Easy creation and management**: Create any type of agent you can think of and implement it in code.
 - 🔗 **Connected**: On startup, each agent automatically joins the fast growing network of uAgents by registering on the Almanac, a smart contract deployed on the Fetch.ai blockchain.
 - 🔒 **Secure**: uAgent messages and wallets are cryptographically secured, so their identities and assets are protected.
 
@@ -112,7 +112,7 @@ We use [GitHub Issues](https://github.com/fetchai/uAgents/issues) for tracking r
 
 ## 🛡 Disclaimer
 
-This project, uAgents, is provided "as-is" without any warranty, express or implied. By using this software, you agree to assume all risks associated with its use, including but not limited to unexpected behavior, data loss, or any other issues that may arise. The developers and contributors of this project do not accept any responsibility or liability for any losses, damages, or other consequences that may occur as a result of using this
+This project, uAgents, is provided "as-is" without any warranty, express or implied. By using this software, you agree to assume all risks associated with its use, including but not limited to unexpected behavior, data loss, or any other issues that may arise. The developers and contributors of this project do not accept any responsibility or liability for any losses, damages, or other consequences that may occur as a result of using this software.
 
 ## License
 
