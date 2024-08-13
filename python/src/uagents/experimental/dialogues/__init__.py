@@ -458,8 +458,6 @@ class Dialogue(Protocol):
         **kwargs,
     ) -> None:
         """Add a message to the conversation of the given session within the dialogue instance."""
-        if session_id is None:
-            raise ValueError("Session ID must not be None!")
         if session_id not in self._sessions:
             self._add_session(session_id)
         self._sessions[session_id].append(
