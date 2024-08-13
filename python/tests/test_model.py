@@ -19,8 +19,11 @@ class TestModelDigest(unittest.TestCase):
             message: str
             counter: int
 
+        # target_digest = (
+        #     "model:21e34819ee8106722968c39fdafc104bab0866f1c73c71fd4d2475be285605e9"
+        # )  # old V1 digest
         target_digest = (
-            "model:21e34819ee8106722968c39fdafc104bab0866f1c73c71fd4d2475be285605e9"
+            "model:fd73f6b4c36014cbdcc22a6b95b7634f8291c3a7eb48c66e4f22ae2180c10cd4"
         )
 
         result = Model.build_schema_digest(SuperImportantCheck)
@@ -53,8 +56,11 @@ class TestModelDigest(unittest.TestCase):
             verbose_message: Optional[str]
             verbose_options: Optional[List[KeyValue]]
 
+        # target_digest = (
+        #     "model:cf0d1367c5f9ed8a269de559b2fbca4b653693bb8315d47eda146946a168200e"
+        # )  # old V1 digest
         target_digest = (
-            "model:cf0d1367c5f9ed8a269de559b2fbca4b653693bb8315d47eda146946a168200e"
+            "model:c8244f673a8abae66e10ed807a4a37c5647f80fd954f5bdfa0a2eb1c8c3f6ab4"
         )
 
         result = Model.build_schema_digest(UAgentResponse)

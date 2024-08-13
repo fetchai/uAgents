@@ -2,7 +2,8 @@
 import unittest
 from typing import Callable
 
-from uagents import Agent, Field, Model, Protocol
+from pydantic import Field
+from uagents import Agent, Model, Protocol
 
 
 class Message(Model):
