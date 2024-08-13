@@ -662,7 +662,7 @@ class ExternalContext(InternalContext):
             log(
                 self.logger,
                 logging.ERROR,
-                f"Outgoing message '{message_type}' is not a valid reply"
+                f"Outgoing message '{message_type}' is not a valid reply "
                 f"to received message: {self._message_received.schema_digest}",
             )
             return MsgStatus(
