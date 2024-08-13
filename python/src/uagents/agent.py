@@ -1058,7 +1058,7 @@ class Agent(Sink):
 
             # parse the received message
             try:
-                recovered = model_class.parse_raw(message)
+                recovered = model_class.model_validate_json(message)
             except ValidationError as ex:
                 self._logger.warning(f"Unable to parse message: {ex}")
                 await _send_error_message(

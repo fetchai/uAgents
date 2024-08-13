@@ -8,6 +8,7 @@ from pydantic import BaseModel
 class Model(BaseModel):
     @staticmethod
     def build_schema_digest(model: Union["Model", Type["Model"]]) -> str:
+        """Build a unique identifier for a model schema."""
         schema = model.model_json_schema()
         if "required" in schema and isinstance(schema["required"], list):
             schema["required"].sort()
