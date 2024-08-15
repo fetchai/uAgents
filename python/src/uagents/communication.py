@@ -165,7 +165,7 @@ async def send_exchange_envelope(
                         if sync:
                             # If the message is synchronous but not verified, return the envelope
                             env = Envelope.model_validate(await resp.json())
-                            if not envelope.verify():
+                            if env.signature is None:
                                 return env
                             return await dispatch_sync_response_envelope(env)
                         return MsgStatus(
@@ -284,7 +284,7 @@ async def send_message_raw(
         sync=sync,
     )
     if isinstance(response, Envelope):
-        if not env.verify():
+        if env.signature is None:
             return response
         json_message = response.decode_payload()
         if response_type:

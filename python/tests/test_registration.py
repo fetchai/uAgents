@@ -87,7 +87,7 @@ def test_order_of_protocols_or_endpoints_does_not_matter():
 
 class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
     # we use a mocked almanac API uri
-    MOCKED_ALMANAC_API = "http://127.0.0.1:8888/v1/almanac/"
+    MOCKED_ALMANAC_API = "http://127.0.0.1:8888/v1/almanac"
 
     def setUp(self):
         self.identity = Identity.generate()
@@ -98,7 +98,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
     @aioresponses()
     async def test_registration_success(self, mocked_responses):
         # Mock the HTTP POST request with a status code and response content
-        mocked_responses.post(f"{self.MOCKED_ALMANAC_API}agents", status=200)
+        mocked_responses.post(f"{self.MOCKED_ALMANAC_API}/agents", status=200)
 
         await self.policy.register(
             agent_address=self.identity.address,
@@ -112,7 +112,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
     @aioresponses()
     async def test_registration_failure(self, mocked_responses):
         # Mock the HTTP POST request with a status code and response content
-        mocked_responses.post(f"{self.MOCKED_ALMANAC_API}agents", status=400)
+        mocked_responses.post(f"{self.MOCKED_ALMANAC_API}/agents", status=400)
 
         with pytest.raises(ClientResponseError):
             await self.policy.register(
@@ -127,7 +127,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
     @aioresponses()
     async def test_registration_server_failure(self, mocked_responses):
         # Mock the HTTP POST request with a status code and response content
-        mocked_responses.post(f"{self.MOCKED_ALMANAC_API}agents", status=500)
+        mocked_responses.post(f"{self.MOCKED_ALMANAC_API}/agents", status=500)
 
         with pytest.raises(ClientResponseError):
             await self.policy.register(
