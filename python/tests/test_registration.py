@@ -92,7 +92,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.identity = Identity.generate()
         self.policy = AlmanacApiRegistrationPolicy(
-            self.identity, almanac_api=self.MOCKED_ALMANAC_API
+            self.identity, almanac_api=self.MOCKED_ALMANAC_API, max_retries=1
         )
 
     @aioresponses()
