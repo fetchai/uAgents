@@ -102,7 +102,6 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
                         timeout=ALMANAC_API_TIMEOUT_SECONDS,
                     ) as resp:
                         resp.raise_for_status()
-                        raise asyncio.TimeoutError()
                         self._logger.info("Registration on Almanac API successful")
                         return
                 except (aiohttp.ClientError, asyncio.exceptions.TimeoutError) as e:
