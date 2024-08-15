@@ -102,9 +102,10 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
                         timeout=ALMANAC_API_TIMEOUT_SECONDS,
                     ) as resp:
                         resp.raise_for_status()
+                        raise asyncio.TimeoutError()
                         self._logger.info("Registration on Almanac API successful")
                         return
-                except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                except (aiohttp.ClientError, asyncio.exceptions.TimeoutError) as e:
                     if retry == self._max_retries - 1:
                         raise e
 
@@ -220,7 +221,9 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
         try:
             await self._api_policy.register(agent_address, protocols, endpoints)
         except Exception as e:
-            self._logger.warning(f"Failed to register on Almanac API: {e}")
+            self._logger.warning(
+                f"Failed to register on Almanac API: {e.__class__.__name__}"
+            )
 
         # schedule the ledger registration
         try:
