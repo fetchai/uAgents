@@ -7,9 +7,9 @@ from typing import Dict, Optional
 import pydantic
 import uvicorn
 from requests.structures import CaseInsensitiveDict
-from uagents.communication import enclose_response_raw
+from uagents.communication import Dispenser, enclose_response_raw
 from uagents.config import RESPONSE_TIME_HINT_SECONDS
-from uagents.context import ERROR_MESSAGE_DIGEST, Context
+from uagents.context import ERROR_MESSAGE_DIGEST
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
@@ -42,9 +42,9 @@ class ASGIServer:
     def __init__(
         self,
         port: int,
-        ctx: Context,
         loop: asyncio.AbstractEventLoop,
         queries: Dict[str, asyncio.Future],
+        dispenser: Dispenser,
         logger: Optional[Logger] = None,
     ):
         """
@@ -59,9 +59,9 @@ class ASGIServer:
         self._port = int(port)
         self._loop = loop
         self._queries = queries
+        self._dispenser = dispenser
         self._logger = logger or get_logger("server")
         self._server = None
-        self._ctx = ctx
 
     @property
     def server(self):
@@ -151,12 +151,13 @@ class ASGIServer:
                 }
             )
 
-    async def handle_get_messages(self, ctx, send):
+    async def handle_get_messages(self, send):
         """
         Handle retrieval of stored messages.
         """
-        messages = ctx._message_store.get_messages(ctx.address)
-        response = {"messages": messages}
+        messages = dispatcher.received_messages + self._dispenser.sent_messages
+        messages.sort(key=lambda x: x["timestamp"])
+        response = {"messages": [msg for msg in messages]}
         await send(
             {
                 "type": "http.response.start",
@@ -198,7 +199,7 @@ class ASGIServer:
         path = scope["path"]
 
         if request_method == "GET" and path == "/messages":
-            await self.handle_get_messages(self._ctx, send)
+            await self.handle_get_messages(send)
             return
 
         if scope["path"] != "/submit":

@@ -1,6 +1,7 @@
 import uuid
 from abc import ABC, abstractmethod
 from typing import Dict, Set
+from time import time
 
 JsonStr = str
 
@@ -24,6 +25,7 @@ class Dispatcher:
 
     def __init__(self):
         self._sinks: Dict[str, Set[Sink]] = {}
+        self.received_messages = []
 
     @property
     def sinks(self) -> Dict[str, Set[Sink]]:
@@ -56,5 +58,15 @@ class Dispatcher:
         for handler in self._sinks.get(destination, set()):
             await handler.handle_message(sender, schema_digest, message, session)
 
+        self.received_messages.append({
+            "timestamp": time(),
+            "envelope": {
+                "sender": sender,
+                "target": destination,
+                "schema_digest": schema_digest,
+                "payload": message,
+                "session": str(session),
+            }
+        })
 
 dispatcher = Dispatcher()

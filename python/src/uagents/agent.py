@@ -4,7 +4,6 @@ import asyncio
 import functools
 import logging
 import uuid
-from time import time
 from typing import (
     Any,
     Callable,
@@ -44,7 +43,6 @@ from uagents.context import (
     InternalContext,
     IntervalCallback,
     MessageCallback,
-    MessageStore,
 )
 from uagents.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents.dispatch import JsonStr, Sink, dispatcher
@@ -334,7 +332,6 @@ class Agent(Sink):
         self._ledger = get_ledger(test)
         self._almanac_contract = get_almanac_contract(test)
         self._storage = KeyValueStore(self.address[0:16])
-        self._message_store = MessageStore(self._storage)
         self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
         self._interval_messages: Set[str] = set()
         self._signed_message_handlers: Dict[str, MessageCallback] = {}
@@ -380,7 +377,6 @@ class Agent(Sink):
             interval_messages=self._interval_messages,
             wallet_messaging_client=self._wallet_messaging_client,
             logger=self._logger,
-            message_store=self._message_store,
         )
 
         # register with the dispatcher
@@ -388,7 +384,7 @@ class Agent(Sink):
 
         if not self._use_mailbox:
             self._server = ASGIServer(
-                self._port, self._ctx, self._loop, self._queries, logger=self._logger
+                self._port, self._loop, self._queries, self._dispenser, logger=self._logger
             )
 
         # define default error message handler
@@ -913,16 +909,6 @@ class Agent(Sink):
             session (uuid.UUID): The session UUID.
 
         """
-        self._message_store.add_message(
-            self.address,
-            {
-                "type": "received",
-                "sender": sender,
-                "schema_digest": schema_digest,
-                "message": message,
-                "timestamp": time(),
-            },
-        )
         await self._message_queue.put((schema_digest, sender, message, session))
 
     async def _startup(self):
@@ -1068,7 +1054,6 @@ class Agent(Sink):
                     message=message, schema_digest=schema_digest
                 ),
                 protocol=self.get_message_protocol(schema_digest),
-                message_store=self._message_store,
             )
 
             # parse the received message
@@ -1162,7 +1147,8 @@ class Bureau:
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
         self._logger = get_logger("bureau", log_level)
-        self._server = ASGIServer(self._port, self._loop, self._queries, self._logger)
+        self._dispenser = Dispenser()
+        self._server = ASGIServer(self._port, self._loop, self._queries, self._dispenser, self._logger)
         self._use_mailbox = False
 
         if agents is not None:
