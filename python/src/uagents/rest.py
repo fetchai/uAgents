@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from typing import Literal, Awaitable, Callable, Union, Tuple, Dict, Optional, Type
+from typing import Awaitable, Callable, Dict, Literal, Optional, Tuple, Type, Union
 
-from uagents import Model, Context
+from uagents import Context, Model
 
 RestGetHandler = Callable[[Context], Awaitable[Optional[Model]]]
 RestPostHandler = Callable[[Context, Model], Awaitable[Optional[Model]]]

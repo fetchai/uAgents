@@ -21,7 +21,7 @@ Represents an envelope for message communication between agents.
 - `target` _str_ - The target's address.
 - `session` _UUID4_ - The session UUID that persists for back-and-forth
   dialogues between agents.
-- `schema_digest` _str_ - The schema digest for the enclosed message (alias for protocol).
+- `schema_digest` _str_ - The schema digest for the enclosed message.
 - `protocol_digest` _Optional[str]_ - The digest of the protocol associated with the message
   (optional).
 - `payload` _Optional[str]_ - The encoded message payload of the envelope (optional).
@@ -48,28 +48,28 @@ Encode the payload value and store it in the envelope.
 #### decode`_`payload
 
 ```python
-def decode_payload() -> Optional[Any]
+def decode_payload() -> str
 ```
 
 Decode and retrieve the payload value from the envelope.
 
 **Returns**:
 
-- `Optional[Any]` - The decoded payload value, or None if payload is not present.
+- `str` - The decoded payload value, or '' if payload is not present.
 
 <a id="src.uagents.envelope.Envelope.sign"></a>
 
 #### sign
 
 ```python
-def sign(identity: Identity)
+def sign(signing_fn: Callable)
 ```
 
-Sign the envelope using the provided identity.
+Sign the envelope using the provided signing function.
 
 **Arguments**:
 
-- `identity` _Identity_ - The identity used for signing.
+- `signing_fn` _callback_ - The callback used for signing.
 
 <a id="src.uagents.envelope.Envelope.verify"></a>
 
@@ -83,5 +83,11 @@ Verify the envelope's signature.
 
 **Returns**:
 
-- `bool` - True if the signature is valid, False otherwise.
+- `bool` - True if the signature is valid.
+  
+
+**Raises**:
+
+- `ValueError` - If the signature is missing.
+- `ecdsa.BadSignatureError` - If the signature is invalid.
 

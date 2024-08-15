@@ -7,8 +7,7 @@ from dialogues.hardcoded_chitchat import (
     ChitChatDialogueMessage,
     ConcludeChitChatDialogue,
 )
-from uagents import Agent
-from uagents.context import Context
+from uagents import Agent, Context
 
 CHAT_AGENT_ADDRESS = "agent1qwvecfwc255pfqqwtjznh9qqk6skl77xc6fzw8mr3ppfex32sr0kcad62n4"
 
@@ -23,7 +22,7 @@ agent = Agent(
 # instantiate the dialogues
 chitchat_dialogue = ChitChatDialogue(
     version="0.1",
-    agent_address=agent.address,
+    storage=agent.storage,
 )
 
 # get an overview of the dialogue structure

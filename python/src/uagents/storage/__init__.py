@@ -1,12 +1,37 @@
 import json
 import os
+from abc import ABC, abstractmethod
 from typing import Any, Optional, Tuple
 
 from cosmpy.aerial.wallet import PrivateKey
 from uagents.crypto import Identity
 
 
-class KeyValueStore:
+class StorageAPI(ABC):
+    """Interface for a key-value like storage system."""
+
+    @abstractmethod
+    def get(self, key: str) -> Optional[Any]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def has(self, key: str) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def set(self, key: str, value: Any):
+        raise NotImplementedError
+
+    @abstractmethod
+    def remove(self, key: str):
+        raise NotImplementedError
+
+    @abstractmethod
+    def clear(self):
+        raise NotImplementedError
+
+
+class KeyValueStore(StorageAPI):
     """
     A simple key-value store implementation for data storage.
 
@@ -27,7 +52,7 @@ class KeyValueStore:
 
     """
 
-    def __init__(self, name: str, cwd: str = None):
+    def __init__(self, name: str, cwd: Optional[str] = None):
         """
         Initialize the KeyValueStore instance.
 
@@ -120,7 +145,8 @@ def get_or_create_private_keys(name: str) -> Tuple[str, str]:
     keys = load_all_keys()
     if name in keys:
         private_keys = keys.get(name)
-        return private_keys["identity_key"], private_keys["wallet_key"]
+        if private_keys:
+            return private_keys["identity_key"], private_keys["wallet_key"]
 
     identity_key = Identity.generate().private_key
     wallet_key = PrivateKey().private_key

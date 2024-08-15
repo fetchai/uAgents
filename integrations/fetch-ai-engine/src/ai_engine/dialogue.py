@@ -8,16 +8,6 @@ from uagents.experimental.dialogues import Edge, Node
 # This will move to the uagents.experimental.dialogues module in the future.
 
 
-class NodeMetadata(BaseModel):
-    """Metadata for the nodes"""
-
-    # is the node an initial node
-    initial: bool = False
-
-    # is the node a terminal node
-    terminal: bool = False
-
-
 class EdgeMetadata(BaseModel):
     """Metadata for the edges"""
 
@@ -28,16 +18,6 @@ class EdgeMetadata(BaseModel):
     observable: bool
 
 
-class NodeDescription(BaseModel):
-    """Temporary type to add structure to the node description"""
-
-    # the original description of the node
-    description: str
-
-    # the metadata of the node
-    metadata: NodeMetadata
-
-
 class EdgeDescription(BaseModel):
     """Temporary type to add structure to the edge description"""
 
@@ -46,30 +26,6 @@ class EdgeDescription(BaseModel):
 
     # the metadata of the edge
     metadata: EdgeMetadata
-
-
-def create_node(
-    name: str,
-    description: str,
-    initial: bool = False,
-    terminal: bool = False,
-):
-    """Create a node with metadata"""
-
-    # create the metadata
-    metadata = NodeMetadata(initial=initial, terminal=terminal)
-
-    # description of the node
-    description = NodeDescription(
-        description=description,
-        metadata=metadata,
-    )
-
-    # create a new node
-    return Node(
-        name=name,
-        description=description.json(),
-    )
 
 
 def create_edge(

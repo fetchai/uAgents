@@ -4,15 +4,30 @@
 
 Network and Contracts.
 
+<a id="src.uagents.network.InsufficientFundsError"></a>
+
+## InsufficientFundsError Objects
+
+```python
+class InsufficientFundsError(Exception)
+```
+
+Raised when an agent has insufficient funds for a transaction.
+
 <a id="src.uagents.network.get_ledger"></a>
 
 #### get`_`ledger
 
 ```python
-def get_ledger() -> LedgerClient
+def get_ledger(test: bool = True) -> LedgerClient
 ```
 
 Get the Ledger client.
+
+**Arguments**:
+
+- `test` _bool_ - Whether to use the testnet or mainnet. Defaults to True.
+  
 
 **Returns**:
 
@@ -32,6 +47,36 @@ Get the Faucet API instance.
 
 - `FaucetApi` - The Faucet API instance.
 
+<a id="src.uagents.network.add_testnet_funds"></a>
+
+#### add`_`testnet`_`funds
+
+```python
+def add_testnet_funds(wallet_address: str)
+```
+
+Add testnet funds to the provided wallet address.
+
+**Arguments**:
+
+- `wallet_address` _str_ - The wallet address to add funds to.
+
+<a id="src.uagents.network.parse_record_config"></a>
+
+#### parse`_`record`_`config
+
+```python
+def parse_record_config(
+    record: Optional[Union[str, List[str], Dict[str, dict]]]
+) -> Optional[List[Dict[str, Any]]]
+```
+
+Parse the user-provided record configuration.
+
+**Returns**:
+
+  Optional[List[Dict[str, Any]]]: The parsed record configuration in correct format.
+
 <a id="src.uagents.network.wait_for_tx_to_complete"></a>
 
 #### wait`_`for`_`tx`_`to`_`complete
@@ -39,6 +84,7 @@ Get the Faucet API instance.
 ```python
 async def wait_for_tx_to_complete(
         tx_hash: str,
+        ledger: LedgerClient,
         timeout: Optional[timedelta] = None,
         poll_period: Optional[timedelta] = None) -> TxResponse
 ```
@@ -48,10 +94,10 @@ Wait for a transaction to complete on the Ledger.
 **Arguments**:
 
 - `tx_hash` _str_ - The hash of the transaction to monitor.
-- `timeout` _Optional[timedelta], optional_ - The maximum time to wait for
+- `ledger` _LedgerClient_ - The Ledger client to poll.
+- `timeout` _Optional[timedelta], optional_ - The maximum time to wait.
   the transaction to complete. Defaults to None.
 - `poll_period` _Optional[timedelta], optional_ - The time interval to poll
-  the Ledger for the transaction status. Defaults to None.
   
 
 **Returns**:
@@ -71,6 +117,44 @@ A class representing the Almanac contract for agent registration.
 This class provides methods to interact with the Almanac contract, including
 checking if an agent is registered, retrieving the expiry height of an agent's
 registration, and getting the endpoints associated with an agent's registration.
+
+<a id="src.uagents.network.AlmanacContract.query_contract"></a>
+
+#### query`_`contract
+
+```python
+def query_contract(query_msg: Dict[str, Any]) -> Any
+```
+
+Execute a query with additional checks and error handling.
+
+**Arguments**:
+
+- `query_msg` _Dict[str, Any]_ - The query message.
+  
+
+**Returns**:
+
+- `Any` - The query response.
+  
+
+**Raises**:
+
+- `RuntimeError` - If the contract address is not set or the query fails.
+
+<a id="src.uagents.network.AlmanacContract.get_contract_version"></a>
+
+#### get`_`contract`_`version
+
+```python
+def get_contract_version() -> str
+```
+
+Get the version of the contract.
+
+**Returns**:
+
+- `str` - The version of the contract.
 
 <a id="src.uagents.network.AlmanacContract.is_registered"></a>
 
@@ -115,7 +199,7 @@ Get the expiry height of an agent's registration.
 #### get`_`endpoints
 
 ```python
-def get_endpoints(address: str)
+def get_endpoints(address: str) -> List[AgentEndpoint]
 ```
 
 Get the endpoints associated with an agent's registration.
@@ -127,7 +211,7 @@ Get the endpoints associated with an agent's registration.
 
 **Returns**:
 
-- `Any` - The endpoints associated with the agent's registration.
+- `List[AgentEndpoint]` - The endpoints associated with the agent's registration.
 
 <a id="src.uagents.network.AlmanacContract.get_protocols"></a>
 
@@ -155,7 +239,7 @@ Get the protocols associated with an agent's registration.
 ```python
 async def register(ledger: LedgerClient, wallet: LocalWallet,
                    agent_address: str, protocols: List[str],
-                   endpoints: List[Dict[str, Any]], signature: str)
+                   endpoints: List[AgentEndpoint], signature: str)
 ```
 
 Register an agent with the Almanac contract.
@@ -193,10 +277,15 @@ Get the agent's sequence number for Almanac registration.
 #### get`_`almanac`_`contract
 
 ```python
-def get_almanac_contract() -> AlmanacContract
+def get_almanac_contract(test: bool = True) -> AlmanacContract
 ```
 
 Get the AlmanacContract instance.
+
+**Arguments**:
+
+- `test` _bool_ - Whether to use the testnet or mainnet. Defaults to True.
+  
 
 **Returns**:
 
@@ -216,12 +305,36 @@ This class provides methods to interact with the NameService contract, including
 checking name availability, checking ownership, querying domain public status,
 obtaining registration transaction details, and registering a name within a domain.
 
+<a id="src.uagents.network.NameServiceContract.query_contract"></a>
+
+#### query`_`contract
+
+```python
+def query_contract(query_msg: Dict[str, Any]) -> Any
+```
+
+Execute a query with additional checks and error handling.
+
+**Arguments**:
+
+- `query_msg` _Dict[str, Any]_ - The query message.
+  
+
+**Returns**:
+
+- `Any` - The query response.
+  
+
+**Raises**:
+
+- `RuntimeError` - If the contract address is not set or the query fails.
+
 <a id="src.uagents.network.NameServiceContract.is_name_available"></a>
 
 #### is`_`name`_`available
 
 ```python
-def is_name_available(name: str, domain: str)
+def is_name_available(name: str, domain: str) -> bool
 ```
 
 Check if a name is available within a domain.
@@ -241,7 +354,7 @@ Check if a name is available within a domain.
 #### is`_`owner
 
 ```python
-def is_owner(name: str, domain: str, wallet_address: str)
+def is_owner(name: str, domain: str, wallet_address: str) -> bool
 ```
 
 Check if the provided wallet address is the owner of a name within a domain.
@@ -262,7 +375,7 @@ Check if the provided wallet address is the owner of a name within a domain.
 #### is`_`domain`_`public
 
 ```python
-def is_domain_public(domain: str)
+def is_domain_public(domain: str) -> bool
 ```
 
 Check if a domain is public.
@@ -276,13 +389,35 @@ Check if a domain is public.
 
 - `bool` - True if the domain is public, False otherwise.
 
+<a id="src.uagents.network.NameServiceContract.get_previous_records"></a>
+
+#### get`_`previous`_`records
+
+```python
+def get_previous_records(name: str, domain: str)
+```
+
+Retrieve the previous records for a given name within a specified domain.
+
+**Arguments**:
+
+- `name` _str_ - The name whose records are to be retrieved.
+- `domain` _str_ - The domain within which the name is registered.
+  
+
+**Returns**:
+
+  A list of dictionaries, where each dictionary contains
+  details of a record associated with the given name.
+
 <a id="src.uagents.network.NameServiceContract.get_registration_tx"></a>
 
 #### get`_`registration`_`tx
 
 ```python
-def get_registration_tx(name: str, wallet_address: str, agent_address: str,
-                        domain: str)
+def get_registration_tx(name: str, wallet_address: Address,
+                        agent_records: Union[List[Dict[str, Any]],
+                                             str], domain: str, test: bool)
 ```
 
 Get the registration transaction for registering a name within a domain.
@@ -293,6 +428,7 @@ Get the registration transaction for registering a name within a domain.
 - `wallet_address` _str_ - The wallet address initiating the registration.
 - `agent_address` _str_ - The address of the agent.
 - `domain` _str_ - The domain in which the name is registered.
+- `test` _bool_ - The agent type
   
 
 **Returns**:
@@ -305,8 +441,13 @@ Get the registration transaction for registering a name within a domain.
 #### register
 
 ```python
-async def register(ledger: LedgerClient, wallet: LocalWallet,
-                   agent_address: str, name: str, domain: str)
+async def register(ledger: LedgerClient,
+                   wallet: LocalWallet,
+                   agent_records: Optional[Union[str, List[str], Dict[str,
+                                                                      dict]]],
+                   name: str,
+                   domain: str,
+                   overwrite: bool = True)
 ```
 
 Register a name within a domain using the NameService contract.
@@ -318,16 +459,24 @@ Register a name within a domain using the NameService contract.
 - `agent_address` _str_ - The address of the agent.
 - `name` _str_ - The name to be registered.
 - `domain` _str_ - The domain in which the name is registered.
+- `overwrite` _bool, optional_ - Specifies whether to overwrite any existing
+  addresses registered to the domain. If False, the address will be
+  appended to the previous records. Defaults to True.
 
 <a id="src.uagents.network.get_name_service_contract"></a>
 
 #### get`_`name`_`service`_`contract
 
 ```python
-def get_name_service_contract() -> NameServiceContract
+def get_name_service_contract(test: bool = True) -> NameServiceContract
 ```
 
 Get the NameServiceContract instance.
+
+**Arguments**:
+
+- `test` _bool_ - Whether to use the testnet or mainnet. Defaults to True.
+  
 
 **Returns**:
 
