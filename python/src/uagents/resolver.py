@@ -283,7 +283,7 @@ class AlmanacApiResolver(Resolver):
                 if response.status_code != 404:
                     LOGGER.debug(
                         f"Failed to resolve agent {address} from {self._almanac_api_url}, "
-                        f"resolvong via Almanac contract..."
+                        f"resolving via Almanac contract..."
                     )
                 return None, []
 
