@@ -13,7 +13,7 @@ from pydantic import UUID4, ValidationError
 from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
 from uagents.crypto import Identity, is_user_address
 from uagents.dispatch import JsonStr, dispatcher
-from uagents.envelope import Envelope
+from uagents.envelope import Envelope, EnvelopeHistory, EnvelopeHistoryEntry
 from uagents.models import Model
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.utils import get_logger
@@ -72,7 +72,7 @@ class Dispenser:
         self._envelopes: asyncio.Queue[
             Tuple[Envelope, List[str], asyncio.Future, bool]
         ] = asyncio.Queue()
-        self.sent_messages = []
+        self.sent_messages: EnvelopeHistory = []
 
     def add_envelope(
         self,
@@ -105,17 +105,11 @@ class Dispenser:
                     sync=sync,
                 )
                 response_future.set_result(result)
+                env_dict = env.model_dump()
+                env_dict['payload'] = env.decode_payload()
+                env_dict['timestamp'] = int(time())
 
-                self.sent_messages.append({
-                    "timestamp": time(),
-                    "envelope": {
-                        "sender": env.sender,
-                        "target": env.target,
-                        "schema_digest": env.schema_digest,
-                        "payload": env.decode_payload(),
-                        "session": str(env.session),
-                    }
-                })
+                self.sent_messages.append(EnvelopeHistoryEntry(**env_dict))
             except Exception as err:
                 LOGGER.error(f"Failed to send envelope: {err}")
 

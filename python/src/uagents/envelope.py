@@ -3,12 +3,13 @@
 import base64
 import hashlib
 import struct
-from typing import Callable, Optional
+import time
+from typing import Callable, List, Optional
 
-from pydantic import UUID4, BaseModel, ConfigDict
+from pydantic import UUID4, BaseModel, ConfigDict, Field, field_serializer
 from uagents.crypto import Identity
-from uagents.dispatch import JsonStr
 
+JsonStr = str
 
 class Envelope(BaseModel):
     """
@@ -109,3 +110,27 @@ class Envelope(BaseModel):
         if self.nonce is not None:
             hasher.update(struct.pack(">Q", self.nonce))
         return hasher.digest()
+
+
+class EnvelopeHistoryEntry(BaseModel):
+    timestamp: int = Field(default_factory=lambda: int(time.time()))
+    version: int
+    sender: str
+    target: str
+    session: UUID4
+    schema_digest: str
+    protocol_digest: Optional[str] = None
+    payload: Optional[str] = None
+
+    @field_serializer("session")
+    def serialize_dt(self, session: UUID4, _info):
+        return str(session)
+
+class EnvelopeHistory(BaseModel):
+    envelopes: List[EnvelopeHistoryEntry]
+
+    @field_serializer("envelopes", when_used="json")
+    def serialize_envelopes_in_order(
+        self, envelopes: List[EnvelopeHistoryEntry], _info
+    ):
+        return sorted(envelopes, key=lambda e: e.timestamp)

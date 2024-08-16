@@ -12,7 +12,7 @@ from uagents.config import RESPONSE_TIME_HINT_SECONDS
 from uagents.context import ERROR_MESSAGE_DIGEST
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
-from uagents.envelope import Envelope
+from uagents.envelope import Envelope, EnvelopeHistory
 from uagents.models import ErrorMessage
 from uagents.utils import get_logger
 
@@ -155,9 +155,9 @@ class ASGIServer:
         """
         Handle retrieval of stored messages.
         """
-        messages = dispatcher.received_messages + self._dispenser.sent_messages
-        messages.sort(key=lambda x: x["timestamp"])
-        response = {"messages": [msg for msg in messages]}
+        response = EnvelopeHistory(
+            envelopes=dispatcher.received_messages + self._dispenser.sent_messages
+        ).model_dump_json()
         await send(
             {
                 "type": "http.response.start",

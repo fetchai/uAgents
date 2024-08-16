@@ -1151,10 +1151,7 @@ class Bureau:
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
         self._logger = get_logger("bureau", log_level)
-        self._dispenser = Dispenser()
-        self._server = ASGIServer(
-            self._port, self._loop, self._queries, self._dispenser, self._logger
-        )
+        self._server = ASGIServer(self._port, self._loop, self._queries, self._logger)
         self._use_mailbox = False
 
         if agents is not None:
