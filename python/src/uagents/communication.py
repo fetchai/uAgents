@@ -168,6 +168,7 @@ async def send_exchange_envelope(
                                 errors.append(
                                     "Received response envelope that failed verification"
                                 )
+                                continue
                             return await dispatch_sync_response_envelope(env)
                         return MsgStatus(
                             status=DeliveryStatus.DELIVERED,
@@ -366,7 +367,7 @@ async def send_sync_message(
 
 def enclose_response(
     message: Model, sender: str, session: UUID4, target: str = ""
-) -> str:
+) -> JsonStr:
     """
     Enclose a response message within an envelope.
 
@@ -391,7 +392,7 @@ def enclose_response_raw(
     sender: str,
     session: UUID4,
     target: str = "",
-) -> str:
+) -> JsonStr:
     """
     Enclose a raw response message within an envelope.
 
