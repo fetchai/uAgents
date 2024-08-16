@@ -11,6 +11,7 @@ from uagents.crypto import Identity
 
 JsonStr = str
 
+
 class Envelope(BaseModel):
     """
     Represents an envelope for message communication between agents.
@@ -125,6 +126,7 @@ class EnvelopeHistoryEntry(BaseModel):
     @field_serializer("session")
     def serialize_dt(self, session: UUID4, _info):
         return str(session)
+
 
 class EnvelopeHistory(BaseModel):
     envelopes: List[EnvelopeHistoryEntry]

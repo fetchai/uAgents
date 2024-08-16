@@ -855,13 +855,13 @@ class Agent(Sink):
             if schema_digest in self._signed_message_handlers:
                 raise RuntimeError("Unable to register duplicate message handler")
             if schema_digest in protocol.signed_message_handlers:
-                self._signed_message_handlers[
-                    schema_digest
-                ] = protocol.signed_message_handlers[schema_digest]
+                self._signed_message_handlers[schema_digest] = (
+                    protocol.signed_message_handlers[schema_digest]
+                )
             elif schema_digest in protocol.unsigned_message_handlers:
-                self._unsigned_message_handlers[
-                    schema_digest
-                ] = protocol.unsigned_message_handlers[schema_digest]
+                self._unsigned_message_handlers[schema_digest] = (
+                    protocol.unsigned_message_handlers[schema_digest]
+                )
             else:
                 raise RuntimeError("Unable to lookup up message handler in protocol")
 
