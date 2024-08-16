@@ -116,7 +116,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             ]
         )
 
-    async def test_message_success_sync(self):
+    async def test_message_success_sync_unsigned(self):
         message = Message(message="hello")
         reply = Message(message="hey")
         user = generate_user_address()

@@ -163,10 +163,11 @@ async def send_exchange_envelope(
                     success = resp.status == 200
                     if success:
                         if sync:
-                            # If the message is synchronous but not verified, return the envelope
                             env = Envelope.model_validate(await resp.json())
-                            if env.signature is None:
-                                return env
+                            if env.signature and not env.verify():
+                                errors.append(
+                                    "Received response envelope that failed verification"
+                                )
                             return await dispatch_sync_response_envelope(env)
                         return MsgStatus(
                             status=DeliveryStatus.DELIVERED,
