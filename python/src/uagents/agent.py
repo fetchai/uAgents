@@ -384,7 +384,11 @@ class Agent(Sink):
 
         if not self._use_mailbox:
             self._server = ASGIServer(
-                self._port, self._loop, self._queries, self._dispenser, logger=self._logger
+                self._port,
+                self._loop,
+                self._queries,
+                self._dispenser,
+                logger=self._logger,
             )
 
         # define default error message handler
@@ -851,13 +855,13 @@ class Agent(Sink):
             if schema_digest in self._signed_message_handlers:
                 raise RuntimeError("Unable to register duplicate message handler")
             if schema_digest in protocol.signed_message_handlers:
-                self._signed_message_handlers[schema_digest] = (
-                    protocol.signed_message_handlers[schema_digest]
-                )
+                self._signed_message_handlers[
+                    schema_digest
+                ] = protocol.signed_message_handlers[schema_digest]
             elif schema_digest in protocol.unsigned_message_handlers:
-                self._unsigned_message_handlers[schema_digest] = (
-                    protocol.unsigned_message_handlers[schema_digest]
-                )
+                self._unsigned_message_handlers[
+                    schema_digest
+                ] = protocol.unsigned_message_handlers[schema_digest]
             else:
                 raise RuntimeError("Unable to lookup up message handler in protocol")
 
@@ -1148,7 +1152,9 @@ class Bureau:
         self._queries: Dict[str, asyncio.Future] = {}
         self._logger = get_logger("bureau", log_level)
         self._dispenser = Dispenser()
-        self._server = ASGIServer(self._port, self._loop, self._queries, self._dispenser, self._logger)
+        self._server = ASGIServer(
+            self._port, self._loop, self._queries, self._dispenser, self._logger
+        )
         self._use_mailbox = False
 
         if agents is not None:

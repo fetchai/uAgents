@@ -1,7 +1,7 @@
 import uuid
 from abc import ABC, abstractmethod
-from typing import Dict, Set
 from time import time
+from typing import Dict, Set
 
 JsonStr = str
 
