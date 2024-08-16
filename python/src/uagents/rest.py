@@ -1,5 +1,6 @@
-from dataclasses import dataclass
 from typing import Awaitable, Callable, Dict, Literal, Optional, Tuple, Type, Union
+
+from pydantic import BaseModel
 
 from uagents import Context, Model
 
@@ -9,8 +10,7 @@ RestHandler = Union[RestGetHandler, RestPostHandler]
 RestMethod = Union[Literal["GET"], Literal["POST"]]
 
 
-@dataclass
-class RestHandlerDetails:
+class RestHandlerDetails(BaseModel):
     handler: RestHandler
     request_model: Optional[Type[Model]]
     response_model: Type[Model]
