@@ -164,11 +164,16 @@ async def send_exchange_envelope(
                     if success:
                         if sync:
                             env = Envelope.model_validate(await resp.json())
-                            if env.signature and not env.verify():
-                                errors.append(
-                                    "Received response envelope that failed verification"
-                                )
-                                continue
+                            if env.signature:
+                                verified = False
+                                try:
+                                    verified = env.verify()
+                                except Exception as ex:
+                                    errors.append(
+                                        f"Received response envelope that failed verification: {ex}"
+                                    )
+                                if not verified:
+                                    continue
                             return await dispatch_sync_response_envelope(env)
                         return MsgStatus(
                             status=DeliveryStatus.DELIVERED,
