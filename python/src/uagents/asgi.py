@@ -44,7 +44,7 @@ class ASGIServer:
     def __init__(
         self,
         port: int,
-        ctx: "Context",
+        ctx: Context,
         loop: asyncio.AbstractEventLoop,
         queries: Dict[str, asyncio.Future],
         logger: Optional[Logger] = None,

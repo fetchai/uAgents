@@ -7,6 +7,7 @@ from dialogues.hardcoded_chitchat import (
     ChitChatDialogueMessage,
     InitiateChitChatDialogue,
 )
+
 from uagents import Agent, Context
 
 CHIT_AGENT_ADDRESS = "agent1qfjvt60h0kh573fzy9mvmlsr50vff8xmdfeclfgy3g9g6qq6jxkuxh4cu3w"

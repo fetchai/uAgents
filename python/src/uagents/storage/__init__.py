@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Optional, Tuple
 
 from cosmpy.aerial.wallet import PrivateKey
+
 from uagents.crypto import Identity
 
 
