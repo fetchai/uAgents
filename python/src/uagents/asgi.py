@@ -161,17 +161,21 @@ class ASGIServer:
         """
         response_body = json.dumps(self._agent_info).encode()
 
-        await send({
-            "type": "http.response.start",
-            "status": 200,
-            "headers": [
-                [b"content-type", b"application/json"],
-            ],
-        })
-        await send({
-            "type": "http.response.body",
-            "body": response_body,
-        })
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [
+                    [b"content-type", b"application/json"],
+                ],
+            }
+        )
+        await send(
+            {
+                "type": "http.response.body",
+                "body": response_body,
+            }
+        )
 
     async def handle_get_messages(self, send):
         """
