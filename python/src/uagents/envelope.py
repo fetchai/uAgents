@@ -131,6 +131,22 @@ class EnvelopeHistoryEntry(BaseModel):
 class EnvelopeHistory(BaseModel):
     envelopes: List[EnvelopeHistoryEntry]
 
+    def add_entry(self, entry: EnvelopeHistoryEntry):
+        self.envelopes.append(entry)
+        self.apply_retention_policy()
+
+    def apply_retention_policy(self):
+        """Remove entries older than 24 hours"""
+        cutoff_time = time.time() - 86400
+        self.envelopes = [e for e in self.envelopes if e.timestamp > cutoff_time]
+
+    def __add__(self, other: "EnvelopeHistory"):
+        combined_envelopes = self.envelopes + other.envelopes
+        new_history = EnvelopeHistory(envelopes=combined_envelopes)
+        new_history.apply_retention_policy()
+
+        return new_history
+
     @field_serializer("envelopes", when_used="json")
     def serialize_envelopes_in_order(
         self, envelopes: List[EnvelopeHistoryEntry], _info

@@ -64,7 +64,7 @@ class ASGIServer:
         self._agent_info = agent_info
         self._logger = logger or get_logger("server")
         self._server = None
-        self.received_messages: EnvelopeHistory = []
+        self.received_messages: EnvelopeHistory = EnvelopeHistory(envelopes=[])
 
     @property
     def server(self):
@@ -181,8 +181,8 @@ class ASGIServer:
         """
         Handle retrieval of stored messages.
         """
-        response = EnvelopeHistory(
-            envelopes=self.received_messages + self._dispenser.sent_messages
+        response = (
+            self.received_messages + self._dispenser.sent_messages
         ).model_dump_json()
         await send(
             {
@@ -371,7 +371,7 @@ class ASGIServer:
         env_dict = env.model_dump()
         env_dict["payload"] = env.decode_payload()
 
-        self.received_messages.append(EnvelopeHistoryEntry(**env_dict))
+        self.received_messages.add_entry(EnvelopeHistoryEntry(**env_dict))
 
         # wait for any queries to be resolved
         if expects_response:
