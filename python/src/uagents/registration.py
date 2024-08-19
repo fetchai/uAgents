@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import json
 import logging
@@ -11,6 +12,8 @@ from cosmpy.crypto.address import Address
 from pydantic import BaseModel
 
 from uagents.config import (
+    ALMANAC_API_MAX_RETRIES,
+    ALMANAC_API_TIMEOUT_SECONDS,
     ALMANAC_API_URL,
     REGISTRATION_FEE,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
@@ -70,9 +73,11 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         identity: Identity,
         *,
         almanac_api: Optional[str] = None,
+        max_retries: int = ALMANAC_API_MAX_RETRIES,
         logger: Optional[logging.Logger] = None,
     ):
         self._almanac_api = almanac_api or ALMANAC_API_URL
+        self._max_retries = max_retries
         self._identity = identity
         self._logger = logger or logging.getLogger(__name__)
 
@@ -89,13 +94,20 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
 
         # submit the attestation to the API
         async with aiohttp.ClientSession() as session:  # noqa: SIM117
-            async with session.post(
-                f"{self._almanac_api}/agents",
-                headers={"content-type": "application/json"},
-                data=attestation.model_dump_json(),
-            ) as resp:
-                resp.raise_for_status()
-                self._logger.info("Registration on Almanac API successful")
+            for retry in range(self._max_retries):
+                try:
+                    async with session.post(
+                        f"{self._almanac_api}/agents",
+                        headers={"content-type": "application/json"},
+                        data=attestation.model_dump_json(),
+                        timeout=ALMANAC_API_TIMEOUT_SECONDS,
+                    ) as resp:
+                        resp.raise_for_status()
+                        self._logger.info("Registration on Almanac API successful")
+                        return
+                except (aiohttp.ClientError, asyncio.exceptions.TimeoutError) as e:
+                    if retry == self._max_retries - 1:
+                        raise e
 
 
 class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
@@ -156,7 +168,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
             )
             self._logger.info("Registering on almanac contract...complete")
         else:
-            self._logger.info("Almanac registration is up to date!")
+            self._logger.info("Almanac contract registration is up to date!")
 
     def _get_balance(self) -> int:
         return self._ledger.query_bank_balance(Address(self._wallet.address()))
@@ -209,7 +221,9 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
         try:
             await self._api_policy.register(agent_address, protocols, endpoints)
         except Exception as e:
-            self._logger.error(f"Failed to register on Almanac API: {e}")
+            self._logger.warning(
+                f"Failed to register on Almanac API: {e.__class__.__name__}"
+            )
 
         # schedule the ledger registration
         try:
