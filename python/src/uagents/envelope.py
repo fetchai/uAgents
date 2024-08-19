@@ -124,7 +124,7 @@ class EnvelopeHistoryEntry(BaseModel):
     payload: Optional[str] = None
 
     @field_serializer("session")
-    def serialize_dt(self, session: UUID4, _info):
+    def serialize_session(self, session: UUID4, _info):
         return str(session)
 
 

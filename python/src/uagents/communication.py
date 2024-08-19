@@ -107,7 +107,6 @@ class Dispenser:
                 response_future.set_result(result)
                 env_dict = env.model_dump()
                 env_dict["payload"] = env.decode_payload()
-                env_dict["timestamp"] = int(time())
 
                 self.sent_messages.append(EnvelopeHistoryEntry(**env_dict))
             except Exception as err:

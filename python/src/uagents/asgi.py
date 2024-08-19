@@ -2,7 +2,7 @@ import asyncio
 import json
 from datetime import datetime
 from logging import Logger
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 import pydantic
 import uvicorn
@@ -12,7 +12,7 @@ from uagents.config import RESPONSE_TIME_HINT_SECONDS
 from uagents.context import ERROR_MESSAGE_DIGEST
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
-from uagents.envelope import Envelope, EnvelopeHistory
+from uagents.envelope import Envelope, EnvelopeHistory, EnvelopeHistoryEntry
 from uagents.models import ErrorMessage
 from uagents.utils import get_logger
 
@@ -45,6 +45,7 @@ class ASGIServer:
         loop: asyncio.AbstractEventLoop,
         queries: Dict[str, asyncio.Future],
         dispenser: Dispenser,
+        agent_info: Dict[str, Any],
         logger: Optional[Logger] = None,
     ):
         """
@@ -60,8 +61,10 @@ class ASGIServer:
         self._loop = loop
         self._queries = queries
         self._dispenser = dispenser
+        self._agent_info = agent_info
         self._logger = logger or get_logger("server")
         self._server = None
+        self.received_messages: EnvelopeHistory = []
 
     @property
     def server(self):
@@ -151,12 +154,31 @@ class ASGIServer:
                 }
             )
 
+    async def handle_agent_info(self, send):
+        """
+        Handle an endpoint that returns information about the running agent,
+        including its address, protocols, and endpoints.
+        """
+        response_body = json.dumps(self._agent_info).encode()
+
+        await send({
+            "type": "http.response.start",
+            "status": 200,
+            "headers": [
+                [b"content-type", b"application/json"],
+            ],
+        })
+        await send({
+            "type": "http.response.body",
+            "body": response_body,
+        })
+
     async def handle_get_messages(self, send):
         """
         Handle retrieval of stored messages.
         """
         response = EnvelopeHistory(
-            envelopes=dispatcher.received_messages + self._dispenser.sent_messages
+            envelopes=self.received_messages + self._dispenser.sent_messages
         ).model_dump_json()
         await send(
             {
@@ -200,6 +222,10 @@ class ASGIServer:
 
         if request_method == "GET" and path == "/messages":
             await self.handle_get_messages(send)
+            return
+
+        if request_method == "GET" and path == "/agent_info":
+            await self.handle_agent_info(send)
             return
 
         if scope["path"] != "/submit":
@@ -337,6 +363,11 @@ class ASGIServer:
         await dispatcher.dispatch(
             env.sender, env.target, env.schema_digest, env.decode_payload(), env.session
         )
+
+        env_dict = env.model_dump()
+        env_dict["payload"] = env.decode_payload()
+
+        self.received_messages.append(EnvelopeHistoryEntry(**env_dict))
 
         # wait for any queries to be resolved
         if expects_response:

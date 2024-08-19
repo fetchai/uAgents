@@ -382,12 +382,19 @@ class Agent(Sink):
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
 
+        self._agent_info = {
+            "address": self.address,
+            "protocols": list(self.protocols.keys()),
+            "endpoints": [ep.model_dump_json() for ep in self._endpoints],
+        }
+
         if not self._use_mailbox:
             self._server = ASGIServer(
                 self._port,
                 self._loop,
                 self._queries,
                 self._dispenser,
+                agent_info=self._agent_info,
                 logger=self._logger,
             )
 
@@ -872,6 +879,8 @@ class Agent(Sink):
 
         if protocol.digest is not None:
             self.protocols[protocol.digest] = protocol
+
+        self._agent_info["protocols"] = list(self.protocols.keys())
 
         if publish_manifest:
             self.publish_manifest(protocol.manifest())
