@@ -1,9 +1,6 @@
 import uuid
 from abc import ABC, abstractmethod
-from time import time
 from typing import Dict, Set
-
-from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
 
 JsonStr = str
 
