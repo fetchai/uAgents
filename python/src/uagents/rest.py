@@ -1,18 +1,31 @@
-from typing import Awaitable, Callable, Dict, Literal, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    Literal,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 from pydantic import BaseModel
 
-from uagents import Context, Model
+from uagents.context import Context
+from uagents.models import Model
 
-RestGetHandler = Callable[[Context], Awaitable[Optional[Model]]]
-RestPostHandler = Callable[[Context, Model], Awaitable[Optional[Model]]]
+RestReturnType = Union[Dict[str, Any], Model]
+RestGetHandler = Callable[[Context], Awaitable[Optional[RestReturnType]]]
+RestPostHandler = Callable[[Context, Any], Awaitable[Optional[RestReturnType]]]
 RestHandler = Union[RestGetHandler, RestPostHandler]
-RestMethod = Union[Literal["GET"], Literal["POST"]]
+RestMethod = Literal["GET", "POST"]
 
 
 class RestHandlerDetails(BaseModel):
+    method: RestMethod
     handler: RestHandler
-    request_model: Optional[Type[Model]]
+    request_model: Optional[Type[Model]] = None
     response_model: Type[Model]
 
 

@@ -60,7 +60,7 @@ from uagents.registration import (
     DefaultRegistrationPolicy,
 )
 from uagents.resolver import GlobalResolver, Resolver
-from uagents.rest import RestHandler, RestMethod
+from uagents.rest import RestGetHandler, RestHandler, RestMethod, RestPostHandler
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.utils import get_logger
 
@@ -386,7 +386,11 @@ class Agent(Sink):
 
         if not self._use_mailbox:
             self._server = ASGIServer(
-                self._port, self._ctx, self._loop, self._queries, logger=self._logger
+                self._port,
+                self._ctx,
+                self._loop,
+                self._queries,
+                logger=self._logger,
             )
 
         # define default error message handler
@@ -803,8 +807,14 @@ class Agent(Sink):
         request: Optional[Type[Model]],
         response: Type[Model],
     ):
+        if self._server.has_rest_endpoint(method, endpoint):
+            self._logger.warning(
+                f"Discarding duplicate REST endpoint: {method} {endpoint}"
+            )
+            return lambda func: func
+
         def decorator_on_rest(func: RestHandler):
-            @functools.wraps(func)
+            @functools.wraps(RestGetHandler if method == "GET" else RestPostHandler)
             def handler(*args, **kwargs):
                 return func(*args, **kwargs)
 

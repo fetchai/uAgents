@@ -2,10 +2,11 @@ import asyncio
 import json
 from datetime import datetime
 from logging import Logger
-from typing import Dict, Optional, Type
+from typing import Dict, Optional, Tuple, Type
 
-import pydantic
 import uvicorn
+from pydantic import ValidationError
+from pydantic.v1 import ValidationError as ValidationErrorV1
 from requests.structures import CaseInsensitiveDict
 
 from uagents.communication import enclose_response_raw
@@ -84,10 +85,14 @@ class ASGIServer:
         response: Type[Model],
     ):
         self._rest_handlers[(method, endpoint)] = RestHandlerDetails(
+            method=method,
             handler=handler,
             request_model=request,
             response_model=response,
         )
+
+    def has_rest_endpoint(self, method: RestMethod, endpoint: str) -> bool:
+        return (method, endpoint) in self._rest_handlers
 
     async def handle_readiness_probe(self, headers: CaseInsensitiveDict, send):
         """
@@ -185,22 +190,77 @@ class ASGIServer:
     async def _handle_rest(self, rest_handler: RestHandlerDetails, send, receive):
         # read all the data
         raw_contents = await _read_asgi_body(receive)
+        args: Tuple = (self._ctx,)
 
-        # generate the request if available
-        if rest_handler.request_model is not None:
-            req = rest_handler.request_model.parse_raw(raw_contents)
-        else:
-            req = None
+        if rest_handler.method == "POST" and rest_handler.request_model is not None:
+            if not raw_contents:
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 400,
+                        "headers": [
+                            [b"content-type", b"application/json"],
+                        ],
+                    }
+                )
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": b'{"error": "no request body found"}',
+                    }
+                )
+                return
+
+            try:
+                received_request: Model = (
+                    rest_handler.request_model.model_validate_json(raw_contents)
+                )
+                args = (self._ctx, received_request)
+            except ValidationErrorV1 as err:
+                self._logger.debug(f"Failed to validate REST request: {err}")
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 400,
+                        "headers": [
+                            [b"content-type", b"application/json"],
+                        ],
+                    }
+                )
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": err.json().encode(),
+                    }
+                )
+                return
 
         # call the handler
-        if req is None:
-            response = await rest_handler.handler(self._ctx)
-        else:
-            response = await rest_handler.handler(self._ctx, req)
+        handler_response = await rest_handler.handler(*args)  # type: ignore
 
         # ensure the response is parsed as valid
-        validated_response = rest_handler.response_model.parse_obj(response)
+        try:
+            validated_response = rest_handler.response_model.parse_obj(handler_response)
+        except ValidationErrorV1 as err:
+            self._logger.debug(f"Failed to validate REST response: {err}")
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 500,
+                    "headers": [
+                        [b"content-type", b"application/json"],
+                    ],
+                }
+            )
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": err.json().encode(),
+                }
+            )
+            return
 
+        # return the validated response
         await send(
             {
                 "type": "http.response.start",
@@ -303,7 +363,7 @@ class ASGIServer:
 
         try:
             env = Envelope.model_validate(contents)
-        except pydantic.ValidationError:
+        except ValidationError:
             await send(
                 {
                     "type": "http.response.start",

@@ -1,10 +1,7 @@
 from datetime import datetime
+from typing import Any, Dict
 
 from uagents import Agent, Context, Model
-
-
-class Empty(Model):
-    pass
 
 
 class Request(Model):
@@ -17,29 +14,27 @@ class Response(Model):
     agent_address: str
 
 
+# You can also use empty models to represent empty request/response bodies
+class EmptyResponse(Model):
+    pass
+
+
 agent = Agent(name="Rest API")
-
-print(agent.address)
-
-
-@agent.on_interval(period=15.0)
-async def handle_interval(ctx: Context):
-    print("Hello from the interval!", ctx.agent.address)
 
 
 @agent.on_rest_get("/rest/get", Response)
-async def handle_get(ctx: Context):
-    print('Hello from the "GET /hello" handler!', ctx.agent.address)
+async def handle_get(ctx: Context) -> Dict[str, Any]:
+    print('Hello from the "GET" handler!', ctx.agent.address)
     return {
         "timestamp": datetime.now(),
-        "text": "Hello from the GET /hello handler!",
+        "text": "Hello from the GET handler!",
         "agent_address": ctx.agent.address,
     }
 
 
 @agent.on_rest_post("/rest/post", Request, Response)
 async def handle_post(ctx: Context, req: Request) -> Response:
-    print('Hello from the "POST /hello" handler!', ctx.agent.address)
+    print('Hello from the "POST" handler!', ctx.agent.address)
     return Response(
         text=f"Received: {req.text}",
         agent_address=ctx.agent.address,
