@@ -2,7 +2,13 @@ import asyncio
 import json
 from datetime import datetime
 from logging import Logger
-from typing import Dict, Optional, Tuple, Type
+from typing import (
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Type,
+)
 
 import uvicorn
 from pydantic import ValidationError
@@ -11,15 +17,17 @@ from requests.structures import CaseInsensitiveDict
 
 from uagents.communication import enclose_response_raw
 from uagents.config import RESPONSE_TIME_HINT_SECONDS
-from uagents.context import ERROR_MESSAGE_DIGEST, Context
+from uagents.context import ERROR_MESSAGE_DIGEST
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
 from uagents.models import ErrorMessage, Model
-from uagents.rest import RestHandler, RestHandlerDetails, RestHandlerMap, RestMethod
+from uagents.types import RestHandlerDetails, RestMethod
 from uagents.utils import get_logger
 
 HOST = "0.0.0.0"
+
+RESERVED_ENDPOINTS = ["/submit", "/messages", "/agent_info"]
 
 
 async def _read_asgi_body(receive):
@@ -45,7 +53,6 @@ class ASGIServer:
     def __init__(
         self,
         port: int,
-        ctx: Context,
         loop: asyncio.AbstractEventLoop,
         queries: Dict[str, asyncio.Future],
         logger: Optional[Logger] = None,
@@ -62,10 +69,12 @@ class ASGIServer:
         self._port = int(port)
         self._loop = loop
         self._queries = queries
-        self._rest_handlers: RestHandlerMap = {}
+        self._rest_handler_map: Dict[
+            Tuple[str, RestMethod, str], RestHandlerDetails
+        ] = {}
         self._logger = logger or get_logger("server")
         self._server = None
-        self._ctx = ctx
+        self._rest_sinks: List[str] = []
 
     @property
     def server(self):
@@ -78,21 +87,43 @@ class ASGIServer:
 
     def add_rest_endpoint(
         self,
+        address: str,
         method: RestMethod,
         endpoint: str,
-        handler: RestHandler,
         request: Optional[Type[Model]],
         response: Type[Model],
     ):
-        self._rest_handlers[(method, endpoint)] = RestHandlerDetails(
+        """
+        Add a REST endpoint to the server.
+        """
+        if address not in self._rest_sinks:
+            self._rest_sinks.append(address)
+        self._rest_handler_map[(address, method, endpoint)] = RestHandlerDetails(
             method=method,
-            handler=handler,
+            endpoint=endpoint,
             request_model=request,
             response_model=response,
         )
 
     def has_rest_endpoint(self, method: RestMethod, endpoint: str) -> bool:
-        return (method, endpoint) in self._rest_handlers
+        """
+        Check if the server has a REST endpoint registered.
+        """
+        if endpoint in RESERVED_ENDPOINTS:
+            self._logger.warning(f"Endpoint {endpoint} is reserved")
+            return True
+        return any(
+            meth == method and end == endpoint
+            for sink, meth, end in self._rest_handler_map
+        )
+
+    def _get_rest_handler_details(
+        self, method: RestMethod, endpoint: str
+    ) -> Tuple[str, Optional[RestHandlerDetails]]:
+        for sink, meth, end in self._rest_handler_map:
+            if meth == method and end == endpoint:
+                return sink, self._rest_handler_map[(sink, meth, end)]
+        return ("", None)
 
     async def handle_readiness_probe(self, headers: CaseInsensitiveDict, send):
         """
@@ -187,10 +218,11 @@ class ASGIServer:
         except KeyboardInterrupt:
             self._logger.info("Shutting down server")
 
-    async def _handle_rest(self, rest_handler: RestHandlerDetails, send, receive):
-        # read all the data
+    async def _handle_rest(
+        self, destination: str, rest_handler: RestHandlerDetails, send, receive
+    ):
         raw_contents = await _read_asgi_body(receive)
-        args: Tuple = (self._ctx,)
+        received_request: Optional[Model] = None
 
         if rest_handler.method == "POST" and rest_handler.request_model is not None:
             if not raw_contents:
@@ -212,10 +244,9 @@ class ASGIServer:
                 return
 
             try:
-                received_request: Model = (
-                    rest_handler.request_model.model_validate_json(raw_contents)
+                received_request = rest_handler.request_model.model_validate_json(
+                    raw_contents
                 )
-                args = (self._ctx, received_request)
             except ValidationErrorV1 as err:
                 self._logger.debug(f"Failed to validate REST request: {err}")
                 await send(
@@ -235,8 +266,13 @@ class ASGIServer:
                 )
                 return
 
-        # call the handler
-        handler_response = await rest_handler.handler(*args)  # type: ignore
+        # get & call the handler
+        handler_response = await dispatcher.dispatch_rest(
+            destination=destination,
+            method=rest_handler.method,
+            endpoint=rest_handler.endpoint,
+            message=received_request,
+        )
 
         # ensure the response is parsed as valid
         try:
@@ -291,14 +327,16 @@ class ASGIServer:
         assert scope["type"] == "http"
 
         request_method = scope["method"]
-        rest_handler = self._rest_handlers.get((request_method, scope["path"]))
+        destination, rest_handler = self._get_rest_handler_details(
+            request_method, scope["path"]
+        )
 
         is_submit = scope["path"] == "/submit"
         is_bad = not is_submit and rest_handler is None
 
         # if this is a request handler then we should handle it as such
         if rest_handler is not None:
-            await self._handle_rest(rest_handler, send, receive)
+            await self._handle_rest(destination, rest_handler, send, receive)
             return
 
         if is_bad:
@@ -433,7 +471,7 @@ class ASGIServer:
             )
             return
 
-        await dispatcher.dispatch(
+        await dispatcher.dispatch_msg(
             env.sender, env.target, env.schema_digest, env.decode_payload(), env.session
         )
 

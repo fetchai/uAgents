@@ -1,8 +1,9 @@
 import uuid
 from abc import ABC, abstractmethod
-from typing import Dict, Set
+from typing import Dict, Optional, Set
 
-JsonStr = str
+from uagents.models import Model
+from uagents.types import JsonStr, RestMethod
 
 
 class Sink(ABC):
@@ -13,6 +14,12 @@ class Sink(ABC):
     @abstractmethod
     async def handle_message(
         self, sender: str, schema_digest: str, message: JsonStr, session: uuid.UUID
+    ):
+        pass
+
+    @abstractmethod
+    async def handle_rest(
+        self, method: RestMethod, endpoint: str, message: Optional[Model]
     ):
         pass
 
@@ -45,7 +52,7 @@ class Dispatcher:
     def contains(self, address: str) -> bool:
         return address in self._sinks
 
-    async def dispatch(
+    async def dispatch_msg(
         self,
         sender: str,
         destination: str,
@@ -55,6 +62,16 @@ class Dispatcher:
     ):
         for handler in self._sinks.get(destination, set()):
             await handler.handle_message(sender, schema_digest, message, session)
+
+    async def dispatch_rest(
+        self,
+        destination: str,
+        method: RestMethod,
+        endpoint: str,
+        message: Optional[Model],
+    ):
+        for handler in self._sinks.get(destination, set()):
+            return await handler.handle_rest(method, endpoint, message)
 
 
 dispatcher = Dispatcher()

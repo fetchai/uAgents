@@ -1,6 +1,7 @@
 ## Example of how to add custom REST endpoints to your agent
 
 By using one of the two new decorators: `on_rest_get()` and `on_rest_post()` you are able to define custom endpoints that your agent can act upon.
+Please note that this feature is only available at the "agent-level" meaning that you cannot add rest endpoints to uagents `Protocols`.
 
 The usage is similar to a message handler in that you define:
 

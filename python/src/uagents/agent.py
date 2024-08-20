@@ -24,7 +24,7 @@ from cosmpy.crypto.address import Address
 from pydantic import ValidationError
 
 from uagents.asgi import ASGIServer
-from uagents.communication import Dispenser, MsgDigest
+from uagents.communication import Dispenser
 from uagents.config import (
     ALMANAC_CONTRACT_VERSION,
     AVERAGE_BLOCK_INTERVAL,
@@ -37,16 +37,9 @@ from uagents.config import (
     parse_agentverse_config,
     parse_endpoint_config,
 )
-from uagents.context import (
-    Context,
-    EventCallback,
-    ExternalContext,
-    InternalContext,
-    IntervalCallback,
-    MessageCallback,
-)
+from uagents.context import Context, ExternalContext, InternalContext
 from uagents.crypto import Identity, derive_key_from_seed, is_user_address
-from uagents.dispatch import JsonStr, Sink, dispatcher
+from uagents.dispatch import Sink, dispatcher
 from uagents.mailbox import MailboxClient
 from uagents.models import ErrorMessage, Model
 from uagents.network import (
@@ -60,8 +53,19 @@ from uagents.registration import (
     DefaultRegistrationPolicy,
 )
 from uagents.resolver import GlobalResolver, Resolver
-from uagents.rest import RestGetHandler, RestHandler, RestMethod, RestPostHandler
 from uagents.storage import KeyValueStore, get_or_create_private_keys
+from uagents.types import (
+    EventCallback,
+    IntervalCallback,
+    JsonStr,
+    MessageCallback,
+    MsgDigest,
+    RestGetHandler,
+    RestHandler,
+    RestHandlerMap,
+    RestMethod,
+    RestPostHandler,
+)
 from uagents.utils import get_logger
 
 
@@ -338,6 +342,7 @@ class Agent(Sink):
         self._interval_messages: Set[str] = set()
         self._signed_message_handlers: Dict[str, MessageCallback] = {}
         self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
+        self._rest_handlers: RestHandlerMap = {}
         self._models: Dict[str, Type[Model]] = {}
         self._replies: Dict[str, Dict[str, Type[Model]]] = {}
         self._queries: Dict[str, asyncio.Future] = {}
@@ -387,7 +392,6 @@ class Agent(Sink):
         if not self._use_mailbox:
             self._server = ASGIServer(
                 self._port,
-                self._ctx,
                 self._loop,
                 self._queries,
                 logger=self._logger,
@@ -818,7 +822,11 @@ class Agent(Sink):
             def handler(*args, **kwargs):
                 return func(*args, **kwargs)
 
-            self._server.add_rest_endpoint(method, endpoint, handler, request, response)
+            self._rest_handlers[(method, endpoint)] = handler
+
+            self._server.add_rest_endpoint(
+                self.address, method, endpoint, request, response
+            )
 
             return handler
 
@@ -948,6 +956,28 @@ class Agent(Sink):
 
         """
         await self._message_queue.put((schema_digest, sender, message, session))
+
+    async def handle_rest(
+        self, method: RestMethod, endpoint: str, message: Optional[Model]
+    ) -> Optional[Union[Dict[str, Any], Model]]:
+        """
+        Handle a REST request.
+
+        Args:
+            method (RestMethod): The REST method.
+            endpoint (str): The REST endpoint.
+            message (Model): The message content.
+
+        """
+        # try to get the handler
+        handler = self._rest_handlers.get((method, endpoint))
+        if not handler:
+            self._logger.warning(f"No handler for {method} {endpoint}")
+            return None
+
+        args = (self._ctx, message) if message else (self._ctx,)
+
+        return await handler(*args)  # type: ignore
 
     async def _startup(self):
         """
