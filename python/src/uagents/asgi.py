@@ -206,7 +206,7 @@ class ASGIServer:
                 await send(
                     {
                         "type": "http.response.body",
-                        "body": b'{"error": "no request body found"}',
+                        "body": b'{"error": "No request body found"}',
                     }
                 )
                 return
@@ -240,8 +240,14 @@ class ASGIServer:
 
         # ensure the response is parsed as valid
         try:
+            if not isinstance(handler_response, dict) and not isinstance(
+                handler_response, rest_handler.response_model
+            ):
+                raise ValueError(
+                    {"error": "Handler response must be a dict or a model"}
+                )
             validated_response = rest_handler.response_model.parse_obj(handler_response)
-        except ValidationErrorV1 as err:
+        except (ValidationErrorV1, ValueError) as err:
             self._logger.debug(f"Failed to validate REST response: {err}")
             await send(
                 {
@@ -255,7 +261,7 @@ class ASGIServer:
             await send(
                 {
                     "type": "http.response.body",
-                    "body": err.json().encode(),
+                    "body": b'{"error": "Handler response does not match response schema."}',
                 }
             )
             return

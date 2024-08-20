@@ -4,6 +4,7 @@ from typing import Callable
 
 from uagents import Agent, Context, Model
 from uagents.resolver import GlobalResolver
+from uagents.rest import RestHandlerDetails
 
 
 class Message(Model):
@@ -12,6 +13,10 @@ class Message(Model):
 
 class Query(Model):
     query: str
+
+
+class Response(Model):
+    response: str
 
 
 MESSAGE_DIGEST = Model.build_schema_digest(Message)
@@ -79,10 +84,44 @@ class TestAgent(unittest.TestCase):
 
     def test_agent_on_shutdown_event(self):
         @self.agent.on_event("shutdown")
-        def _(ctx):
+        def _(ctx: Context):
             ctx.storage.set("startup", True)
 
         shutdown_handlers = self.agent._on_shutdown
         self.assertEqual(len(shutdown_handlers), 1)
         self.assertTrue(isinstance(shutdown_handlers[0], Callable))
         self.assertIsNone(self.agent._ctx.storage.get("shutdown"))
+
+    def test_agent_on_rest_get(self):
+        @self.agent.on_rest_get("/get", Response)
+        def _(_ctx: Context):
+            return {}
+
+        rest_handlers = self.agent._server._rest_handlers
+        get_handlers = [
+            handler for handler in rest_handlers.values() if handler.method == "GET"
+        ]
+        self.assertEqual(len(get_handlers), 1)
+
+        handler = rest_handlers[("GET", "/get")]
+        self.assertTrue(isinstance(handler, RestHandlerDetails))
+        self.assertEqual(handler.method, "GET")
+        self.assertIsNone(handler.request_model)
+        self.assertEqual(handler.response_model, Response)
+
+    def test_agent_on_rest_post(self):
+        @self.agent.on_rest_post("/post", Message, Response)
+        def _(_ctx: Context, _req: Message):
+            return Response(response="test")
+
+        rest_handlers = self.agent._server._rest_handlers
+        post_handlers = [
+            handler for handler in rest_handlers.values() if handler.method == "POST"
+        ]
+        self.assertEqual(len(post_handlers), 1)
+
+        handler = rest_handlers[("POST", "/post")]
+        self.assertTrue(isinstance(handler, RestHandlerDetails))
+        self.assertEqual(handler.method, "POST")
+        self.assertEqual(handler.request_model, Message)
+        self.assertEqual(handler.response_model, Response)
