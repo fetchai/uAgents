@@ -4,7 +4,6 @@ from datetime import datetime
 from logging import Logger
 from typing import (
     Dict,
-    List,
     Optional,
     Tuple,
     Type,
@@ -74,7 +73,6 @@ class ASGIServer:
         ] = {}
         self._logger = logger or get_logger("server")
         self._server = None
-        self._rest_sinks: List[str] = []
 
     @property
     def server(self):
@@ -96,8 +94,6 @@ class ASGIServer:
         """
         Add a REST endpoint to the server.
         """
-        if address not in self._rest_sinks:
-            self._rest_sinks.append(address)
         self._rest_handler_map[(address, method, endpoint)] = RestHandlerDetails(
             method=method,
             endpoint=endpoint,

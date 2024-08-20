@@ -4,6 +4,7 @@ import asyncio
 import functools
 import logging
 import uuid
+from collections import Counter
 from typing import (
     Any,
     Callable,
@@ -972,7 +973,6 @@ class Agent(Sink):
         # try to get the handler
         handler = self._rest_handlers.get((method, endpoint))
         if not handler:
-            self._logger.warning(f"No handler for {method} {endpoint}")
             return None
 
         args = (self._ctx, message) if message else (self._ctx,)
@@ -1238,13 +1238,27 @@ class Bureau:
             self._use_mailbox = True
         else:
             agent.update_endpoints(self._endpoints)
+        self._server._rest_handler_map.update(agent._server._rest_handler_map)
         self._agents.append(agent)
+
+    def check_rest_duplicate_endpoints(self):
+        """
+        Check for duplicate rest endpoints in the bureau.
+
+        """
+        endpoints = []
+        for k, _ in self._server._rest_handler_map.items():
+            endpoints.append(f"{k[1]} {k[2]}")
+        duplicates = [k for k, v in Counter(endpoints).items() if v > 1]
+        if duplicates:
+            raise ValueError(f"Duplicate REST endpoints found: {duplicates}")
 
     async def run_async(self):
         """
         Run the agents managed by the bureau.
 
         """
+        self.check_rest_duplicate_endpoints()
         tasks = []
         for agent in self._agents:
             await agent.setup()

@@ -1,6 +1,6 @@
 import uuid
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Set
+from typing import Any, Dict, Optional, Set, Union
 
 from uagents.models import Model
 from uagents.types import JsonStr, RestMethod
@@ -59,7 +59,7 @@ class Dispatcher:
         schema_digest: str,
         message: JsonStr,
         session: uuid.UUID,
-    ):
+    ) -> None:
         for handler in self._sinks.get(destination, set()):
             await handler.handle_message(sender, schema_digest, message, session)
 
@@ -69,7 +69,7 @@ class Dispatcher:
         method: RestMethod,
         endpoint: str,
         message: Optional[Model],
-    ):
+    ) -> Optional[Union[Dict[str, Any], Model]]:
         for handler in self._sinks.get(destination, set()):
             return await handler.handle_rest(method, endpoint, message)
 
