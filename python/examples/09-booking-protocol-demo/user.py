@@ -3,6 +3,7 @@ from protocols.query import (
     QueryTableRequest,
     QueryTableResponse,
 )
+
 from uagents import Agent, Context
 
 RESTAURANT_ADDRESS = (

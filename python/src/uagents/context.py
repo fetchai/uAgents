@@ -24,6 +24,7 @@ from typing import (
 import requests
 from cosmpy.aerial.client import LedgerClient
 from typing_extensions import deprecated
+
 from uagents.communication import (
     DeliveryStatus,
     Dispenser,

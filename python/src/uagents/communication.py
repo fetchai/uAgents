@@ -10,6 +10,7 @@ from typing import Any, List, Optional, Tuple, Type, Union
 
 import aiohttp
 from pydantic import UUID4, ValidationError
+
 from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
 from uagents.crypto import Identity, is_user_address
 from uagents.dispatch import JsonStr, dispatcher
