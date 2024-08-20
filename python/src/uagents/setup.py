@@ -2,6 +2,7 @@
 
 import requests
 from cosmpy.crypto.address import Address
+
 from uagents import Agent
 from uagents.config import REGISTRATION_FEE
 from uagents.network import get_faucet, get_ledger

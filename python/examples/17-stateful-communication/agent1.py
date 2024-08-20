@@ -3,6 +3,7 @@
 import json
 
 from dialogues.chitchat import ChitChatDialogue
+
 from uagents import Agent, Context, Model
 
 CHAT_AGENT_ADDRESS = "agent1qgp7urkvx24a2gs8e7496fajzy78h4887vz7va4h7klzf7azzhthsz7zymu"

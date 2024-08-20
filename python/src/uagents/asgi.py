@@ -7,6 +7,7 @@ from typing import Dict, Optional
 import pydantic
 import uvicorn
 from requests.structures import CaseInsensitiveDict
+
 from uagents.communication import enclose_response_raw
 from uagents.config import RESPONSE_TIME_HINT_SECONDS
 from uagents.context import ERROR_MESSAGE_DIGEST

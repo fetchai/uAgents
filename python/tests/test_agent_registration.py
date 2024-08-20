@@ -5,6 +5,7 @@ import unittest
 from typing import Any, Dict, List
 
 from cosmpy.protos.cosmos.base.v1beta1.coin_pb2 import Coin
+
 from uagents import Agent
 from uagents.crypto import Identity, encode_length_prefixed
 from uagents.network import get_name_service_contract

@@ -1,5 +1,6 @@
 from protocols.book import book_proto
 from protocols.query import TableStatus, query_proto
+
 from uagents import Agent
 
 restaurant = Agent(

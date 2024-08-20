@@ -9,6 +9,7 @@ Preparation:
 """
 
 from pyngrok import conf, ngrok
+
 from uagents import Agent, Context, Model
 
 

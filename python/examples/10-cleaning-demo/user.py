@@ -8,6 +8,7 @@ from protocols.cleaning import (
 )
 from protocols.cleaning.models import ServiceType
 from pytz import utc
+
 from uagents import Agent, Context
 
 CLEANER_ADDRESS = (
