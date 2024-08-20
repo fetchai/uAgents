@@ -392,9 +392,9 @@ class Agent(Sink):
 
         if not self._use_mailbox:
             self._server = ASGIServer(
-                self._port,
-                self._loop,
-                self._queries,
+                port=self._port,
+                loop=self._loop,
+                queries=self._queries,
                 logger=self._logger,
             )
 
@@ -970,7 +970,6 @@ class Agent(Sink):
             message (Model): The message content.
 
         """
-        # try to get the handler
         handler = self._rest_handlers.get((method, endpoint))
         if not handler:
             return None
@@ -1215,7 +1214,9 @@ class Bureau:
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
         self._logger = get_logger("bureau", log_level)
-        self._server = ASGIServer(self._port, self._loop, self._queries, self._logger)
+        self._server = ASGIServer(
+            port=self._port, loop=self._loop, queries=self._queries, logger=self._logger
+        )
         self._use_mailbox = False
 
         if agents is not None:
