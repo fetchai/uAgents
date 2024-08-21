@@ -11,6 +11,7 @@ from dialogues.agentverse_chitchat import (
     ConcludeChitChatDialogue,
     InitiateChitChatDialogue,
 )
+
 from uagents import Agent, Context
 
 HOSTED_AGENT_ADDRESS = "<your hosted agent address here>"

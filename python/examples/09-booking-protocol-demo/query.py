@@ -1,6 +1,7 @@
 import asyncio
 
 from protocols.query import GetTotalQueries, TotalQueries
+
 from uagents.query import query
 
 RESTAURANT_ADDRESS = "agent1qfpqn9jhvp9cg33f27q6jvmuv52dgyg9rfuu37rmxrletlqe7lewwjed5gy"

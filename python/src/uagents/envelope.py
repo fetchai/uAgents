@@ -7,6 +7,7 @@ import time
 from typing import Callable, List, Optional
 
 from pydantic import UUID4, BaseModel, ConfigDict, Field, field_serializer
+
 from uagents.crypto import Identity
 
 JsonStr = str

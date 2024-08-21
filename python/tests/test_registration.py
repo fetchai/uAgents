@@ -3,6 +3,7 @@ import unittest
 import pytest
 from aiohttp import ClientResponseError
 from aioresponses import aioresponses
+
 from uagents.crypto import Identity
 from uagents.registration import (
     AgentRegistrationAttestation,

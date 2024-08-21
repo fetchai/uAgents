@@ -4,6 +4,7 @@ import unittest
 from typing import Dict, Optional
 
 from aioresponses import aioresponses
+
 from uagents import Agent
 from uagents.context import (
     DeliveryStatus,
