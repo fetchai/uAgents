@@ -2194,6 +2194,23 @@ docs = ["sphinx (>=5.3)", "sphinx-rtd-theme (>=1.0)"]
 testing = ["coverage (>=6.2)", "hypothesis (>=5.7.1)"]
 
 [[package]]
+name = "pytest-order"
+version = "1.2.1"
+description = "pytest plugin to run your tests in a specific order"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "pytest-order-1.2.1.tar.gz", hash = "sha256:4451bd8821ba4fa2109455a2fcc882af60ef8e53e09d244d67674be08f56eac3"},
+    {file = "pytest_order-1.2.1-py3-none-any.whl", hash = "sha256:c3082fc73f9ddcf13e4a22dda9bbcc2f39865bf537438a1d50fa241e028dd743"},
+]
+
+[package.dependencies]
+pytest = [
+    {version = ">=5.0", markers = "python_version < \"3.10\""},
+    {version = ">=6.2.4", markers = "python_version >= \"3.10\""},
+]
+
+[[package]]
 name = "python-dateutil"
 version = "2.9.0.post0"
 description = "Extensions to the standard Python datetime module"
@@ -3189,4 +3206,4 @@ wallet = ["fetchai-babble"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "555a778b8eeca23eeb1860fdbea99156af5c0ee259ef0ca4f93fa02d64018949"
+content-hash = "3b1220f070a80653391345c6d795990882f7e292ab7b8184c2b7ab1f2dd3e24c"

@@ -1,10 +1,11 @@
 # pylint: disable=protected-access
-import asyncio
 from unittest.mock import AsyncMock, call, patch
 
 import pytest
 
 from uagents import Agent, Context, Model
+
+pytestmark = pytest.mark.asyncio
 
 
 class Request(Model):
@@ -15,13 +16,10 @@ class Response(Model):
     text: str
 
 
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-
-agent = Agent(name="alice", loop=loop)
+agent = Agent(name="alice")
 
 
-@pytest.mark.asyncio
+@pytest.mark.order(1)
 async def test_rest_get_success():
     @agent.on_rest_get("/get-success", Response)
     async def _(_ctx: Context):
@@ -58,7 +56,7 @@ async def test_rest_get_success():
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.order(2)
 async def test_rest_post_success():
     @agent.on_rest_post("/post-success", Request, Response)
     async def _(_ctx: Context, req: Request):
@@ -95,7 +93,7 @@ async def test_rest_post_success():
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.order(3)
 async def test_rest_post_fail_no_body():
     @agent.on_rest_post("/post-body", Request, Response)
     async def _(_ctx: Context, req: Request):
@@ -132,7 +130,7 @@ async def test_rest_post_fail_no_body():
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.order(4)
 async def test_rest_post_fail_invalid_body():
     @agent.on_rest_post("/post-body-inv", Request, Response)
     async def _(_ctx: Context, req: Request):
@@ -169,7 +167,7 @@ async def test_rest_post_fail_invalid_body():
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.order(5)
 async def test_rest_post_fail_invalid_response():
     wrong_response = {"obviously_wrong": "Oh no!"}
     wrong_response_model = Request(text="Hello")
