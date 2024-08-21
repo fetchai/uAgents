@@ -1166,6 +1166,7 @@ class Agent(Sink):
 
 
 class Bureau:
+    # pylint: disable=protected-access
     """
     A class representing a Bureau of agents.
 

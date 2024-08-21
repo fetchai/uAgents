@@ -40,7 +40,7 @@ class TestAgent(unittest.TestCase):
 
     def test_agent_on_interval(self):
         @self.agent.on_interval(period=10)
-        def _(_ctx):
+        def _(_ctx: Context):
             pass
 
         interval = self.agent._protocol._interval_handlers[0]
@@ -49,7 +49,7 @@ class TestAgent(unittest.TestCase):
 
     def test_agent_on_signed_message(self):
         @self.agent.on_message(Message)
-        def _(_ctx, _sender, _msg):
+        def _(_ctx: Context, _sender: str, _msg: Message):
             pass
 
         signed_msg_handlers = self.agent._protocol._signed_message_handlers
@@ -61,7 +61,7 @@ class TestAgent(unittest.TestCase):
 
     def test_agent_on_unsigned_message(self):
         @self.agent.on_message(Query, allow_unverified=True)
-        def _(_ctx, _sender, _msg):
+        def _(_ctx: Context, _sender: str, _msg: Query):
             pass
 
         signed_msg_handlers = self.agent._protocol._signed_message_handlers
