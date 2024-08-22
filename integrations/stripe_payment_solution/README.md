@@ -38,6 +38,13 @@ Let’s simplify your payments, so you can focus on innovation and growth.
 - Automated Invoicing & Receipts
 - One-Click Payments for Customers
 
+## Working Diagram
+
+![Working Diagram](./images/payment_system_overview.png "Working Diagram")
+
+This Agent can work like a template and can be used in different organizations with their API keys from stripe A/c.
+
+
 ## How It Works
 
 Stripe Payment Solution few items to choose from, for testing purposes. 
