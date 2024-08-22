@@ -383,19 +383,20 @@ class Agent(Sink):
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
 
-        self._agent_info = {
-            "address": self.address,
-            "protocols": list(self.protocols.keys()),
-            "endpoints": [ep.model_dump_json() for ep in self._endpoints],
+        self._agents_info = {
+            self.address: {
+                "protocols": list(self.protocols.keys()),
+                "endpoints": [ep.model_dump_json() for ep in self._endpoints],
+            }
         }
 
         if not self._use_mailbox:
             self._server = ASGIServer(
-                self._port,
-                self._loop,
-                self._queries,
-                self._dispenser,
-                agent_info=self._agent_info,
+                port=self._port,
+                loop=self._loop,
+                queries=self._queries,
+                dispenser=self._dispenser,
+                agents_info=self._agents_info,
                 logger=self._logger,
             )
 
@@ -881,7 +882,7 @@ class Agent(Sink):
         if protocol.digest is not None:
             self.protocols[protocol.digest] = protocol
 
-        self._agent_info["protocols"] = list(self.protocols.keys())
+        self._agents_info[self.address]["protocols"] = list(self.protocols.keys())
 
         if publish_manifest:
             self.publish_manifest(protocol.manifest())
@@ -1161,12 +1162,20 @@ class Bureau:
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
         self._logger = get_logger("bureau", log_level)
-        self._server = ASGIServer(self._port, self._loop, self._queries, self._logger)
         self._use_mailbox = False
+        self._agents_info: Dict[str, Dict[str, List[str]]] = {}
 
         if agents is not None:
             for agent in agents:
                 self.add(agent)
+
+        self._server = ASGIServer(
+            port=self._port,
+            loop=self._loop,
+            queries=self._queries,
+            agents_info=self._agents_info,
+            logger=self._logger
+        )
 
     def add(self, agent: Agent):
         """
@@ -1185,6 +1194,10 @@ class Bureau:
         else:
             agent.update_endpoints(self._endpoints)
         self._agents.append(agent)
+        self._agents_info[agent.address] = {
+            "protocols": list(agent.protocols.keys()),
+            "endpoints": [[{"url": endpoint.url, "weight": endpoint.weight} for endpoint in self._endpoints]],
+        }
 
     async def run_async(self):
         """

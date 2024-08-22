@@ -2,6 +2,8 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import Dict, Set
 
+from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
+
 JsonStr = str
 
 
@@ -24,6 +26,7 @@ class Dispatcher:
 
     def __init__(self):
         self._sinks: Dict[str, Set[Sink]] = {}
+        self.received_messages: EnvelopeHistory = EnvelopeHistory(envelopes=[])
 
     @property
     def sinks(self) -> Dict[str, Set[Sink]]:
@@ -55,6 +58,17 @@ class Dispatcher:
     ):
         for handler in self._sinks.get(destination, set()):
             await handler.handle_message(sender, schema_digest, message, session)
+
+        self.received_messages.add_entry(
+            EnvelopeHistoryEntry(
+                version=1,
+                sender=sender,
+                target=destination,
+                session=session,
+                schema_digest=schema_digest,
+                payload=message
+            )
+        )
 
 
 dispatcher = Dispatcher()

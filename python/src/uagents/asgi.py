@@ -2,7 +2,7 @@ import asyncio
 import json
 from datetime import datetime
 from logging import Logger
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 import pydantic
 import uvicorn
@@ -44,8 +44,8 @@ class ASGIServer:
         port: int,
         loop: asyncio.AbstractEventLoop,
         queries: Dict[str, asyncio.Future],
-        dispenser: Dispenser,
-        agent_info: Dict[str, Any],
+        agents_info: Dict[str, Dict[str, List[str]]],
+        dispenser: Optional[Dispenser] = None,
         logger: Optional[Logger] = None,
     ):
         """
@@ -61,10 +61,9 @@ class ASGIServer:
         self._loop = loop
         self._queries = queries
         self._dispenser = dispenser
-        self._agent_info = agent_info
+        self._agents_info = agents_info
         self._logger = logger or get_logger("server")
         self._server = None
-        self.received_messages: EnvelopeHistory = EnvelopeHistory(envelopes=[])
 
     @property
     def server(self):
@@ -154,12 +153,54 @@ class ASGIServer:
                 }
             )
 
-    async def handle_agent_info(self, send):
+    async def handle_agent_info(self, headers: CaseInsensitiveDict, send):
         """
         Handle an endpoint that returns information about the running agent,
         including its address, protocols, and endpoints.
         """
-        response_body = json.dumps(self._agent_info).encode()
+        if self._dispenser is None:
+            if b"x-uagents-address" not in headers:
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 400,
+                        "headers": [
+                            [b"content-type", b"application/json"],
+                        ],
+                    }
+                )
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": b'{"error": "missing header: x-uagents-address"}',
+                    }
+                )
+                return
+
+            address = headers[b"x-uagents-address"].decode()
+
+            if address not in self._agents_info:
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 404,
+                        "headers": [
+                            [b"content-type", b"application/json"],
+                        ],
+                    }
+                )
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": b'{"error": "agent address not found"}',
+                    }
+                )
+                return
+
+        else:
+            address = next(iter(self._agents_info))
+
+        response_body = json.dumps(self._agents_info[address]).encode()
 
         await send(
             {
@@ -176,14 +217,43 @@ class ASGIServer:
                 "body": response_body,
             }
         )
-
-    async def handle_get_messages(self, send):
+    async def handle_get_messages(self, headers: CaseInsensitiveDict, send):
         """
         Handle retrieval of stored messages.
         """
-        response = (
-            self.received_messages + self._dispenser.sent_messages
-        ).model_dump_json()
+        if self._dispenser is None:
+            if b"x-uagents-address" not in headers:
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 400,
+                        "headers": [
+                            [b"content-type", b"application/json"],
+                        ],
+                    }
+                )
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": b'{"error": "missing header: x-uagents-address"}',
+                    }
+                )
+                return
+
+            address = headers[b"x-uagents-address"].decode()
+            filtered_envelopes = [
+                msg for msg in dispatcher.received_messages.envelopes
+                if msg.sender == address or msg.target == address
+            ]
+
+            messages = EnvelopeHistory(envelopes=filtered_envelopes)
+
+            
+        else:
+            messages = dispatcher.received_messages + self._dispenser.sent_messages
+
+        response = messages.model_dump_json()
+        
         await send(
             {
                 "type": "http.response.start",
@@ -194,7 +264,7 @@ class ASGIServer:
             }
         )
         await send(
-            {"type": "http.response.body", "body": json.dumps(response).encode()}
+            {"type": "http.response.body", "body": response.encode()}
         )
 
     async def serve(self):
@@ -223,13 +293,14 @@ class ASGIServer:
 
         request_method = scope["method"]
         path = scope["path"]
+        headers = CaseInsensitiveDict(scope.get("headers", {}))
 
         if request_method == "GET" and path == "/messages":
-            await self.handle_get_messages(send)
+            await self.handle_get_messages(headers,send)
             return
 
         if request_method == "GET" and path == "/agent_info":
-            await self.handle_agent_info(send)
+            await self.handle_agent_info(headers,send)
             return
 
         if scope["path"] != "/submit":
@@ -246,8 +317,6 @@ class ASGIServer:
                 {"type": "http.response.body", "body": b'{"error": "not found"}'}
             )
             return
-
-        headers = CaseInsensitiveDict(scope.get("headers", {}))
 
         if request_method == "HEAD":
             await self.handle_readiness_probe(headers, send)
@@ -367,11 +436,6 @@ class ASGIServer:
         await dispatcher.dispatch(
             env.sender, env.target, env.schema_digest, env.decode_payload(), env.session
         )
-
-        env_dict = env.model_dump()
-        env_dict["payload"] = env.decode_payload()
-
-        self.received_messages.add_entry(EnvelopeHistoryEntry(**env_dict))
 
         # wait for any queries to be resolved
         if expects_response:
