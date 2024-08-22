@@ -2,17 +2,18 @@ import asyncio
 import json
 from datetime import datetime
 from logging import Logger
-from typing import Any, Dict, Optional, List
+from typing import Dict, List, Optional
 
 import pydantic
 import uvicorn
 from requests.structures import CaseInsensitiveDict
+
 from uagents.communication import Dispenser, enclose_response_raw
 from uagents.config import RESPONSE_TIME_HINT_SECONDS
 from uagents.context import ERROR_MESSAGE_DIGEST
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
-from uagents.envelope import Envelope, EnvelopeHistory, EnvelopeHistoryEntry
+from uagents.envelope import Envelope, EnvelopeHistory
 from uagents.models import ErrorMessage
 from uagents.utils import get_logger
 
@@ -217,6 +218,7 @@ class ASGIServer:
                 "body": response_body,
             }
         )
+
     async def handle_get_messages(self, headers: CaseInsensitiveDict, send):
         """
         Handle retrieval of stored messages.
@@ -242,18 +244,18 @@ class ASGIServer:
 
             address = headers[b"x-uagents-address"].decode()
             filtered_envelopes = [
-                msg for msg in dispatcher.received_messages.envelopes
-                if msg.sender == address or msg.target == address
+                msg
+                for msg in dispatcher.received_messages.envelopes
+                if address in (msg.sender, msg.target)
             ]
 
             messages = EnvelopeHistory(envelopes=filtered_envelopes)
 
-            
         else:
             messages = dispatcher.received_messages + self._dispenser.sent_messages
 
         response = messages.model_dump_json()
-        
+
         await send(
             {
                 "type": "http.response.start",
@@ -263,16 +265,26 @@ class ASGIServer:
                 ],
             }
         )
-        await send(
-            {"type": "http.response.body", "body": response.encode()}
-        )
+        await send({"type": "http.response.body", "body": response.encode()})
 
     async def serve(self):
         """
         Start the server.
         """
-        config = uvicorn.Config(self, host=HOST, port=self._port, log_level="warning")
+        config = uvicorn.Config(
+            self,
+            host=HOST,
+            port=self._port,
+            log_level="warning",
+            headers=[
+                ("Access-Control-Allow-Origin", "*"),
+                ("Access-Control-Request-Method", "*"),
+                ("Access-Control-Allow-Methods", "OPTIONS, GET, POST"),
+                ("Access-Control-Allow-Headers", "*"),
+            ],
+        )
         self._server = uvicorn.Server(config)
+
         self._logger.info(
             f"Starting server on http://{HOST}:{self._port} (Press CTRL+C to quit)"
         )
@@ -296,11 +308,11 @@ class ASGIServer:
         headers = CaseInsensitiveDict(scope.get("headers", {}))
 
         if request_method == "GET" and path == "/messages":
-            await self.handle_get_messages(headers,send)
+            await self.handle_get_messages(headers, send)
             return
 
         if request_method == "GET" and path == "/agent_info":
-            await self.handle_agent_info(headers,send)
+            await self.handle_agent_info(headers, send)
             return
 
         if scope["path"] != "/submit":
