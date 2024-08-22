@@ -148,6 +148,13 @@ class EnvelopeHistory(BaseModel):
 
         return new_history
 
+    def filter(self, address: str) -> "EnvelopeHistory":
+        """Return entries where the sender or target matches the given address."""
+        filtered_envelopes = [
+            entry for entry in self.envelopes if address in (entry.sender, entry.target)
+        ]
+        return EnvelopeHistory(envelopes=filtered_envelopes)
+
     @field_serializer("envelopes", when_used="json")
     def serialize_envelopes_in_order(
         self, envelopes: List[EnvelopeHistoryEntry], _info

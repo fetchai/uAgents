@@ -13,7 +13,7 @@ from uagents.config import RESPONSE_TIME_HINT_SECONDS
 from uagents.context import ERROR_MESSAGE_DIGEST
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
-from uagents.envelope import Envelope, EnvelopeHistory
+from uagents.envelope import Envelope
 from uagents.models import ErrorMessage
 from uagents.utils import get_logger
 
@@ -201,7 +201,9 @@ class ASGIServer:
         else:
             address = next(iter(self._agents_info))
 
-        response_body = json.dumps(self._agents_info[address]).encode()
+        response_data = self._agents_info[address]
+        response_data["address"] = address
+        response_body = json.dumps(response_data).encode()
 
         await send(
             {
@@ -243,13 +245,8 @@ class ASGIServer:
                 return
 
             address = headers[b"x-uagents-address"].decode()
-            filtered_envelopes = [
-                msg
-                for msg in dispatcher.received_messages.envelopes
-                if address in (msg.sender, msg.target)
-            ]
 
-            messages = EnvelopeHistory(envelopes=filtered_envelopes)
+            messages = dispatcher.received_messages.filter(address)
 
         else:
             messages = dispatcher.received_messages + self._dispenser.sent_messages

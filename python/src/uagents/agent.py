@@ -1174,7 +1174,7 @@ class Bureau:
             loop=self._loop,
             queries=self._queries,
             agents_info=self._agents_info,
-            logger=self._logger
+            logger=self._logger,
         )
 
     def add(self, agent: Agent):
@@ -1196,7 +1196,12 @@ class Bureau:
         self._agents.append(agent)
         self._agents_info[agent.address] = {
             "protocols": list(agent.protocols.keys()),
-            "endpoints": [[{"url": endpoint.url, "weight": endpoint.weight} for endpoint in self._endpoints]],
+            "endpoints": [
+                [
+                    {"url": endpoint.url, "weight": endpoint.weight}
+                    for endpoint in self._endpoints
+                ]
+            ],
         }
 
     async def run_async(self):

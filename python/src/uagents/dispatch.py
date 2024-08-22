@@ -66,7 +66,7 @@ class Dispatcher:
                 target=destination,
                 session=session,
                 schema_digest=schema_digest,
-                payload=message
+                payload=message,
             )
         )
 
