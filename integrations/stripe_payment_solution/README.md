@@ -45,6 +45,16 @@ Let’s simplify your payments, so you can focus on innovation and growth.
 This Agent can work like a template and can be used in different organizations with their API keys from stripe A/c.
 
 
+## Demo Video 
+
+https://github.com/user-attachments/assets/3de86092-e2aa-43f1-b59d-73b725698600
+
+
+## Detail Document
+
+[Detail Document](https://github.com/user-attachments/files/16706323/Stripe_Agent_Integration.pdf)
+
+
 ## How It Works
 
 Stripe Payment Solution few items to choose from, for testing purposes. 
