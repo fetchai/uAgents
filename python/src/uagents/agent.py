@@ -390,13 +390,12 @@ class Agent(Sink):
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
 
-        if not self._use_mailbox:
-            self._server = ASGIServer(
-                port=self._port,
-                loop=self._loop,
-                queries=self._queries,
-                logger=self._logger,
-            )
+        self._server = ASGIServer(
+            port=self._port,
+            loop=self._loop,
+            queries=self._queries,
+            logger=self._logger,
+        )
 
         # define default error message handler
         @self.on_message(ErrorMessage)
@@ -1062,11 +1061,13 @@ class Agent(Sink):
 
         """
         await self.setup()
+
+        tasks = [self._server.serve()]
+        if self._use_mailbox and self._mailbox_client is not None:
+            tasks.append(self._mailbox_client.run())
+
         try:
-            if self._use_mailbox and self._mailbox_client is not None:
-                await self._mailbox_client.run()
-            else:
-                await self._server.serve()
+            await asyncio.gather(*tasks)
         finally:
             await self._shutdown()
 
@@ -1216,7 +1217,10 @@ class Bureau:
         self._queries: Dict[str, asyncio.Future] = {}
         self._logger = get_logger("bureau", log_level)
         self._server = ASGIServer(
-            port=self._port, loop=self._loop, queries=self._queries, logger=self._logger
+            port=self._port,
+            loop=self._loop,
+            queries=self._queries,
+            logger=self._logger,
         )
         self._use_mailbox = False
 
@@ -1261,18 +1265,11 @@ class Bureau:
 
         """
         self.check_rest_duplicate_endpoints()
-        tasks = []
+        tasks = [self._server.serve()]
         for agent in self._agents:
             await agent.setup()
             if agent.agentverse["use_mailbox"] and agent.mailbox_client is not None:
-                tasks.append(
-                    self._loop.create_task(
-                        agent.mailbox_client.process_deletion_queue()
-                    )
-                )
-                tasks.append(self._loop.create_task(agent.mailbox_client.run()))
-        if not self._use_mailbox:
-            tasks.append(self._loop.create_task(self._server.serve()))
+                tasks.append(agent.mailbox_client.run())
 
         try:
             await asyncio.gather(*tasks)
