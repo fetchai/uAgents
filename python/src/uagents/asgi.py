@@ -273,11 +273,13 @@ class ASGIServer:
             host=HOST,
             port=self._port,
             log_level="warning",
+            forwarded_allow_ips="*",
             headers=[
                 ("Access-Control-Allow-Origin", "*"),
                 ("Access-Control-Request-Method", "*"),
-                ("Access-Control-Allow-Methods", "OPTIONS, GET, POST"),
+                ("Access-Control-Allow-Methods", "*"),
                 ("Access-Control-Allow-Headers", "*"),
+                ("Access-Control-Allow-Credentials", "true"),
             ],
         )
         self._server = uvicorn.Server(config)
@@ -290,7 +292,7 @@ class ASGIServer:
         except KeyboardInterrupt:
             self._logger.info("Shutting down server")
 
-    async def __call__(self, scope, receive, send):  #  pylint: disable=too-many-branches
+    async def __call__(self, scope, receive, send):
         """
         Handle an incoming ASGI message, dispatching the envelope to the appropriate handler,
         and waiting for any queries to be resolved.
