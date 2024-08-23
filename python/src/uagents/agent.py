@@ -386,7 +386,7 @@ class Agent(Sink):
         self._agents_info = {
             self.address: {
                 "protocols": list(self.protocols.keys()),
-                "endpoints": [ep.model_dump_json() for ep in self._endpoints],
+                "endpoints": [ep.model_dump() for ep in self._endpoints],
             }
         }
 
