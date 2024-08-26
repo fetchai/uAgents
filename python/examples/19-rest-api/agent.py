@@ -15,7 +15,7 @@ class Response(Model):
 
 
 # You can also use empty models to represent empty request/response bodies
-class EmptyResponse(Model):
+class EmptyMessage(Model):
     pass
 
 
@@ -24,7 +24,7 @@ agent = Agent(name="Rest API")
 
 @agent.on_rest_get("/rest/get", Response)
 async def handle_get(ctx: Context) -> Dict[str, Any]:
-    print('Hello from the "GET" handler!', ctx.agent.address)
+    ctx.logger.info("Received GET request")
     return {
         "timestamp": datetime.now(),
         "text": "Hello from the GET handler!",
@@ -34,7 +34,7 @@ async def handle_get(ctx: Context) -> Dict[str, Any]:
 
 @agent.on_rest_post("/rest/post", Request, Response)
 async def handle_post(ctx: Context, req: Request) -> Response:
-    print('Hello from the "POST" handler!', ctx.agent.address)
+    ctx.logger.info("Received POST request")
     return Response(
         text=f"Received: {req.text}",
         agent_address=ctx.agent.address,
