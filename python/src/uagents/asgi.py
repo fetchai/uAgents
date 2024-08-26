@@ -250,10 +250,7 @@ class ASGIServer:
                 await send(
                     {
                         "type": "http.response.body",
-                        "body": b"""{
-                            "error": "missing header: x-uagents-address",
-                            "message": "Multiple handlers found for REST endpoint."
-                            }""",
+                        "body": b'{"error": "missing header: x-uagents-address", "message": "Multiple handlers found for REST endpoint."}',  # noqa: E501
                     }
                 )
                 return
