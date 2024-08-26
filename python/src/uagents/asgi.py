@@ -115,11 +115,12 @@ class ASGIServer:
 
     def _get_rest_handler_details(
         self, method: RestMethod, endpoint: str
-    ) -> Tuple[str, Optional[RestHandlerDetails]]:
+    ) -> Dict[str, RestHandlerDetails]:
+        handlers = {}
         for sink, meth, end in self._rest_handler_map:
             if meth == method and end == endpoint:
-                return sink, self._rest_handler_map[(sink, meth, end)]
-        return ("", None)
+                handlers[sink] = self._rest_handler_map[(sink, meth, end)]
+        return handlers
 
     async def handle_readiness_probe(self, headers: CaseInsensitiveDict, send):
         """
@@ -204,7 +205,19 @@ class ASGIServer:
         """
         Start the server.
         """
-        config = uvicorn.Config(self, host=HOST, port=self._port, log_level="warning")
+        config = uvicorn.Config(
+            self,
+            host=HOST,
+            port=self._port,
+            log_level="warning",
+            forwarded_allow_ips="*",
+            headers=[
+                ("Access-Control-Allow-Origin", "*"),
+                ("Access-Control-Allow-Methods", "GET, POST, OPTIONS"),
+                ("Access-Control-Allow-Headers", "*"),
+                ("Access-Control-Allow-Credentials", "false"),
+            ],
+        )
         self._server = uvicorn.Server(config)
         self._logger.info(
             f"Starting server on http://{HOST}:{self._port} (Press CTRL+C to quit)"
@@ -215,10 +228,57 @@ class ASGIServer:
             self._logger.info("Shutting down server")
 
     async def _handle_rest(
-        self, destination: str, rest_handler: RestHandlerDetails, send, receive
+        self,
+        headers: CaseInsensitiveDict,
+        handlers: Dict[str, RestHandlerDetails],
+        send,
+        receive,
     ):
         raw_contents = await _read_asgi_body(receive)
         received_request: Optional[Model] = None
+        if len(handlers) > 1:
+            if b"x-uagents-address" not in headers:
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 400,
+                        "headers": [
+                            [b"content-type", b"application/json"],
+                        ],
+                    }
+                )
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": b"""{
+                            "error": "missing header: x-uagents-address",
+                            "message": "Multiple handlers found for REST endpoint."
+                            }""",
+                    }
+                )
+                return
+            destination = headers[b"x-uagents-address"].decode()
+            rest_handler = handlers.get(destination)
+        else:
+            destination, rest_handler = handlers.popitem()
+
+        if not rest_handler:
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 404,
+                    "headers": [
+                        [b"content-type", b"application/json"],
+                    ],
+                }
+            )
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": b'{"error": "not found"}',
+                }
+            )
+            return
 
         if rest_handler.method == "POST" and rest_handler.request_model is not None:
             if not raw_contents:
@@ -317,25 +377,39 @@ class ASGIServer:
         Handle an incoming ASGI message, dispatching the envelope to the appropriate handler,
         and waiting for any queries to be resolved.
         """
-        if scope["type"] == "lifespan":
-            return  # lifespan events not implemented
+        scope_type = scope["type"]
+        if scope_type == "lifespan" or scope_type != "http":
+            return  # lifespan events not implemented and only handle http
 
-        assert scope["type"] == "http"
-
+        headers = CaseInsensitiveDict(scope.get("headers", {}))
         request_method = scope["method"]
-        destination, rest_handler = self._get_rest_handler_details(
-            request_method, scope["path"]
-        )
+        request_path = scope["path"]
 
-        is_submit = scope["path"] == "/submit"
-        is_bad = not is_submit and rest_handler is None
-
-        # if this is a request handler then we should handle it as such
-        if rest_handler is not None:
-            await self._handle_rest(destination, rest_handler, send, receive)
+        # check if the request is for a REST endpoint
+        handlers = self._get_rest_handler_details(request_method, request_path)
+        if handlers:
+            if "127.0.0.1" not in scope["client"]:
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 403,
+                        "headers": [
+                            [b"content-type", b"application/json"],
+                        ],
+                    }
+                )
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": b'{"error": "forbidden"}',
+                    }
+                )
+                return
+            await self._handle_rest(headers, handlers, send, receive)
             return
 
-        if is_bad:
+        # check if the request is for agent communication and reject if not
+        if request_path != "/submit":
             await send(
                 {
                     "type": "http.response.start",
@@ -349,8 +423,6 @@ class ASGIServer:
                 {"type": "http.response.body", "body": b'{"error": "not found"}'}
             )
             return
-
-        headers = CaseInsensitiveDict(scope.get("headers", {}))
 
         if request_method == "HEAD":
             await self.handle_readiness_probe(headers, send)
