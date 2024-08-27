@@ -1,5 +1,6 @@
 # pylint: disable=protected-access
 import asyncio
+import json
 import unittest
 import uuid
 from unittest.mock import AsyncMock, call, patch
@@ -62,13 +63,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                         "status": 200,
                         "headers": [[b"content-type", b"application/json"]],
                     }
-                ),
-                call(
-                    {
-                        "type": "http.response.body",
-                        "body": b"{}",
-                    }
-                ),
+                )
             ]
         )
 
@@ -106,17 +101,11 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                         "status": 200,
                         "headers": [[b"content-type", b"application/json"]],
                     }
-                ),
-                call(
-                    {
-                        "type": "http.response.body",
-                        "body": b"{}",
-                    }
-                ),
+                )
             ]
         )
 
-    async def test_message_success_sync(self):
+    async def test_message_success_sync_unsigned(self):
         message = Message(message="hello")
         reply = Message(message="hey")
         user = generate_user_address()
@@ -151,6 +140,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                 asyncio.create_task(self.mock_process_sync_message(user, reply)),
             )
         response = enclose_response(reply, self.agent.address, session, user)
+        formatted = json.loads(response)
         mock_send.assert_has_calls(
             [
                 call(
@@ -163,7 +153,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                 call(
                     {
                         "type": "http.response.body",
-                        "body": response.encode(),
+                        "body": json.dumps(formatted).encode(),
                     }
                 ),
             ]
@@ -208,6 +198,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         response = enclose_response(
             reply, self.agent.address, session, self.bob.address
         )
+        formatted = json.loads(response)
         mock_send.assert_has_calls(
             [
                 call(
@@ -220,7 +211,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                 call(
                     {
                         "type": "http.response.body",
-                        "body": response.encode(),
+                        "body": json.dumps(formatted).encode(),
                     }
                 ),
             ]
@@ -381,7 +372,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                 call(
                     {
                         "type": "http.response.body",
-                        "body": b'{"error": "signature verification failed"}',
+                        "body": b'{"error": "Envelope signature is missing"}',
                     }
                 ),
             ]
@@ -424,7 +415,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                 call(
                     {
                         "type": "http.response.body",
-                        "body": b'{"error": "signature verification failed"}',
+                        "body": b'{"error": "Signature verification failed"}',
                     }
                 ),
             ]

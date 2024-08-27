@@ -3,64 +3,22 @@
 import asyncio
 import logging
 import uuid
-from dataclasses import dataclass
-from enum import Enum
 from time import time
-from typing import Any, List, Optional, Tuple, Type, Union
+from typing import List, Optional, Tuple, Type, Union
 
 import aiohttp
 from pydantic import UUID4, ValidationError
+
 from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
 from uagents.crypto import Identity, is_user_address
-from uagents.dispatch import JsonStr, dispatcher
+from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
 from uagents.models import Model
 from uagents.resolver import GlobalResolver, Resolver
+from uagents.types import DeliveryStatus, JsonStr, MsgStatus
 from uagents.utils import get_logger
 
 LOGGER = get_logger("dispenser", logging.DEBUG)
-
-
-class DeliveryStatus(str, Enum):
-    """Delivery status of a message."""
-
-    SENT = "sent"
-    DELIVERED = "delivered"
-    FAILED = "failed"
-
-
-@dataclass
-class MsgDigest:
-    """
-    Represents a message digest containing a message and its schema digest.
-
-    Attributes:
-        message (Any): The message content.
-        schema_digest (str): The schema digest of the message.
-    """
-
-    message: Any
-    schema_digest: str
-
-
-@dataclass
-class MsgStatus:
-    """
-    Represents the status of a sent message.
-
-    Attributes:
-        status (str): The delivery status of the message {'sent', 'delivered', 'failed'}.
-        detail (str): The details of the message delivery.
-        destination (str): The destination address of the message.
-        endpoint (str): The endpoint the message was sent to.
-        session (Optional[uuid.UUID]): The session ID of the message.
-    """
-
-    status: DeliveryStatus
-    detail: str
-    destination: str
-    endpoint: str
-    session: Optional[uuid.UUID] = None
 
 
 class Dispenser:
@@ -116,7 +74,7 @@ async def dispatch_local_message(
     session_id: uuid.UUID,
 ) -> MsgStatus:
     """Process a message locally."""
-    await dispatcher.dispatch(
+    await dispatcher.dispatch_msg(
         sender=sender,
         destination=destination,
         schema_digest=schema_digest,
@@ -163,10 +121,17 @@ async def send_exchange_envelope(
                     success = resp.status == 200
                     if success:
                         if sync:
-                            # If the message is synchronous but not verified, return the envelope
                             env = Envelope.model_validate(await resp.json())
-                            if env.signature is None:
-                                return env
+                            if env.signature:
+                                verified = False
+                                try:
+                                    verified = env.verify()
+                                except Exception as ex:
+                                    errors.append(
+                                        f"Received response envelope that failed verification: {ex}"
+                                    )
+                                if not verified:
+                                    continue
                             return await dispatch_sync_response_envelope(env)
                         return MsgStatus(
                             status=DeliveryStatus.DELIVERED,
@@ -199,7 +164,7 @@ async def dispatch_sync_response_envelope(env: Envelope) -> Union[MsgStatus, Env
     # If there are no sinks registered, return the envelope back to the caller
     if len(dispatcher.sinks) == 0:
         return env
-    await dispatcher.dispatch(
+    await dispatcher.dispatch_msg(
         env.sender,
         env.target,
         env.schema_digest,
@@ -365,7 +330,7 @@ async def send_sync_message(
 
 def enclose_response(
     message: Model, sender: str, session: UUID4, target: str = ""
-) -> str:
+) -> JsonStr:
     """
     Enclose a response message within an envelope.
 
@@ -390,7 +355,7 @@ def enclose_response_raw(
     sender: str,
     session: UUID4,
     target: str = "",
-) -> str:
+) -> JsonStr:
     """
     Enclose a raw response message within an envelope.
 

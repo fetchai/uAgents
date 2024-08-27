@@ -7,8 +7,9 @@ import json
 from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
 
 from apispec import APISpec
-from uagents.context import IntervalCallback, MessageCallback
+
 from uagents.models import Model
+from uagents.types import IntervalCallback, MessageCallback
 
 OPENAPI_VERSION = "3.0.2"
 

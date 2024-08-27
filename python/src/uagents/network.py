@@ -19,6 +19,7 @@ from cosmpy.aerial.tx import Transaction
 from cosmpy.aerial.tx_helpers import TxResponse
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
+
 from uagents.config import (
     AVERAGE_BLOCK_INTERVAL,
     MAINNET_CONTRACT_ALMANAC,

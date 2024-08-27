@@ -1,6 +1,7 @@
 import json
 
 from fastapi import FastAPI, Request
+
 from uagents import Model
 from uagents.envelope import Envelope
 from uagents.query import query

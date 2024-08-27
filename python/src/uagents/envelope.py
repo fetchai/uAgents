@@ -6,8 +6,9 @@ import struct
 from typing import Callable, Optional
 
 from pydantic import UUID4, BaseModel, ConfigDict
+
 from uagents.crypto import Identity
-from uagents.dispatch import JsonStr
+from uagents.types import JsonStr
 
 
 class Envelope(BaseModel):

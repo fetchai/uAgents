@@ -8,6 +8,7 @@ from typing import Tuple, Union
 import bech32
 import ecdsa
 from ecdsa.util import sigencode_string_canonize
+
 from uagents.config import USER_PREFIX
 
 SHA_LENGTH = 256

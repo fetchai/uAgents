@@ -7,12 +7,13 @@ import aiohttp
 import pydantic
 import websockets.exceptions
 from aiohttp.client_exceptions import ClientConnectorError
+from websockets import connect
+
 from uagents.config import MAILBOX_POLL_INTERVAL_SECONDS
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
 from uagents.utils import get_logger
-from websockets import connect
 
 
 class MailboxClient:
@@ -109,7 +110,7 @@ class MailboxClient:
             self._logger.warning("Received envelope for unrecognized address")
             return
 
-        await dispatcher.dispatch(
+        await dispatcher.dispatch_msg(
             env.sender,
             env.target,
             env.schema_digest,
