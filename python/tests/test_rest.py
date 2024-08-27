@@ -166,7 +166,7 @@ async def test_rest_post_fail_invalid_body():
             call(
                 {
                     "type": "http.response.body",
-                    "body": b'[\n  {\n    "loc": [\n      "text"\n    ],\n    "msg": "field required",\n    "type": "value_error.missing"\n  }\n]',  # noqa: E501
+                    "body": b'{"loc": ["text"], "msg": "field required", "type": "value_error.missing"}',  # noqa: E501
                 }
             ),
         ]
