@@ -10,8 +10,6 @@ from time import time
 from typing import (
     TYPE_CHECKING,
     Any,
-    Awaitable,
-    Callable,
     Dict,
     List,
     Optional,
@@ -26,10 +24,7 @@ from cosmpy.aerial.client import LedgerClient
 from typing_extensions import deprecated
 
 from uagents.communication import (
-    DeliveryStatus,
     Dispenser,
-    MsgDigest,
-    MsgStatus,
     dispatch_local_message,
     dispatch_sync_response_envelope,
 )
@@ -38,21 +33,17 @@ from uagents.config import (
     DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     DEFAULT_SEARCH_LIMIT,
 )
-from uagents.dispatch import JsonStr, dispatcher
+from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
 from uagents.models import ErrorMessage, Model
 from uagents.resolver import Resolver, parse_identifier
 from uagents.storage import KeyValueStore
+from uagents.types import DeliveryStatus, JsonStr, MsgDigest, MsgStatus
 from uagents.utils import log
 
 if TYPE_CHECKING:
     from uagents.agent import AgentRepresentation
     from uagents.protocol import Protocol
-
-IntervalCallback = Callable[["Context"], Awaitable[None]]
-MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
-EventCallback = Callable[["Context"], Awaitable[None]]
-WalletMessageCallback = Callable[["Context", Any], Awaitable[None]]
 
 
 ERROR_MESSAGE_DIGEST = Model.build_schema_digest(ErrorMessage)
