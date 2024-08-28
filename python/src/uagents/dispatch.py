@@ -31,7 +31,6 @@ class Dispatcher:
 
     def __init__(self):
         self._sinks: Dict[str, Set[Sink]] = {}
-        self.received_messages: EnvelopeHistory = EnvelopeHistory(envelopes=[])
 
     @property
     def sinks(self) -> Dict[str, Set[Sink]]:
@@ -63,7 +62,6 @@ class Dispatcher:
     ) -> None:
         for handler in self._sinks.get(destination, set()):
             await handler.handle_message(sender, schema_digest, message, session)
-
 
     async def dispatch_rest(
         self,

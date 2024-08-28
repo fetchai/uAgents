@@ -40,6 +40,7 @@ from uagents.config import (
 from uagents.context import Context, ExternalContext, InternalContext
 from uagents.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents.dispatch import Sink, dispatcher
+from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
 from uagents.mailbox import MailboxClient
 from uagents.models import ErrorMessage, Model
 from uagents.network import (
@@ -55,6 +56,7 @@ from uagents.registration import (
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.types import (
+    AgentInfo,
     EventCallback,
     IntervalCallback,
     JsonStr,
@@ -269,6 +271,7 @@ class Agent(Sink):
         test: bool = True,
         loop: Optional[asyncio.AbstractEventLoop] = None,
         log_level: Union[int, str] = logging.INFO,
+        opt_out: bool = False,
     ):
         """
         Initialize an Agent instance.
@@ -303,6 +306,7 @@ class Agent(Sink):
         # configure endpoints and mailbox
         self._endpoints = parse_endpoint_config(endpoint)
         self._use_mailbox = False
+        self.opt_out = opt_out
 
         if mailbox:
             # agentverse config overrides mailbox config
@@ -342,6 +346,8 @@ class Agent(Sink):
         self._interval_messages: Set[str] = set()
         self._signed_message_handlers: Dict[str, MessageCallback] = {}
         self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
+        self.sent_messages: EnvelopeHistory = EnvelopeHistory(envelopes=[])
+        self.received_messages: EnvelopeHistory = EnvelopeHistory(envelopes=[])
         self._rest_handlers: RestHandlerMap = {}
         self._models: Dict[str, Type[Model]] = {}
         self._replies: Dict[str, Dict[str, Type[Model]]] = {}
@@ -384,11 +390,11 @@ class Agent(Sink):
             interval_messages=self._interval_messages,
             wallet_messaging_client=self._wallet_messaging_client,
             logger=self._logger,
+            sent_messages=self.sent_messages,
         )
 
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
-
 
         self._server = ASGIServer(
             port=self._port,
@@ -397,11 +403,23 @@ class Agent(Sink):
             logger=self._logger,
         )
 
-
         # define default error message handler
         @self.on_message(ErrorMessage)
         async def _handle_error_message(ctx: Context, sender: str, msg: ErrorMessage):
             ctx.logger.exception(f"Received error message from {sender}: {msg.error}")
+
+        if not self.opt_out:
+            @self.on_rest_get("/agent_info", AgentInfo)
+            async def handle_get_info(ctx: Context):
+                return AgentInfo(
+                    agent_address=self.address,
+                    endpoints=[ep.model_dump() for ep in self._endpoints],
+                    protocols=list(self.protocols.keys()),
+                )
+
+            @self.on_rest_get("/messages", EnvelopeHistory)
+            async def handle_get_messges(ctx: Context):
+                return self.sent_messages + self.received_messages
 
     def _initialize_wallet_and_identity(self, seed, name, wallet_key_derivation_index):
         """
@@ -916,8 +934,6 @@ class Agent(Sink):
         if protocol.digest is not None:
             self.protocols[protocol.digest] = protocol
 
-        self._agents_info[self.address]["protocols"] = list(self.protocols.keys())
-
         if publish_manifest:
             self.publish_manifest(protocol.manifest())
 
@@ -1114,6 +1130,21 @@ class Agent(Sink):
                 )
                 continue
 
+            protocol_info = self.get_message_protocol(schema_digest)
+            protocol_digest = protocol_info[0] if protocol_info else None
+
+            self.received_messages.add_entry(
+                EnvelopeHistoryEntry(
+                    version=1,
+                    sender=sender,
+                    target=self.address,
+                    session=session,
+                    schema_digest=schema_digest,
+                    payload=message,
+                    protocol=protocol_digest,
+                )
+            )
+
             context = ExternalContext(
                 agent=self._ctx.agent,
                 storage=self._storage,
@@ -1129,6 +1160,7 @@ class Agent(Sink):
                     message=message, schema_digest=schema_digest
                 ),
                 protocol=self.get_message_protocol(schema_digest),
+                sent_messages=self.sent_messages, 
             )
 
             # parse the received message
@@ -1223,28 +1255,17 @@ class Bureau:
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
         self._logger = get_logger("bureau", log_level)
-
         self._server = ASGIServer(
             port=self._port,
             loop=self._loop,
             queries=self._queries,
             logger=self._logger,
         )
-
         self._use_mailbox = False
-        self._agents_info: Dict[str, Dict[str, List[str]]] = {}
 
         if agents is not None:
             for agent in agents:
                 self.add(agent)
-
-        self._server = ASGIServer(
-            port=self._port,
-            loop=self._loop,
-            queries=self._queries,
-            agents_info=self._agents_info,
-            logger=self._logger,
-        )
 
     def add(self, agent: Agent):
         """
@@ -1264,15 +1285,6 @@ class Bureau:
             agent.update_endpoints(self._endpoints)
         self._server._rest_handler_map.update(agent._server._rest_handler_map)
         self._agents.append(agent)
-        self._agents_info[agent.address] = {
-            "protocols": list(agent.protocols.keys()),
-            "endpoints": [
-                [
-                    {"url": endpoint.url, "weight": endpoint.weight}
-                    for endpoint in self._endpoints
-                ]
-            ],
-        }
 
     async def run_async(self):
         """

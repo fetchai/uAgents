@@ -30,7 +30,6 @@ class Dispenser:
         self._envelopes: asyncio.Queue[
             Tuple[Envelope, List[str], asyncio.Future, bool]
         ] = asyncio.Queue()
-        self.sent_messages: EnvelopeHistory = EnvelopeHistory(envelopes=[])
 
     def add_envelope(
         self,
@@ -63,10 +62,6 @@ class Dispenser:
                     sync=sync,
                 )
                 response_future.set_result(result)
-                env_dict = env.model_dump()
-                env_dict["payload"] = env.decode_payload()
-
-                self.sent_messages.add_entry(EnvelopeHistoryEntry(**env_dict))
             except Exception as err:
                 LOGGER.error(f"Failed to send envelope: {err}")
 

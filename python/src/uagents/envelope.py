@@ -2,15 +2,14 @@
 
 import base64
 import hashlib
-import struct
 import time
+import struct
 from typing import Callable, List, Optional
 
 from pydantic import UUID4, BaseModel, ConfigDict, Field, field_serializer
 
 from uagents.crypto import Identity
 from uagents.types import JsonStr
-
 
 
 class Envelope(BaseModel):
@@ -113,7 +112,6 @@ class Envelope(BaseModel):
             hasher.update(struct.pack(">Q", self.nonce))
         return hasher.digest()
 
-
 class EnvelopeHistoryEntry(BaseModel):
     timestamp: int = Field(default_factory=lambda: int(time.time()))
     version: int
@@ -127,7 +125,6 @@ class EnvelopeHistoryEntry(BaseModel):
     @field_serializer("session")
     def serialize_session(self, session: UUID4, _info):
         return str(session)
-
 
 class EnvelopeHistory(BaseModel):
     envelopes: List[EnvelopeHistoryEntry]
@@ -147,13 +144,6 @@ class EnvelopeHistory(BaseModel):
         new_history.apply_retention_policy()
 
         return new_history
-
-    def filter(self, address: str) -> "EnvelopeHistory":
-        """Return entries where the sender or target matches the given address."""
-        filtered_envelopes = [
-            entry for entry in self.envelopes if address in (entry.sender, entry.target)
-        ]
-        return EnvelopeHistory(envelopes=filtered_envelopes)
 
     @field_serializer("envelopes", when_used="json")
     def serialize_envelopes_in_order(

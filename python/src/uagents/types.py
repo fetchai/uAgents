@@ -7,6 +7,7 @@ from typing import (
     Awaitable,
     Callable,
     Dict,
+    List,
     Literal,
     Optional,
     Tuple,
@@ -36,11 +37,16 @@ RestMethod = Literal["GET", "POST"]
 RestHandlerMap = Dict[Tuple[RestMethod, str], RestHandler]
 
 
+class AgentInfo(BaseModel):
+    agent_address: str
+    endpoints: List
+    protocols: List
+
 class RestHandlerDetails(BaseModel):
     method: RestMethod
     endpoint: str
     request_model: Optional[Type[Model]] = None
-    response_model: Type[Model]
+    response_model: Type[Union[Model, BaseModel]]
 
 
 class DeliveryStatus(str, Enum):

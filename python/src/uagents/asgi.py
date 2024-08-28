@@ -2,7 +2,6 @@ import asyncio
 import json
 from datetime import datetime
 from logging import Logger
-
 from typing import (
     Any,
     Dict,
@@ -12,14 +11,13 @@ from typing import (
     Union,
 )
 
-
 import uvicorn
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel
 from pydantic.v1 import ValidationError as ValidationErrorV1
 from pydantic.v1.error_wrappers import ErrorWrapper
 from requests.structures import CaseInsensitiveDict
 
-from uagents.communication import Dispenser, enclose_response_raw
+from uagents.communication import enclose_response_raw
 from uagents.config import RESPONSE_TIME_HINT_SECONDS
 from uagents.context import ERROR_MESSAGE_DIGEST
 from uagents.crypto import is_user_address
@@ -31,7 +29,7 @@ from uagents.utils import get_logger
 
 HOST = "0.0.0.0"
 
-RESERVED_ENDPOINTS = ["/submit", "/messages", "/agent_info"]
+RESERVED_ENDPOINTS = ["/submit"]
 
 
 async def _read_asgi_body(receive):
@@ -59,8 +57,6 @@ class ASGIServer:
         port: int,
         loop: asyncio.AbstractEventLoop,
         queries: Dict[str, asyncio.Future],
-        agents_info: Dict[str, Dict[str, List[str]]],
-        dispenser: Optional[Dispenser] = None,
         logger: Optional[Logger] = None,
     ):
         """
@@ -75,11 +71,9 @@ class ASGIServer:
         self._port = int(port)
         self._loop = loop
         self._queries = queries
-
         self._rest_handler_map: Dict[
             Tuple[str, RestMethod, str], RestHandlerDetails
         ] = {}
-
         self._logger = logger or get_logger("server")
         self._server = None
 
@@ -98,7 +92,7 @@ class ASGIServer:
         method: RestMethod,
         endpoint: str,
         request: Optional[Type[Model]],
-        response: Type[Model],
+        response: Type[Union[Model, BaseModel]],
     ):
         """
         Add a REST endpoint to the server.
@@ -184,116 +178,6 @@ class ASGIServer:
                 send, 400, body={"error": "missing header: content-type"}
             )
 
-    async def handle_agent_info(self, headers: CaseInsensitiveDict, send):
-        """
-        Handle an endpoint that returns information about the running agent,
-        including its address, protocols, and endpoints.
-        """
-        if self._dispenser is None:
-            if b"x-uagents-address" not in headers:
-                await send(
-                    {
-                        "type": "http.response.start",
-                        "status": 400,
-                        "headers": [
-                            [b"content-type", b"application/json"],
-                        ],
-                    }
-                )
-                await send(
-                    {
-                        "type": "http.response.body",
-                        "body": b'{"error": "missing header: x-uagents-address"}',
-                    }
-                )
-                return
-
-            address = headers[b"x-uagents-address"].decode()
-
-            if address not in self._agents_info:
-                await send(
-                    {
-                        "type": "http.response.start",
-                        "status": 404,
-                        "headers": [
-                            [b"content-type", b"application/json"],
-                        ],
-                    }
-                )
-                await send(
-                    {
-                        "type": "http.response.body",
-                        "body": b'{"error": "agent address not found"}',
-                    }
-                )
-                return
-
-        else:
-            address = next(iter(self._agents_info))
-
-        response_data = self._agents_info[address]
-        response_data["address"] = address
-        response_body = json.dumps(response_data).encode()
-
-        await send(
-            {
-                "type": "http.response.start",
-                "status": 200,
-                "headers": [
-                    [b"content-type", b"application/json"],
-                ],
-            }
-        )
-        await send(
-            {
-                "type": "http.response.body",
-                "body": response_body,
-            }
-        )
-
-    async def handle_get_messages(self, headers: CaseInsensitiveDict, send):
-        """
-        Handle retrieval of stored messages.
-        """
-        if self._dispenser is None:
-            if b"x-uagents-address" not in headers:
-                await send(
-                    {
-                        "type": "http.response.start",
-                        "status": 400,
-                        "headers": [
-                            [b"content-type", b"application/json"],
-                        ],
-                    }
-                )
-                await send(
-                    {
-                        "type": "http.response.body",
-                        "body": b'{"error": "missing header: x-uagents-address"}',
-                    }
-                )
-                return
-
-            address = headers[b"x-uagents-address"].decode()
-
-            messages = dispatcher.received_messages.filter(address)
-
-        else:
-            messages = dispatcher.received_messages + self._dispenser.sent_messages
-
-        response = messages.model_dump_json()
-
-        await send(
-            {
-                "type": "http.response.start",
-                "status": 200,
-                "headers": [
-                    [b"content-type", b"application/json"],
-                ],
-            }
-        )
-        await send({"type": "http.response.body", "body": response.encode()})
-
     async def serve(self):
         """
         Start the server.
@@ -309,11 +193,9 @@ class ASGIServer:
                 ("Access-Control-Allow-Methods", "GET, POST, OPTIONS"),
                 ("Access-Control-Allow-Headers", "*"),
                 ("Access-Control-Allow-Credentials", "false"),
-
             ],
         )
         self._server = uvicorn.Server(config)
-
         self._logger.info(
             f"Starting server on http://{HOST}:{self._port} (Press CTRL+C to quit)"
         )
@@ -321,7 +203,6 @@ class ASGIServer:
             await self._server.serve()
         except KeyboardInterrupt:
             self._logger.info("Shutting down server")
-
 
     async def _handle_rest(
         self,
@@ -403,7 +284,6 @@ class ASGIServer:
         Handle an incoming ASGI message, dispatching the envelope to the appropriate handler,
         and waiting for any queries to be resolved.
         """
-
         scope_type = scope["type"]
         if scope_type == "lifespan" or scope_type != "http":
             return  # lifespan events not implemented and only handle http
@@ -425,7 +305,7 @@ class ASGIServer:
         if request_path != "/submit":
             await self._asgi_send(send, 404, body={"error": "not found"})
             return
-       
+
         if request_method == "HEAD":
             await self.handle_readiness_probe(headers, send)
             return
