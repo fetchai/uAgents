@@ -71,24 +71,27 @@ from uagents.types import (
 from uagents.utils import get_logger
 
 
-async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
+async def _run_interval(func: IntervalCallback, agent: 'Agent', period: float):
     """
     Run the provided interval callback function at a specified period.
 
     Args:
         func (IntervalCallback): The interval callback function to run.
-        ctx (Context): The context for the agent.
+        agent (Agent): The agent that is running the interval callback.
         period (float): The time period at which to run the callback function.
     """
+    logger = agent._logger
+
     while True:
         try:
+            ctx = agent._build_context()
             await func(ctx)
         except OSError as ex:
-            ctx.logger.exception(f"OS Error in interval handler: {ex}")
+            logger.exception(f"OS Error in interval handler: {ex}")
         except RuntimeError as ex:
-            ctx.logger.exception(f"Runtime Error in interval handler: {ex}")
+            logger.exception(f"Runtime Error in interval handler: {ex}")
         except Exception as ex:
-            ctx.logger.exception(f"Exception in interval handler: {ex}")
+            logger.exception(f"Exception in interval handler: {ex}")
 
         await asyncio.sleep(period)
 
@@ -377,21 +380,6 @@ class Agent(Sink):
         # keep track of supported protocols
         self.protocols: Dict[str, Protocol] = {}
 
-        self._ctx = InternalContext(
-            agent=AgentRepresentation(
-                address=self.address,
-                name=self._name,
-                signing_callback=self._identity.sign_digest,
-            ),
-            storage=self._storage,
-            ledger=self._ledger,
-            resolver=self._resolver,
-            dispenser=self._dispenser,
-            interval_messages=self._interval_messages,
-            wallet_messaging_client=self._wallet_messaging_client,
-            logger=self._logger,
-        )
-
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
 
@@ -425,6 +413,27 @@ class Agent(Sink):
         self._enable_agent_inspector = enable_agent_inspector
 
         self._init_done = True
+
+    def _build_context(self) -> InternalContext:
+        """
+        An internal method to build the context for the agent
+
+        @return:
+        """
+        return InternalContext(
+            agent=AgentRepresentation(
+                address=self.address,
+                name=self._name,
+                signing_callback=self._identity.sign_digest,
+            ),
+            storage=self._storage,
+            ledger=self._ledger,
+            resolver=self._resolver,
+            dispenser=self._dispenser,
+            interval_messages=self._interval_messages,
+            wallet_messaging_client=self._wallet_messaging_client,
+            logger=self._logger,
+        )
 
     def _initialize_wallet_and_identity(self, seed, name, wallet_key_derivation_index):
         """
@@ -1015,7 +1024,8 @@ class Agent(Sink):
             )
         for handler in self._on_startup:
             try:
-                await handler(self._ctx)
+                ctx = self._build_context()
+                await handler(ctx)
             except OSError as ex:
                 self._logger.exception(f"OS Error in startup handler: {ex}")
             except RuntimeError as ex:
@@ -1030,7 +1040,8 @@ class Agent(Sink):
         """
         for handler in self._on_shutdown:
             try:
-                await handler(self._ctx)
+                ctx = self._build_context()
+                await handler(ctx)
             except OSError as ex:
                 self._logger.exception(f"OS Error in shutdown handler: {ex}")
             except RuntimeError as ex:
@@ -1061,7 +1072,7 @@ class Agent(Sink):
 
         """
         for func, period in self._interval_handlers:
-            self._loop.create_task(_run_interval(func, self._ctx, period))
+            self._loop.create_task(_run_interval(func, self, period))
 
     def start_message_receivers(self):
         """
@@ -1163,7 +1174,7 @@ class Agent(Sink):
             )
 
             context = ExternalContext(
-                agent=self._ctx.agent,
+                agent=self,
                 storage=self._storage,
                 ledger=self._ledger,
                 resolver=self._resolver,
@@ -1178,6 +1189,9 @@ class Agent(Sink):
                 ),
                 protocol=protocol_info,
             )
+
+            # sanity check
+            assert context.session == session, "Context object should always have message session"
 
             # parse the received message
             try:

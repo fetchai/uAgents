@@ -116,7 +116,7 @@ class Context(ABC):
 
     @property
     @abstractmethod
-    def session(self) -> Union[uuid.UUID, None]:
+    def session(self) -> uuid.UUID:
         """
         Get the session UUID associated with the context.
 
@@ -256,6 +256,7 @@ class InternalContext(Context):
         ledger: LedgerClient,
         resolver: Resolver,
         dispenser: Dispenser,
+        session: Optional[uuid.UUID] = None,
         interval_messages: Optional[Set[str]] = None,
         wallet_messaging_client: Optional[Any] = None,
         logger: Optional[logging.Logger] = None,
@@ -266,7 +267,7 @@ class InternalContext(Context):
         self._resolver = resolver
         self._dispenser = dispenser
         self._logger = logger
-        self._session: Optional[uuid.UUID] = None
+        self._session = session or uuid.uuid4()
         self._interval_messages = interval_messages
         self._wallet_messaging_client = wallet_messaging_client
         self._outbound_messages: Dict[str, Tuple[JsonStr, str]] = {}
@@ -288,7 +289,7 @@ class InternalContext(Context):
         return self._logger
 
     @property
-    def session(self) -> Union[uuid.UUID, None]:
+    def session(self) -> uuid.UUID:
         """
         Get the session UUID associated with the context.
 
@@ -408,7 +409,6 @@ class InternalContext(Context):
         we don't have access properties that are only necessary in re-active
         contexts, like 'replies', 'message_received', or 'protocol'.
         """
-        self._session = None
         schema_digest = Model.build_schema_digest(message)
         message_body = message.model_dump_json()
 
@@ -440,7 +440,6 @@ class InternalContext(Context):
         protocol_digest: Optional[str] = None,
         queries: Optional[Dict[str, asyncio.Future]] = None,
     ) -> MsgStatus:
-        self._session = self._session or uuid.uuid4()
 
         # Extract address from destination agent identifier if present
         _, parsed_name, parsed_address = parse_identifier(destination)
@@ -575,7 +574,6 @@ class ExternalContext(InternalContext):
     def __init__(
         self,
         message_received: MsgDigest,
-        session: Optional[uuid.UUID] = None,
         queries: Optional[Dict[str, asyncio.Future]] = None,
         replies: Optional[Dict[str, Dict[str, Type[Model]]]] = None,
         protocol: Optional[Tuple[str, Protocol]] = None,
@@ -594,7 +592,6 @@ class ExternalContext(InternalContext):
             protocol (Optional[Tuple[str, Protocol]]): The optional Tuple of protocols.
         """
         super().__init__(**kwargs)
-        self._session = session or None
         self._queries = queries or {}
         self._replies = replies
         self._message_received = message_received
