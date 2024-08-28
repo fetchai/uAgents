@@ -110,7 +110,7 @@ class MailboxClient:
             self._logger.warning("Received envelope for unrecognized address")
             return
 
-        await dispatcher.dispatch(
+        await dispatcher.dispatch_msg(
             env.sender,
             env.target,
             env.schema_digest,

@@ -9,8 +9,8 @@ from typing import Callable, List, Optional
 from pydantic import UUID4, BaseModel, ConfigDict, Field, field_serializer
 
 from uagents.crypto import Identity
+from uagents.types import JsonStr
 
-JsonStr = str
 
 
 class Envelope(BaseModel):

@@ -24,7 +24,7 @@ from cosmpy.crypto.address import Address
 from pydantic import ValidationError
 
 from uagents.asgi import ASGIServer
-from uagents.communication import Dispenser, MsgDigest
+from uagents.communication import Dispenser
 from uagents.config import (
     ALMANAC_CONTRACT_VERSION,
     AVERAGE_BLOCK_INTERVAL,
@@ -37,16 +37,9 @@ from uagents.config import (
     parse_agentverse_config,
     parse_endpoint_config,
 )
-from uagents.context import (
-    Context,
-    EventCallback,
-    ExternalContext,
-    InternalContext,
-    IntervalCallback,
-    MessageCallback,
-)
+from uagents.context import Context, ExternalContext, InternalContext
 from uagents.crypto import Identity, derive_key_from_seed, is_user_address
-from uagents.dispatch import JsonStr, Sink, dispatcher
+from uagents.dispatch import Sink, dispatcher
 from uagents.mailbox import MailboxClient
 from uagents.models import ErrorMessage, Model
 from uagents.network import (
@@ -61,6 +54,18 @@ from uagents.registration import (
 )
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
+from uagents.types import (
+    EventCallback,
+    IntervalCallback,
+    JsonStr,
+    MessageCallback,
+    MsgDigest,
+    RestGetHandler,
+    RestHandler,
+    RestHandlerMap,
+    RestMethod,
+    RestPostHandler,
+)
 from uagents.utils import get_logger
 
 
@@ -337,6 +342,7 @@ class Agent(Sink):
         self._interval_messages: Set[str] = set()
         self._signed_message_handlers: Dict[str, MessageCallback] = {}
         self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
+        self._rest_handlers: RestHandlerMap = {}
         self._models: Dict[str, Type[Model]] = {}
         self._replies: Dict[str, Dict[str, Type[Model]]] = {}
         self._queries: Dict[str, asyncio.Future] = {}
@@ -383,22 +389,14 @@ class Agent(Sink):
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
 
-        self._agents_info = {
-            self.address: {
-                "protocols": list(self.protocols.keys()),
-                "endpoints": [ep.model_dump() for ep in self._endpoints],
-            }
-        }
 
-        if not self._use_mailbox:
-            self._server = ASGIServer(
-                port=self._port,
-                loop=self._loop,
-                queries=self._queries,
-                dispenser=self._dispenser,
-                agents_info=self._agents_info,
-                logger=self._logger,
-            )
+        self._server = ASGIServer(
+            port=self._port,
+            loop=self._loop,
+            queries=self._queries,
+            logger=self._logger,
+        )
+
 
         # define default error message handler
         @self.on_message(ErrorMessage)
@@ -807,6 +805,42 @@ class Agent(Sink):
 
         return decorator_on_event
 
+    def _on_rest(
+        self,
+        method: RestMethod,
+        endpoint: str,
+        request: Optional[Type[Model]],
+        response: Type[Model],
+    ):
+        if self._server.has_rest_endpoint(method, endpoint):
+            self._logger.warning(
+                f"Discarding duplicate REST endpoint: {method} {endpoint}"
+            )
+            return lambda func: func
+
+        def decorator_on_rest(func: RestHandler):
+            @functools.wraps(RestGetHandler if method == "GET" else RestPostHandler)
+            def handler(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            self._rest_handlers[(method, endpoint)] = handler
+
+            self._server.add_rest_endpoint(
+                self.address, method, endpoint, request, response
+            )
+
+            return handler
+
+        return decorator_on_rest
+
+    def on_rest_get(self, endpoint: str, response: Type[Model]):
+        return self._on_rest("GET", endpoint, None, response)
+
+    def on_rest_post(
+        self, endpoint: str, request: Optional[Type[Model]], response: Type[Model]
+    ):
+        return self._on_rest("POST", endpoint, request, response)
+
     def _add_event_handler(
         self,
         event_type: str,
@@ -926,6 +960,26 @@ class Agent(Sink):
         """
         await self._message_queue.put((schema_digest, sender, message, session))
 
+    async def handle_rest(
+        self, method: RestMethod, endpoint: str, message: Optional[Model]
+    ) -> Optional[Union[Dict[str, Any], Model]]:
+        """
+        Handle a REST request.
+
+        Args:
+            method (RestMethod): The REST method.
+            endpoint (str): The REST endpoint.
+            message (Model): The message content.
+
+        """
+        handler = self._rest_handlers.get((method, endpoint))
+        if not handler:
+            return None
+
+        args = (self._ctx, message) if message else (self._ctx,)
+
+        return await handler(*args)  # type: ignore
+
     async def _startup(self):
         """
         Perform startup actions.
@@ -1010,11 +1064,17 @@ class Agent(Sink):
 
         """
         await self.setup()
+
+        tasks = [self._server.serve()]
+
+        # remove server task if mailbox is enabled and no REST handlers are defined
+        if self._use_mailbox and not self._rest_handlers:
+            _ = tasks.pop()
+        if self._use_mailbox and self._mailbox_client is not None:
+            tasks.append(self._mailbox_client.run())
+
         try:
-            if self._use_mailbox and self._mailbox_client is not None:
-                await self._mailbox_client.run()
-            else:
-                await self._server.serve()
+            await asyncio.gather(*tasks)
         finally:
             await self._shutdown()
 
@@ -1114,6 +1174,7 @@ class Agent(Sink):
 
 
 class Bureau:
+    # pylint: disable=protected-access
     """
     A class representing a Bureau of agents.
 
@@ -1162,6 +1223,14 @@ class Bureau:
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
         self._logger = get_logger("bureau", log_level)
+
+        self._server = ASGIServer(
+            port=self._port,
+            loop=self._loop,
+            queries=self._queries,
+            logger=self._logger,
+        )
+
         self._use_mailbox = False
         self._agents_info: Dict[str, Dict[str, List[str]]] = {}
 
@@ -1193,6 +1262,7 @@ class Bureau:
             self._use_mailbox = True
         else:
             agent.update_endpoints(self._endpoints)
+        self._server._rest_handler_map.update(agent._server._rest_handler_map)
         self._agents.append(agent)
         self._agents_info[agent.address] = {
             "protocols": list(agent.protocols.keys()),
@@ -1209,18 +1279,11 @@ class Bureau:
         Run the agents managed by the bureau.
 
         """
-        tasks = []
+        tasks = [self._server.serve()]
         for agent in self._agents:
             await agent.setup()
             if agent.agentverse["use_mailbox"] and agent.mailbox_client is not None:
-                tasks.append(
-                    self._loop.create_task(
-                        agent.mailbox_client.process_deletion_queue()
-                    )
-                )
-                tasks.append(self._loop.create_task(agent.mailbox_client.run()))
-        if not self._use_mailbox:
-            tasks.append(self._loop.create_task(self._server.serve()))
+                tasks.append(agent.mailbox_client.run())
 
         try:
             await asyncio.gather(*tasks)
