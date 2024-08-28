@@ -42,6 +42,7 @@ class AgentInfo(BaseModel):
     endpoints: List
     protocols: List
 
+
 class RestHandlerDetails(BaseModel):
     method: RestMethod
     endpoint: str

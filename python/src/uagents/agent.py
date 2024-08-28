@@ -409,6 +409,7 @@ class Agent(Sink):
             ctx.logger.exception(f"Received error message from {sender}: {msg.error}")
 
         if not self.opt_out:
+
             @self.on_rest_get("/agent_info", AgentInfo)
             async def handle_get_info(ctx: Context):
                 return AgentInfo(
@@ -1160,7 +1161,7 @@ class Agent(Sink):
                     message=message, schema_digest=schema_digest
                 ),
                 protocol=self.get_message_protocol(schema_digest),
-                sent_messages=self.sent_messages, 
+                sent_messages=self.sent_messages,
             )
 
             # parse the received message

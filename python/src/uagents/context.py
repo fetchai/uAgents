@@ -259,7 +259,7 @@ class InternalContext(Context):
         interval_messages: Optional[Set[str]] = None,
         wallet_messaging_client: Optional[Any] = None,
         logger: Optional[logging.Logger] = None,
-        sent_messages: EnvelopeHistory = EnvelopeHistory(envelopes=[]),
+        sent_messages: Optional[EnvelopeHistory] = None,
     ):
         self._agent = agent
         self._storage = storage
@@ -271,7 +271,11 @@ class InternalContext(Context):
         self._interval_messages = interval_messages
         self._wallet_messaging_client = wallet_messaging_client
         self._outbound_messages: Dict[str, Tuple[JsonStr, str]] = {}
-        self.sent_messages = sent_messages
+        self.sent_messages = (
+            sent_messages
+            if sent_messages is not None
+            else EnvelopeHistory(envelopes=[])
+        )
 
     @property
     def agent(self) -> AgentRepresentation:

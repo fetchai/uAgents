@@ -12,7 +12,7 @@ from typing import (
 )
 
 import uvicorn
-from pydantic import ValidationError, BaseModel
+from pydantic import BaseModel, ValidationError
 from pydantic.v1 import ValidationError as ValidationErrorV1
 from pydantic.v1.error_wrappers import ErrorWrapper
 from requests.structures import CaseInsensitiveDict

@@ -2,8 +2,8 @@
 
 import base64
 import hashlib
-import time
 import struct
+import time
 from typing import Callable, List, Optional
 
 from pydantic import UUID4, BaseModel, ConfigDict, Field, field_serializer
@@ -112,6 +112,7 @@ class Envelope(BaseModel):
             hasher.update(struct.pack(">Q", self.nonce))
         return hasher.digest()
 
+
 class EnvelopeHistoryEntry(BaseModel):
     timestamp: int = Field(default_factory=lambda: int(time.time()))
     version: int
@@ -125,6 +126,7 @@ class EnvelopeHistoryEntry(BaseModel):
     @field_serializer("session")
     def serialize_session(self, session: UUID4, _info):
         return str(session)
+
 
 class EnvelopeHistory(BaseModel):
     envelopes: List[EnvelopeHistoryEntry]
