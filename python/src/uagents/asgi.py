@@ -135,6 +135,8 @@ class ASGIServer:
         header = (
             [[k.encode(), v.encode()] for k, v in headers.items()] if headers else None
         )
+        if body is None:
+            body = {}
 
         await send(
             {
@@ -143,10 +145,7 @@ class ASGIServer:
                 "headers": header or [[b"content-type", b"application/json"]],
             }
         )
-        if body:
-            await send(
-                {"type": "http.response.body", "body": json.dumps(body).encode()}
-            )
+        await send({"type": "http.response.body", "body": json.dumps(body).encode()})
 
     async def handle_readiness_probe(self, headers: CaseInsensitiveDict, send):
         """
