@@ -40,7 +40,6 @@ mkdocs-material = "^9.1.13"
 ruff = "^0.6.0"
 pre-commit = "^3.8.0"
 
-
 [tool.poetry.extras]
 all = ["tortoise-orm", "geopy", "fetchai-babble", "pyngrok", "fastapi"]
 wallet = ["fetchai-babble"]
