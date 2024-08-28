@@ -271,7 +271,7 @@ class Agent(Sink):
         test: bool = True,
         loop: Optional[asyncio.AbstractEventLoop] = None,
         log_level: Union[int, str] = logging.INFO,
-        opt_out: bool = False,
+        enable_agent_inspector: bool = False,
     ):
         """
         Initialize an Agent instance.
@@ -306,7 +306,7 @@ class Agent(Sink):
         # configure endpoints and mailbox
         self._endpoints = parse_endpoint_config(endpoint)
         self._use_mailbox = False
-        self.opt_out = opt_out
+        self.enable_agent_inspector = enable_agent_inspector
 
         if mailbox:
             # agentverse config overrides mailbox config
@@ -408,7 +408,7 @@ class Agent(Sink):
         async def _handle_error_message(ctx: Context, sender: str, msg: ErrorMessage):
             ctx.logger.exception(f"Received error message from {sender}: {msg.error}")
 
-        if not self.opt_out:
+        if self.enable_agent_inspector:
 
             @self.on_rest_get("/agent_info", AgentInfo)
             async def handle_get_info(ctx: Context):
@@ -420,7 +420,8 @@ class Agent(Sink):
 
             @self.on_rest_get("/messages", EnvelopeHistory)
             async def handle_get_messges(ctx: Context):
-                return self.sent_messages + self.received_messages
+                messages = self.sent_messages + self.received_messages
+                return messages
 
     def _initialize_wallet_and_identity(self, seed, name, wallet_key_derivation_index):
         """

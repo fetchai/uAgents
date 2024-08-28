@@ -23,7 +23,7 @@ MESSAGE_DIGEST = Model.build_schema_digest(Message)
 QUERY_DIGEST = Model.build_schema_digest(Query)
 
 
-alice = Agent(name="alice", seed="alice recovery password", opt_out=True)
+alice = Agent(name="alice", seed="alice recovery password")
 
 
 class TestAgent(unittest.TestCase):
