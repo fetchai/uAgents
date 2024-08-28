@@ -63,24 +63,27 @@ from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.utils import get_logger
 
 
-async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
+async def _run_interval(func: IntervalCallback, agent: 'Agent', period: float):
     """
     Run the provided interval callback function at a specified period.
 
     Args:
         func (IntervalCallback): The interval callback function to run.
-        ctx (Context): The context for the agent.
+        agent (Agent): The agent that is running the interval callback.
         period (float): The time period at which to run the callback function.
     """
+    logger = agent._logger
+
     while True:
         try:
+            ctx = agent._build_ctx()
             await func(ctx)
         except OSError as ex:
-            ctx.logger.exception(f"OS Error in interval handler: {ex}")
+            logger.exception(f"OS Error in interval handler: {ex}")
         except RuntimeError as ex:
-            ctx.logger.exception(f"Runtime Error in interval handler: {ex}")
+            logger.exception(f"Runtime Error in interval handler: {ex}")
         except Exception as ex:
-            ctx.logger.exception(f"Exception in interval handler: {ex}")
+            logger.exception(f"Exception in interval handler: {ex}")
 
         await asyncio.sleep(period)
 
@@ -364,7 +367,21 @@ class Agent(Sink):
         # keep track of supported protocols
         self.protocols: Dict[str, Protocol] = {}
 
-        self._ctx = InternalContext(
+        # register with the dispatcher
+        self._dispatcher.register(self.address, self)
+
+        if not self._use_mailbox:
+            self._server = ASGIServer(
+                self._port, self._loop, self._queries, logger=self._logger
+            )
+
+        # define default error message handler
+        @self.on_message(ErrorMessage)
+        async def _handle_error_message(ctx: Context, sender: str, msg: ErrorMessage):
+            ctx.logger.exception(f"Received error message from {sender}: {msg.error}")
+
+    def _build_ctx(self) -> InternalContext:
+        return InternalContext(
             agent=AgentRepresentation(
                 address=self.address,
                 name=self._name,
@@ -378,19 +395,6 @@ class Agent(Sink):
             wallet_messaging_client=self._wallet_messaging_client,
             logger=self._logger,
         )
-
-        # register with the dispatcher
-        self._dispatcher.register(self.address, self)
-
-        if not self._use_mailbox:
-            self._server = ASGIServer(
-                self._port, self._loop, self._queries, logger=self._logger
-            )
-
-        # define default error message handler
-        @self.on_message(ErrorMessage)
-        async def _handle_error_message(ctx: Context, sender: str, msg: ErrorMessage):
-            ctx.logger.exception(f"Received error message from {sender}: {msg.error}")
 
     def _initialize_wallet_and_identity(self, seed, name, wallet_key_derivation_index):
         """
@@ -925,7 +929,8 @@ class Agent(Sink):
             )
         for handler in self._on_startup:
             try:
-                await handler(self._ctx)
+                ctx = self._build_ctx()
+                await handler(ctx) # build internal context here
             except OSError as ex:
                 self._logger.exception(f"OS Error in startup handler: {ex}")
             except RuntimeError as ex:
@@ -940,7 +945,8 @@ class Agent(Sink):
         """
         for handler in self._on_shutdown:
             try:
-                await handler(self._ctx)
+                ctx = self._build_ctx()
+                await handler(ctx) # build internal context here
             except OSError as ex:
                 self._logger.exception(f"OS Error in shutdown handler: {ex}")
             except RuntimeError as ex:
@@ -971,7 +977,7 @@ class Agent(Sink):
 
         """
         for func, period in self._interval_handlers:
-            self._loop.create_task(_run_interval(func, self._ctx, period))
+            self._loop.create_task(_run_interval(func, self, period))
 
     def start_message_receivers(self):
         """
@@ -1040,7 +1046,7 @@ class Agent(Sink):
                 continue
 
             context = ExternalContext(
-                agent=self._ctx.agent,
+                agent=self,
                 storage=self._storage,
                 ledger=self._ledger,
                 resolver=self._resolver,
@@ -1055,6 +1061,9 @@ class Agent(Sink):
                 ),
                 protocol=self.get_message_protocol(schema_digest),
             )
+
+            # sanity check
+            assert context.session == session, "Context object should always have message session"
 
             # parse the received message
             try:
