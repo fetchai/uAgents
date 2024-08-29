@@ -271,7 +271,7 @@ class Agent(Sink):
         test: bool = True,
         loop: Optional[asyncio.AbstractEventLoop] = None,
         log_level: Union[int, str] = logging.INFO,
-        enable_agent_inspector: bool = False,
+        enable_agent_inspector: bool = True,
     ):
         """
         Initialize an Agent instance.
@@ -294,6 +294,7 @@ class Agent(Sink):
             loop (Optional[asyncio.AbstractEventLoop]): The asyncio event loop to use.
             log_level (Union[int, str]): The logging level for the agent.
         """
+        self._init_done = False
         self._name = name
         self._port = port if port is not None else 8000
 
@@ -306,7 +307,6 @@ class Agent(Sink):
         # configure endpoints and mailbox
         self._endpoints = parse_endpoint_config(endpoint)
         self._use_mailbox = False
-        self.enable_agent_inspector = enable_agent_inspector
 
         if mailbox:
             # agentverse config overrides mailbox config
@@ -408,20 +408,22 @@ class Agent(Sink):
         async def _handle_error_message(ctx: Context, sender: str, msg: ErrorMessage):
             ctx.logger.exception(f"Received error message from {sender}: {msg.error}")
 
-        if self.enable_agent_inspector:
+        if enable_agent_inspector:
 
             @self.on_rest_get("/agent_info", AgentInfo)
-            async def handle_get_info(ctx: Context):
+            async def _handle_get_info(_ctx: Context):
                 return AgentInfo(
                     agent_address=self.address,
-                    endpoints=[ep.model_dump() for ep in self._endpoints],
+                    endpoints=[ep.model_dump_json() for ep in self._endpoints],
                     protocols=list(self.protocols.keys()),
                 )
 
             @self.on_rest_get("/messages", EnvelopeHistory)
-            async def handle_get_messges(ctx: Context):
+            async def _handle_get_messages(_ctx: Context):
                 messages = self.sent_messages + self.received_messages
                 return messages
+
+        self._init_done = True
 
     def _initialize_wallet_and_identity(self, seed, name, wallet_key_derivation_index):
         """
@@ -832,7 +834,7 @@ class Agent(Sink):
         request: Optional[Type[Model]],
         response: Type[Model],
     ):
-        if self._server.has_rest_endpoint(method, endpoint):
+        if self._init_done and self._server.has_rest_endpoint(method, endpoint):
             self._logger.warning(
                 f"Discarding duplicate REST endpoint: {method} {endpoint}"
             )
@@ -1143,7 +1145,7 @@ class Agent(Sink):
                     session=session,
                     schema_digest=schema_digest,
                     payload=message,
-                    protocol=protocol_digest,
+                    protocol_digest=protocol_digest,
                 )
             )
 

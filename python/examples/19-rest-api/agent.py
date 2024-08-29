@@ -1,4 +1,4 @@
-from datetime import datetime
+import time
 from typing import Any, Dict
 
 from uagents import Agent, Context, Model
@@ -9,7 +9,7 @@ class Request(Model):
 
 
 class Response(Model):
-    timestamp: datetime
+    timestamp: int
     text: str
     agent_address: str
 
@@ -26,7 +26,7 @@ agent = Agent(name="Rest API")
 async def handle_get(ctx: Context) -> Dict[str, Any]:
     ctx.logger.info("Received GET request")
     return {
-        "timestamp": datetime.now(),
+        "timestamp": int(time.time()),
         "text": "Hello from the GET handler!",
         "agent_address": ctx.agent.address,
     }
@@ -38,7 +38,7 @@ async def handle_post(ctx: Context, req: Request) -> Response:
     return Response(
         text=f"Received: {req.text}",
         agent_address=ctx.agent.address,
-        timestamp=datetime.now(),
+        timestamp=int(time.time()),
     )
 
 

@@ -39,8 +39,8 @@ RestHandlerMap = Dict[Tuple[RestMethod, str], RestHandler]
 
 class AgentInfo(BaseModel):
     agent_address: str
-    endpoints: List
-    protocols: List
+    endpoints: List[JsonStr]
+    protocols: List[str]
 
 
 class RestHandlerDetails(BaseModel):
