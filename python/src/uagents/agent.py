@@ -33,7 +33,6 @@ from uagents.config import (
     REGISTRATION_RETRY_INTERVAL_SECONDS,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     TESTNET_PREFIX,
-    AgentEndpoint,
     parse_agentverse_config,
     parse_endpoint_config,
 )
@@ -56,6 +55,7 @@ from uagents.registration import (
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.types import (
+    AgentEndpoint,
     AgentInfo,
     EventCallback,
     IntervalCallback,
@@ -296,7 +296,7 @@ class Agent(Sink):
         """
         self._init_done = False
         self._name = name
-        self._port = port if port is not None else 8000
+        self._port = port or 8000
 
         self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
 
@@ -323,11 +323,9 @@ class Agent(Sink):
             self._mailbox_client = MailboxClient(self, self._logger)
             # if mailbox is provided, override endpoints with mailbox endpoint
             self._endpoints = [
-                AgentEndpoint.model_validate(
-                    {
-                        "url": f"{self.mailbox['http_prefix']}://{self.mailbox['base_url']}/v1/submit",
-                        "weight": 1,
-                    }
+                AgentEndpoint(
+                    url=f"{self.mailbox['http_prefix']}://{self.mailbox['base_url']}/v1/submit",
+                    weight=1,
                 )
             ]
         else:
@@ -414,7 +412,7 @@ class Agent(Sink):
             async def _handle_get_info(_ctx: Context):
                 return AgentInfo(
                     agent_address=self.address,
-                    endpoints=[ep.model_dump_json() for ep in self._endpoints],
+                    endpoints=self._endpoints,
                     protocols=list(self.protocols.keys()),
                 )
 
