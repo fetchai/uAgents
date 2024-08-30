@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional, Union
 
-from pydantic import BaseModel
+from uagents.types import AgentEndpoint
 
 AGENT_PREFIX = "agent"
 LEDGER_PREFIX = "fetch"
@@ -40,11 +40,6 @@ RESPONSE_TIME_HINT_SECONDS = 5
 DEFAULT_ENVELOPE_TIMEOUT_SECONDS = 30
 DEFAULT_MAX_ENDPOINTS = 10
 DEFAULT_SEARCH_LIMIT = 100
-
-
-class AgentEndpoint(BaseModel):
-    url: str
-    weight: int
 
 
 def parse_endpoint_config(

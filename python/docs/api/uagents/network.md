@@ -463,6 +463,22 @@ Register a name within a domain using the NameService contract.
   addresses registered to the domain. If False, the address will be
   appended to the previous records. Defaults to True.
 
+<a id="src.uagents.network.NameServiceContract.unregister"></a>
+
+#### unregister
+
+```python
+async def unregister(name: str, domain: str, wallet: LocalWallet)
+```
+
+Unregister a name within a domain using the NameService contract.
+
+**Arguments**:
+
+- `name` _str_ - The name to be unregistered.
+- `domain` _str_ - The domain in which the name is registered.
+- `wallet` _LocalWallet_ - The wallet of the agent.
+
 <a id="src.uagents.network.get_name_service_contract"></a>
 
 #### get`_`name`_`service`_`contract

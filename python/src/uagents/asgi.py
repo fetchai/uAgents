@@ -12,7 +12,7 @@ from typing import (
 )
 
 import uvicorn
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from pydantic.v1 import ValidationError as ValidationErrorV1
 from pydantic.v1.error_wrappers import ErrorWrapper
 from requests.structures import CaseInsensitiveDict
@@ -92,7 +92,7 @@ class ASGIServer:
         method: RestMethod,
         endpoint: str,
         request: Optional[Type[Model]],
-        response: Type[Model],
+        response: Type[Union[Model, BaseModel]],
     ):
         """
         Add a REST endpoint to the server.
@@ -266,7 +266,9 @@ class ASGIServer:
                 raise ValueError(
                     {"error": "Handler response must be a dict or a model"}
                 )
-            validated_response = rest_handler.response_model.parse_obj(handler_response)
+            validated_response = rest_handler.response_model.model_validate(
+                handler_response
+            )
         except (ValidationErrorV1, ValueError) as err:
             self._logger.debug(f"Failed to validate REST response: {err}")
             await self._asgi_send(
@@ -277,7 +279,7 @@ class ASGIServer:
             return
 
         # return the validated response
-        await self._asgi_send(send, body=validated_response.dict())
+        await self._asgi_send(send, body=validated_response.model_dump())
 
     async def __call__(self, scope, receive, send):  #  pylint: disable=too-many-branches
         """

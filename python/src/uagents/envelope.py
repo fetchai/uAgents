@@ -3,9 +3,16 @@
 import base64
 import hashlib
 import struct
-from typing import Callable, Optional
+import time
+from typing import Callable, List, Optional
 
-from pydantic import UUID4, BaseModel, ConfigDict
+from pydantic import (
+    UUID4,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+)
 
 from uagents.crypto import Identity
 from uagents.types import JsonStr
@@ -110,3 +117,47 @@ class Envelope(BaseModel):
         if self.nonce is not None:
             hasher.update(struct.pack(">Q", self.nonce))
         return hasher.digest()
+
+
+class EnvelopeHistoryEntry(BaseModel):
+    timestamp: int = Field(default_factory=lambda: int(time.time()))
+    version: int
+    sender: str
+    target: str
+    session: UUID4
+    schema_digest: str
+    protocol_digest: Optional[str] = None
+    payload: Optional[str] = None
+
+    @field_serializer("session")
+    def serialize_session(self, session: UUID4, _info):
+        return str(session)
+
+    @classmethod
+    def from_envelope(cls, envelope: Envelope):
+        return cls(
+            version=envelope.version,
+            sender=envelope.sender,
+            target=envelope.target,
+            session=envelope.session,
+            schema_digest=envelope.schema_digest,
+            protocol_digest=envelope.protocol_digest,
+            payload=envelope.decode_payload(),
+        )
+
+
+class EnvelopeHistory(BaseModel):
+    envelopes: List[EnvelopeHistoryEntry]
+
+    def add_entry(self, entry: EnvelopeHistoryEntry):
+        self.envelopes.append(entry)
+        self.apply_retention_policy()
+
+    def apply_retention_policy(self):
+        """Remove entries older than 24 hours"""
+        cutoff_time = time.time() - 86400
+        for e in self.envelopes:
+            if e.timestamp < cutoff_time:
+                self.envelopes.remove(e)
+            else:
+                break
