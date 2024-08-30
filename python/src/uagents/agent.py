@@ -222,6 +222,7 @@ class Agent(Sink):
         _signed_message_handlers (Dict[str, MessageCallback]): Handlers for signed messages.
         _unsigned_message_handlers (Dict[str, MessageCallback]): Handlers for
         unsigned messages.
+        _message_cache (EnvelopeHistory): History of messages received by the agent.
         _models (Dict[str, Type[Model]]): Dictionary mapping supported message digests to messages.
         _replies (Dict[str, Dict[str, Type[Model]]]): Dictionary of allowed replies for each type
         of incoming message.
@@ -293,6 +294,7 @@ class Agent(Sink):
             test (Optional[bool]): True if the agent will register and transact on the testnet.
             loop (Optional[asyncio.AbstractEventLoop]): The asyncio event loop to use.
             log_level (Union[int, str]): The logging level for the agent.
+            enable_agent_inspector (bool): Enable the agent inspector for debugging.
         """
         self._init_done = False
         self._name = name
@@ -344,14 +346,13 @@ class Agent(Sink):
         self._interval_messages: Set[str] = set()
         self._signed_message_handlers: Dict[str, MessageCallback] = {}
         self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
-        self.sent_messages: EnvelopeHistory = EnvelopeHistory(envelopes=[])
-        self.received_messages: EnvelopeHistory = EnvelopeHistory(envelopes=[])
+        self._message_cache: EnvelopeHistory = EnvelopeHistory(envelopes=[])
         self._rest_handlers: RestHandlerMap = {}
         self._models: Dict[str, Type[Model]] = {}
         self._replies: Dict[str, Dict[str, Type[Model]]] = {}
         self._queries: Dict[str, asyncio.Future] = {}
         self._dispatcher = dispatcher
-        self._dispenser = Dispenser()
+        self._dispenser = Dispenser(msg_cache_ref=self._message_cache)
         self._message_queue = asyncio.Queue()
         self._on_startup = []
         self._on_shutdown = []
@@ -388,7 +389,6 @@ class Agent(Sink):
             interval_messages=self._interval_messages,
             wallet_messaging_client=self._wallet_messaging_client,
             logger=self._logger,
-            sent_messages=self.sent_messages,
         )
 
         # register with the dispatcher
@@ -406,9 +406,10 @@ class Agent(Sink):
         async def _handle_error_message(ctx: Context, sender: str, msg: ErrorMessage):
             ctx.logger.exception(f"Received error message from {sender}: {msg.error}")
 
+        # define default rest message handlers if agent inspector is enabled
         if enable_agent_inspector:
 
-            @self.on_rest_get("/agent_info", AgentInfo)
+            @self.on_rest_get("/agent_info", AgentInfo)  # type: ignore
             async def _handle_get_info(_ctx: Context):
                 return AgentInfo(
                     agent_address=self.address,
@@ -416,10 +417,9 @@ class Agent(Sink):
                     protocols=list(self.protocols.keys()),
                 )
 
-            @self.on_rest_get("/messages", EnvelopeHistory)
+            @self.on_rest_get("/messages", EnvelopeHistory)  # type: ignore
             async def _handle_get_messages(_ctx: Context):
-                messages = self.sent_messages + self.received_messages
-                return messages
+                return self._message_cache
 
         self._init_done = True
 
@@ -1135,15 +1135,15 @@ class Agent(Sink):
             protocol_info = self.get_message_protocol(schema_digest)
             protocol_digest = protocol_info[0] if protocol_info else None
 
-            self.received_messages.add_entry(
+            self._message_cache.add_entry(
                 EnvelopeHistoryEntry(
                     version=1,
                     sender=sender,
                     target=self.address,
                     session=session,
                     schema_digest=schema_digest,
-                    payload=message,
                     protocol_digest=protocol_digest,
+                    payload=message,
                 )
             )
 
@@ -1162,7 +1162,6 @@ class Agent(Sink):
                     message=message, schema_digest=schema_digest
                 ),
                 protocol=self.get_message_protocol(schema_digest),
-                sent_messages=self.sent_messages,
             )
 
             # parse the received message

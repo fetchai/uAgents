@@ -34,7 +34,7 @@ from uagents.config import (
     DEFAULT_SEARCH_LIMIT,
 )
 from uagents.dispatch import dispatcher
-from uagents.envelope import Envelope, EnvelopeHistory, EnvelopeHistoryEntry
+from uagents.envelope import Envelope
 from uagents.models import ErrorMessage, Model
 from uagents.resolver import Resolver, parse_identifier
 from uagents.storage import KeyValueStore
@@ -259,7 +259,6 @@ class InternalContext(Context):
         interval_messages: Optional[Set[str]] = None,
         wallet_messaging_client: Optional[Any] = None,
         logger: Optional[logging.Logger] = None,
-        sent_messages: Optional[EnvelopeHistory] = None,
     ):
         self._agent = agent
         self._storage = storage
@@ -271,11 +270,6 @@ class InternalContext(Context):
         self._interval_messages = interval_messages
         self._wallet_messaging_client = wallet_messaging_client
         self._outbound_messages: Dict[str, Tuple[JsonStr, str]] = {}
-        self.sent_messages = (
-            sent_messages
-            if sent_messages is not None
-            else EnvelopeHistory(envelopes=[])
-        )
 
     @property
     def agent(self) -> AgentRepresentation:
@@ -462,18 +456,6 @@ class InternalContext(Context):
                     self._session,
                 )
 
-                self.sent_messages.add_entry(
-                    EnvelopeHistoryEntry(
-                        version=1,
-                        sender=self.address,
-                        target=destination,
-                        session=self._session,
-                        schema_digest=message_schema_digest,
-                        payload=message_body,
-                        protocol=protocol_digest,
-                    )
-                )
-
                 return response
 
             # Handle sync dispatch of messages
@@ -528,10 +510,6 @@ class InternalContext(Context):
         fut = asyncio.Future()
 
         self._queue_envelope(env, endpoints, fut, sync)
-
-        env_dict = env.model_dump()
-        env_dict["payload"] = env.decode_payload()
-        self.sent_messages.add_entry(EnvelopeHistoryEntry(**env_dict))
 
         try:
             result = await asyncio.wait_for(fut, timeout)

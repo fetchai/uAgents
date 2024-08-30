@@ -6,7 +6,13 @@ import struct
 import time
 from typing import Callable, List, Optional
 
-from pydantic import UUID4, BaseModel, ConfigDict, Field, field_serializer
+from pydantic import (
+    UUID4,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+)
 
 from uagents.crypto import Identity
 from uagents.types import JsonStr
@@ -127,6 +133,18 @@ class EnvelopeHistoryEntry(BaseModel):
     def serialize_session(self, session: UUID4, _info):
         return str(session)
 
+    @classmethod
+    def from_envelope(cls, envelope: Envelope):
+        return cls(
+            version=envelope.version,
+            sender=envelope.sender,
+            target=envelope.target,
+            session=envelope.session,
+            schema_digest=envelope.schema_digest,
+            protocol_digest=envelope.protocol_digest,
+            payload=envelope.decode_payload(),
+        )
+
 
 class EnvelopeHistory(BaseModel):
     envelopes: List[EnvelopeHistoryEntry]
@@ -140,14 +158,7 @@ class EnvelopeHistory(BaseModel):
         cutoff_time = time.time() - 86400
         self.envelopes = [e for e in self.envelopes if e.timestamp > cutoff_time]
 
-    def __add__(self, other: "EnvelopeHistory"):
-        combined_envelopes = self.envelopes + other.envelopes
-        new_history = EnvelopeHistory(envelopes=combined_envelopes)
-        new_history.apply_retention_policy()
-
-        return new_history
-
-    @field_serializer("envelopes", when_used="json")
+    @field_serializer("envelopes", when_used="always")
     def serialize_envelopes_in_order(
         self, envelopes: List[EnvelopeHistoryEntry], _info
     ):
