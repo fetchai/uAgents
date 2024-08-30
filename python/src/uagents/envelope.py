@@ -156,10 +156,8 @@ class EnvelopeHistory(BaseModel):
     def apply_retention_policy(self):
         """Remove entries older than 24 hours"""
         cutoff_time = time.time() - 86400
-        self.envelopes = [e for e in self.envelopes if e.timestamp > cutoff_time]
-
-    @field_serializer("envelopes", when_used="always")
-    def serialize_envelopes_in_order(
-        self, envelopes: List[EnvelopeHistoryEntry], _info
-    ):
-        return sorted(envelopes, key=lambda e: e.timestamp)
+        for e in self.envelopes:
+            if e.timestamp < cutoff_time:
+                self.envelopes.remove(e)
+            else:
+                break
