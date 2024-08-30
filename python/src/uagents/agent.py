@@ -1161,7 +1161,7 @@ class Agent(Sink):
                 message_received=MsgDigest(
                     message=message, schema_digest=schema_digest
                 ),
-                protocol=self.get_message_protocol(schema_digest),
+                protocol=protocol_info,
             )
 
             # parse the received message
