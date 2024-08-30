@@ -39,6 +39,7 @@ mkdocs = "^1.4.2"
 mkdocs-material = "^9.1.13"
 ruff = "^0.6.0"
 pre-commit = "^3.6.2"
+pydoc-markdown = "^4.8.2"
 
 [tool.poetry.extras]
 all = ["tortoise-orm", "geopy", "fetchai-babble", "pyngrok", "fastapi"]

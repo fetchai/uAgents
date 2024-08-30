@@ -91,3 +91,21 @@ Verify the envelope's signature.
 - `ValueError` - If the signature is missing.
 - `ecdsa.BadSignatureError` - If the signature is invalid.
 
+<a id="src.uagents.envelope.EnvelopeHistory"></a>
+
+## EnvelopeHistory Objects
+
+```python
+class EnvelopeHistory(BaseModel)
+```
+
+<a id="src.uagents.envelope.EnvelopeHistory.apply_retention_policy"></a>
+
+#### apply`_`retention`_`policy
+
+```python
+def apply_retention_policy()
+```
+
+Remove entries older than 24 hours
+
