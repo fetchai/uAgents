@@ -448,15 +448,13 @@ class InternalContext(Context):
         if parsed_address:
             # Handle local dispatch of messages
             if dispatcher.contains(parsed_address):
-                response = await dispatch_local_message(
+                return await dispatch_local_message(
                     self.agent.address,
                     parsed_address,
                     message_schema_digest,
                     message_body,
                     self._session,
                 )
-
-                return response
 
             # Handle sync dispatch of messages
             if queries and parsed_address in queries:
