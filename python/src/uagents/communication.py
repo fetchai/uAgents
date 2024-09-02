@@ -12,7 +12,7 @@ from pydantic import UUID4, ValidationError
 from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
 from uagents.crypto import Identity, is_user_address
 from uagents.dispatch import dispatcher
-from uagents.envelope import Envelope
+from uagents.envelope import Envelope, EnvelopeHistory, EnvelopeHistoryEntry
 from uagents.models import Model
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.types import DeliveryStatus, JsonStr, MsgStatus
@@ -26,10 +26,11 @@ class Dispenser:
     Dispenses messages externally.
     """
 
-    def __init__(self):
+    def __init__(self, msg_cache_ref: Optional[EnvelopeHistory] = None):
         self._envelopes: asyncio.Queue[
             Tuple[Envelope, List[str], asyncio.Future, bool]
         ] = asyncio.Queue()
+        self._msg_cache_ref = msg_cache_ref
 
     def add_envelope(
         self,
@@ -62,6 +63,11 @@ class Dispenser:
                     sync=sync,
                 )
                 response_future.set_result(result)
+
+                if self._msg_cache_ref:
+                    self._msg_cache_ref.add_entry(
+                        EnvelopeHistoryEntry.from_envelope(env)
+                    )
             except Exception as err:
                 LOGGER.error(f"Failed to send envelope: {err}")
 

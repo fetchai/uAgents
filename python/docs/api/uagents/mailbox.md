@@ -72,6 +72,16 @@ Returns: The http prefix of the mailbox server {http, https}.
 async def run()
 ```
 
+Runs the mailbox client.
+
+<a id="src.uagents.mailbox.MailboxClient.start_polling"></a>
+
+#### start`_`polling
+
+```python
+async def start_polling()
+```
+
 Runs the mailbox client. Acquires an access token if needed and then starts a polling loop.
 
 <a id="src.uagents.mailbox.MailboxClient.process_deletion_queue"></a>

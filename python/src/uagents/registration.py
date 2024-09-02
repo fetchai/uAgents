@@ -17,10 +17,10 @@ from uagents.config import (
     ALMANAC_API_URL,
     REGISTRATION_FEE,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
-    AgentEndpoint,
 )
 from uagents.crypto import Identity
 from uagents.network import AlmanacContract, InsufficientFundsError, add_testnet_funds
+from uagents.types import AgentEndpoint
 
 
 class AgentRegistrationPolicy(ABC):

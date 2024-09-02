@@ -45,6 +45,28 @@ Property to access the underlying uvicorn server.
 
 Returns: The server.
 
+<a id="src.uagents.asgi.ASGIServer.add_rest_endpoint"></a>
+
+#### add`_`rest`_`endpoint
+
+```python
+def add_rest_endpoint(address: str, method: RestMethod, endpoint: str,
+                      request: Optional[Type[Model]],
+                      response: Type[Union[Model, BaseModel]])
+```
+
+Add a REST endpoint to the server.
+
+<a id="src.uagents.asgi.ASGIServer.has_rest_endpoint"></a>
+
+#### has`_`rest`_`endpoint
+
+```python
+def has_rest_endpoint(method: RestMethod, endpoint: str) -> bool
+```
+
+Check if the server has a REST endpoint registered.
+
 <a id="src.uagents.asgi.ASGIServer.handle_readiness_probe"></a>
 
 #### handle`_`readiness`_`probe
