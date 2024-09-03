@@ -92,7 +92,7 @@ class ReleaseTool:
             stderr=sys.stderr,
         )
         if result.returncode != 0:
-            raise RuntimeError("Upload pacakges failed!")
+            raise RuntimeError("Upload packages failed!")
 
     def main(self):
         """Run release process."""
