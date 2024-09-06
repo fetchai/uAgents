@@ -46,7 +46,7 @@ async def get_classification(ctx: Context, sender: str, text: str):
         await ctx.send(sender, UAResponse(response=model_res))
         return
     except Exception as ex:
-        # Catch and notify any exception occured during API call or data handling
+        # Catch and notify any exception occurred during API call or data handling
         await ctx.send(sender, Error(error=f"An exception occurred while processing the request: {ex}"))
         return
 

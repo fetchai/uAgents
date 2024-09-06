@@ -5,7 +5,7 @@
 The system requirements for the Python μAgents package are as follows, but libraries for more platforms and languages will be released soon.
 
 !!! Info "System requirements"
-    The Python μAgents pacakge runs on `Ubuntu/Debian`, `MacOS`, and `Windows`.
+    The Python μAgents package runs on `Ubuntu/Debian`, `MacOS`, and `Windows`.
     
     You need <a href="https://www.python.org/downloads/" target="_blank">Python</a> 3.8, 3.9, 3.10 or 3.11 on your system.
 
