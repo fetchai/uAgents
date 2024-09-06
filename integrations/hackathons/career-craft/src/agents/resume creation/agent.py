@@ -47,7 +47,7 @@ async def fetch_data_from_rapidapi(name, email, phone, address, skills, certific
         return fact
     except:
         print(f"An error occurred")
-        return "An error occured"
+        return "An error occurred"
 
 
 @simples.on_message(model=Request, replies={UAgentResponse})
