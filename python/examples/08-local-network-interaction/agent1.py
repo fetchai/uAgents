@@ -12,7 +12,6 @@ bob = Agent(
     port=8001,
     seed="bob secret phrase",
     endpoint=["http://127.0.0.1:8001/submit"],
-    agentverse="https://staging.agentverse.ai",
 )
 
 
