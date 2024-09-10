@@ -240,6 +240,7 @@ class Agent(Sink):
         corresponding protocols.
         _ctx (Context): The context for agent interactions.
         _test (bool): True if the agent will register and transact on the testnet.
+        _enable_agent_inspector (bool): Enable the agent inspector REST endpoints.
 
     Properties:
         name (str): The name of the agent.
@@ -420,6 +421,8 @@ class Agent(Sink):
             @self.on_rest_get("/messages", EnvelopeHistory)  # type: ignore
             async def _handle_get_messages(_ctx: Context):
                 return self._message_cache
+
+        self._enable_agent_inspector = enable_agent_inspector
 
         self._init_done = True
 
@@ -1076,6 +1079,18 @@ class Agent(Sink):
             ]:
                 self._loop.create_task(task)
 
+    async def start_server(self):
+        """
+        Start the agent's server.
+
+        """
+        if self._enable_agent_inspector:
+            inspector_url = f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/inspect"
+            self._logger.debug(
+                f"Agent inspector available at {inspector_url}/?uri=http://127.0.0.1:{self._port}"
+            )
+        await self._server.serve()
+
     async def run_async(self):
         """
         Create all tasks for the agent.
@@ -1083,7 +1098,7 @@ class Agent(Sink):
         """
         await self.setup()
 
-        tasks = [self._server.serve()]
+        tasks = [self.start_server()]
 
         # remove server task if mailbox is enabled and no REST handlers are defined
         if self._use_mailbox and not self._rest_handlers:
