@@ -1087,7 +1087,7 @@ class Agent(Sink):
         if self._enable_agent_inspector:
             inspector_url = f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/inspect"
             self._logger.debug(
-                f"Agent inspector available at {inspector_url}?uri=http://127.0.0.1:{self._port}"
+                f"Agent inspector available at {inspector_url}/?uri=http://127.0.0.1:{self._port}"
             )
         await self._server.serve()
 
