@@ -1,0 +1,10 @@
+{
+  "title": "Top Chess Players",
+  "description": "Top Chess Players is designed to fetch the top chess players for gamemodes such as [\"ultraBullet\", \"bullet\", \"blitz\", \"rapid\", \"classical\", \"chess960\", \"crazyhouse\", \"antichess\", \"atomic\", \"horde\", \"kingOfTheHill\", \"racingKings\", \"threeCheck\"] on LiChess.com.",
+  "categories": [
+    "Chess",
+    "AI Engine",
+    "API"
+  ],
+  "deltav": true
+}
