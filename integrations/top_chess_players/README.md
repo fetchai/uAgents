@@ -1,7 +1,7 @@
 # uAgents Top Chess Players Integration
 
 ## Overview
-This integration allows users to search for top chess players on Lichess.com based on different gamemodes. It leverages the Lichess.com API to fetch player details. The integration is designed to run as an hosted uAgent on the Agentverse platform and can be interacted using deltaV, providing seamless song search functionality through a conversational interface. The agent has utilized the Chitchat Dialogue schema to allow the user to ask multiple rankings consecutively on DeltaV.
+This integration allows users to search for the top 10 chess players on Lichess.com based on different gamemodes. It leverages the Lichess.com API to fetch player details. The integration is designed to run as an hosted uAgent on the Agentverse platform and can be interacted using deltaV, providing seamless song search functionality through a conversational interface. The agent has utilized the Chitchat Dialogue schema to allow the user to ask multiple rankings consecutively on DeltaV.
 
 API Documentation: `https://lichess.org/api`
 
