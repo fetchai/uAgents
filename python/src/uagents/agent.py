@@ -71,7 +71,7 @@ from uagents.types import (
 from uagents.utils import get_logger
 
 
-async def _run_interval(func: IntervalCallback, agent: 'Agent', period: float):
+async def _run_interval(func: IntervalCallback, agent: "Agent", period: float):
     """
     Run the provided interval callback function at a specified period.
 
@@ -1006,7 +1006,10 @@ class Agent(Sink):
         if not handler:
             return None
 
-        args = (self._ctx, message) if message else (self._ctx,)
+        context = self._build_context()
+        args = [context]
+        if message:
+            args.append(message)
 
         return await handler(*args)  # type: ignore
 
@@ -1086,7 +1089,7 @@ class Agent(Sink):
         if self._wallet_messaging_client is not None:
             for task in [
                 self._wallet_messaging_client.poll_server(),
-                self._wallet_messaging_client.process_message_queue(self._ctx),
+                self._wallet_messaging_client.process_message_queue(self),
             ]:
                 self._loop.create_task(task)
 
@@ -1191,7 +1194,9 @@ class Agent(Sink):
             )
 
             # sanity check
-            assert context.session == session, "Context object should always have message session"
+            assert (
+                context.session == session
+            ), "Context object should always have message session"
 
             # parse the received message
             try:

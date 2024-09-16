@@ -440,7 +440,6 @@ class InternalContext(Context):
         protocol_digest: Optional[str] = None,
         queries: Optional[Dict[str, asyncio.Future]] = None,
     ) -> MsgStatus:
-
         # Extract address from destination agent identifier if present
         _, parsed_name, parsed_address = parse_identifier(destination)
 

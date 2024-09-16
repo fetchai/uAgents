@@ -52,10 +52,8 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         self.alice = Agent(name="alice", seed="alice recovery phrase", resolve=resolver)
         self.bob = Agent(name="bob", seed="bob recovery phrase")
 
-        self.agent = self.alice
-        self.context = self.agent._ctx
         self.loop = asyncio.get_event_loop()
-        self.loop.create_task(self.context._dispenser.run())
+        self.loop.create_task(self.alice._dispenser.run())
 
     def get_external_context(
         self,
@@ -65,13 +63,13 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         queries: Optional[Dict[str, asyncio.Future]] = None,
     ):
         return ExternalContext(
-            agent=self.context.agent,
-            storage=self.agent._storage,
-            ledger=self.agent._ledger,
-            resolver=self.agent._resolver,
-            dispenser=self.agent._dispenser,
-            wallet_messaging_client=self.agent._wallet_messaging_client,
-            logger=self.agent._logger,
+            agent=self.alice,
+            storage=self.alice._storage,
+            ledger=self.alice._ledger,
+            resolver=self.alice._resolver,
+            dispenser=self.alice._dispenser,
+            wallet_messaging_client=self.alice._wallet_messaging_client,
+            logger=self.alice._logger,
             queries=queries,
             session=None,
             replies=replies,
@@ -79,13 +77,14 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_send_local_dispatch(self):
-        result = await self.context.send(self.bob.address, msg)
+        context = self.alice._build_context()
+        result = await context.send(self.bob.address, msg)
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.DELIVERED,
             detail="Message dispatched locally",
             destination=self.bob.address,
             endpoint="",
-            session=self.context.session,
+            session=context.session,
         )
 
         self.assertEqual(result, exp_msg_status)
@@ -121,28 +120,29 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, exp_msg_status)
 
     async def test_send_local_dispatch_valid_interval_msg(self):
-        self.context._interval_messages = {msg_digest}
-        result = await self.context.send(self.bob.address, msg)
+        context = self.alice._build_context()
+        context._interval_messages = {msg_digest}
+        result = await context.send(self.bob.address, msg)
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.DELIVERED,
             detail="Message dispatched locally",
             destination=self.bob.address,
             endpoint="",
-            session=self.context.session,
+            session=context.session,
         )
 
         self.assertEqual(result, exp_msg_status)
-        self.context._interval_messages = set()
 
     async def test_send_local_dispatch_invalid_interval_msg(self):
-        self.context._interval_messages = {msg_digest}
-        result = await self.context.send(self.bob.address, incoming)
+        context = self.alice._build_context()
+        context._interval_messages = {msg_digest}
+        result = await context.send(self.bob.address, incoming)
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.FAILED,
             detail="Invalid interval message",
             destination=self.bob.address,
             endpoint="",
-            session=self.context.session,
+            session=context.session,
         )
 
         self.assertEqual(result, exp_msg_status)
@@ -170,13 +170,14 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
     async def test_send_external_dispatch_resolve_failure(self):
         destination = Identity.generate().address
-        result = await self.context.send(destination, msg)
+        context = self.alice._build_context()
+        result = await context.send(destination, msg)
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.FAILED,
             detail="Unable to resolve destination endpoint",
             destination=destination,
             endpoint="",
-            session=self.context.session,
+            session=context.session,
         )
 
         self.assertEqual(result, exp_msg_status)
@@ -186,8 +187,10 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         # Mock the HTTP POST request with a status code and response content
         mocked_responses.post(endpoints[0], status=200)
 
+        context = self.alice._build_context()
+
         # Perform the actual operation
-        result = await self.context.send(self.clyde.address, msg)
+        result = await context.send(self.clyde.address, msg)
 
         # Define the expected message status
         exp_msg_status = MsgStatus(
@@ -195,7 +198,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             detail="Message successfully delivered via HTTP",
             destination=self.clyde.address,
             endpoint=endpoints[0],
-            session=self.context.session,
+            session=context.session,
         )
 
         # Assertions
@@ -206,8 +209,10 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         # Mock the HTTP POST request with a status code and response content
         mocked_responses.post(endpoints[0], status=404)
 
+        context = self.alice._build_context()
+
         # Perform the actual operation
-        result = await self.context.send(self.clyde.address, msg)
+        result = await context.send(self.clyde.address, msg)
 
         # Define the expected message status
         exp_msg_status = MsgStatus(
@@ -215,7 +220,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             detail="Message delivery failed",
             destination=self.clyde.address,
             endpoint="",
-            session=self.context.session,
+            session=context.session,
         )
 
         # Assertions
@@ -231,8 +236,10 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         mocked_responses.post(endpoints[0], status=200)
         mocked_responses.post(endpoints[1], status=404)
 
+        context = self.alice._build_context()
+
         # Perform the actual operation
-        result = await self.context.send(self.clyde.address, msg)
+        result = await context.send(self.clyde.address, msg)
 
         # Define the expected message status
         exp_msg_status = MsgStatus(
@@ -240,7 +247,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             detail="Message successfully delivered via HTTP",
             destination=self.clyde.address,
             endpoint=endpoints[0],
-            session=self.context.session,
+            session=context.session,
         )
 
         # Assertions
@@ -261,8 +268,10 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         mocked_responses.post(endpoints[0], status=404)
         mocked_responses.post(endpoints[1], status=200)
 
+        context = self.alice._build_context()
+
         # Perform the actual operation
-        result = await self.context.send(self.clyde.address, msg)
+        result = await context.send(self.clyde.address, msg)
 
         # Define the expected message status
         exp_msg_status = MsgStatus(
@@ -270,7 +279,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             detail="Message successfully delivered via HTTP",
             destination=self.clyde.address,
             endpoint=endpoints[1],
-            session=self.context.session,
+            session=context.session,
         )
 
         # Assertions
@@ -288,8 +297,10 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         mocked_responses.post(endpoints[0], status=404)
         mocked_responses.post(endpoints[1], status=404)
 
+        context = self.alice._build_context()
+
         # Perform the actual operation
-        result = await self.context.send(self.clyde.address, msg)
+        result = await context.send(self.clyde.address, msg)
 
         # Define the expected message status
         exp_msg_status = MsgStatus(
@@ -297,7 +308,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             detail="Message delivery failed",
             destination=self.clyde.address,
             endpoint="",
-            session=self.context.session,
+            session=context.session,
         )
 
         # Assertions
