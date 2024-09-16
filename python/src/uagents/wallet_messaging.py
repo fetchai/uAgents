@@ -78,7 +78,7 @@ class WalletMessagingClient:
                 )
             await asyncio.sleep(self._poll_interval)
 
-    async def process_message_queue(self, agent: "Agent"):
+    async def process_message_queue(self, agent: "Agent"):  # noqa: F821
         while True:
             msg: WalletMessage = await self._message_queue.get()
             for handler in self._message_handlers:
