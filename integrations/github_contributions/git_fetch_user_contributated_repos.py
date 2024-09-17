@@ -41,7 +41,8 @@ async def get_repo_names(ctx: Context, sender: str, msg: Github_User_Query):
     if len(repos) == 0:
         rsp = f"{msg.username} has not contributed to any external repositories or we encountered an issue."
     else:
-        rsp = f"{msg.username} has contributed {len(repos)} external repositories:\n{"\n".join(repos)}"
+        repoStr = "\n".join(repos)
+        rsp = f"{msg.username} has contributed {len(repos)} external repositories:\n{repoStr}"
     await ctx.send(sender, UAgentResponse(message=rsp, type= UAgentResponseType.FINAL))
 
 agent = Agent("Contribution Agent", seed="contribution agent seed phrase")
