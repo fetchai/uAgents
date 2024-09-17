@@ -4,6 +4,7 @@ from typing import Callable
 
 from uagents import Agent, Context, Model
 from uagents.resolver import GlobalResolver
+from uagents.types import RestHandlerDetails
 
 
 class Message(Model):
@@ -14,11 +15,17 @@ class Query(Model):
     query: str
 
 
+class Response(Model):
+    response: str
+
+
 MESSAGE_DIGEST = Model.build_schema_digest(Message)
 QUERY_DIGEST = Model.build_schema_digest(Query)
 
 
-alice = Agent(name="alice", seed="alice recovery password")
+alice = Agent(
+    name="alice", seed="alice recovery password", enable_agent_inspector=False
+)
 
 
 class TestAgent(unittest.TestCase):
@@ -35,7 +42,7 @@ class TestAgent(unittest.TestCase):
 
     def test_agent_on_interval(self):
         @self.agent.on_interval(period=10)
-        def _(_ctx):
+        def _(_ctx: Context):
             pass
 
         interval = self.agent._protocol._interval_handlers[0]
@@ -44,7 +51,7 @@ class TestAgent(unittest.TestCase):
 
     def test_agent_on_signed_message(self):
         @self.agent.on_message(Message)
-        def _(_ctx, _sender, _msg):
+        def _(_ctx: Context, _sender: str, _msg: Message):
             pass
 
         signed_msg_handlers = self.agent._protocol._signed_message_handlers
@@ -56,7 +63,7 @@ class TestAgent(unittest.TestCase):
 
     def test_agent_on_unsigned_message(self):
         @self.agent.on_message(Query, allow_unverified=True)
-        def _(_ctx, _sender, _msg):
+        def _(_ctx: Context, _sender: str, _msg: Query):
             pass
 
         signed_msg_handlers = self.agent._protocol._signed_message_handlers
@@ -79,10 +86,44 @@ class TestAgent(unittest.TestCase):
 
     def test_agent_on_shutdown_event(self):
         @self.agent.on_event("shutdown")
-        def _(ctx):
+        def _(ctx: Context):
             ctx.storage.set("startup", True)
 
         shutdown_handlers = self.agent._on_shutdown
         self.assertEqual(len(shutdown_handlers), 1)
         self.assertTrue(isinstance(shutdown_handlers[0], Callable))
         self.assertIsNone(self.agent._ctx.storage.get("shutdown"))
+
+    def test_agent_on_rest_get(self):
+        @self.agent.on_rest_get("/get", Response)
+        def _(_ctx: Context):
+            return {}
+
+        rest_handlers = self.agent._server._rest_handler_map
+        get_handlers = [
+            handler for handler in rest_handlers.values() if handler.method == "GET"
+        ]
+        self.assertEqual(len(get_handlers), 1)
+
+        handler = rest_handlers[(self.agent.address, "GET", "/get")]
+        self.assertTrue(isinstance(handler, RestHandlerDetails))
+        self.assertEqual(handler.method, "GET")
+        self.assertIsNone(handler.request_model)
+        self.assertEqual(handler.response_model, Response)
+
+    def test_agent_on_rest_post(self):
+        @self.agent.on_rest_post("/post", Message, Response)
+        def _(_ctx: Context, _req: Message):
+            return Response(response="test")
+
+        rest_handlers = self.agent._server._rest_handler_map
+        post_handlers = [
+            handler for handler in rest_handlers.values() if handler.method == "POST"
+        ]
+        self.assertEqual(len(post_handlers), 1)
+
+        handler = rest_handlers[(self.agent.address, "POST", "/post")]
+        self.assertTrue(isinstance(handler, RestHandlerDetails))
+        self.assertEqual(handler.method, "POST")
+        self.assertEqual(handler.request_model, Message)
+        self.assertEqual(handler.response_model, Response)

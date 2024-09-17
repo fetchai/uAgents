@@ -78,7 +78,7 @@ def extractKeywords(text: str, url: str):
 
 def compare_websites_for_keywords(superior_page: Document, inferior_page: Document, keywords: List[str]) -> str:
 	"""
-	Compares 2 websites based on keywords and return a assesment why one is better ranked than the other
+	Compares 2 websites based on keywords and return a assessment why one is better ranked than the other
 	"""
    
 	prompt = f"""

@@ -24,7 +24,7 @@ from cosmpy.crypto.address import Address
 from pydantic import ValidationError
 
 from uagents.asgi import ASGIServer
-from uagents.communication import Dispenser, MsgDigest
+from uagents.communication import Dispenser
 from uagents.config import (
     ALMANAC_CONTRACT_VERSION,
     AVERAGE_BLOCK_INTERVAL,
@@ -33,20 +33,13 @@ from uagents.config import (
     REGISTRATION_RETRY_INTERVAL_SECONDS,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     TESTNET_PREFIX,
-    AgentEndpoint,
     parse_agentverse_config,
     parse_endpoint_config,
 )
-from uagents.context import (
-    Context,
-    EventCallback,
-    ExternalContext,
-    InternalContext,
-    IntervalCallback,
-    MessageCallback,
-)
+from uagents.context import Context, ExternalContext, InternalContext
 from uagents.crypto import Identity, derive_key_from_seed, is_user_address
-from uagents.dispatch import JsonStr, Sink, dispatcher
+from uagents.dispatch import Sink, dispatcher
+from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
 from uagents.mailbox import MailboxClient
 from uagents.models import ErrorMessage, Model
 from uagents.network import (
@@ -61,6 +54,20 @@ from uagents.registration import (
 )
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
+from uagents.types import (
+    AgentEndpoint,
+    AgentInfo,
+    EventCallback,
+    IntervalCallback,
+    JsonStr,
+    MessageCallback,
+    MsgDigest,
+    RestGetHandler,
+    RestHandler,
+    RestHandlerMap,
+    RestMethod,
+    RestPostHandler,
+)
 from uagents.utils import get_logger
 
 
@@ -215,6 +222,7 @@ class Agent(Sink):
         _signed_message_handlers (Dict[str, MessageCallback]): Handlers for signed messages.
         _unsigned_message_handlers (Dict[str, MessageCallback]): Handlers for
         unsigned messages.
+        _message_cache (EnvelopeHistory): History of messages received by the agent.
         _models (Dict[str, Type[Model]]): Dictionary mapping supported message digests to messages.
         _replies (Dict[str, Dict[str, Type[Model]]]): Dictionary of allowed replies for each type
         of incoming message.
@@ -232,6 +240,7 @@ class Agent(Sink):
         corresponding protocols.
         _ctx (Context): The context for agent interactions.
         _test (bool): True if the agent will register and transact on the testnet.
+        _enable_agent_inspector (bool): Enable the agent inspector REST endpoints.
 
     Properties:
         name (str): The name of the agent.
@@ -264,6 +273,7 @@ class Agent(Sink):
         test: bool = True,
         loop: Optional[asyncio.AbstractEventLoop] = None,
         log_level: Union[int, str] = logging.INFO,
+        enable_agent_inspector: bool = True,
     ):
         """
         Initialize an Agent instance.
@@ -285,9 +295,11 @@ class Agent(Sink):
             test (Optional[bool]): True if the agent will register and transact on the testnet.
             loop (Optional[asyncio.AbstractEventLoop]): The asyncio event loop to use.
             log_level (Union[int, str]): The logging level for the agent.
+            enable_agent_inspector (bool): Enable the agent inspector for debugging.
         """
+        self._init_done = False
         self._name = name
-        self._port = port if port is not None else 8000
+        self._port = port or 8000
 
         self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
 
@@ -314,11 +326,9 @@ class Agent(Sink):
             self._mailbox_client = MailboxClient(self, self._logger)
             # if mailbox is provided, override endpoints with mailbox endpoint
             self._endpoints = [
-                AgentEndpoint.model_validate(
-                    {
-                        "url": f"{self.mailbox['http_prefix']}://{self.mailbox['base_url']}/v1/submit",
-                        "weight": 1,
-                    }
+                AgentEndpoint(
+                    url=f"{self.mailbox['http_prefix']}://{self.mailbox['base_url']}/v1/submit",
+                    weight=1,
                 )
             ]
         else:
@@ -337,11 +347,13 @@ class Agent(Sink):
         self._interval_messages: Set[str] = set()
         self._signed_message_handlers: Dict[str, MessageCallback] = {}
         self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
+        self._message_cache: EnvelopeHistory = EnvelopeHistory(envelopes=[])
+        self._rest_handlers: RestHandlerMap = {}
         self._models: Dict[str, Type[Model]] = {}
         self._replies: Dict[str, Dict[str, Type[Model]]] = {}
         self._queries: Dict[str, asyncio.Future] = {}
         self._dispatcher = dispatcher
-        self._dispenser = Dispenser()
+        self._dispenser = Dispenser(msg_cache_ref=self._message_cache)
         self._message_queue = asyncio.Queue()
         self._on_startup = []
         self._on_shutdown = []
@@ -383,15 +395,36 @@ class Agent(Sink):
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
 
-        if not self._use_mailbox:
-            self._server = ASGIServer(
-                self._port, self._loop, self._queries, logger=self._logger
-            )
+        self._server = ASGIServer(
+            port=self._port,
+            loop=self._loop,
+            queries=self._queries,
+            logger=self._logger,
+        )
 
         # define default error message handler
         @self.on_message(ErrorMessage)
         async def _handle_error_message(ctx: Context, sender: str, msg: ErrorMessage):
             ctx.logger.exception(f"Received error message from {sender}: {msg.error}")
+
+        # define default rest message handlers if agent inspector is enabled
+        if enable_agent_inspector:
+
+            @self.on_rest_get("/agent_info", AgentInfo)  # type: ignore
+            async def _handle_get_info(_ctx: Context):
+                return AgentInfo(
+                    agent_address=self.address,
+                    endpoints=self._endpoints,
+                    protocols=list(self.protocols.keys()),
+                )
+
+            @self.on_rest_get("/messages", EnvelopeHistory)  # type: ignore
+            async def _handle_get_messages(_ctx: Context):
+                return self._message_cache
+
+        self._enable_agent_inspector = enable_agent_inspector
+
+        self._init_done = True
 
     def _initialize_wallet_and_identity(self, seed, name, wallet_key_derivation_index):
         """
@@ -795,6 +828,42 @@ class Agent(Sink):
 
         return decorator_on_event
 
+    def _on_rest(
+        self,
+        method: RestMethod,
+        endpoint: str,
+        request: Optional[Type[Model]],
+        response: Type[Model],
+    ):
+        if self._init_done and self._server.has_rest_endpoint(method, endpoint):
+            self._logger.warning(
+                f"Discarding duplicate REST endpoint: {method} {endpoint}"
+            )
+            return lambda func: func
+
+        def decorator_on_rest(func: RestHandler):
+            @functools.wraps(RestGetHandler if method == "GET" else RestPostHandler)
+            def handler(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            self._rest_handlers[(method, endpoint)] = handler
+
+            self._server.add_rest_endpoint(
+                self.address, method, endpoint, request, response
+            )
+
+            return handler
+
+        return decorator_on_rest
+
+    def on_rest_get(self, endpoint: str, response: Type[Model]):
+        return self._on_rest("GET", endpoint, None, response)
+
+    def on_rest_post(
+        self, endpoint: str, request: Optional[Type[Model]], response: Type[Model]
+    ):
+        return self._on_rest("POST", endpoint, request, response)
+
     def _add_event_handler(
         self,
         event_type: str,
@@ -912,6 +981,26 @@ class Agent(Sink):
         """
         await self._message_queue.put((schema_digest, sender, message, session))
 
+    async def handle_rest(
+        self, method: RestMethod, endpoint: str, message: Optional[Model]
+    ) -> Optional[Union[Dict[str, Any], Model]]:
+        """
+        Handle a REST request.
+
+        Args:
+            method (RestMethod): The REST method.
+            endpoint (str): The REST endpoint.
+            message (Model): The message content.
+
+        """
+        handler = self._rest_handlers.get((method, endpoint))
+        if not handler:
+            return None
+
+        args = (self._ctx, message) if message else (self._ctx,)
+
+        return await handler(*args)  # type: ignore
+
     async def _startup(self):
         """
         Perform startup actions.
@@ -990,17 +1079,35 @@ class Agent(Sink):
             ]:
                 self._loop.create_task(task)
 
+    async def start_server(self):
+        """
+        Start the agent's server.
+
+        """
+        if self._enable_agent_inspector:
+            inspector_url = f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/inspect"
+            self._logger.debug(
+                f"Agent inspector available at {inspector_url}/?uri=http://127.0.0.1:{self._port}"
+            )
+        await self._server.serve()
+
     async def run_async(self):
         """
         Create all tasks for the agent.
 
         """
         await self.setup()
+
+        tasks = [self.start_server()]
+
+        # remove server task if mailbox is enabled and no REST handlers are defined
+        if self._use_mailbox and not self._rest_handlers:
+            _ = tasks.pop()
+        if self._use_mailbox and self._mailbox_client is not None:
+            tasks.append(self._mailbox_client.run())
+
         try:
-            if self._use_mailbox and self._mailbox_client is not None:
-                await self._mailbox_client.run()
-            else:
-                await self._server.serve()
+            await asyncio.gather(*tasks)
         finally:
             await self._shutdown()
 
@@ -1040,6 +1147,21 @@ class Agent(Sink):
                 )
                 continue
 
+            protocol_info = self.get_message_protocol(schema_digest)
+            protocol_digest = protocol_info[0] if protocol_info else None
+
+            self._message_cache.add_entry(
+                EnvelopeHistoryEntry(
+                    version=1,
+                    sender=sender,
+                    target=self.address,
+                    session=session,
+                    schema_digest=schema_digest,
+                    protocol_digest=protocol_digest,
+                    payload=message,
+                )
+            )
+
             context = ExternalContext(
                 agent=self._ctx.agent,
                 storage=self._storage,
@@ -1054,7 +1176,7 @@ class Agent(Sink):
                 message_received=MsgDigest(
                     message=message, schema_digest=schema_digest
                 ),
-                protocol=self.get_message_protocol(schema_digest),
+                protocol=protocol_info,
             )
 
             # parse the received message
@@ -1100,6 +1222,7 @@ class Agent(Sink):
 
 
 class Bureau:
+    # pylint: disable=protected-access
     """
     A class representing a Bureau of agents.
 
@@ -1148,7 +1271,12 @@ class Bureau:
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
         self._logger = get_logger("bureau", log_level)
-        self._server = ASGIServer(self._port, self._loop, self._queries, self._logger)
+        self._server = ASGIServer(
+            port=self._port,
+            loop=self._loop,
+            queries=self._queries,
+            logger=self._logger,
+        )
         self._use_mailbox = False
 
         if agents is not None:
@@ -1171,6 +1299,7 @@ class Bureau:
             self._use_mailbox = True
         else:
             agent.update_endpoints(self._endpoints)
+        self._server._rest_handler_map.update(agent._server._rest_handler_map)
         self._agents.append(agent)
 
     async def run_async(self):
@@ -1178,18 +1307,11 @@ class Bureau:
         Run the agents managed by the bureau.
 
         """
-        tasks = []
+        tasks = [self._server.serve()]
         for agent in self._agents:
             await agent.setup()
             if agent.agentverse["use_mailbox"] and agent.mailbox_client is not None:
-                tasks.append(
-                    self._loop.create_task(
-                        agent.mailbox_client.process_deletion_queue()
-                    )
-                )
-                tasks.append(self._loop.create_task(agent.mailbox_client.run()))
-        if not self._use_mailbox:
-            tasks.append(self._loop.create_task(self._server.serve()))
+                tasks.append(agent.mailbox_client.run())
 
         try:
             await asyncio.gather(*tasks)

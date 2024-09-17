@@ -141,6 +141,7 @@ An agent that interacts within a communication environment.
 - `_signed_message_handlers` _Dict[str, MessageCallback]_ - Handlers for signed messages.
 - `_unsigned_message_handlers` _Dict[str, MessageCallback]_ - Handlers for
   unsigned messages.
+- `_message_cache` _EnvelopeHistory_ - History of messages received by the agent.
 - `_models` _Dict[str, Type[Model]]_ - Dictionary mapping supported message digests to messages.
 - `_replies` _Dict[str, Dict[str, Type[Model]]]_ - Dictionary of allowed replies for each type
   of incoming message.
@@ -183,13 +184,15 @@ def __init__(name: Optional[str] = None,
              agentverse: Optional[Union[str, Dict[str, str]]] = None,
              mailbox: Optional[Union[str, Dict[str, str]]] = None,
              resolve: Optional[Resolver] = None,
+             registration_policy: Optional[AgentRegistrationPolicy] = None,
              enable_wallet_messaging: Union[bool, Dict[str, str]] = False,
              wallet_key_derivation_index: Optional[int] = 0,
              max_resolver_endpoints: Optional[int] = None,
              version: Optional[str] = None,
              test: bool = True,
              loop: Optional[asyncio.AbstractEventLoop] = None,
-             log_level: Union[int, str] = logging.INFO)
+             log_level: Union[int, str] = logging.INFO,
+             enable_agent_inspector: bool = True)
 ```
 
 Initialize an Agent instance.
@@ -212,6 +215,7 @@ Initialize an Agent instance.
 - `test` _Optional[bool]_ - True if the agent will register and transact on the testnet.
 - `loop` _Optional[asyncio.AbstractEventLoop]_ - The asyncio event loop to use.
 - `log_level` _Union[int, str]_ - The logging level for the agent.
+- `enable_agent_inspector` _bool_ - Enable the agent inspector for debugging.
 
 <a id="src.uagents.agent.Agent.initialize_wallet_messaging"></a>
 
@@ -462,7 +466,6 @@ Sign the registration data for Almanac contract.
 **Returns**:
 
 - `str` - The signature of the registration data.
-  
 
 **Raises**:
 
@@ -671,12 +674,30 @@ Handle an incoming message.
 - `message` _JsonStr_ - The message content in JSON format.
 - `session` _uuid.UUID_ - The session UUID.
 
+<a id="src.uagents.agent.Agent.handle_rest"></a>
+
+#### handle`_`rest
+
+```python
+async def handle_rest(
+        method: RestMethod, endpoint: str,
+        message: Optional[Model]) -> Optional[Union[Dict[str, Any], Model]]
+```
+
+Handle a REST request.
+
+**Arguments**:
+
+- `method` _RestMethod_ - The REST method.
+- `endpoint` _str_ - The REST endpoint.
+- `message` _Model_ - The message content.
+
 <a id="src.uagents.agent.Agent.setup"></a>
 
 #### setup
 
 ```python
-def setup()
+async def setup()
 ```
 
 Include the internal agent protocol, run startup tasks, and start background tasks.
@@ -710,6 +731,16 @@ def start_message_receivers()
 ```
 
 Start message receiving tasks for the agent.
+
+<a id="src.uagents.agent.Agent.run_async"></a>
+
+#### run`_`async
+
+```python
+async def run_async()
+```
+
+Create all tasks for the agent.
 
 <a id="src.uagents.agent.Agent.run"></a>
 
@@ -774,6 +805,7 @@ This class manages a collection of agents and orchestrates their execution.
 def __init__(agents: Optional[List[Agent]] = None,
              port: Optional[int] = None,
              endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
+             loop: Optional[asyncio.AbstractEventLoop] = None,
              log_level: Union[int, str] = logging.INFO)
 ```
 
@@ -799,6 +831,16 @@ Add an agent to the bureau.
 
 - `agent` _Agent_ - The agent to be added.
 
+<a id="src.uagents.agent.Bureau.run_async"></a>
+
+#### run`_`async
+
+```python
+async def run_async()
+```
+
+Run the agents managed by the bureau.
+
 <a id="src.uagents.agent.Bureau.run"></a>
 
 #### run
@@ -807,5 +849,5 @@ Add an agent to the bureau.
 def run()
 ```
 
-Run the agents managed by the bureau.
+Run the bureau.
 
