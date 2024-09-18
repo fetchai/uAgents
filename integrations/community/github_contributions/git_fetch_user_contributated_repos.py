@@ -1,11 +1,10 @@
 import requests
 from ai_engine import UAgentResponse, UAgentResponseType
-from uagents import Agent, Context, Protocol, Model
-from pydantic import Field
+from uagents import Context, Protocol, Model
 
 class Github_User_Query(Model):
-    username: str = Field("Please enter the username of the Github account to query.")
-    token: str = Field("Please enter your Github token.")
+    username: str
+    token: str
 
 github_contribution_protocol = Protocol("Github User Contribution Protocol")
 
@@ -23,7 +22,6 @@ async def fetch_github_user_contributions(username, token):
                     }}
                 }}
             }}"""
-    print(query)
 
     response = requests.post(url, headers=headers, json={"query": query})
 
@@ -43,8 +41,6 @@ async def get_repo_names(ctx: Context, sender: str, msg: Github_User_Query):
     else:
         repoStr = "\n".join(repos)
         rsp = f"{msg.username} has contributed {len(repos)} external repositories:\n{repoStr}"
-    await ctx.send(sender, UAgentResponse(message=rsp, type= UAgentResponseType.FINAL))
+    await ctx.send(sender, UAgentResponse(message=rsp, type=UAgentResponseType.FINAL))
 
-agent = Agent("Contribution Agent", seed="contribution agent seed phrase")
 agent.include(github_contribution_protocol, publish_manifest=True)
-agent.run()
