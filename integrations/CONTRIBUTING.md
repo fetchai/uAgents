@@ -30,6 +30,8 @@ When opening a PR please adhere to the following naming scheme where the type wo
 <type>(integration): <title>
 ```
 
+Please add your integrations to the community folder `integrations/community/`
+
 ### types
 
 - **chore**: Commits that don't directly add features, fix bugs, or refactor code, but rather maintain the project or its surrounding processes.

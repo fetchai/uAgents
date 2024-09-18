@@ -4,5 +4,6 @@ repos:
     files: ^python/
     hooks:
       - id: ruff
+        exclude: ^(integrations/.*)
         args: [--fix]
       - id: ruff-format
