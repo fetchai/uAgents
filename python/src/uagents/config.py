@@ -1,4 +1,7 @@
-from typing import Dict, List, Optional, Union
+import os
+from typing import Dict, Iterator, List, Optional, Union
+
+import yaml
 
 from uagents.types import AgentEndpoint
 
@@ -104,3 +107,27 @@ def parse_agentverse_config(
         "http_prefix": http_prefix,
         "use_mailbox": agent_mailbox_key is not None,
     }
+
+
+def load_config(path: str) -> dict:
+    """
+    Load agent config from a yaml file.
+
+    path (dict): Path to the config file. Example: "etc/config.yaml"
+    """
+
+    realpath = os.path.join(os.path.dirname(__file__), path)
+    with open(realpath, encoding="utf-8") as file:
+        return yaml.safe_load(file)
+
+
+def load_configs(path: str) -> Iterator[dict]:
+    """
+    Load multiple agent configs from a single yaml file.
+
+    path (Iterator[dict]): Path to the config file. Example: "etc/config.yaml"
+    """
+
+    realpath = os.path.join(os.path.dirname(__file__), path)
+    with open(realpath, encoding="utf-8") as file:
+        return yaml.safe_load_all(file)

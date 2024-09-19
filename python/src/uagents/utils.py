@@ -5,6 +5,8 @@ from typing import Optional, Union
 from uvicorn.logging import DefaultFormatter
 
 logging.basicConfig(level=logging.INFO)
+formatter = DefaultFormatter(fmt="%(levelprefix)s [%(name)5s]: %(message)s")
+file_formatter = DefaultFormatter(fmt="%(asctime)s [%(name)5s]: %(message)s")
 
 
 def get_logger(logger_name: str, level: Union[int, str] = logging.INFO):
@@ -12,10 +14,11 @@ def get_logger(logger_name: str, level: Union[int, str] = logging.INFO):
     logger = logging.getLogger(logger_name)
     logger.setLevel(level)
     log_handler = logging.StreamHandler(sys.stdout)
-    log_handler.setFormatter(
-        DefaultFormatter(fmt="%(levelprefix)s [%(name)5s]: %(message)s")
-    )
+    log_handler.setFormatter(formatter)
+    file_handler = logging.FileHandler("agent.log")
+    file_handler.setFormatter(formatter)
     logger.addHandler(log_handler)
+    logger.addHandler(file_handler)
     logger.propagate = False
     return logger
 

@@ -1,0 +1,8 @@
+name: "bert"
+port: 8000
+seed: "this is my magic number wtf apple pony rainbow"
+endpoint: "http://localhost:8000/submit"
+# enable_wallet_messaging: false
+version: "v20.0.9"
+log_level: "DEBUG"
+# log_file: "./${timestamp}_${agent_address}.log"

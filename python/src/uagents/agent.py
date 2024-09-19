@@ -21,7 +21,7 @@ import requests
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
-from pydantic import ValidationError
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from uagents.asgi import ASGIServer
 from uagents.communication import Dispenser
@@ -33,6 +33,7 @@ from uagents.config import (
     REGISTRATION_RETRY_INTERVAL_SECONDS,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     TESTNET_PREFIX,
+    load_config,
     parse_agentverse_config,
     parse_endpoint_config,
 )
@@ -198,6 +199,39 @@ class AgentRepresentation:
         return self._signing_callback(data)
 
 
+class AgentConfig(BaseModel):
+    name: Optional[str] = None
+    port: Optional[int] = None
+    seed: Optional[str] = None
+    endpoint: Optional[str | dict[str, str] | list[str]] = None
+    agentverse: Optional[str | dict[str, str]] = None
+    mailbox: Optional[str | dict[str, str]] = None
+    resolve: Optional[Resolver] = None
+    registration_policy: Optional[AgentRegistrationPolicy] = None
+    enable_wallet_messaging: bool | dict[str, str] = False
+    wallet_key_derivation_index: Optional[int] = 0
+    max_resolver_endpoints: Optional[int] = None
+    version: Optional[str] = None
+    test: bool = True
+    loop: Optional[asyncio.AbstractEventLoop] = None
+    log_level: int | str = logging.INFO
+    enable_agent_inspector: bool = True
+    log_file: Optional[str] = "./${timestamp}_${agent_address}.log"
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    def __dict__(self):
+        return self.model_dump()
+
+    def create_agent(self) -> "Agent":
+        return Agent(**self.model_dump())
+
+    @classmethod
+    def from_file(cls, path: str):
+        params = load_config(path)
+        return cls(**params)
+
+
 class Agent(Sink):
     """
     An agent that interacts within a communication environment.
@@ -274,6 +308,7 @@ class Agent(Sink):
         loop: Optional[asyncio.AbstractEventLoop] = None,
         log_level: Union[int, str] = logging.INFO,
         enable_agent_inspector: bool = True,
+        config: AgentConfig | None = None,
     ):
         """
         Initialize an Agent instance.
@@ -298,6 +333,8 @@ class Agent(Sink):
             enable_agent_inspector (bool): Enable the agent inspector for debugging.
         """
         self._init_done = False
+        self.config = config
+
         self._name = name
         self._port = port or 8000
 
@@ -1107,6 +1144,7 @@ class Agent(Sink):
             tasks.append(self._mailbox_client.run())
 
         try:
+            self._logger.info(f"Starting Agent {self.name} with address {self.address}")
             await asyncio.gather(*tasks)
         finally:
             await self._shutdown()
