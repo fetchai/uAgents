@@ -110,7 +110,7 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
                         raise e
 
                     # generate a backoff time starting from 0.128 seconds and limited to ~131 seconds
-                    backoff = (2 ** (max(retry, 10) + 7)) / 1000
+                    backoff = (2 ** (min(retry, 11) + 6)) / 1000
                     await asyncio.sleep(backoff)
 
 
