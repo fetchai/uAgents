@@ -71,7 +71,12 @@ from uagents.types import (
 from uagents.utils import get_logger
 
 
-async def _run_interval(func: IntervalCallback, logger: logging.Logger, context_factory: ContextFactory, period: float):
+async def _run_interval(
+    func: IntervalCallback,
+    logger: logging.Logger,
+    context_factory: ContextFactory,
+    period: float,
+):
     """
     Run the provided interval callback function at a specified period.
 
@@ -1073,7 +1078,9 @@ class Agent(Sink):
 
         """
         for func, period in self._interval_handlers:
-            self._loop.create_task(_run_interval(func, self._logger, self._build_context, period))
+            self._loop.create_task(
+                _run_interval(func, self._logger, self._build_context, period)
+            )
 
     def start_message_receivers(self):
         """
@@ -1087,7 +1094,9 @@ class Agent(Sink):
         if self._wallet_messaging_client is not None:
             for task in [
                 self._wallet_messaging_client.poll_server(),
-                self._wallet_messaging_client.process_message_queue(self._build_context),
+                self._wallet_messaging_client.process_message_queue(
+                    self._build_context
+                ),
             ]:
                 self._loop.create_task(task)
 
