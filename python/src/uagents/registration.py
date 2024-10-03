@@ -109,6 +109,11 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
                     if retry == self._max_retries - 1:
                         raise e
 
+                    # generate a backoff time starting from 0.128 seconds and limited
+                    # to ~131 seconds
+                    backoff = (2 ** (min(retry, 11) + 6)) / 1000
+                    await asyncio.sleep(backoff)
+
 
 class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
     def __init__(
