@@ -16,7 +16,7 @@ from typing import (
     Set,
     Tuple,
     Type,
-    Union,
+    Union, Callable,
 )
 
 import requests
@@ -670,3 +670,6 @@ class ExternalContext(InternalContext):
             protocol_digest=self._protocol[0],
             queries=self._queries,
         )
+
+
+ContextFactory = Callable[[], Context]

@@ -36,7 +36,7 @@ from uagents.config import (
     parse_agentverse_config,
     parse_endpoint_config,
 )
-from uagents.context import Context, ExternalContext, InternalContext
+from uagents.context import Context, ExternalContext, InternalContext, ContextFactory
 from uagents.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents.dispatch import Sink, dispatcher
 from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
@@ -71,7 +71,7 @@ from uagents.types import (
 from uagents.utils import get_logger
 
 
-async def _run_interval(func: IntervalCallback, agent: "Agent", period: float):
+async def _run_interval(func: IntervalCallback, logger: logging.Logger, context_factory: ContextFactory, period: float):
     """
     Run the provided interval callback function at a specified period.
 
@@ -80,11 +80,9 @@ async def _run_interval(func: IntervalCallback, agent: "Agent", period: float):
         agent (Agent): The agent that is running the interval callback.
         period (float): The time period at which to run the callback function.
     """
-    logger = agent._logger
-
     while True:
         try:
-            ctx = agent._build_context()
+            ctx = context_factory()
             await func(ctx)
         except OSError as ex:
             logger.exception(f"OS Error in interval handler: {ex}")
@@ -1075,7 +1073,7 @@ class Agent(Sink):
 
         """
         for func, period in self._interval_handlers:
-            self._loop.create_task(_run_interval(func, self, period))
+            self._loop.create_task(_run_interval(func, self._logger, self._build_context, period))
 
     def start_message_receivers(self):
         """
@@ -1089,7 +1087,7 @@ class Agent(Sink):
         if self._wallet_messaging_client is not None:
             for task in [
                 self._wallet_messaging_client.poll_server(),
-                self._wallet_messaging_client.process_message_queue(self),
+                self._wallet_messaging_client.process_message_queue(self._build_context),
             ]:
                 self._loop.create_task(task)
 

@@ -14,6 +14,7 @@ from uagents.config import WALLET_MESSAGING_POLL_INTERVAL_SECONDS
 from uagents.crypto import Identity
 from uagents.types import WalletMessageCallback
 from uagents.utils import get_logger
+from uagents.context import ContextFactory
 
 
 class WalletMessagingClient:
@@ -78,9 +79,11 @@ class WalletMessagingClient:
                 )
             await asyncio.sleep(self._poll_interval)
 
-    async def process_message_queue(self, agent: "Agent"):  # noqa: F821
+    async def process_message_queue(
+        self, context_factory: ContextFactory
+    ):  # noqa: F821
         while True:
             msg: WalletMessage = await self._message_queue.get()
             for handler in self._message_handlers:
-                ctx = agent._build_context()
+                ctx = context_factory()
                 await handler(ctx, msg)
