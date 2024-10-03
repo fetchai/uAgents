@@ -10,13 +10,14 @@ from time import time
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Dict,
     List,
     Optional,
     Set,
     Tuple,
     Type,
-    Union, Callable,
+    Union,
 )
 
 import requests

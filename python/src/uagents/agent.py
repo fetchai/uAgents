@@ -36,7 +36,7 @@ from uagents.config import (
     parse_agentverse_config,
     parse_endpoint_config,
 )
-from uagents.context import Context, ExternalContext, InternalContext, ContextFactory
+from uagents.context import Context, ContextFactory, ExternalContext, InternalContext
 from uagents.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents.dispatch import Sink, dispatcher
 from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
