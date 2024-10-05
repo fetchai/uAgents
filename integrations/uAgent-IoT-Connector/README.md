@@ -7,7 +7,8 @@ The   uAgent IoT Connector bridges several powerful technologies to create a rob
 
 ## Architecture Design
 
-![chrome_8gCeOCHszO](https://github.com/user-attachments/assets/1eb6e0e7-7201-46c7-87ec-f6478c3554e5)
+![image](https://github.com/user-attachments/assets/b464731e-3f7e-4274-bcb5-03f260a5dab1)
+
 
 ## Key Components:
 1. ESP32 Microcontroller: At the heart of this system, ESP32 is responsible for collecting sensor data from connected modules, including the MPU6050 (a motion-tracking device) and the Ublox Neo-6m GPS (for location tracking). The data is then transmitted via MQTT for further analysis or control operations.
@@ -22,11 +23,26 @@ The   uAgent IoT Connector bridges several powerful technologies to create a rob
    - MPU6050: A motion tracking device that captures accelerometer and gyroscope data, providing key metrics for movement or orientation-based applications.
    -  Ublox Neo-6m GPS: A GPS module that provides accurate location data, which is transmitted via the ESP32 for tracking purposes.
 
+## Communication Flow:
+1. Sensor Data Collection: The ESP32 collects real-time data from the MPU6050 motion sensor and the Ublox GPS module.
 
+2. MQTT Publish/Subscribe:
+  - The ESP32 publishes sensor data to topics on the MQTT broker hosted on AWS EC2.
+  - Multiple clients, including the Next.js frontend, Node.js socket server, and Fetch.ai uAgent, subscribe to the ESP32’s data streams.
+  - The MQTT broker ensures efficient routing of messages to all subscribed clients.
+
+3. Frontend Communication: The Node.js Socket server handles communication between the MQTT broker and the Next.js frontend, ensuring real-time data visualization and control capabilities.
+
+4. Fetch.ai uAgent: The uAgent listens for specific events or requests and interacts with the ESP32 accordingly, leveraging the Fetch.ai DeltaV platform for additional computational or decision-making tasks.
 
 
 ## Working on DeltaV
-![chrome_8i7w3JbuAG](https://github.com/AleenDhar/Youtube-shorts-creation/assets/86429480/8a300920-08f0-4a8c-a5ac-5496a42d17a6)
+
+
+
+
+
+https://github.com/user-attachments/assets/ead8fd2b-f193-4985-aa89-e49f885ec9bd
 
 
 
@@ -34,15 +50,9 @@ The   uAgent IoT Connector bridges several powerful technologies to create a rob
 1. In the main directory install all dependencies
 
     ```bash
-    python -m poetry install
+    
+    pip install uagents
+    pip install paho-mqtt
     ```
 
 
-## Running The Main Script
-
-To run the project, use the command:
-
-    ```
-    cd src
-    pyhton -m poetry run python main.py
-    ```
