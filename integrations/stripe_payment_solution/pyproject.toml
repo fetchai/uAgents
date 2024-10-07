@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "general-use-payment-stripe-solution"
+version = "0.1.0"
+description = "General Use Payment Solution with Stripe and Fetch.AI Agents"
+authors = ["Neeraj Bansal <neerajkrbansal1996@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+uagents = { version = "^0.15.2", python = ">=3.10,<3.13" }
+uagents-ai-engine = { version = "^0.5.0", python = ">=3.10,<3.12" }
+stripe = "^10.7.0"
+Flask = { extras = ["async"], version = "^3.0.3" }
+python-dotenv = "^1.0.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
