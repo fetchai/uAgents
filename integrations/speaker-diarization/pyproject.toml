@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "speaker_diarization"
+version = "0.1.0"
+description = "The Speaker Diarization 3.1 model by Hugging Face identifies and separates different speakers in an audio recording."
+authors = ["Pradhumn"]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+python-dotenv = "1.0.1"
+uagents = "0.14.0"
+uagents-ai-engine = "0.4.0"
+pyannote-audio = "3.3.1"
+torchaudio = "2.4.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
