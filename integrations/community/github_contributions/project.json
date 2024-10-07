@@ -1,6 +1,0 @@
-{
-    "title": "GitHub Contribution Fetcher",
-    "description": "This integration uses GitHubs GraphQL API to fetch the repos that a user has contributed too.",
-    "categories":    ["Contribution", "Github", "Repository"],
-    "deltav": true
-}

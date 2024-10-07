@@ -1,6 +1,0 @@
-{
-    "title": "Speaker Diarization",
-    "description": "The Speaker Diarization 3.1 model by Hugging Face identifies and separates different speakers in an audio recording.",
-    "categories":    ["Hugging Face", "DeltaV"],
-    "deltav": true
-}

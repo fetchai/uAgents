@@ -1,6 +1,0 @@
-{
-  "title": "GitHub User Public Repository Integration",
-  "description": "Query all public repositories from a user",
-  "categories":   ["Repository", "GitHub"],
-  "deltav": true
-}

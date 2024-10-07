@@ -1,9 +1,0 @@
-.idea/
-*.py[cgo]
-_pycache_
-!project.json
-dist/
-*.sqlite3
-.DS_Store
-.env
-.history/*

@@ -1,6 +1,0 @@
-The following packages need to be installed in order to run the code:
-
-uagents
-SpeechRecognition
-google.generativeai
-PyAudio
