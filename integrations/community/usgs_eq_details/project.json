@@ -1,0 +1,6 @@
+{
+  "title": "USGS Earthquake Details Integration",
+  "description": "Query the USGS public API for details on a specfic earthquake.",
+  "categories":   ["USGS", "Earthquake"],
+  "deltav": true
+}

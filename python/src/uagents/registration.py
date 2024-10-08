@@ -32,11 +32,21 @@ class AgentRegistrationPolicy(ABC):
         pass
 
 
+class AgentGeoLocation(BaseModel):
+    # Latitude and longitude of the agent
+    latitude: float
+    longitude: float
+
+    # Radius around the agent location, expressed in meters
+    radius: float
+
+
 class AgentRegistrationAttestation(BaseModel):
     agent_address: str
     protocols: List[str]
     endpoints: List[AgentEndpoint]
     signature: Optional[str] = None
+    location: Optional[AgentGeoLocation] = None
 
     def sign(self, identity: Identity):
         digest = self._build_digest()
@@ -108,6 +118,11 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
                 except (aiohttp.ClientError, asyncio.exceptions.TimeoutError) as e:
                     if retry == self._max_retries - 1:
                         raise e
+
+                    # generate a backoff time starting from 0.128 seconds and limited
+                    # to ~131 seconds
+                    backoff = (2 ** (min(retry, 11) + 6)) / 1000
+                    await asyncio.sleep(backoff)
 
 
 class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
