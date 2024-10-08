@@ -159,6 +159,7 @@ An agent that interacts within a communication environment.
   corresponding protocols.
 - `_ctx` _Context_ - The context for agent interactions.
 - `_test` _bool_ - True if the agent will register and transact on the testnet.
+- `_enable_agent_inspector` _bool_ - Enable the agent inspector REST endpoints.
   
   Properties:
 - `name` _str_ - The name of the agent.
@@ -731,6 +732,16 @@ def start_message_receivers()
 ```
 
 Start message receiving tasks for the agent.
+
+<a id="src.uagents.agent.Agent.start_server"></a>
+
+#### start`_`server
+
+```python
+async def start_server()
+```
+
+Start the agent's server.
 
 <a id="src.uagents.agent.Agent.run_async"></a>
 
