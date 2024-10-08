@@ -20,7 +20,7 @@ from uagents.config import (
 )
 from uagents.crypto import Identity
 from uagents.network import AlmanacContract, InsufficientFundsError, add_testnet_funds
-from uagents.types import AgentEndpoint
+from uagents.types import AgentEndpoint, AgentGeoLocation
 
 
 class AgentRegistrationPolicy(ABC):
@@ -30,15 +30,6 @@ class AgentRegistrationPolicy(ABC):
         self, agent_address: str, protocols: List[str], endpoints: List[AgentEndpoint]
     ):
         pass
-
-
-class AgentGeoLocation(BaseModel):
-    # Latitude and longitude of the agent
-    latitude: float
-    longitude: float
-
-    # Radius around the agent location, expressed in meters
-    radius: float
 
 
 class AgentRegistrationAttestation(BaseModel):
