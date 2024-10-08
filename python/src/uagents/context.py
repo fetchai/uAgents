@@ -60,6 +60,7 @@ class Context(ABC):
         storage (KeyValueStore): The key-value store for storage operations.
         ledger (LedgerClient): The client for interacting with the blockchain ledger.
         logger (logging.Logger): The logger instance.
+        session (uuid.UUID): The session UUID associated with the context.
 
     Methods:
         get_agents_by_protocol(protocol_digest, limit, logger): Retrieve a list of agent addresses
@@ -563,7 +564,6 @@ class ExternalContext(InternalContext):
     Attributes:
         _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their
             response Futures.
-        _session (Optional[uuid.UUID]): The session UUID.
         _replies (Optional[Dict[str, Dict[str, Type[Model]]]]): Dictionary of allowed reply digests
             for each type of incoming message.
         _message_received (Optional[MsgDigest]): The message digest received.
@@ -586,7 +586,6 @@ class ExternalContext(InternalContext):
             message_received (MsgDigest): The optional message digest received.
             queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their
                 response Futures.
-            session (Optional[uuid.UUID]): The optional session UUID.
             replies (Optional[Dict[str, Dict[str, Type[Model]]]]): Dictionary of allowed replies
                 for each type of incoming message.
             protocol (Optional[Tuple[str, Protocol]]): The optional Tuple of protocols.

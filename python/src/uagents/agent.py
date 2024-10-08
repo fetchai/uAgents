@@ -82,7 +82,8 @@ async def _run_interval(
 
     Args:
         func (IntervalCallback): The interval callback function to run.
-        agent (Agent): The agent that is running the interval callback.
+        logger (logging.Logger): The logger instance for logging interval handler activities.
+        context_factory (ContextFactory): The factory function for creating the context.
         period (float): The time period at which to run the callback function.
     """
     while True:
@@ -419,9 +420,10 @@ class Agent(Sink):
 
     def _build_context(self) -> InternalContext:
         """
-        An internal method to build the context for the agent
+        An internal method to build the context for the agent.
 
-        @return:
+        Returns:
+            InternalContext: The internal context for the agent.
         """
         return InternalContext(
             agent=AgentRepresentation(
@@ -1009,8 +1011,8 @@ class Agent(Sink):
         if not handler:
             return None
 
-        context = self._build_context()
-        args = [context]
+        args = []
+        args.append(self._build_context())
         if message:
             args.append(message)
 
@@ -1184,7 +1186,11 @@ class Agent(Sink):
             )
 
             context = ExternalContext(
-                agent=self,
+                agent=AgentRepresentation(
+                    address=self.address,
+                    name=self._name,
+                    signing_callback=self._identity.sign_digest,
+                ),
                 storage=self._storage,
                 ledger=self._ledger,
                 resolver=self._resolver,
