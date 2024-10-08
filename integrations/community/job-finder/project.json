@@ -1,6 +1,0 @@
-{
-    "title": "Job finder",
-    "description": "This integration helps user to find jobs from google according to job description provided.",
-    "categories":    ["OpenAI", "Google", "AI", "Jobs"],
-    "deltav": true
-}

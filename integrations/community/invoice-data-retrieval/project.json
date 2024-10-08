@@ -1,5 +1,0 @@
-{
-    "title": "Invoice Data Retrieval",
-    "description": "This demonstrates an Invoice Data Retrieval agent that utilizes the pdf.ai API to upload and retrieve information from an invoice PDF",
-    "categories":    ["Text Summarization", "Text Generation"]
-}
