@@ -42,6 +42,15 @@ class AgentEndpoint(BaseModel):
     weight: int
 
 
+class AgentGeoLocation(BaseModel):
+    # Latitude and longitude of the agent
+    latitude: float
+    longitude: float
+
+    # Radius around the agent location, expressed in meters
+    radius: float
+
+
 class AgentInfo(BaseModel):
     agent_address: str
     endpoints: List[AgentEndpoint]

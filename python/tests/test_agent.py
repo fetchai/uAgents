@@ -82,7 +82,7 @@ class TestAgent(unittest.TestCase):
         startup_handlers = self.agent._on_startup
         self.assertEqual(len(startup_handlers), 1)
         self.assertTrue(isinstance(startup_handlers[0], Callable))
-        self.assertIsNone(self.agent._ctx.storage.get("startup"))
+        self.assertIsNone(self.agent._storage.get("startup"))
 
     def test_agent_on_shutdown_event(self):
         @self.agent.on_event("shutdown")
@@ -92,7 +92,7 @@ class TestAgent(unittest.TestCase):
         shutdown_handlers = self.agent._on_shutdown
         self.assertEqual(len(shutdown_handlers), 1)
         self.assertTrue(isinstance(shutdown_handlers[0], Callable))
-        self.assertIsNone(self.agent._ctx.storage.get("shutdown"))
+        self.assertIsNone(self.agent._storage.get("shutdown"))
 
     def test_agent_on_rest_get(self):
         @self.agent.on_rest_get("/get", Response)

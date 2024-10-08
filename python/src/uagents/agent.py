@@ -36,7 +36,7 @@ from uagents.config import (
     parse_agentverse_config,
     parse_endpoint_config,
 )
-from uagents.context import Context, ExternalContext, InternalContext
+from uagents.context import Context, ContextFactory, ExternalContext, InternalContext
 from uagents.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents.dispatch import Sink, dispatcher
 from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
@@ -71,24 +71,31 @@ from uagents.types import (
 from uagents.utils import get_logger
 
 
-async def _run_interval(func: IntervalCallback, ctx: Context, period: float):
+async def _run_interval(
+    func: IntervalCallback,
+    logger: logging.Logger,
+    context_factory: ContextFactory,
+    period: float,
+):
     """
     Run the provided interval callback function at a specified period.
 
     Args:
         func (IntervalCallback): The interval callback function to run.
-        ctx (Context): The context for the agent.
+        logger (logging.Logger): The logger instance for logging interval handler activities.
+        context_factory (ContextFactory): The factory function for creating the context.
         period (float): The time period at which to run the callback function.
     """
     while True:
         try:
+            ctx = context_factory()
             await func(ctx)
         except OSError as ex:
-            ctx.logger.exception(f"OS Error in interval handler: {ex}")
+            logger.exception(f"OS Error in interval handler: {ex}")
         except RuntimeError as ex:
-            ctx.logger.exception(f"Runtime Error in interval handler: {ex}")
+            logger.exception(f"Runtime Error in interval handler: {ex}")
         except Exception as ex:
-            ctx.logger.exception(f"Exception in interval handler: {ex}")
+            logger.exception(f"Exception in interval handler: {ex}")
 
         await asyncio.sleep(period)
 
@@ -377,21 +384,6 @@ class Agent(Sink):
         # keep track of supported protocols
         self.protocols: Dict[str, Protocol] = {}
 
-        self._ctx = InternalContext(
-            agent=AgentRepresentation(
-                address=self.address,
-                name=self._name,
-                signing_callback=self._identity.sign_digest,
-            ),
-            storage=self._storage,
-            ledger=self._ledger,
-            resolver=self._resolver,
-            dispenser=self._dispenser,
-            interval_messages=self._interval_messages,
-            wallet_messaging_client=self._wallet_messaging_client,
-            logger=self._logger,
-        )
-
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
 
@@ -425,6 +417,28 @@ class Agent(Sink):
         self._enable_agent_inspector = enable_agent_inspector
 
         self._init_done = True
+
+    def _build_context(self) -> InternalContext:
+        """
+        An internal method to build the context for the agent.
+
+        Returns:
+            InternalContext: The internal context for the agent.
+        """
+        return InternalContext(
+            agent=AgentRepresentation(
+                address=self.address,
+                name=self._name,
+                signing_callback=self._identity.sign_digest,
+            ),
+            storage=self._storage,
+            ledger=self._ledger,
+            resolver=self._resolver,
+            dispenser=self._dispenser,
+            interval_messages=self._interval_messages,
+            wallet_messaging_client=self._wallet_messaging_client,
+            logger=self._logger,
+        )
 
     def _initialize_wallet_and_identity(self, seed, name, wallet_key_derivation_index):
         """
@@ -997,7 +1011,10 @@ class Agent(Sink):
         if not handler:
             return None
 
-        args = (self._ctx, message) if message else (self._ctx,)
+        args = []
+        args.append(self._build_context())
+        if message:
+            args.append(message)
 
         return await handler(*args)  # type: ignore
 
@@ -1015,7 +1032,8 @@ class Agent(Sink):
             )
         for handler in self._on_startup:
             try:
-                await handler(self._ctx)
+                ctx = self._build_context()
+                await handler(ctx)
             except OSError as ex:
                 self._logger.exception(f"OS Error in startup handler: {ex}")
             except RuntimeError as ex:
@@ -1030,7 +1048,8 @@ class Agent(Sink):
         """
         for handler in self._on_shutdown:
             try:
-                await handler(self._ctx)
+                ctx = self._build_context()
+                await handler(ctx)
             except OSError as ex:
                 self._logger.exception(f"OS Error in shutdown handler: {ex}")
             except RuntimeError as ex:
@@ -1061,7 +1080,9 @@ class Agent(Sink):
 
         """
         for func, period in self._interval_handlers:
-            self._loop.create_task(_run_interval(func, self._ctx, period))
+            self._loop.create_task(
+                _run_interval(func, self._logger, self._build_context, period)
+            )
 
     def start_message_receivers(self):
         """
@@ -1075,7 +1096,9 @@ class Agent(Sink):
         if self._wallet_messaging_client is not None:
             for task in [
                 self._wallet_messaging_client.poll_server(),
-                self._wallet_messaging_client.process_message_queue(self._ctx),
+                self._wallet_messaging_client.process_message_queue(
+                    self._build_context
+                ),
             ]:
                 self._loop.create_task(task)
 
@@ -1163,7 +1186,11 @@ class Agent(Sink):
             )
 
             context = ExternalContext(
-                agent=self._ctx.agent,
+                agent=AgentRepresentation(
+                    address=self.address,
+                    name=self._name,
+                    signing_callback=self._identity.sign_digest,
+                ),
                 storage=self._storage,
                 ledger=self._ledger,
                 resolver=self._resolver,
@@ -1178,6 +1205,11 @@ class Agent(Sink):
                 ),
                 protocol=protocol_info,
             )
+
+            # sanity check
+            assert (
+                context.session == session
+            ), "Context object should always have message session"
 
             # parse the received message
             try:

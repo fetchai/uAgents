@@ -19,6 +19,7 @@ agent (AgentRepresentation): The agent representation associated with the contex
 storage (KeyValueStore): The key-value store for storage operations.
 ledger (LedgerClient): The client for interacting with the blockchain ledger.
 logger (logging.Logger): The logger instance.
+session (uuid.UUID): The session UUID associated with the context.
 
 **Methods**:
 
@@ -101,7 +102,7 @@ Get the logger instance associated with the context.
 ```python
 @property
 @abstractmethod
-def session() -> Union[uuid.UUID, None]
+def session() -> uuid.UUID
 ```
 
 Get the session UUID associated with the context.
@@ -267,7 +268,7 @@ Represents the agent internal context for proactive behaviour.
 
 ```python
 @property
-def session() -> Union[uuid.UUID, None]
+def session() -> uuid.UUID
 ```
 
 Get the session UUID associated with the context.
@@ -339,7 +340,6 @@ Represents the reactive context in which messages are handled and processed.
 
 - `_queries` _Dict[str, asyncio.Future]_ - Dictionary mapping query senders to their
   response Futures.
-- `_session` _Optional[uuid.UUID]_ - The session UUID.
 - `_replies` _Optional[Dict[str, Dict[str, Type[Model]]]]_ - Dictionary of allowed reply digests
   for each type of incoming message.
 - `_message_received` _Optional[MsgDigest]_ - The message digest received.
@@ -352,7 +352,6 @@ Represents the reactive context in which messages are handled and processed.
 
 ```python
 def __init__(message_received: MsgDigest,
-             session: Optional[uuid.UUID] = None,
              queries: Optional[Dict[str, asyncio.Future]] = None,
              replies: Optional[Dict[str, Dict[str, Type[Model]]]] = None,
              protocol: Optional[Tuple[str, Protocol]] = None,
@@ -366,7 +365,6 @@ Initialize the ExternalContext instance and attributes needed from the InternalC
 - `message_received` _MsgDigest_ - The optional message digest received.
 - `queries` _Dict[str, asyncio.Future]_ - Dictionary mapping query senders to their
   response Futures.
-- `session` _Optional[uuid.UUID]_ - The optional session UUID.
 - `replies` _Optional[Dict[str, Dict[str, Type[Model]]]]_ - Dictionary of allowed replies
   for each type of incoming message.
 - `protocol` _Optional[Tuple[str, Protocol]]_ - The optional Tuple of protocols.
