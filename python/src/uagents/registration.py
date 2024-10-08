@@ -23,6 +23,13 @@ from uagents.network import AlmanacContract, InsufficientFundsError, add_testnet
 from uagents.types import AgentEndpoint, AgentGeoLocation
 
 
+def generate_backoff_time(retry: int) -> float:
+    """
+    Generate a backoff time starting from 0.128 seconds and limited to ~131 seconds
+    """
+    return (2 ** (min(retry, 11) + 6)) / 1000
+
+
 class AgentRegistrationPolicy(ABC):
     @abstractmethod
     # pylint: disable=unnecessary-pass
@@ -101,7 +108,9 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
                         f"{self._almanac_api}/agents",
                         headers={"content-type": "application/json"},
                         data=attestation.model_dump_json(),
-                        timeout=ALMANAC_API_TIMEOUT_SECONDS,
+                        timeout=aiohttp.ClientTimeout(
+                            total=ALMANAC_API_TIMEOUT_SECONDS
+                        ),
                     ) as resp:
                         resp.raise_for_status()
                         self._logger.info("Registration on Almanac API successful")
@@ -110,10 +119,7 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
                     if retry == self._max_retries - 1:
                         raise e
 
-                    # generate a backoff time starting from 0.128 seconds and limited
-                    # to ~131 seconds
-                    backoff = (2 ** (min(retry, 11) + 6)) / 1000
-                    await asyncio.sleep(backoff)
+                    await asyncio.sleep(generate_backoff_time(retry))
 
 
 class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
@@ -242,3 +248,57 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
         except Exception as e:
             self._logger.error(f"Failed to register on Almanac contract: {e}")
             raise
+
+
+class MobilityRegistrationPolicy(AgentRegistrationPolicy):
+    """
+    For now: Exclusively use the Almanac API for registration.
+    """
+
+    def __init__(
+        self,
+        identity: Identity,
+        location: AgentGeoLocation,
+        *,
+        logger: Optional[logging.Logger] = None,
+    ):
+        self._location = location
+        self._almanac_api = ALMANAC_API_URL
+        self._max_retries = ALMANAC_API_MAX_RETRIES
+        self._identity = identity
+        self._logger = logger or logging.getLogger(__name__)
+
+    async def register(
+        self, agent_address: str, protocols: List[str], endpoints: List[AgentEndpoint]
+    ):
+        # create the attestation
+        attestation = AgentRegistrationAttestation(
+            agent_address=agent_address,
+            protocols=protocols,
+            endpoints=endpoints,
+            location=self._location,
+        )
+
+        # sign the attestation
+        attestation.sign(self._identity)
+
+        # submit the attestation to the API
+        async with aiohttp.ClientSession() as session:
+            for retry in range(self._max_retries):
+                try:
+                    async with session.post(
+                        f"{self._almanac_api}/agents",
+                        headers={"content-type": "application/json"},
+                        data=attestation.model_dump_json(),
+                        timeout=aiohttp.ClientTimeout(
+                            total=ALMANAC_API_TIMEOUT_SECONDS
+                        ),
+                    ) as resp:
+                        resp.raise_for_status()
+                        self._logger.info("Registration on Almanac API successful")
+                        return
+                except (aiohttp.ClientError, asyncio.exceptions.TimeoutError) as e:
+                    if retry == self._max_retries - 1:
+                        raise e
+
+                    await asyncio.sleep(generate_backoff_time(retry))
