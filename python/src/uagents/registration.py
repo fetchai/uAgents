@@ -34,8 +34,8 @@ class AgentRegistrationPolicy(ABC):
 
 class AgentGeoLocation(BaseModel):
     # Latitude and longitude of the agent
-    lat: float
-    lon: float
+    latitude: float
+    longitude: float
 
     # Radius around the agent location, expressed in meters
     radius: float
