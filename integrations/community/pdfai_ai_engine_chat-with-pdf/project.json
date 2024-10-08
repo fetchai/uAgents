@@ -1,6 +1,0 @@
-{
-    "title": "Chat with PDF",
-    "description": "This code defines for an AI agent that interacts with a PDF using the pdf.ai API. The agent can receive a question and a URL of a PDF, upload the PDF if not already uploaded, and then retrieve an answer from the PDF",
-    "categories": ["Text Summarization"],
-    "deltav": true
-}

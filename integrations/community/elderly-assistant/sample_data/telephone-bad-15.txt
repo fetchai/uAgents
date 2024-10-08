@@ -1,4 +1,0 @@
-[This is an example of a bad faith telephone call to the home]:
-
-Date: 28-February-2024, Time: 10:00 AM
-Call: Good morning, this is Microsoft Support calling. We've detected a virus on your computer. To resolve this issue, we need remote access. Could you provide your IP address?

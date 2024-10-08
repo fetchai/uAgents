@@ -1,6 +1,0 @@
-{
-    "title": "Dynamic / intelligent database connector and query builder",
-    "description": "Use OpenAI's GPT-3.5 to generate SQL queries and connect to databases. Uses SQLAlchemy wrapper to connect to databases and execute queries. The user can use natural language to describe the information they want to receive, the system will then generate the SQL query and execute it. The system can also be used to aggregate data from multiple databases and perform data transformation. Depending on the configuration, the system can also be used to insert and manipulate existing database.",
-    "categories": ["Langchain", "OpenAI", "SQL", "Database", "SQLAlchemy", "Data aggregation", "Data manipulation"],
-    "deltav": true
-}

@@ -1,6 +1,0 @@
-{
-    "title": "Infura Gas price",
-    "description": "The Infura Gas Fees API provides real-time information on suggested gas fees for transactions on blockchain networks.",
-    "categories":    ["Blockchain", "Cryptocurrency"],
-    "deltav": true
-}
