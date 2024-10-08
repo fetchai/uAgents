@@ -32,11 +32,21 @@ class AgentRegistrationPolicy(ABC):
         pass
 
 
+class AgentGeoLocation(BaseModel):
+    # Latitude and longitude of the agent
+    lat: float
+    lon: float
+
+    # Radius around the agent location, expressed in meters
+    radius: float
+
+
 class AgentRegistrationAttestation(BaseModel):
     agent_address: str
     protocols: List[str]
     endpoints: List[AgentEndpoint]
     signature: Optional[str] = None
+    location: Optional[AgentGeoLocation] = None
 
     def sign(self, identity: Identity):
         digest = self._build_digest()
