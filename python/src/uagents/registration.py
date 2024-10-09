@@ -20,6 +20,7 @@ from uagents.config import (
 )
 from uagents.crypto import Identity
 from uagents.network import AlmanacContract, InsufficientFundsError, add_testnet_funds
+from uagents.types import AgentEndpoint
 
 
 class AgentRegistrationPolicy(ABC):
