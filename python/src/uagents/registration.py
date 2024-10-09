@@ -3,7 +3,7 @@ import hashlib
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
 import aiohttp
 from cosmpy.aerial.client import LedgerClient
@@ -32,13 +32,6 @@ class AgentRegistrationPolicy(ABC):
         pass
 
 
-class AgentRegistrationAttestationNormalized(BaseModel):
-    agent_address: str
-    protocols: List[str]
-    endpoints: List[AgentEndpoint]
-    metadata: List[Tuple[str, str | List[Tuple[str, str]]]]
-
-
 class AgentRegistrationAttestation(BaseModel):
     agent_address: str
     protocols: List[str]
@@ -58,18 +51,11 @@ class AgentRegistrationAttestation(BaseModel):
         )
 
     def _build_digest(self) -> bytes:
-        metadata: List[Tuple[str, Union[str, List[Tuple[str, str]]]]] = []
-        if self.metadata:
-            for key, value in self.metadata.items():
-                if isinstance(value, dict):
-                    metadata.append((key, sorted(value.items(),  key=lambda x: x[0])))
-                else:
-                    metadata.append((key, value))
-        normalised_attestation = AgentRegistrationAttestationNormalized(
+        normalised_attestation = AgentRegistrationAttestation(
             agent_address=self.agent_address,
             protocols=sorted(self.protocols),
             endpoints=sorted(self.endpoints, key=lambda x: x.url),
-            metadata=sorted(metadata, key=lambda x: x[0]),
+            metadata=self.metadata,
         )
 
         sha256 = hashlib.sha256()
