@@ -3,7 +3,7 @@ import hashlib
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import aiohttp
 from cosmpy.aerial.client import LedgerClient
@@ -43,7 +43,7 @@ class AgentRegistrationAttestation(BaseModel):
     agent_address: str
     protocols: List[str]
     endpoints: List[AgentEndpoint]
-    metadata: Optional[Dict[str, str | Dict[str, str]]] = None
+    metadata: Optional[Dict[str, Union[str, Dict[str, str]]]] = None
     signature: Optional[str] = None
 
     def sign(self, identity: Identity):
@@ -58,7 +58,7 @@ class AgentRegistrationAttestation(BaseModel):
         )
 
     def _build_digest(self) -> bytes:
-        metadata: List[Tuple[str, str | List[Tuple[str, str]]]] = []
+        metadata: List[Tuple[str, Union[str, List[Tuple[str, str]]]]] = []
         if self.metadata:
             for key, value in self.metadata.items():
                 if isinstance(value, dict):
