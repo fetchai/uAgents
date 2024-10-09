@@ -32,6 +32,28 @@ def test_attestation_signature():
     assert attestation.verify()
 
 
+def test_attestation_signature_with_metadata():
+    identity = Identity.generate()
+
+    # create a dummy attestation
+    attestation = AgentRegistrationAttestation(
+        agent_address=identity.address,
+        protocols=["foo", "bar", "baz"],
+        endpoints=[
+            {"url": "https://foobar.com", "weight": 1},
+            {"url": "https://barbaz.com", "weight": 1},
+        ],
+        metadata={"foo": "bar", "baz": "42", "qux": {"a": "b", "c": "d"}},
+    )
+
+    # sign the attestation with the identity
+    attestation.sign(identity)
+    assert attestation.signature is not None
+
+    # verify the attestation
+    assert attestation.verify()
+
+
 def test_recovery_of_attestation():
     identity = Identity.generate()
 

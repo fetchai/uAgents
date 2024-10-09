@@ -3,7 +3,7 @@ import hashlib
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, Dict, Tuple
 
 import aiohttp
 from cosmpy.aerial.client import LedgerClient
@@ -20,7 +20,6 @@ from uagents.config import (
 )
 from uagents.crypto import Identity
 from uagents.network import AlmanacContract, InsufficientFundsError, add_testnet_funds
-from uagents.types import AgentEndpoint, AgentGeoLocation
 
 
 class AgentRegistrationPolicy(ABC):
@@ -32,12 +31,19 @@ class AgentRegistrationPolicy(ABC):
         pass
 
 
+class AgentRegistrationAttestationNormalized(BaseModel):
+    agent_address: str
+    protocols: List[str]
+    endpoints: List[AgentEndpoint]
+    metadata: List[Tuple[str, str | List[Tuple[str, str]]]]
+
+
 class AgentRegistrationAttestation(BaseModel):
     agent_address: str
     protocols: List[str]
     endpoints: List[AgentEndpoint]
+    metadata: Optional[Dict[str, str | Dict[str, str]]] = None
     signature: Optional[str] = None
-    location: Optional[AgentGeoLocation] = None
 
     def sign(self, identity: Identity):
         digest = self._build_digest()
@@ -51,10 +57,18 @@ class AgentRegistrationAttestation(BaseModel):
         )
 
     def _build_digest(self) -> bytes:
-        normalised_attestation = AgentRegistrationAttestation(
+        metadata: List[Tuple[str, str | List[Tuple[str, str]]]] = []
+        if self.metadata:
+            for key, value in self.metadata.items():
+                if isinstance(value, dict):
+                    metadata.append((key, sorted(value.items(),  key=lambda x: x[0])))
+                else:
+                    metadata.append((key, value))
+        normalised_attestation = AgentRegistrationAttestationNormalized(
             agent_address=self.agent_address,
             protocols=sorted(self.protocols),
             endpoints=sorted(self.endpoints, key=lambda x: x.url),
+            metadata=sorted(metadata, key=lambda x: x[0]),
         )
 
         sha256 = hashlib.sha256()
