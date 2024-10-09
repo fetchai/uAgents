@@ -5,11 +5,11 @@ from aiohttp import ClientResponseError
 from aioresponses import aioresponses
 
 from uagents.crypto import Identity
-from uagents.types import AgentGeoLocation
 from uagents.registration import (
     AgentRegistrationAttestation,
     AlmanacApiRegistrationPolicy,
 )
+from uagents.types import AgentGeoLocation
 
 
 def test_attestation_signature():
