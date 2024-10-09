@@ -5,6 +5,7 @@ from aiohttp import ClientResponseError
 from aioresponses import aioresponses
 
 from uagents.crypto import Identity
+from uagents.types import AgentGeoLocation
 from uagents.registration import (
     AgentRegistrationAttestation,
     AlmanacApiRegistrationPolicy,
@@ -22,6 +23,32 @@ def test_attestation_signature():
             {"url": "https://foobar.com", "weight": 1},
             {"url": "https://barbaz.com", "weight": 1},
         ],
+    )
+
+    # sign the attestation with the identity
+    attestation.sign(identity)
+    assert attestation.signature is not None
+
+    # verify the attestation
+    assert attestation.verify()
+
+
+def test_attestation_signature_with_location():
+    identity = Identity.generate()
+
+    # create a dummy attestation
+    attestation = AgentRegistrationAttestation(
+        agent_address=identity.address,
+        protocols=["foo", "bar", "baz"],
+        endpoints=[
+            {"url": "https://foobar.com", "weight": 1},
+            {"url": "https://barbaz.com", "weight": 1},
+        ],
+        location=AgentGeoLocation(
+            latitude=51.5072,
+            longitude=0.1276,
+            radius=100.0,
+        )
     )
 
     # sign the attestation with the identity

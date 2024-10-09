@@ -55,6 +55,7 @@ class AgentRegistrationAttestation(BaseModel):
             agent_address=self.agent_address,
             protocols=sorted(self.protocols),
             endpoints=sorted(self.endpoints, key=lambda x: x.url),
+            location=self.location,
         )
 
         sha256 = hashlib.sha256()
