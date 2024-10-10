@@ -21,7 +21,7 @@ import requests
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 
 from uagents.asgi import ASGIServer
 from uagents.communication import Dispenser
@@ -57,6 +57,7 @@ from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.types import (
     AgentEndpoint,
     AgentInfo,
+    AgentMetadata,
     EventCallback,
     IntervalCallback,
     JsonStr,
@@ -513,7 +514,9 @@ class Agent(Sink):
         else:
             self._wallet_messaging_client = None
 
-    def _initialize_metadata(self, metadata: Optional[Dict[str, Any]]):
+    def _initialize_metadata(
+        self, metadata: Optional[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         """
         Initialize the metadata for the agent.
 
@@ -521,18 +524,13 @@ class Agent(Sink):
         model ensures that the metadata is valid and complete.
 
         Args:
-            metadata (Dict[str, Any]): The metadata to include in the agent object.
+            metadata (Optional[Dict[str, Any]]): The metadata to include in the agent object.
+
+        Returns:
+            Dict[str, Any]: The filtered metadata.
         """
         if not metadata or "geolocation" not in metadata:
             return {}
-
-        class AgentGeolocation(BaseModel):
-            latitude: float
-            longitude: float
-            radius: int
-
-        class AgentMetadata(BaseModel):
-            geolocation: AgentGeolocation
 
         try:
             model = AgentMetadata.model_validate(metadata, strict=True)

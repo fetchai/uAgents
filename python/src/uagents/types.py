@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
+    Annotated,
     Any,
     Awaitable,
     Callable,
@@ -15,7 +16,7 @@ from typing import (
     Union,
 )
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_serializer
 
 from uagents.models import Model
 
@@ -53,6 +54,30 @@ class RestHandlerDetails(BaseModel):
     endpoint: str
     request_model: Optional[Type[Model]] = None
     response_model: Type[Union[Model, BaseModel]]
+
+
+class AgentGeolocation(BaseModel):
+    latitude: Annotated[
+        float,
+        Field(strict=True, ge=-90, le=90, allow_inf_nan=False),
+    ]
+    longitude: Annotated[
+        float,
+        Field(strict=True, ge=-180, le=180, allow_inf_nan=False),
+    ]
+    radius: Annotated[
+        float,
+        Field(strict=True, ge=0, allow_inf_nan=False),
+    ] = 0
+
+    @field_serializer("latitude", "longitude")
+    def serialize_precision(self, val: float) -> float:
+        """Round the latitude and longitude to 6 decimal places."""
+        return float(f"{val:.6f}")
+
+
+class AgentMetadata(BaseModel):
+    geolocation: AgentGeolocation
 
 
 class DeliveryStatus(str, Enum):
