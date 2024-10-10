@@ -3,7 +3,7 @@ import hashlib
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import aiohttp
 from cosmpy.aerial.client import LedgerClient
@@ -23,11 +23,22 @@ from uagents.network import AlmanacContract, InsufficientFundsError, add_testnet
 from uagents.types import AgentEndpoint
 
 
+def generate_backoff_time(retry: int) -> float:
+    """
+    Generate a backoff time starting from 0.128 seconds and limited to ~131 seconds
+    """
+    return (2 ** (min(retry, 11) + 6)) / 1000
+
+
 class AgentRegistrationPolicy(ABC):
     @abstractmethod
     # pylint: disable=unnecessary-pass
     async def register(
-        self, agent_address: str, protocols: List[str], endpoints: List[AgentEndpoint]
+        self,
+        agent_address: str,
+        protocols: List[str],
+        endpoints: List[AgentEndpoint],
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         pass
 
@@ -36,7 +47,7 @@ class AgentRegistrationAttestation(BaseModel):
     agent_address: str
     protocols: List[str]
     endpoints: List[AgentEndpoint]
-    metadata: Optional[Dict[str, Union[str, Dict[str, str]]]] = None
+    metadata: Optional[Dict[str, Any]] = None
     signature: Optional[str] = None
 
     def sign(self, identity: Identity):
@@ -84,11 +95,18 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         self._logger = logger or logging.getLogger(__name__)
 
     async def register(
-        self, agent_address: str, protocols: List[str], endpoints: List[AgentEndpoint]
+        self,
+        agent_address: str,
+        protocols: List[str],
+        endpoints: List[AgentEndpoint],
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         # create the attestation
         attestation = AgentRegistrationAttestation(
-            agent_address=agent_address, protocols=protocols, endpoints=endpoints
+            agent_address=agent_address,
+            protocols=protocols,
+            endpoints=endpoints,
+            metadata=metadata,
         )
 
         # sign the attestation
@@ -102,7 +120,9 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
                         f"{self._almanac_api}/agents",
                         headers={"content-type": "application/json"},
                         data=attestation.model_dump_json(),
-                        timeout=ALMANAC_API_TIMEOUT_SECONDS,
+                        timeout=aiohttp.ClientTimeout(
+                            total=ALMANAC_API_TIMEOUT_SECONDS
+                        ),
                     ) as resp:
                         resp.raise_for_status()
                         self._logger.info("Registration on Almanac API successful")
@@ -110,11 +130,7 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
                 except (aiohttp.ClientError, asyncio.exceptions.TimeoutError) as e:
                     if retry == self._max_retries - 1:
                         raise e
-
-                    # generate a backoff time starting from 0.128 seconds and limited
-                    # to ~131 seconds
-                    backoff = (2 ** (min(retry, 11) + 6)) / 1000
-                    await asyncio.sleep(backoff)
+                    await asyncio.sleep(generate_backoff_time(retry))
 
 
 class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
@@ -136,7 +152,11 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         self._logger = logger or logging.getLogger(__name__)
 
     async def register(
-        self, agent_address: str, protocols: List[str], endpoints: List[AgentEndpoint]
+        self,
+        agent_address: str,
+        protocols: List[str],
+        endpoints: List[AgentEndpoint],
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         # register if not yet registered or registration is about to expire
         # or anything has changed from the last registration
@@ -223,10 +243,13 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
         agent_address: str,
         protocols: List[str],
         endpoints: List[AgentEndpoint],
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         # prefer the API registration policy as it is faster
         try:
-            await self._api_policy.register(agent_address, protocols, endpoints)
+            await self._api_policy.register(
+                agent_address, protocols, endpoints, metadata
+            )
         except Exception as e:
             self._logger.warning(
                 f"Failed to register on Almanac API: {e.__class__.__name__}"
@@ -234,7 +257,9 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
 
         # schedule the ledger registration
         try:
-            await self._ledger_policy.register(agent_address, protocols, endpoints)
+            await self._ledger_policy.register(
+                agent_address, protocols, endpoints, metadata
+            )
         except InsufficientFundsError:
             self._logger.warning(
                 "Failed to register on Almanac contract due to insufficient funds"
