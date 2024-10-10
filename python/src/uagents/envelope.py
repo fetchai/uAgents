@@ -9,7 +9,6 @@ from typing import Callable, List, Optional
 from pydantic import (
     UUID4,
     BaseModel,
-    ConfigDict,
     Field,
     field_serializer,
 )
@@ -47,8 +46,6 @@ class Envelope(BaseModel):
     expires: Optional[int] = None
     nonce: Optional[int] = None
     signature: Optional[str] = None
-
-    model_config = ConfigDict(populate_by_name=True)
 
     def encode_payload(self, value: JsonStr):
         """
