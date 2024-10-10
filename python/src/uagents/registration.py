@@ -3,7 +3,7 @@ import hashlib
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Dict, List, Optional, Union
 
 import aiohttp
 from cosmpy.aerial.client import LedgerClient
@@ -20,7 +20,7 @@ from uagents.config import (
 )
 from uagents.crypto import Identity
 from uagents.network import AlmanacContract, InsufficientFundsError, add_testnet_funds
-from uagents.types import AgentEndpoint, AgentGeoLocation
+from uagents.types import AgentEndpoint
 
 
 def generate_backoff_time(retry: int) -> float:
@@ -43,8 +43,8 @@ class AgentRegistrationAttestation(BaseModel):
     agent_address: str
     protocols: List[str]
     endpoints: List[AgentEndpoint]
+    metadata: Optional[Dict[str, Union[str, Dict[str, str]]]] = None
     signature: Optional[str] = None
-    location: Optional[AgentGeoLocation] = None
 
     def sign(self, identity: Identity):
         digest = self._build_digest()
@@ -62,6 +62,7 @@ class AgentRegistrationAttestation(BaseModel):
             agent_address=self.agent_address,
             protocols=sorted(self.protocols),
             endpoints=sorted(self.endpoints, key=lambda x: x.url),
+            metadata=self.metadata,
         )
 
         sha256 = hashlib.sha256()
