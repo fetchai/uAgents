@@ -3,7 +3,7 @@ import hashlib
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Dict, List, Optional, Union
 
 import aiohttp
 from cosmpy.aerial.client import LedgerClient
@@ -20,7 +20,7 @@ from uagents.config import (
 )
 from uagents.crypto import Identity
 from uagents.network import AlmanacContract, InsufficientFundsError, add_testnet_funds
-from uagents.types import AgentEndpoint, AgentGeoLocation
+from uagents.types import AgentEndpoint
 
 
 def generate_backoff_time(retry: int) -> float:
@@ -43,8 +43,8 @@ class AgentRegistrationAttestation(BaseModel):
     agent_address: str
     protocols: List[str]
     endpoints: List[AgentEndpoint]
+    metadata: Optional[Dict[str, Union[str, Dict[str, str]]]] = None
     signature: Optional[str] = None
-    location: Optional[AgentGeoLocation] = None
 
     def sign(self, identity: Identity):
         digest = self._build_digest()
@@ -62,6 +62,7 @@ class AgentRegistrationAttestation(BaseModel):
             agent_address=self.agent_address,
             protocols=sorted(self.protocols),
             endpoints=sorted(self.endpoints, key=lambda x: x.url),
+            metadata=self.metadata,
         )
 
         sha256 = hashlib.sha256()
@@ -248,57 +249,3 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
         except Exception as e:
             self._logger.error(f"Failed to register on Almanac contract: {e}")
             raise
-
-
-class MobilityRegistrationPolicy(AgentRegistrationPolicy):
-    """
-    For now: Exclusively use the Almanac API for registration.
-    """
-
-    def __init__(
-        self,
-        identity: Identity,
-        location: AgentGeoLocation,
-        *,
-        logger: Optional[logging.Logger] = None,
-    ):
-        self._location = location
-        self._almanac_api = ALMANAC_API_URL
-        self._max_retries = ALMANAC_API_MAX_RETRIES
-        self._identity = identity
-        self._logger = logger or logging.getLogger(__name__)
-
-    async def register(
-        self, agent_address: str, protocols: List[str], endpoints: List[AgentEndpoint]
-    ):
-        # create the attestation
-        attestation = AgentRegistrationAttestation(
-            agent_address=agent_address,
-            protocols=protocols,
-            endpoints=endpoints,
-            location=self._location,
-        )
-
-        # sign the attestation
-        attestation.sign(self._identity)
-
-        # submit the attestation to the API
-        async with aiohttp.ClientSession() as session:
-            for retry in range(self._max_retries):
-                try:
-                    async with session.post(
-                        f"{self._almanac_api}/agents",
-                        headers={"content-type": "application/json"},
-                        data=attestation.model_dump_json(),
-                        timeout=aiohttp.ClientTimeout(
-                            total=ALMANAC_API_TIMEOUT_SECONDS
-                        ),
-                    ) as resp:
-                        resp.raise_for_status()
-                        self._logger.info("Registration on Almanac API successful")
-                        return
-                except (aiohttp.ClientError, asyncio.exceptions.TimeoutError) as e:
-                    if retry == self._max_retries - 1:
-                        raise e
-
-                    await asyncio.sleep(generate_backoff_time(retry))
