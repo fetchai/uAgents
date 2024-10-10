@@ -21,7 +21,7 @@ import requests
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from uagents.asgi import ASGIServer
 from uagents.communication import Dispenser
@@ -281,6 +281,7 @@ class Agent(Sink):
         loop: Optional[asyncio.AbstractEventLoop] = None,
         log_level: Union[int, str] = logging.INFO,
         enable_agent_inspector: bool = True,
+        metadata: Optional[Dict[str, Any]] = None,
     ):
         """
         Initialize an Agent instance.
@@ -303,6 +304,7 @@ class Agent(Sink):
             loop (Optional[asyncio.AbstractEventLoop]): The asyncio event loop to use.
             log_level (Union[int, str]): The logging level for the agent.
             enable_agent_inspector (bool): Enable the agent inspector for debugging.
+            metadata (Optional[Dict[str, Any]]): Optional metadata to include in the agent object.
         """
         self._init_done = False
         self._name = name
@@ -375,6 +377,7 @@ class Agent(Sink):
             logger=self._logger,
             almanac_api=almanac_api_url,
         )
+        self._metadata = self._initialize_metadata(metadata)
 
         self.initialize_wallet_messaging(enable_wallet_messaging)
 
@@ -508,6 +511,39 @@ class Agent(Sink):
         else:
             self._wallet_messaging_client = None
 
+    def _initialize_metadata(self, metadata: Optional[Dict[str, Any]]):
+        """
+        Initialize the metadata for the agent.
+
+        The metadata is filtered to include only location-based metadata and the
+        model ensures that the metadata is valid and complete.
+
+        Args:
+            metadata (Dict[str, Any]): The metadata to include in the agent object.
+        """
+        if not metadata or (
+            "latitude" not in metadata
+            and "longitude" not in metadata
+            and "radius" not in metadata
+        ):  # either all or none
+            return {}
+
+        class AgentMetadata(BaseModel):
+            """For now only allow location based metadata"""
+
+            latitude: float
+            longitude: float
+            radius: int
+
+        try:
+            model = AgentMetadata.model_validate(metadata, strict=True)
+            filtered_metadata = model.model_dump()
+        except ValidationError as e:
+            self._logger.error(f"Invalid metadata: {e}")
+            filtered_metadata = {}
+
+        return filtered_metadata
+
     @property
     def name(self) -> str:
         """
@@ -610,6 +646,16 @@ class Agent(Sink):
         """
 
         return self.ledger.query_bank_balance(Address(self.wallet.address()))
+
+    @property
+    def metadata(self) -> Dict[str, Any]:
+        """
+        Get the metadata associated with the agent.
+
+        Returns:
+            Dict[str, Any]: The metadata associated with the agent.
+        """
+        return self._metadata
 
     @mailbox.setter
     def mailbox(self, config: Union[str, Dict[str, str]]):
