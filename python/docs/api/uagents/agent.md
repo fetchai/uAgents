@@ -160,6 +160,7 @@ An agent that interacts within a communication environment.
 - `_ctx` _Context_ - The context for agent interactions.
 - `_test` _bool_ - True if the agent will register and transact on the testnet.
 - `_enable_agent_inspector` _bool_ - Enable the agent inspector REST endpoints.
+- `_metadata` _Dict[str, Any]_ - Metadata associated with the agent.
   
   Properties:
 - `name` _str_ - The name of the agent.
@@ -172,6 +173,7 @@ An agent that interacts within a communication environment.
 - `mailbox_client` _MailboxClient_ - The client for interacting with the agentverse mailbox.
 - `protocols` _Dict[str, Protocol]_ - Dictionary mapping all supported protocol digests to their
   corresponding protocols.
+- `metadata` _Dict[str, Any]_ - Metadata associated with the agent.
 
 <a id="src.uagents.agent.Agent.__init__"></a>
 
@@ -193,7 +195,8 @@ def __init__(name: Optional[str] = None,
              test: bool = True,
              loop: Optional[asyncio.AbstractEventLoop] = None,
              log_level: Union[int, str] = logging.INFO,
-             enable_agent_inspector: bool = True)
+             enable_agent_inspector: bool = True,
+             metadata: Optional[Dict[str, Any]] = None)
 ```
 
 Initialize an Agent instance.
@@ -217,6 +220,7 @@ Initialize an Agent instance.
 - `loop` _Optional[asyncio.AbstractEventLoop]_ - The asyncio event loop to use.
 - `log_level` _Union[int, str]_ - The logging level for the agent.
 - `enable_agent_inspector` _bool_ - Enable the agent inspector for debugging.
+- `metadata` _Optional[Dict[str, Any]]_ - Optional metadata to include in the agent object.
 
 <a id="src.uagents.agent.Agent.initialize_wallet_messaging"></a>
 
@@ -384,6 +388,21 @@ Get the balance of the agent.
 **Returns**:
 
 - `int` - Bank balance.
+
+<a id="src.uagents.agent.Agent.metadata"></a>
+
+#### metadata
+
+```python
+@property
+def metadata() -> Dict[str, Any]
+```
+
+Get the metadata associated with the agent.
+
+**Returns**:
+
+  Dict[str, Any]: The metadata associated with the agent.
 
 <a id="src.uagents.agent.Agent.mailbox"></a>
 
