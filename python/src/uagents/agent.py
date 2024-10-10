@@ -248,6 +248,7 @@ class Agent(Sink):
         _ctx (Context): The context for agent interactions.
         _test (bool): True if the agent will register and transact on the testnet.
         _enable_agent_inspector (bool): Enable the agent inspector REST endpoints.
+        _metadata (Dict[str, Any]): Metadata associated with the agent.
 
     Properties:
         name (str): The name of the agent.
@@ -260,6 +261,7 @@ class Agent(Sink):
         mailbox_client (MailboxClient): The client for interacting with the agentverse mailbox.
         protocols (Dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
         corresponding protocols.
+        metadata (Dict[str, Any]): Metadata associated with the agent.
 
     """
 
@@ -521,19 +523,16 @@ class Agent(Sink):
         Args:
             metadata (Dict[str, Any]): The metadata to include in the agent object.
         """
-        if not metadata or (
-            "latitude" not in metadata
-            and "longitude" not in metadata
-            and "radius" not in metadata
-        ):  # either all or none
+        if not metadata or "geolocation" not in metadata:
             return {}
 
-        class AgentMetadata(BaseModel):
-            """For now only allow location based metadata"""
-
+        class AgentGeolocation(BaseModel):
             latitude: float
             longitude: float
             radius: int
+
+        class AgentMetadata(BaseModel):
+            geolocation: AgentGeolocation
 
         try:
             model = AgentMetadata.model_validate(metadata, strict=True)
@@ -770,7 +769,7 @@ class Agent(Sink):
             )
 
         await self._registration_policy.register(
-            self.address, list(self.protocols.keys()), self._endpoints
+            self.address, list(self.protocols.keys()), self._endpoints, self._metadata
         )
 
     async def _registration_loop(self):
