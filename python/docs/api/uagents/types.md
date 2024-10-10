@@ -2,6 +2,25 @@
 
 # src.uagents.types
 
+<a id="src.uagents.types.AgentGeolocation"></a>
+
+## AgentGeolocation Objects
+
+```python
+class AgentGeolocation(BaseModel)
+```
+
+<a id="src.uagents.types.AgentGeolocation.serialize_precision"></a>
+
+#### serialize`_`precision
+
+```python
+@field_serializer("latitude", "longitude")
+def serialize_precision(val: float) -> float
+```
+
+Round the latitude and longitude to 6 decimal places.
+
 <a id="src.uagents.types.DeliveryStatus"></a>
 
 ## DeliveryStatus Objects
