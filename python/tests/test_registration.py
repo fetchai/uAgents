@@ -9,6 +9,7 @@ from uagents.registration import (
     AgentRegistrationAttestation,
     AlmanacApiRegistrationPolicy,
 )
+from uagents.types import AgentEndpoint
 
 
 def test_attestation_signature():
@@ -19,8 +20,8 @@ def test_attestation_signature():
         agent_address=identity.address,
         protocols=["foo", "bar", "baz"],
         endpoints=[
-            {"url": "https://foobar.com", "weight": 1},
-            {"url": "https://barbaz.com", "weight": 1},
+            AgentEndpoint(url="https://foobar.com", weight=1),
+            AgentEndpoint(url="https://barbaz.com", weight=1),
         ],
     )
 
@@ -40,8 +41,8 @@ def test_attestation_signature_with_metadata():
         agent_address=identity.address,
         protocols=["foo", "bar", "baz"],
         endpoints=[
-            {"url": "https://foobar.com", "weight": 1},
-            {"url": "https://barbaz.com", "weight": 1},
+            AgentEndpoint(url="https://foobar.com", weight=1),
+            AgentEndpoint(url="https://barbaz.com", weight=1),
         ],
         metadata={"foo": "bar", "baz": "42", "qux": {"a": "b", "c": "d"}},
     )
