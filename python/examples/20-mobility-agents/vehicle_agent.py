@@ -34,8 +34,6 @@ async def handle_checkin_response(
     ctx.logger.info(
         f"checked in with agent of type {msg.mobility_type}. Signal: {msg.signal}"
     )
-    current_active_eois[sender] = msg
-    # TODO update when leaving
 
 
 @proto.on_message(
@@ -49,6 +47,18 @@ async def handle_status_update(
         ctx.logger.info("got status update from agent out of reach")
     else:
         ctx.logger.info(f"new signal from {known_agent["name"]}: {msg.signal}")
+
+
+@proto.on_message(model=base_protocol.CheckOut, replies=base_protocol.CheckOutResponse)
+async def handle_checkout(ctx: Context, sender: str, msg: base_protocol.CheckOut):
+    pass
+
+
+@proto.on_message(model=base_protocol.CheckOutResponse, replies=set())
+async def handle_checkout_response(
+    ctx: Context, sender: str, msg: base_protocol.CheckOutResponse
+):
+    ctx.logger.info(f"famous last words: {msg.receipt}")
 
 
 vehicle_agent.include(proto)

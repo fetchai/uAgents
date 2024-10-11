@@ -29,6 +29,7 @@ class MobilityAgent(Agent):
         self._metadata["geolocation"] = location.model_dump()
         self._metadata["mobility_type"] = mobility_type
         self._proximity_agents: list[SearchResultAgent] = []
+        self._checkedin_agents: dict[str, CheckIn] = {}
 
         @self.on_rest_post("/set_location", Location, Location)
         async def _handle_location_update(_ctx: Context, req: Location):
@@ -42,6 +43,32 @@ class MobilityAgent(Agent):
     @property
     def mobility_type(self) -> MobililtyType:
         return self.metadata["mobility_type"]
+
+    @property
+    def proximity_agents(self) -> list[SearchResultAgent]:
+        # agents where this agent checked in
+        return self._proximity_agents
+
+    @property
+    def checkedin_agents(self) -> dict[str, CheckIn]:
+        # agents that checked in with this agent
+        return self._checkedin_agents
+
+    def checkin_agent(self, addr: str, agent: CheckIn):
+        self._checkedin_agents.update({addr: CheckIn})
+
+    def checkout_agent(self, addr: str):
+        del self._checkedin_agents[addr]
+
+    def activate_agent(self, agent: SearchResultAgent):
+        for activated in self._proximity_agents:
+            if activated.address == agent.address:
+                return
+
+        self._proximity_agents.append(agent)
+
+    def deactivate_agent(self, agent: SearchResultAgent):
+        self._proximity_agents.remove(agent)
 
     async def _update_geolocation(self, location: AgentGeolocation):
         self._metadata["geolocation"]["latitude"] = location.latitude

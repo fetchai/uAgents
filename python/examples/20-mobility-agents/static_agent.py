@@ -30,7 +30,8 @@ async def handle_checkin(ctx: Context, sender: str, msg: base_protocol.CheckIn):
         ctx.logger.info(
             f"encountered unsupported mobility agent of type {msg.mobility_type}"
         )
-    current_checkedin_vehicles[sender] = msg  # TODO update on checkout or timeout
+
+    static_agent.checkin_agent(sender, msg)  # TODO timeout/heartbeat?
 
     await ctx.send(
         sender,
@@ -60,6 +61,27 @@ async def handle_status_update(
     pass
 
 
+@proto.on_message(model=base_protocol.StatusUpdateResponse, replies=set())
+async def handle_statusupdate_response(
+    ctx: Context, sender: str, msg: base_protocol.StatusUpdateResponse
+):
+    pass
+
+
+@proto.on_message(model=base_protocol.CheckOut, replies=base_protocol.CheckOutResponse)
+async def handle_checkout(ctx: Context, sender: str, msg: base_protocol.CheckOut):
+    static_agent.checkout_agent(sender)
+    ctx.logger.info(f"{sender} said bye")
+
+
+@proto.on_message(model=base_protocol.CheckOutResponse, replies=set())
+async def handle_checkout_response(
+    ctx: Context, sender: str, msg: base_protocol.CheckOutResponse
+):
+    # never gonna be triggered in this agent
+    pass
+
+
 static_agent.include(proto)
 
 
@@ -68,7 +90,7 @@ async def switch_signal(ctx: Context):
     if not signal:
         signal = "red"
     signal = "green" if signal == "red" else "red"
-    for addr in current_checkedin_vehicles:
+    for addr in static_agent.checkedin_agents:
         await ctx.send(addr, base_protocol.StatusUpdate(signal=signal))
 
 
