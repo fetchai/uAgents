@@ -1360,6 +1360,25 @@ class Bureau:
             for agent in agents:
                 self.add(agent)
 
+    def _update_agent(self, agent: Agent):
+        """
+        Update the agent to be taken over by the Bureau.
+
+        Args:
+            agent (Agent): The agent to be updated.
+
+        """
+        agent.update_loop(self._loop)
+        agent.update_queries(self._queries)
+        if agent.agentverse["use_mailbox"]:
+            self._use_mailbox = True
+        else:
+            agent.update_endpoints(self._endpoints)
+        self._server._rest_handler_map.update(agent._server._rest_handler_map)
+
+        agent._agentverse = self._agentverse
+        agent._logger.setLevel(self._logger.level)
+
     def add(self, agent: Agent):
         """
         Add an agent to the bureau.
@@ -1370,15 +1389,8 @@ class Bureau:
         """
         if agent in self._agents:
             return
-        agent.update_loop(self._loop)
-        agent.update_queries(self._queries)
-        if agent.agentverse["use_mailbox"]:
-            self._use_mailbox = True
-        else:
-            agent.update_endpoints(self._endpoints)
-
+        self._update_agent(agent)
         self._registration_policy.add_agent(agent)
-        self._server._rest_handler_map.update(agent._server._rest_handler_map)
         self._agents.append(agent)
 
     async def _schedule_registration(self):
