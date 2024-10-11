@@ -767,7 +767,7 @@ class Agent(Sink):
             )
 
         await self._registration_policy.register(
-            self.address, list(self.protocols.keys()), self._endpoints, self._metadata
+            self.address, list(self.protocols.keys()), self._endpoints
         )
 
     async def _registration_loop(self):

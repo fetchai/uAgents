@@ -1,6 +1,4 @@
-from typing import Any
-
-from pydantic import Optional
+from typing import Any, Optional
 
 from uagents import Model, Protocol
 from uagents.experimental.types import AgentGeoLocation
@@ -29,6 +27,16 @@ class CheckInResponse(Model):
     description: str = ""
     # the mobility related protocols this agent supports
     supported_protocols: Optional[list[str]] = None
+
+
+# > There may be more specific checkin responses for different types of agents
+# class TrafficLightCheckIn(CheckInResponse):
+#     """Traffic light specific checkin response"""
+
+#     # the current signal of the traffic light
+#     signal: str
+#     # the time the signal was last changed
+#     last_change: str
 
 
 class CheckOut(Model):

@@ -1,11 +1,11 @@
 from datetime import datetime
-from typing import List
+from typing import List, Literal
 
 import requests
-from pydantic import BaseModel, Field, Literal
+from pydantic import BaseModel, Field
 
 # from uagents.config import SEARCH_API_URL
-from uagents.types import AgentGeoLocation
+from uagents.types import AgentGeolocation
 
 SEARCH_API_URL = "https://staging.agentverse.ai/v1/search/agents"
 
@@ -84,7 +84,7 @@ class AgentFilters(BaseModel):
     agent_type: List[AgentType] = Field(default_factory=list)
 
     # The geolocation to limit the search to
-    geolocation: AgentGeoLocation = None
+    geolocation: AgentGeolocation | None = None
 
 
 SortType = Literal["relevancy", "created-at", "last-modified", "interactions"]
@@ -122,6 +122,7 @@ def _geosearch_agents(
     response = requests.post(
         url=SEARCH_API_URL + "/geo",
         json={"req": criteria},
+        timeout=5,
     )
     if response.status_code == 200:
         data = response.json()
@@ -134,6 +135,7 @@ def _search_agents(criteria: AgentSearchCriteria):
     response = requests.post(
         url=SEARCH_API_URL,
         json={"req": criteria},
+        timeout=5,
     )
     if response.status_code == 200:
         data = response.json()
@@ -150,8 +152,8 @@ def geosearch_agents_by_protocol(
     """
     criteria = AgentSearchCriteria(
         filters=AgentFilters(
-            state="active",
-            geolocation=AgentGeoLocation(lat=lat, lng=lng, radius=radius),
+            state=["active"],
+            geolocation=AgentGeolocation(latitude=lat, longitude=lng, radius=radius),
         ),
         limit=limit,
     )
@@ -172,8 +174,8 @@ def geosearch_agents_by_text(
     """
     criteria = AgentSearchCriteria(
         filters=AgentFilters(
-            state="active",
-            geolocation=AgentGeoLocation(lat=lat, lng=lng, radius=radius),
+            state=["active"],
+            geolocation=AgentGeolocation(latitude=lat, longitude=lng, radius=radius),
         ),
         search_text=search_text,
         limit=limit,
@@ -186,7 +188,7 @@ def search_agents_by_protocol(protocol_digest: str, limit: int = 30):
     Return all agents ithat match the given search criteria
     """
     criteria = AgentSearchCriteria(
-        filters=AgentFilters(state="active"),
+        filters=AgentFilters(state=["active"]),
         search_text=protocol_digest,
         limit=limit,
     )
@@ -204,7 +206,7 @@ def search_agents_by_text(search_text: str, limit: int = 30):
     Return all agents that match the given search_text
     """
     criteria = AgentSearchCriteria(
-        filters=AgentFilters(state="active"),
+        filters=AgentFilters(state=["active"]),
         search_text=search_text,
         limit=limit,
     )
