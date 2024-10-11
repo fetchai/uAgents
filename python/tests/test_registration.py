@@ -44,7 +44,7 @@ def test_attestation_signature_with_metadata():
             AgentEndpoint(url="https://foobar.com", weight=1),
             AgentEndpoint(url="https://barbaz.com", weight=1),
         ],
-        metadata={"foo": "bar", "baz": "42", "qux": {"a": "b", "c": "d"}},
+        metadata={"foo": "bar", "baz": 3.17, "qux": {"a": "b", "c": 4, "d": 5.6}},
     )
 
     # sign the attestation with the identity
