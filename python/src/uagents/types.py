@@ -16,7 +16,7 @@ from typing import (
     Union,
 )
 
-from pydantic import BaseModel, Field, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from uagents.models import Model
 
@@ -57,27 +57,35 @@ class RestHandlerDetails(BaseModel):
 
 
 class AgentGeolocation(BaseModel):
-    latitude: Annotated[
-        float,
-        Field(strict=True, ge=-90, le=90, allow_inf_nan=False),
-    ]
-    longitude: Annotated[
-        float,
-        Field(strict=True, ge=-180, le=180, allow_inf_nan=False),
-    ]
-    radius: Annotated[
-        float,
-        Field(strict=True, ge=0, allow_inf_nan=False),
-    ] = 0
+    model_config = ConfigDict(strict=True, allow_inf_nan=False)
+    latitude: Annotated[float, Field(ge=-90, le=90)]
+    longitude: Annotated[float, Field(ge=-180, le=180)]
+    radius: Annotated[float, Field(ge=0)] = 0
 
-    @field_serializer("latitude", "longitude")
-    def serialize_precision(self, val: float) -> float:
-        """Round the latitude and longitude to 6 decimal places."""
-        return float(f"{val:.6f}")
+    @field_validator("latitude", "longitude")
+    @classmethod
+    def serialize_precision(cls, val: float) -> float:
+        """
+        Round the latitude and longitude to 6 decimal places.
+        Equivalent to 0.11m precision.
+        """
+        return round(val, 6)
 
 
 class AgentMetadata(BaseModel):
-    geolocation: AgentGeolocation
+    """
+    Model used to validate metadata for an agent.
+
+    Framework specific fields will be added here to ensure valid serialization.
+    Additional fields will simply be passed through.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+        arbitrary_types_allowed=True,
+    )
+
+    geolocation: Optional[AgentGeolocation] = None
 
 
 class DeliveryStatus(str, Enum):

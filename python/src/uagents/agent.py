@@ -520,26 +520,20 @@ class Agent(Sink):
         """
         Initialize the metadata for the agent.
 
-        The metadata is filtered to include only location-based metadata and the
-        model ensures that the metadata is valid and complete.
-
         Args:
             metadata (Optional[Dict[str, Any]]): The metadata to include in the agent object.
 
         Returns:
             Dict[str, Any]: The filtered metadata.
         """
-        if not metadata or "geolocation" not in metadata:
-            return {}
-
         try:
-            model = AgentMetadata.model_validate(metadata, strict=True)
-            filtered_metadata = model.model_dump()
+            model = AgentMetadata.model_validate(metadata)
+            validated_metadata = model.model_dump(exclude_unset=True)
         except ValidationError as e:
-            self._logger.error(f"Invalid metadata: {e}")
-            filtered_metadata = {}
+            self._logger.error(e)
+            raise RuntimeError("Invalid metadata provided for agent.") from None
 
-        return filtered_metadata
+        return validated_metadata
 
     @property
     def name(self) -> str:
