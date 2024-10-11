@@ -262,7 +262,7 @@ class Agent(Sink):
         mailbox_client (MailboxClient): The client for interacting with the agentverse mailbox.
         protocols (Dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
         corresponding protocols.
-        metadata (Dict[str, Any]): Metadata associated with the agent.
+        metadata (Optional[Dict[str, Any]]): Metadata associated with the agent.
 
     """
 
@@ -526,6 +526,9 @@ class Agent(Sink):
         Returns:
             Dict[str, Any]: The filtered metadata.
         """
+        if not metadata:
+            return {}
+
         try:
             model = AgentMetadata.model_validate(metadata)
             validated_metadata = model.model_dump(exclude_unset=True)
