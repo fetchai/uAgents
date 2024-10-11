@@ -16,7 +16,7 @@ from typing import (
     Union,
 )
 
-from pydantic import BaseModel, Field, field_serializer
+from pydantic import BaseModel, Field, field_validator
 
 from uagents.models import Model
 
@@ -70,10 +70,11 @@ class AgentGeolocation(BaseModel):
         Field(strict=True, ge=0, allow_inf_nan=False),
     ] = 0
 
-    @field_serializer("latitude", "longitude")
-    def serialize_precision(self, val: float) -> float:
+    @field_validator("latitude", "longitude")
+    @classmethod
+    def validate_location(cls, value: float) -> float:
         """Round the latitude and longitude to 6 decimal places."""
-        return float(f"{val:.6f}")
+        return round(value, 6)
 
 
 class AgentMetadata(BaseModel):
