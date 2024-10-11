@@ -3,6 +3,7 @@ from typing import Any
 from pydantic import Optional
 
 from uagents import Model, Protocol
+from uagents.experimental.types import AgentGeoLocation
 
 PROTOCOL_NAME = "basic-mobility-handshake"
 PROTOCOL_VERSION = "0.1.0"
@@ -40,6 +41,21 @@ class CheckOutResponse(Model):
     """
 
     receipt: Optional[dict[str, Any]] = None
+
+
+class StatusUpdate(Model):
+    """Message to signal an update to all checked in mobility agents"""
+
+    # the signal of the entity represented by the agent (e.g., speed lmit: 30, or "red")
+    signal: str = ""
+    # the new location if changed
+    new_location: AgentGeoLocation | None = None
+
+
+class StatusUpdateResponse(Model):
+    """Optional response to return on a StatusUpdate"""
+
+    text: str = ""
 
 
 mobility_base_protocol = Protocol(name=PROTOCOL_NAME, version=PROTOCOL_VERSION)
