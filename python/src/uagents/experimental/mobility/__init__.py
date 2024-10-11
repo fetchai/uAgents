@@ -1,4 +1,5 @@
-from typing import Literal
+from datetime import datetime
+from typing import Any, Literal
 
 from pydantic.v1 import confloat
 
@@ -29,7 +30,7 @@ class MobilityAgent(Agent):
         self._metadata["geolocation"] = location.model_dump()
         self._metadata["mobility_type"] = mobility_type
         self._proximity_agents: list[SearchResultAgent] = []
-        self._checkedin_agents: dict[str, CheckIn] = {}
+        self._checkedin_agents: dict[str, dict[str, Any]] = {}
 
         @self.on_rest_post("/set_location", Location, Location)
         async def _handle_location_update(_ctx: Context, req: Location):
@@ -55,7 +56,9 @@ class MobilityAgent(Agent):
         return self._checkedin_agents
 
     def checkin_agent(self, addr: str, agent: CheckIn):
-        self._checkedin_agents.update({addr: CheckIn})
+        self._checkedin_agents.update(
+            {addr: {"timestamp": datetime.now(), "agent": CheckIn}}
+        )
 
     def checkout_agent(self, addr: str):
         del self._checkedin_agents[addr]
