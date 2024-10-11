@@ -3,13 +3,19 @@ from datetime import time
 from uagents import Context
 from uagents.experimental.mobility import MobilityAgent as Agent
 from uagents.experimental.mobility.protocol import base_protocol
-from uagents.types import AgentGeoLocation
 
 static_agent = Agent(
     name="traffic light@2.2",
-    mobility_type="traffic_lights",
-    location=AgentGeoLocation(lat=2, lng=2, radius=1),
+    metadata={
+        "mobility_type": "traffic_lights",
+        "geolocation": {
+            "latitude": 2,
+            "longitude": 2,
+            "radius": 1,
+        },
+    },
 )
+
 
 signal = "red"
 current_checkedin_vehicles = {}
@@ -24,7 +30,8 @@ async def handle_checkin(ctx: Context, sender: str, msg: base_protocol.CheckIn):
         ctx.logger.info(
             f"encountered unsupported mobility agent of type {msg.mobility_type}"
         )
-    current_checkedin_vehicles[sender] = msg  # TODO update on checkout or timeout
+
+    static_agent.checkin_agent(sender, msg)  # TODO timeout/heartbeat?
 
     await ctx.send(
         sender,
@@ -40,7 +47,38 @@ async def handle_checkin(ctx: Context, sender: str, msg: base_protocol.CheckIn):
 async def handle_checkin_response(
     ctx: Context, sender: str, msg: base_protocol.CheckInResponse
 ):
-    # never gonna be triggered here
+    # never gonna be triggered in this agent
+    pass
+
+
+@proto.on_message(
+    model=base_protocol.StatusUpdate, replies=base_protocol.StatusUpdateResponse
+)
+async def handle_status_update(
+    ctx: Context, sender: str, msg: base_protocol.StatusUpdateResponse
+):
+    # never gonna be triggered in this agent
+    pass
+
+
+@proto.on_message(model=base_protocol.StatusUpdateResponse, replies=set())
+async def handle_statusupdate_response(
+    ctx: Context, sender: str, msg: base_protocol.StatusUpdateResponse
+):
+    pass
+
+
+@proto.on_message(model=base_protocol.CheckOut, replies=base_protocol.CheckOutResponse)
+async def handle_checkout(ctx: Context, sender: str, msg: base_protocol.CheckOut):
+    static_agent.checkout_agent(sender)
+    ctx.logger.info(f"{sender} said bye")
+
+
+@proto.on_message(model=base_protocol.CheckOutResponse, replies=set())
+async def handle_checkout_response(
+    ctx: Context, sender: str, msg: base_protocol.CheckOutResponse
+):
+    # never gonna be triggered in this agent
     pass
 
 
@@ -48,10 +86,12 @@ static_agent.include(proto)
 
 
 @static_agent.on_interval(5)
-def switch_signal(ctx: Context):
+async def switch_signal(ctx: Context):
     if not signal:
         signal = "red"
     signal = "green" if signal == "red" else "red"
+    for addr in static_agent.checkedin_agents:
+        await ctx.send(addr, base_protocol.StatusUpdate(signal=signal))
 
 
 if __name__ == "__main__":
