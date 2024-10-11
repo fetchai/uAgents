@@ -4,8 +4,6 @@ from typing import List
 import requests
 from pydantic import BaseModel, Field, Literal
 
-from uagents import Protocol
-
 # from uagents.config import SEARCH_API_URL
 from uagents.types import AgentGeoLocation
 
@@ -14,6 +12,17 @@ SEARCH_API_URL = "https://staging.agentverse.ai/v1/search/agents"
 StatusType = Literal["active", "inactive"]
 AgentType = Literal["hosted", "local", "mailbox"]
 AgentCategory = Literal["fetch-ai", "verified", "community"]
+
+
+class ProtocolRepresentation(BaseModel):
+    # the name of the protocol
+    name: str
+
+    # the version of the protocol
+    version: str
+
+    # the digest of the protocol
+    digest: str
 
 
 class Agent(BaseModel):
@@ -27,7 +36,7 @@ class Agent(BaseModel):
     readme: str
 
     # the list of protocols supported by the agent
-    protocols: list[Protocol]
+    protocols: list[ProtocolRepresentation]
 
     # the href for the avatar image for the agent
     avatar_href: str | None
@@ -144,10 +153,15 @@ def geosearch_agents_by_protocol(
             state="active",
             geolocation=AgentGeoLocation(lat=lat, lng=lng, radius=radius),
         ),
-        search_text=protocol_digest,
         limit=limit,
     )
-    return _geosearch_agents(lat, lng, radius, criteria)
+    unfiltered_geoagents = _geosearch_agents(lat, lng, radius, criteria)
+    filtered_agents = [
+        agent
+        for agent in unfiltered_geoagents
+        if protocol_digest in [protocol.digest for protocol in agent.protocols]
+    ]
+    return filtered_agents
 
 
 def geosearch_agents_by_text(
@@ -176,7 +190,13 @@ def search_agents_by_protocol(protocol_digest: str, limit: int = 30):
         search_text=protocol_digest,
         limit=limit,
     )
-    return _search_agents(criteria)
+    unfiltered_geoagents = _search_agents(criteria)
+    filtered_agents = [
+        agent
+        for agent in unfiltered_geoagents
+        if protocol_digest in [protocol.digest for protocol in agent.protocols]
+    ]
+    return filtered_agents
 
 
 def search_agents_by_text(search_text: str, limit: int = 30):
