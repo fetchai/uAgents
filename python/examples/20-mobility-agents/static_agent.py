@@ -3,13 +3,19 @@ from datetime import time
 from uagents import Context
 from uagents.experimental.mobility import MobilityAgent as Agent
 from uagents.experimental.mobility.protocol import base_protocol
-from uagents.types import AgentGeoLocation
 
 static_agent = Agent(
     name="traffic light@2.2",
-    mobility_type="traffic_lights",
-    location=AgentGeoLocation(lat=2, lng=2, radius=1),
+    metadata={
+        "mobility_type": "traffic_lights",
+        "geolocation": {
+            "latitude": 2,
+            "longitude": 2,
+            "radius": 1,
+        },
+    },
 )
+
 
 signal = "red"
 current_checkedin_vehicles = {}
@@ -40,7 +46,17 @@ async def handle_checkin(ctx: Context, sender: str, msg: base_protocol.CheckIn):
 async def handle_checkin_response(
     ctx: Context, sender: str, msg: base_protocol.CheckInResponse
 ):
-    # never gonna be triggered here
+    # never gonna be triggered in this agent
+    pass
+
+
+@proto.on_message(
+    model=base_protocol.StatusUpdate, replies=base_protocol.StatusUpdateResponse
+)
+async def handle_status_update(
+    ctx: Context, sender: str, msg: base_protocol.StatusUpdateResponse
+):
+    # never gonna be triggered in this agent
     pass
 
 
@@ -48,10 +64,12 @@ static_agent.include(proto)
 
 
 @static_agent.on_interval(5)
-def switch_signal(ctx: Context):
+async def switch_signal(ctx: Context):
     if not signal:
         signal = "red"
     signal = "green" if signal == "red" else "red"
+    for addr in current_checkedin_vehicles:
+        await ctx.send(addr, base_protocol.StatusUpdate(signal=signal))
 
 
 if __name__ == "__main__":
