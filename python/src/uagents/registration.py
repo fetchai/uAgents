@@ -15,6 +15,7 @@ from uagents.config import (
     ALMANAC_API_MAX_RETRIES,
     ALMANAC_API_TIMEOUT_SECONDS,
     ALMANAC_API_URL,
+    ALMANAC_CONTRACT_VERSION,
     REGISTRATION_FEE,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
 )
@@ -40,6 +41,13 @@ class AgentRegistrationPolicy(ABC):
         endpoints: List[AgentEndpoint],
         metadata: Optional[Dict[str, Any]] = None,
     ):
+        pass
+
+
+class BatchRegistrationPolicy(ABC):
+    @abstractmethod
+    # pylint: disable=unnecessary-pass
+    async def register(self):
         pass
 
 
@@ -133,6 +141,56 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
                     await asyncio.sleep(generate_backoff_time(retry))
 
 
+class BatchAlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
+    def __init__(
+        self, almanac_api: Optional[str] = None, logger: Optional[logging.Logger] = None
+    ):
+        self._almanac_api = almanac_api or ALMANAC_API_URL
+        self._attestations: List[AgentRegistrationAttestation] = []
+        self._logger = logger or logging.getLogger(__name__)
+
+    def add_agent(self, agent: Any):
+        attestation = AgentRegistrationAttestation(
+            agent_address=agent.address,
+            protocols=list(agent.protocols.keys()),
+            endpoints=agent._endpoints,
+            metadata=agent.metadata,
+        )
+        attestation.sign(agent._identity)
+        self._attestations.append(attestation)
+
+    async def register(self):
+        if not self._attestations:
+            return
+
+        attestations = [a.model_dump() for a in self._attestations]
+
+        async with aiohttp.ClientSession() as session:
+            for retry in range(ALMANAC_API_MAX_RETRIES):
+                try:
+                    async with session.post(
+                        f"{self._almanac_api}/agents/batch",
+                        headers={"content-type": "application/json"},
+                        data=json.dumps(attestations),
+                        timeout=aiohttp.ClientTimeout(
+                            total=ALMANAC_API_TIMEOUT_SECONDS
+                        ),
+                    ) as resp:
+                        resp.raise_for_status()
+                        self._logger.info(
+                            "Batch registration on Almanac API successful"
+                        )
+                        return
+                except (aiohttp.ClientError, asyncio.exceptions.TimeoutError) as e:
+                    if retry == ALMANAC_API_MAX_RETRIES - 1:
+                        raise e
+                    time_to_retry = generate_backoff_time(retry)
+                    self._logger.debug(
+                        f"Batch registration failed. Retrying in {time_to_retry} seconds..."
+                    )
+                    await asyncio.sleep(time_to_retry)
+
+
 class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
     def __init__(
         self,
@@ -151,6 +209,20 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         self._almanac_contract = almanac_contract
         self._logger = logger or logging.getLogger(__name__)
 
+    def check_contract_version(self):
+        """
+        Check the version of the deployed Almanac contract and log a warning
+        if it is different from the supported version.
+        """
+        deployed_version = self._almanac_contract.get_contract_version()
+        if deployed_version != ALMANAC_CONTRACT_VERSION:
+            self._logger.warning(
+                "Mismatch in almanac contract versions: supported (%s), deployed (%s). "
+                "Update uAgents to the latest version for compatibility.",
+                ALMANAC_CONTRACT_VERSION,
+                deployed_version,
+            )
+
     async def register(
         self,
         agent_address: str,
@@ -158,8 +230,12 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         endpoints: List[AgentEndpoint],
         metadata: Optional[Dict[str, Any]] = None,
     ):
-        # register if not yet registered or registration is about to expire
-        # or anything has changed from the last registration
+        """
+        Register the agent on the Almanac contract if registration is about to expire or
+        the registration data has changed.
+        """
+        self.check_contract_version()
+
         if (
             not self._almanac_contract.is_registered(agent_address)
             or self._almanac_contract.get_expiry(agent_address)

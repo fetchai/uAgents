@@ -26,7 +26,6 @@ from pydantic import ValidationError
 from uagents.asgi import ASGIServer
 from uagents.communication import Dispenser
 from uagents.config import (
-    ALMANAC_CONTRACT_VERSION,
     AVERAGE_BLOCK_INTERVAL,
     LEDGER_PREFIX,
     MAINNET_PREFIX,
@@ -50,6 +49,8 @@ from uagents.network import (
 from uagents.protocol import Protocol
 from uagents.registration import (
     AgentRegistrationPolicy,
+    BatchAlmanacApiRegistrationPolicy,
+    BatchRegistrationPolicy,
     DefaultRegistrationPolicy,
 )
 from uagents.resolver import GlobalResolver, Resolver
@@ -756,21 +757,11 @@ class Agent(Sink):
         if necessary.
 
         """
-        # Check if the deployed contract version matches the supported version
-        deployed_version = self._almanac_contract.get_contract_version()
-        if deployed_version != ALMANAC_CONTRACT_VERSION:
-            self._logger.warning(
-                "Mismatch in almanac contract versions: supported (%s), deployed (%s). "
-                "Update uAgents to the latest version for compatibility.",
-                ALMANAC_CONTRACT_VERSION,
-                deployed_version,
-            )
-
         await self._registration_policy.register(
             self.address, list(self.protocols.keys()), self._endpoints, self._metadata
         )
 
-    async def _registration_loop(self):
+    async def _schedule_registration(self):
         """
         Execute the registration loop.
 
@@ -784,12 +775,12 @@ class Agent(Sink):
         except InsufficientFundsError:
             time_until_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
         except Exception as ex:
-            self._logger.exception(f"Failed to register on almanac contract: {ex}")
+            self._logger.exception(f"Failed to register: {ex}")
             time_until_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
 
         # schedule the next registration update
         self._loop.create_task(
-            _delay(self._registration_loop(), time_until_next_registration)
+            _delay(self._schedule_registration(), time_until_next_registration)
         )
 
     def on_interval(
@@ -1061,18 +1052,18 @@ class Agent(Sink):
 
         return await handler(*args)  # type: ignore
 
-    async def _startup(self):
+    async def _startup(self, start_registration_loop: bool = True):
         """
         Perform startup actions.
 
         """
-        if self._endpoints:
-            await self._registration_loop()
-
-        else:
-            self._logger.warning(
-                "No endpoints provided. Skipping registration: Agent won't be reachable."
-            )
+        if start_registration_loop:
+            if self._endpoints:
+                await self._schedule_registration()
+            else:
+                self._logger.warning(
+                    "No endpoints provided. Skipping registration: Agent won't be reachable."
+                )
         for handler in self._on_startup:
             try:
                 ctx = self._build_context()
@@ -1100,13 +1091,13 @@ class Agent(Sink):
             except Exception as ex:
                 self._logger.exception(f"Exception in shutdown handler: {ex}")
 
-    async def setup(self):
+    async def setup(self, start_registration_loop: bool = True):
         """
         Include the internal agent protocol, run startup tasks, and start background tasks.
         """
         self.include(self._protocol)
         self.start_message_dispenser()
-        await self._startup()
+        await self._startup(start_registration_loop)
         self.start_message_receivers()
         self.start_interval_tasks()
 
@@ -1329,6 +1320,8 @@ class Bureau:
         agents: Optional[List[Agent]] = None,
         port: Optional[int] = None,
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
+        agentverse: Optional[Union[str, Dict[str, str]]] = None,
+        registration_policy: Optional[BatchRegistrationPolicy] = None,
         loop: Optional[asyncio.AbstractEventLoop] = None,
         log_level: Union[int, str] = logging.INFO,
     ):
@@ -1352,7 +1345,16 @@ class Bureau:
             queries=self._queries,
             logger=self._logger,
         )
-        self._use_mailbox = False
+        self._agentverse = parse_agentverse_config(agentverse)
+        self._use_mailbox = self._agentverse["use_mailbox"]
+        almanac_api_url = f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/v1/almanac"
+        self._registration_policy = (
+            registration_policy
+            or BatchAlmanacApiRegistrationPolicy(
+                almanac_api=almanac_api_url,
+                logger=self._logger,
+            )
+        )
 
         if agents is not None:
             for agent in agents:
@@ -1374,8 +1376,29 @@ class Bureau:
             self._use_mailbox = True
         else:
             agent.update_endpoints(self._endpoints)
+
+        self._registration_policy.add_agent(agent)
         self._server._rest_handler_map.update(agent._server._rest_handler_map)
         self._agents.append(agent)
+
+    async def _schedule_registration(self):
+        """
+        Start the batch registration loop.
+
+        """
+        time_to_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
+        try:
+            await self._registration_policy.register()
+        except InsufficientFundsError:
+            time_to_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
+        except Exception as ex:
+            self._logger.exception(f"Failed to register: {ex}")
+            time_to_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
+
+        # schedule the next registration update
+        self._loop.create_task(
+            _delay(self._schedule_registration(), time_to_next_registration)
+        )
 
     async def run_async(self):
         """
@@ -1384,9 +1407,10 @@ class Bureau:
         """
         tasks = [self._server.serve()]
         for agent in self._agents:
-            await agent.setup()
+            await agent.setup(start_registration_loop=False)
             if agent.agentverse["use_mailbox"] and agent.mailbox_client is not None:
                 tasks.append(agent.mailbox_client.run())
+        tasks.append(self._schedule_registration())
 
         try:
             await asyncio.gather(*tasks)
