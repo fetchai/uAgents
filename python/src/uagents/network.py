@@ -2,7 +2,7 @@
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from cosmpy.aerial.client import (
     DEFAULT_QUERY_INTERVAL_SECS,
@@ -199,28 +199,84 @@ class AlmanacContract(LedgerContract):
 
         return bool(response.get("record"))
 
-    def get_expiry(self, address: str) -> int:
+    def registration_needs_update(
+        self,
+        address: str,
+        endpoints: List[AgentEndpoint],
+        protocols: List[str],
+        min_seconds_left: int,
+    ) -> bool:
         """
-        Get the expiry height of an agent's registration.
+        Check if an agent's registration needs to be updated.
+
+        Args:
+            address (str): The agent's address.
+            endpoints (List[AgentEndpoint]): The agent's endpoints.
+            protocols (List[str]): The agent's protocols.
+            min_time_left (int): The minimum time left before the agent's registration expires
+
+        Returns:
+            bool: True if the agent's registration needs to be updated or will expire sooner
+            than the specified minimum time, False otherwise.
+        """
+        seconds_to_expiry, registered_endpoints, registered_protocols = (
+            self.query_agent_record(address)
+        )
+        return (
+            not self.is_registered(address)
+            or seconds_to_expiry < min_seconds_left
+            or endpoints != registered_endpoints
+            or protocols != registered_protocols
+        )
+
+    def query_agent_record(
+        self, address: str
+    ) -> Tuple[int, List[AgentEndpoint], List[str]]:
+        """
+        Get the records associated with an agent's registration.
 
         Args:
             address (str): The agent's address.
 
         Returns:
-            int: The expiry height of the agent's registration.
+            Tuple[int, List[AgentEndpoint], List[str]]: The expiry height of the agent's
+            registration, the agent's endpoints, and the agent's protocols.
         """
         query_msg = {"query_records": {"agent_address": address}}
         response = self.query_contract(query_msg)
+
+        if not response.get("record"):
+            return []
 
         if not response.get("record"):
             contract_state = self.query_contract({"query_contract_state": {}})
             expiry = contract_state.get("state", {}).get("expiry_height", 0)
             return expiry * AVERAGE_BLOCK_INTERVAL
 
-        expiry = response["record"][0].get("expiry", 0)
-        height = response.get("height", 0)
+        expiry_block = response["record"][0].get("expiry", 0)
+        current_block = response.get("height", 0)
 
-        return (expiry - height) * AVERAGE_BLOCK_INTERVAL
+        seconds_to_expiry = (expiry_block - current_block) * AVERAGE_BLOCK_INTERVAL
+
+        endpoints = []
+        for endpoint in response["record"][0]["record"]["service"]["endpoints"]:
+            endpoints.append(AgentEndpoint.model_validate(endpoint))
+
+        protocols = response["record"][0]["record"]["service"]["protocols"]
+
+        return seconds_to_expiry, endpoints, protocols
+
+    def get_expiry(self, address: str) -> int:
+        """
+        Get the approximate seconds to expiry of an agent's registration.
+
+        Args:
+            address (str): The agent's address.
+
+        Returns:
+            int: The approximate seconds to expiry of the agent's registration.
+        """
+        return self.query_agent_record(address)[0]
 
     def get_endpoints(self, address: str) -> List[AgentEndpoint]:
         """
@@ -230,21 +286,11 @@ class AlmanacContract(LedgerContract):
             address (str): The agent's address.
 
         Returns:
-            List[AgentEndpoint]: The endpoints associated with the agent's registration.
+            List[AgentEndpoint]: The agent's registered endpoints.
         """
-        query_msg = {"query_records": {"agent_address": address}}
-        response = self.query_contract(query_msg)
+        return self.query_agent_record(address)[1]
 
-        if not response.get("record"):
-            return []
-
-        endpoints = []
-        for endpoint in response["record"][0]["record"]["service"]["endpoints"]:
-            endpoints.append(AgentEndpoint.model_validate(endpoint))
-
-        return endpoints
-
-    def get_protocols(self, address: str):
+    def get_protocols(self, address: str) -> List[str]:
         """
         Get the protocols associated with an agent's registration.
 
@@ -252,15 +298,9 @@ class AlmanacContract(LedgerContract):
             address (str): The agent's address.
 
         Returns:
-            Any: The protocols associated with the agent's registration.
+            List[str]: The agent's registered protocols.
         """
-        query_msg = {"query_records": {"agent_address": address}}
-        response = self.query_contract(query_msg)
-
-        if not response.get("record"):
-            return None
-
-        return response["record"][0]["record"]["service"]["protocols"]
+        return self.query_agent_record(address)[2]
 
     def get_registration_msg(
         self,

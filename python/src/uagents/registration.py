@@ -3,7 +3,7 @@ import hashlib
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import aiohttp
 from cosmpy.aerial.client import LedgerClient
@@ -86,6 +86,13 @@ class AgentRegistrationAttestation(BaseModel):
             ).encode("utf-8")
         )
         return sha256.digest()
+
+
+class AgentLedgerRegistrationDetails(BaseModel):
+    agent_address: str
+    protocols: List[str]
+    endpoints: List[AgentEndpoint]
+    signer: Callable[[], str]
 
 
 class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
@@ -292,6 +299,58 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
             str(self._almanac_contract.address),
             self._almanac_contract.get_sequence(agent_address),
         )
+
+
+class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
+    def __init__(
+        self,
+        ledger: LedgerClient,
+        wallet: LocalWallet,
+        almanac_contract: AlmanacContract,
+        testnet: bool,
+        logger: Optional[logging.Logger] = None,
+    ):
+        self._ledger = ledger
+        self._wallet = wallet
+        self._almanac_contract = almanac_contract
+        self._testnet = testnet
+        self._logger = logger or logging.getLogger(__name__)
+        self._agents: List[AgentLedgerRegistrationDetails] = []
+
+    def add_agent(self, agent: Any):
+        agent_details = AgentLedgerRegistrationDetails(
+            agent_address=agent.address,
+            protocols=list(agent.protocols.keys()),
+            endpoints=agent._endpoints,
+            sign_registration=agent._identity.sign_registration,
+        )
+        self._agents.append(agent_details)
+
+    def _get_balance(self) -> int:
+        return self._ledger.query_bank_balance(Address(self._wallet.address()))
+
+    async def register(self):
+        self._logger.info("Registering agents on Almanac contract...")
+        for agent in self._agents:
+            if self._almanac_contract.registration_needs_update(
+                agent.agent_address,
+                agent.protocols,
+                agent.endpoints,
+                REGISTRATION_UPDATE_INTERVAL_SECONDS,
+            ):
+                signature = agent.sign_registration(agent.agent_address)
+                await self._almanac_contract.register(
+                    self._ledger,
+                    self._wallet,
+                    agent.agent_address,
+                    agent.protocols,
+                    agent.endpoints,
+                    signature,
+                )
+            else:
+                self._logger.info(
+                    f"Agent {agent.agent_address} registration is up to date!"
+                )
 
 
 class DefaultRegistrationPolicy(AgentRegistrationPolicy):
