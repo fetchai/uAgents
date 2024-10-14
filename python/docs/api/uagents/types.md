@@ -15,11 +15,26 @@ class AgentGeolocation(BaseModel)
 #### serialize`_`precision
 
 ```python
-@field_serializer("latitude", "longitude")
-def serialize_precision(val: float) -> float
+@field_validator("latitude", "longitude")
+@classmethod
+def serialize_precision(cls, val: float) -> float
 ```
 
 Round the latitude and longitude to 6 decimal places.
+Equivalent to 0.11m precision.
+
+<a id="src.uagents.types.AgentMetadata"></a>
+
+## AgentMetadata Objects
+
+```python
+class AgentMetadata(BaseModel)
+```
+
+Model used to validate metadata for an agent.
+
+Framework specific fields will be added here to ensure valid serialization.
+Additional fields will simply be passed through.
 
 <a id="src.uagents.types.DeliveryStatus"></a>
 

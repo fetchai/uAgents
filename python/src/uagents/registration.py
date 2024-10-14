@@ -101,12 +101,18 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         endpoints: List[AgentEndpoint],
         metadata: Optional[Dict[str, Any]] = None,
     ):
+        clean_metadata = (
+            {k: v for k, v in metadata.items() if k == "geolocation"}
+            if metadata
+            else None
+        )  # only keep geolocation metadata for registration
+
         # create the attestation
         attestation = AgentRegistrationAttestation(
             agent_address=agent_address,
             protocols=protocols,
             endpoints=endpoints,
-            metadata=metadata,
+            metadata=clean_metadata,
         )
 
         # sign the attestation
