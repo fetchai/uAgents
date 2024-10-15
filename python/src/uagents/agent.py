@@ -42,16 +42,9 @@ from uagents.dispatch import Sink, dispatcher
 from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
 from uagents.mailbox import MailboxClient
 from uagents.models import ErrorMessage, Model
-from uagents.network import (
-    InsufficientFundsError,
-    get_almanac_contract,
-    get_ledger,
-)
+from uagents.network import InsufficientFundsError, get_almanac_contract, get_ledger
 from uagents.protocol import Protocol
-from uagents.registration import (
-    AgentRegistrationPolicy,
-    DefaultRegistrationPolicy,
-)
+from uagents.registration import AgentRegistrationPolicy, DefaultRegistrationPolicy
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.types import (
