@@ -2,6 +2,7 @@
 import hashlib
 import json
 import unittest
+import time
 from typing import Any, Dict, List
 
 from cosmpy.protos.cosmos.base.v1beta1.coin_pb2 import Coin
@@ -112,7 +113,7 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
             endpoint=["http://localhost:8000/submit"], seed="almanact_reg_agent"
         )
 
-        signature = agent.sign_registration()
+        signature = agent.sign_registration(int(time.time()))
 
         almanac_msg = agent._almanac_contract.get_registration_msg(
             list(agent.protocols.keys()), agent._endpoints, signature, 0, agent.address
