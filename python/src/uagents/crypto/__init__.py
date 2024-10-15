@@ -153,7 +153,7 @@ class Identity:
         hasher.update(encode_length_prefixed(self.address))
         hasher.update(encode_length_prefixed(sequence))
         hasher.update(encode_length_prefixed(wallet_address))
-        return self.sign_digest(hasher.digest()) 
+        return self.sign_digest(hasher.digest())
 
     def sign_arbitrary(self, data: bytes) -> Tuple[str, str]:
         # create the sign doc

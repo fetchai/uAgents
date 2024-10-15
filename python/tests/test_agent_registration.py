@@ -2,7 +2,6 @@
 import hashlib
 import json
 import unittest
-import time
 from typing import Any, Dict, List
 
 from cosmpy.protos.cosmos.base.v1beta1.coin_pb2 import Coin
@@ -14,7 +13,13 @@ from uagents.network import get_name_service_contract
 EXPECTED_FUNDS = Coin(amount="8640000000000000", denom="atestfet")
 
 
-def generate_digest(agent_address: str, contract_address: str, sequence: int, wallet_address: str) -> bytes:
+def generate_digest(
+    agent_address: str,
+    contract_address: str,
+    sequence: int,
+    wallet_address: str
+) -> bytes:
+
     hasher = hashlib.sha256()
     hasher.update(encode_length_prefixed(contract_address))
     hasher.update(encode_length_prefixed(agent_address))
