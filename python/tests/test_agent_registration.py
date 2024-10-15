@@ -14,12 +14,8 @@ EXPECTED_FUNDS = Coin(amount="8640000000000000", denom="atestfet")
 
 
 def generate_digest(
-    agent_address: str,
-    contract_address: str,
-    sequence: int,
-    wallet_address: str
+    agent_address: str, contract_address: str, sequence: int, wallet_address: str
 ) -> bytes:
-
     hasher = hashlib.sha256()
     hasher.update(encode_length_prefixed(contract_address))
     hasher.update(encode_length_prefixed(agent_address))
@@ -127,7 +123,9 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
 
         contract_address = str(agent._almanac_contract.address)
 
-        digest = generate_digest(agent.address, contract_address, 0, str(agent.wallet.address()))
+        digest = generate_digest(
+            agent.address, contract_address, 0, str(agent.wallet.address())
+        )
 
         self.assertEqual(
             mock_almanac_registration(almanac_msg, digest),
