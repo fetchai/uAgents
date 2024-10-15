@@ -8,6 +8,7 @@ from uagents.crypto import Identity
 from uagents.registration import (
     AgentRegistrationAttestation,
     AlmanacApiRegistrationPolicy,
+    coerce_metadata_to_str,
 )
 from uagents.types import AgentEndpoint
 
@@ -44,7 +45,9 @@ def test_attestation_signature_with_metadata():
         agent_address=identity.address,
         protocols=TEST_PROTOCOLS,
         endpoints=TEST_ENDPOINTS,
-        metadata={"foo": "bar", "baz": 3.17, "qux": {"a": "b", "c": 4, "d": 5.6}},
+        metadata=coerce_metadata_to_str(
+            {"foo": "bar", "baz": 3.17, "qux": {"a": "b", "c": 4, "d": 5.6}}
+        ),
     )
 
     # sign the attestation with the identity
