@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import time
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Union
 
@@ -209,7 +210,9 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
 
             self._logger.info("Registering on almanac contract...")
 
-            signature = self._sign_registration(agent_address)
+            current_time = int(time.time())
+
+            signature = self._sign_registration(current_time)
             await self._almanac_contract.register(
                 self._ledger,
                 self._wallet,
@@ -217,6 +220,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
                 protocols,
                 endpoints,
                 signature,
+                current_time,
             )
             self._logger.info("Registering on almanac contract...complete")
         else:
@@ -225,7 +229,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
     def _get_balance(self) -> int:
         return self._ledger.query_bank_balance(Address(self._wallet.address()))
 
-    def _sign_registration(self, agent_address: str) -> str:
+    def _sign_registration(self, current_time: int) -> str:
         """
         Sign the registration data for Almanac contract.
 
@@ -239,7 +243,8 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         assert self._almanac_contract.address is not None
         return self._identity.sign_registration(
             str(self._almanac_contract.address),
-            self._almanac_contract.get_sequence(agent_address),
+            current_time,
+            str(self._wallet.address()),
         )
 
 
