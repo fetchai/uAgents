@@ -738,6 +738,17 @@ class Agent(Sink):
 
         self._queries = queries
 
+    def update_registration_policy(self, policy: AgentRegistrationPolicy):
+        """
+        Update the registration policy.
+
+        Args:
+            policy: The registration policy.
+
+        """
+
+        self._registration_policy = policy
+
     async def register(self):
         """
         Register with the Almanac contract.
