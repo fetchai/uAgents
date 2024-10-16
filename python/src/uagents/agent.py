@@ -691,7 +691,7 @@ class Agent(Sink):
         """
         return self._identity.sign_digest(digest)
 
-    def sign_registration(self) -> str:
+    def sign_registration(self, current_time: int) -> str:
         """
         Sign the registration data for Almanac contract.
         Returns:
@@ -702,7 +702,8 @@ class Agent(Sink):
         assert self._almanac_contract.address is not None
         return self._identity.sign_registration(
             str(self._almanac_contract.address),
-            self._almanac_contract.get_sequence(self.address),
+            current_time,
+            str(self.wallet.address()),
         )
 
     def update_endpoints(self, endpoints: List[AgentEndpoint]):

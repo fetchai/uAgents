@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import time
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Union
 
@@ -15,6 +16,7 @@ from uagents.config import (
     ALMANAC_API_MAX_RETRIES,
     ALMANAC_API_TIMEOUT_SECONDS,
     ALMANAC_API_URL,
+    ALMANAC_REGISTRATION_WAIT,
     REGISTRATION_FEE,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
 )
@@ -209,7 +211,9 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
 
             self._logger.info("Registering on almanac contract...")
 
-            signature = self._sign_registration(agent_address)
+            current_time = int(time.time()) - ALMANAC_REGISTRATION_WAIT
+
+            signature = self._sign_registration(current_time)
             await self._almanac_contract.register(
                 self._ledger,
                 self._wallet,
@@ -217,6 +221,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
                 protocols,
                 endpoints,
                 signature,
+                current_time,
             )
             self._logger.info("Registering on almanac contract...complete")
         else:
@@ -225,7 +230,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
     def _get_balance(self) -> int:
         return self._ledger.query_bank_balance(Address(self._wallet.address()))
 
-    def _sign_registration(self, agent_address: str) -> str:
+    def _sign_registration(self, current_time: int) -> str:
         """
         Sign the registration data for Almanac contract.
 
@@ -239,7 +244,8 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         assert self._almanac_contract.address is not None
         return self._identity.sign_registration(
             str(self._almanac_contract.address),
-            self._almanac_contract.get_sequence(agent_address),
+            current_time,
+            str(self._wallet.address()),
         )
 
 

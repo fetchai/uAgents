@@ -292,6 +292,7 @@ class AlmanacContract(LedgerContract):
         protocols: List[str],
         endpoints: List[AgentEndpoint],
         signature: str,
+        current_time: int,
     ):
         """
         Register an agent with the Almanac contract.
@@ -309,12 +310,11 @@ class AlmanacContract(LedgerContract):
 
         transaction = Transaction()
 
-        sequence = self.get_sequence(agent_address)
         almanac_msg = self.get_registration_msg(
             protocols=protocols,
             endpoints=endpoints,
             signature=signature,
-            sequence=sequence,
+            sequence=current_time,
             address=agent_address,
         )
 
