@@ -3,7 +3,7 @@ import hashlib
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import aiohttp
 from cosmpy.aerial.client import LedgerClient
@@ -30,6 +30,25 @@ def generate_backoff_time(retry: int) -> float:
     return (2 ** (min(retry, 11) + 6)) / 1000
 
 
+def coerce_metadata_to_str(
+    metadata: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Union[str, Dict[str, str]]]]:
+    """
+    Step through the metadata and convert any non-string values to strings.
+    """
+    if metadata is None:
+        return None
+    out = {}
+    for key, val in metadata.items():
+        if isinstance(val, dict):
+            out[key] = {
+                k: v if isinstance(v, str) else json.dumps(v) for k, v in val.items()
+            }
+        else:
+            out[key] = val if isinstance(val, str) else json.dumps(val)
+    return out
+
+
 class AgentRegistrationPolicy(ABC):
     @abstractmethod
     # pylint: disable=unnecessary-pass
@@ -47,7 +66,7 @@ class AgentRegistrationAttestation(BaseModel):
     agent_address: str
     protocols: List[str]
     endpoints: List[AgentEndpoint]
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Union[str, Dict[str, str]]]] = None
     signature: Optional[str] = None
 
     def sign(self, identity: Identity):
@@ -101,12 +120,18 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         endpoints: List[AgentEndpoint],
         metadata: Optional[Dict[str, Any]] = None,
     ):
+        clean_metadata = (
+            {k: v for k, v in metadata.items() if k == "geolocation"}
+            if metadata
+            else None
+        )  # only keep geolocation metadata for registration
+
         # create the attestation
         attestation = AgentRegistrationAttestation(
             agent_address=agent_address,
             protocols=protocols,
             endpoints=endpoints,
-            metadata=metadata,
+            metadata=coerce_metadata_to_str(clean_metadata),
         )
 
         # sign the attestation
