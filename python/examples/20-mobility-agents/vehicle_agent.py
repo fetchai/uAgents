@@ -39,11 +39,13 @@ async def handle_checkin_response(
 async def handle_status_update(
     ctx: Context, sender: str, msg: base_protocol.StatusUpdateResponse
 ):
-    known_agent = vehicle_agent.proximity_agents[sender]
+    known_agent = next(
+        (a for a in vehicle_agent.proximity_agents if a.address == sender), None
+    )
     if not known_agent:
         ctx.logger.info("got status update from agent out of reach")
     else:
-        ctx.logger.info(f"new signal from {known_agent["name"]}: {msg.signal}")
+        ctx.logger.info(f"new signal from {known_agent.name}: {msg.text}")
 
 
 @proto.on_message(model=base_protocol.CheckOut, replies=base_protocol.CheckOutResponse)

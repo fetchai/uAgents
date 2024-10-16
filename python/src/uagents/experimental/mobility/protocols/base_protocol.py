@@ -14,9 +14,7 @@ class Location(Model):
     radius: confloat(gt=0, allow_inf_nan=False)
 
 
-MobilityType = Literal[
-    "traffic_lights", "traffic_sign", "vehicle", "bike", "pedestrian"
-]
+MobilityType = Literal["traffic_light", "traffic_sign", "vehicle", "bike", "pedestrian"]
 
 
 class CheckIn(Model):

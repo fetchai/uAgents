@@ -49,7 +49,7 @@ class MobilityAgent(Agent):
 
     def checkin_agent(self, addr: str, agent: CheckIn):
         self._checkedin_agents.update(
-            {addr: {"timestamp": datetime.now(), "agent": CheckIn}}
+            {addr: {"timestamp": datetime.now(), "agent": CheckIn}}  # agent maybe?
         )
 
     def checkout_agent(self, addr: str):
@@ -99,7 +99,6 @@ class MobilityAgent(Agent):
         # only send check-in to agents that are not already in the proximity list
         if agent in self._proximity_agents:
             return
-
         await ctx.send(
             agent.address,
             CheckIn(
