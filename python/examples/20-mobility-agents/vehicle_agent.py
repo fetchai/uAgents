@@ -2,18 +2,17 @@ from uagents import Context
 from uagents.experimental.mobility import MobilityAgent as Agent
 from uagents.experimental.mobility.protocols import base_protocol
 from uagents.experimental.search import search_agents_by_text
+from uagents.types import AgentGeolocation
 
 vehicle_agent = Agent(
     name="My vehicle agent",
     seed="test vehicle agent #1",
-    metadata={
-        "mobility_type": "vehicle",
-        "geolocation": {
-            "latitude": 0,
-            "longitude": 0,
-            "radius": 1,
-        },
-    },
+    mobility_type="vehicle",
+    location=AgentGeolocation(
+        latitude=0,
+        longitude=0,
+        radius=1,
+    ),
 )
 
 
@@ -42,11 +41,13 @@ async def handle_checkin_response(
 async def handle_status_update(
     ctx: Context, sender: str, msg: base_protocol.StatusUpdateResponse
 ):
-    known_agent = vehicle_agent.proximity_agents[sender]
+    known_agent = next(
+        (a for a in vehicle_agent.proximity_agents if a.address == sender), None
+    )
     if not known_agent:
         ctx.logger.info("got status update from agent out of reach")
     else:
-        ctx.logger.info(f"new signal from {known_agent["name"]}: {msg.signal}")
+        ctx.logger.info(f"new signal from {known_agent.name}: {msg.text}")
 
 
 @proto.on_message(model=base_protocol.CheckOut, replies=base_protocol.CheckOutResponse)
@@ -65,7 +66,7 @@ vehicle_agent.include(proto)
 
 
 @vehicle_agent.on_event("startup")
-def startup(ctx: Context):
+async def startup(ctx: Context):
     # test the search api
     resp = search_agents_by_text("any agents out there?")
     ctx.logger.info(f"search results: {resp}")

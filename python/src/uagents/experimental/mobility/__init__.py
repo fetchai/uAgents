@@ -49,7 +49,7 @@ class MobilityAgent(Agent):
 
     def checkin_agent(self, addr: str, agent: CheckIn):
         self._checkedin_agents.update(
-            {addr: {"timestamp": datetime.now(), "agent": CheckIn}}
+            {addr: {"timestamp": datetime.now(), "agent": CheckIn}}  # agent maybe?
         )
 
     def checkout_agent(self, addr: str):
