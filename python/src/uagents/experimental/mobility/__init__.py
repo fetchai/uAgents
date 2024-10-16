@@ -96,9 +96,9 @@ class MobilityAgent(Agent):
 
     async def _send_checkin(self, agent: SearchResultAgent):
         ctx = self._build_context()
+        # only send check-in to agents that are not already in the proximity list
         if agent in self._proximity_agents:
             return
-        # only send check-in to agents that are not already in the proximity list
         await ctx.send(
             agent.address,
             CheckIn(

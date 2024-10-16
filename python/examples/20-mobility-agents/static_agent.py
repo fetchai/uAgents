@@ -7,10 +7,10 @@ from uagents.types import AgentGeolocation
 
 static_agent = Agent(
     name="traffic light@2.2",
-    mobility_type="traffic_lights",
+    mobility_type="traffic_light",
     location=AgentGeolocation(
-        latitude=2,
-        longitude=2,
+        latitude=3,
+        longitude=3,
         radius=1,
     ),
 )

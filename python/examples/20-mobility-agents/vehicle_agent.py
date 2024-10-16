@@ -8,11 +8,7 @@ vehicle_agent = Agent(
     name="My vehicle agent",
     seed="test vehicle agent #1",
     mobility_type="vehicle",
-    location=AgentGeolocation(
-        latitude=0,
-        longitude=0,
-        radius=1,
-    ),
+    location=AgentGeolocation(latitude=0, longitude=0, radius=1),
 )
 
 
@@ -68,8 +64,10 @@ vehicle_agent.include(proto)
 @vehicle_agent.on_event("startup")
 async def startup(ctx: Context):
     # test the search api
-    resp = search_agents_by_text("any agents out there?")
-    ctx.logger.info(f"search results: {resp}")
+    resp = search_agents_by_text("alice")
+    ctx.logger.info(f"found {len(resp)} agents:")
+    for agent in resp:
+        ctx.logger.info(f"{agent.name}")
 
 
 if __name__ == "__main__":
