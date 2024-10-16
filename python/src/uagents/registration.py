@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from uagents.config import (
     ALMANAC_API_MAX_RETRIES,
     ALMANAC_API_TIMEOUT_SECONDS,
+    ALMANAC_REGISTRATION_WAIT,
     ALMANAC_API_URL,
     REGISTRATION_FEE,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
@@ -210,7 +211,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
 
             self._logger.info("Registering on almanac contract...")
 
-            current_time = int(time.time())
+            current_time = int(time.time()) - ALMANAC_REGISTRATION_WAIT
 
             signature = self._sign_registration(current_time)
             await self._almanac_contract.register(
