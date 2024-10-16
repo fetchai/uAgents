@@ -1,13 +1,12 @@
 from datetime import datetime
-from typing import List, Literal
+from typing import Annotated, List, Literal
 
 import requests
 from pydantic import BaseModel, Field
 
 # from uagents.config import SEARCH_API_URL
-from uagents.types import AgentGeolocation
 
-SEARCH_API_URL = "https://staging.agentverse.ai/v1/search/agents"
+SEARCH_API_URL = "https://engine-staging.sandbox-london-b.fetch-ai.com/v1/search/agents"
 
 StatusType = Literal["active", "inactive"]
 AgentType = Literal["hosted", "local", "mailbox"]
@@ -83,9 +82,6 @@ class AgentFilters(BaseModel):
     # The category of how the agent is hosted
     agent_type: List[AgentType] = Field(default_factory=list)
 
-    # The geolocation to limit the search to
-    geolocation: AgentGeolocation | None = None
-
 
 SortType = Literal["relevancy", "created-at", "last-modified", "interactions"]
 SortDirection = Literal["asc", "desc"]
@@ -116,12 +112,36 @@ class AgentSearchCriteria(BaseModel):
     limit: int = 30
 
 
-def _geosearch_agents(
-    lat: float, lng: float, radius: float, criteria: AgentSearchCriteria
-):
+class AgentGeoFilter(BaseModel):
+    """
+    The geo filter that can be applied to the agent search
+    """
+
+    # The latitude of the location
+    latitude: Annotated[float, Field(ge=-90, le=90)]
+
+    # The longitude of the location
+    longitude: Annotated[float, Field(ge=-180, le=180)]
+
+    # The radius of the search in meters
+    radius: Annotated[float, Field(gt=0)]
+
+
+class AgentGeoSearchCriteria(AgentSearchCriteria):
+    """
+    The search criteria that can be set for the agent search
+    """
+
+    # The geo filter that can be applied to the search
+    geo_filter: AgentGeoFilter
+
+
+def _geosearch_agents(criteria: AgentGeoSearchCriteria):
+    # TODO currently results will be returned based on radius overlap, i.e., results can
+    # include agents that are farther away then the specified radius
     response = requests.post(
         url=SEARCH_API_URL + "/geo",
-        json={"req": criteria},
+        json=criteria.model_dump(),
         timeout=5,
     )
     if response.status_code == 200:
@@ -134,30 +154,33 @@ def _geosearch_agents(
 def _search_agents(criteria: AgentSearchCriteria):
     response = requests.post(
         url=SEARCH_API_URL,
-        json={"req": criteria},
+        json=criteria.model_dump(),
         timeout=5,
     )
     if response.status_code == 200:
         data = response.json()
-        agents = [Agent.model_validate_json(agent) for agent in data["agents"]]
+        agents = [Agent.model_validate(agent) for agent in data["agents"]]
         return agents
     return []
 
 
 def geosearch_agents_by_protocol(
-    lat: float, lng: float, radius: float, protocol_digest: str, limit: int = 30
+    latitude: float,
+    longitude: float,
+    radius: float,
+    protocol_digest: str,
+    limit: int = 30,
 ):
     """
     Return all agents in a circle around the given coordinates that match the given search criteria
     """
-    criteria = AgentSearchCriteria(
-        filters=AgentFilters(
-            state=["active"],
-            geolocation=AgentGeolocation(latitude=lat, longitude=lng, radius=radius),
+    criteria = AgentGeoSearchCriteria(
+        geo_filter=AgentGeoFilter(
+            latitude=latitude, longitude=longitude, radius=radius
         ),
         limit=limit,
     )
-    unfiltered_geoagents = _geosearch_agents(lat, lng, radius, criteria)
+    unfiltered_geoagents = _geosearch_agents(criteria)
     filtered_agents = [
         agent
         for agent in unfiltered_geoagents
@@ -167,25 +190,24 @@ def geosearch_agents_by_protocol(
 
 
 def geosearch_agents_by_text(
-    lat: float, lng: float, radius: float, search_text: str, limit: int = 30
+    latitude: float, longitude: float, radius: float, search_text: str, limit: int = 30
 ):
     """
     Return all agents in a circle around the given coordinates that match the given search_text
     """
-    criteria = AgentSearchCriteria(
-        filters=AgentFilters(
-            state=["active"],
-            geolocation=AgentGeolocation(latitude=lat, longitude=lng, radius=radius),
+    criteria = AgentGeoSearchCriteria(
+        geo_filter=AgentGeoFilter(
+            latitude=latitude, longitude=longitude, radius=radius
         ),
-        search_text=search_text,
         limit=limit,
+        search_text=search_text,
     )
-    return _geosearch_agents(lat, lng, radius, criteria)
+    return _geosearch_agents(criteria)
 
 
 def search_agents_by_protocol(protocol_digest: str, limit: int = 30):
     """
-    Return all agents ithat match the given search criteria
+    Return all agents that match the given search criteria
     """
     criteria = AgentSearchCriteria(
         filters=AgentFilters(state=["active"]),

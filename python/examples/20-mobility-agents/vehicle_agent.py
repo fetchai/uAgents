@@ -2,18 +2,13 @@ from uagents import Context
 from uagents.experimental.mobility import MobilityAgent as Agent
 from uagents.experimental.mobility.protocols import base_protocol
 from uagents.experimental.search import search_agents_by_text
+from uagents.types import AgentGeolocation
 
 vehicle_agent = Agent(
     name="My vehicle agent",
     seed="test vehicle agent #1",
-    metadata={
-        "mobility_type": "vehicle",
-        "geolocation": {
-            "latitude": 0,
-            "longitude": 0,
-            "radius": 1,
-        },
-    },
+    mobility_type="vehicle",
+    location=AgentGeolocation(latitude=0, longitude=0),
 )
 
 
@@ -65,10 +60,12 @@ vehicle_agent.include(proto)
 
 
 @vehicle_agent.on_event("startup")
-def startup(ctx: Context):
+async def startup(ctx: Context):
     # test the search api
-    resp = search_agents_by_text("any agents out there?")
-    ctx.logger.info(f"search results: {resp}")
+    resp = search_agents_by_text("alice")
+    ctx.logger.info(f"found {len(resp)} agents:")
+    for agent in resp:
+        ctx.logger.info(f"{agent.name}")
 
 
 if __name__ == "__main__":

@@ -3,17 +3,13 @@ from datetime import time
 from uagents import Context
 from uagents.experimental.mobility import MobilityAgent as Agent
 from uagents.experimental.mobility.protocol import base_protocol
+from uagents.types import AgentGeolocation
 
 static_agent = Agent(
     name="traffic light@2.2",
-    metadata={
-        "mobility_type": "traffic_lights",
-        "geolocation": {
-            "latitude": 2,
-            "longitude": 2,
-            "radius": 1,
-        },
-    },
+    seed="test traffic light #1",
+    mobility_type="traffic_light",
+    location=AgentGeolocation(latitude=3, longitude=3, radius=1),
 )
 
 
