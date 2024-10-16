@@ -2,19 +2,18 @@ from datetime import time
 
 from uagents import Context
 from uagents.experimental.mobility import MobilityAgent as Agent
-from uagents.experimental.mobility.protocol import base_protocol
+from uagents.experimental.mobility.protocols import base_protocol
 from uagents.types import AgentGeolocation
 
 static_agent = Agent(
     name="traffic light@2.2",
     seed="test traffic light #1",
     mobility_type="traffic_light",
+    port=8112,
+    endpoint="https://localhost:8112/submit",
     location=AgentGeolocation(latitude=3, longitude=3, radius=1),
 )
 
-
-signal = "red"
-current_checkedin_vehicles = {}
 proto = base_protocol.mobility_base_protocol
 
 
@@ -33,7 +32,7 @@ async def handle_checkin(ctx: Context, sender: str, msg: base_protocol.CheckIn):
         sender,
         base_protocol.CheckInResponse(
             mobility_type=static_agent.mobility_type,
-            signal=signal,
+            signal=ctx.storage.get("signal"),
             description="Traffic lights. Be wary, the yellow bulb isn't working",
         ),
     )
@@ -81,11 +80,16 @@ async def handle_checkout_response(
 static_agent.include(proto)
 
 
+@static_agent.on_event("startup")
+async def startup(ctx: Context):
+    ctx.storage.set("signal", "red")
+
+
 @static_agent.on_interval(5)
 async def switch_signal(ctx: Context):
-    if not signal:
-        signal = "red"
+    signal = ctx.storage.get("signal")
     signal = "green" if signal == "red" else "red"
+    ctx.storage.set("signal", signal)
     for addr in static_agent.checkedin_agents:
         await ctx.send(addr, base_protocol.StatusUpdate(signal=signal))
 
