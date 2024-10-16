@@ -738,6 +738,17 @@ class Agent(Sink):
 
         self._queries = queries
 
+    def update_registration_policy(self, policy: AgentRegistrationPolicy):
+        """
+        Update the registration policy.
+
+        Args:
+            policy: The registration policy.
+
+        """
+
+        self._registration_policy = policy
+
     async def register(self):
         """
         Register with the Almanac contract.
@@ -906,9 +917,7 @@ class Agent(Sink):
     def on_rest_get(self, endpoint: str, response: Type[Model]):
         return self._on_rest("GET", endpoint, None, response)
 
-    def on_rest_post(
-        self, endpoint: str, request: Optional[Type[Model]], response: Type[Model]
-    ):
+    def on_rest_post(self, endpoint: str, request: Type[Model], response: Type[Model]):
         return self._on_rest("POST", endpoint, request, response)
 
     def _add_event_handler(
