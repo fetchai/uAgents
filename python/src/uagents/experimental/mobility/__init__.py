@@ -1,29 +1,21 @@
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any
 
-from pydantic.v1 import confloat
-
-from uagents import Agent, Context, Model
-from uagents.experimental.mobility.protocols.base_protocol import CheckIn, CheckOut
+from uagents import Agent, Context
+from uagents.experimental.mobility.protocols.base_protocol import (
+    CheckIn,
+    CheckOut,
+    Location,
+    MobilityType,
+)
 from uagents.experimental.search import Agent as SearchResultAgent
 from uagents.experimental.search import geosearch_agents_by_protocol
 from uagents.types import AgentGeolocation
 
 
-class Location(Model):
-    latitude: confloat(strict=True, ge=-90, le=90, allow_inf_nan=False)
-    longitude: confloat(strict=True, ge=-180, le=180, allow_inf_nan=False)
-    radius: confloat(ge=0, allow_inf_nan=False)
-
-
-MobililtyType = Literal[
-    "traffic_lights", "traffic_sign", "vehicle", "bike", "pedestrian"
-]
-
-
 class MobilityAgent(Agent):
     def __init__(
-        self, location: AgentGeolocation, mobility_type: MobililtyType, **kwargs
+        self, location: AgentGeolocation, mobility_type: MobilityType, **kwargs
     ):
         super().__init__(**kwargs)
         self.mobility = True
@@ -34,7 +26,7 @@ class MobilityAgent(Agent):
 
         @self.on_rest_post("/set_location", Location, Location)
         async def _handle_location_update(_ctx: Context, req: Location):
-            self._update_geolocation(AgentGeolocation(**req.model_dump()))
+            await self._update_geolocation(req)
             return self.location
 
     @property
@@ -42,7 +34,7 @@ class MobilityAgent(Agent):
         return self.metadata["geolocation"] or {}
 
     @property
-    def mobility_type(self) -> MobililtyType:
+    def mobility_type(self) -> MobilityType:
         return self.metadata["mobility_type"]
 
     @property
@@ -51,7 +43,7 @@ class MobilityAgent(Agent):
         return self._proximity_agents
 
     @property
-    def checkedin_agents(self) -> dict[str, CheckIn]:
+    def checkedin_agents(self) -> dict[str, dict[str, Any]]:
         # agents that checked in with this agent
         return self._checkedin_agents
 
@@ -73,7 +65,7 @@ class MobilityAgent(Agent):
     def deactivate_agent(self, agent: SearchResultAgent):
         self._proximity_agents.remove(agent)
 
-    async def _update_geolocation(self, location: AgentGeolocation):
+    async def _update_geolocation(self, location: Location):
         self._metadata["geolocation"]["latitude"] = location.latitude
         self._metadata["geolocation"]["longitude"] = location.longitude
         self._metadata["geolocation"]["radius"] = location.radius

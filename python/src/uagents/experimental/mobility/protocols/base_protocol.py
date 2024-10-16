@@ -1,10 +1,22 @@
-from typing import Any, Optional
+from typing import Any, Literal, Optional
+
+from pydantic.v1 import confloat
 
 from uagents import Model, Protocol
-from uagents.experimental.types import AgentGeoLocation
 
 PROTOCOL_NAME = "basic-mobility-handshake"
 PROTOCOL_VERSION = "0.1.0"
+
+
+class Location(Model):
+    latitude: confloat(strict=True, ge=-90, le=90, allow_inf_nan=False)
+    longitude: confloat(strict=True, ge=-180, le=180, allow_inf_nan=False)
+    radius: confloat(gt=0, allow_inf_nan=False)
+
+
+MobilityType = Literal[
+    "traffic_lights", "traffic_sign", "vehicle", "bike", "pedestrian"
+]
 
 
 class CheckIn(Model):
@@ -17,7 +29,7 @@ class CheckIn(Model):
 
 
 class CheckInResponse(Model):
-    """Information to return after receiving a checkin message"""
+    """Information to return after receiving a check-in message"""
 
     # the type of the responding agent (e.g., sign or traffic light) TODO
     mobility_type: str
@@ -29,9 +41,9 @@ class CheckInResponse(Model):
     supported_protocols: Optional[list[str]] = None
 
 
-# > There may be more specific checkin responses for different types of agents
+# > There may be more specific check-in responses for different types of agents
 # class TrafficLightCheckIn(CheckInResponse):
-#     """Traffic light specific checkin response"""
+#     """Traffic light specific check-in response"""
 
 #     # the current signal of the traffic light
 #     signal: str
@@ -40,7 +52,7 @@ class CheckInResponse(Model):
 
 
 class CheckOut(Model):
-    """Signal message to optionally send when leaving the serice area of an agent"""
+    """Signal message to optionally send when leaving the service area of an agent"""
 
 
 class CheckOutResponse(Model):
@@ -57,7 +69,7 @@ class StatusUpdate(Model):
     # the signal of the entity represented by the agent (e.g., speed lmit: 30, or "red")
     signal: str = ""
     # the new location if changed
-    new_location: AgentGeoLocation | None = None
+    new_location: Location | None = None
 
 
 class StatusUpdateResponse(Model):
