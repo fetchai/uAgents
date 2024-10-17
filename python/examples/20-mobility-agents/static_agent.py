@@ -6,11 +6,15 @@ from uagents.experimental.mobility.protocols import base_protocol
 from uagents.types import AgentGeolocation
 
 static_agent = Agent(
-    name="traffic light@2.2",
+    name="traffic light @ Berlin office",
     mobility_type="traffic_light",
     port=8112,
-    endpoint="https://localhost:8112/submit",
-    location=AgentGeolocation(latitude=3, longitude=3, radius=1),
+    endpoint="http://localhost:8112/submit",
+    location=AgentGeolocation(
+        latitude=52.507429,
+        longitude=13.378264,
+        radius=50,
+    ),
 )
 
 proto = base_protocol.mobility_base_protocol
@@ -89,4 +93,5 @@ async def switch_signal(ctx: Context):
 
 
 if __name__ == "__main__":
+    print(static_agent.address)
     static_agent.run()

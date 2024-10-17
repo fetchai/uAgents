@@ -21,7 +21,7 @@ class CheckIn(Model):
     """Signal message to send to an agent once entering its area of service"""
 
     # the type of the agent checking in (e.g., vehicle or pedestrian)
-    mobility_type: str
+    mobility_type: MobilityType
     # the mobility related protocols this agent supports
     supported_protocols: Optional[list[str]] = None
 
@@ -29,9 +29,9 @@ class CheckIn(Model):
 class CheckInResponse(Model):
     """Information to return after receiving a check-in message"""
 
-    # the type of the responding agent (e.g., sign or traffic light) TODO
-    mobility_type: str
-    # the signal of the entity represented by the agent (e.g., speed lmit: 30, or "red")
+    # the type of the responding agent (e.g., sign or traffic light)
+    mobility_type: MobilityType
+    # the signal of the entity represented by the agent (e.g., speed limit: 30, or "red")
     signal: str = ""
     # a human readable description of the entity that could be displayed on a gui
     description: str = ""
@@ -64,7 +64,7 @@ class CheckOutResponse(Model):
 class StatusUpdate(Model):
     """Message to signal an update to all checked in mobility agents"""
 
-    # the signal of the entity represented by the agent (e.g., speed lmit: 30, or "red")
+    # the signal of the entity represented by the agent (e.g., speed limit: 30, or "red")
     signal: str = ""
     # the new location if changed
     new_location: Location | None = None

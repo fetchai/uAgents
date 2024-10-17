@@ -1,7 +1,6 @@
 from uagents import Context
 from uagents.experimental.mobility import MobilityAgent as Agent
 from uagents.experimental.mobility.protocols import base_protocol
-from uagents.experimental.search import search_agents_by_text
 from uagents.types import AgentGeolocation
 
 vehicle_agent = Agent(
@@ -9,8 +8,12 @@ vehicle_agent = Agent(
     seed="test vehicle agent #1",
     mobility_type="vehicle",
     port=8111,
-    endpoint="https://localhost:8111/submit",
-    location=AgentGeolocation(latitude=0, longitude=0, radius=0.1),
+    endpoint="http://localhost:8111/submit",
+    location=AgentGeolocation(
+        latitude=52.506926,
+        longitude=13.377207,
+        radius=1,
+    ),
 )
 
 
@@ -37,7 +40,7 @@ async def handle_checkin_response(
     model=base_protocol.StatusUpdate, replies=base_protocol.StatusUpdateResponse
 )
 async def handle_status_update(
-    ctx: Context, sender: str, msg: base_protocol.StatusUpdateResponse
+    ctx: Context, sender: str, msg: base_protocol.StatusUpdate
 ):
     known_agent = next(
         (a for a in vehicle_agent.proximity_agents if a.address == sender), None
@@ -45,7 +48,7 @@ async def handle_status_update(
     if not known_agent:
         ctx.logger.info("got status update from agent out of reach")
     else:
-        ctx.logger.info(f"new signal from {known_agent.name}: {msg.text}")
+        ctx.logger.info(f"new signal from {known_agent.name}: {msg.signal}")
 
 
 @proto.on_message(model=base_protocol.CheckOut, replies=base_protocol.CheckOutResponse)
@@ -63,14 +66,15 @@ async def handle_checkout_response(
 vehicle_agent.include(proto)
 
 
-@vehicle_agent.on_event("startup")
-async def startup(ctx: Context):
-    # test the search api
-    resp = search_agents_by_text("traffic light")
-    ctx.logger.info(f"found {len(resp)} agents:")
-    for agent in resp:
-        ctx.logger.info(f"{agent.name}")
+# @vehicle_agent.on_event("startup")
+# async def startup(ctx: Context):
+#     # test the search api
+#     resp = search_agents_by_text("traffic light")
+#     ctx.logger.info(f"found {len(resp)} agents:")
+#     for agent in resp:
+#         ctx.logger.info(f"{agent.name}")
 
 
 if __name__ == "__main__":
+    print(vehicle_agent.address)
     vehicle_agent.run()

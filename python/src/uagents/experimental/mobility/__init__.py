@@ -9,7 +9,7 @@ from uagents.experimental.mobility.protocols.base_protocol import (
     MobilityType,
 )
 from uagents.experimental.search import Agent as SearchResultAgent
-from uagents.experimental.search import geosearch_agents_by_protocol
+from uagents.experimental.search import geosearch_agents_by_proximity
 from uagents.types import AgentGeolocation
 
 
@@ -28,6 +28,14 @@ class MobilityAgent(Agent):
         async def _handle_location_update(_ctx: Context, req: Location):
             await self._update_geolocation(req)
             return self.location
+
+        @self.on_rest_get("/step", Location)
+        async def _handle_step(_ctx: Context):
+            await self.step()
+            loc = self.location
+            for key, val in loc.items():
+                loc[key] = round(val, 6)
+            return loc
 
     @property
     def location(self) -> dict:
@@ -49,7 +57,7 @@ class MobilityAgent(Agent):
 
     def checkin_agent(self, addr: str, agent: CheckIn):
         self._checkedin_agents.update(
-            {addr: {"timestamp": datetime.now(), "agent": CheckIn}}  # agent maybe?
+            {addr: {"timestamp": datetime.now(), "agent": agent}}
         )
 
     def checkout_agent(self, addr: str):
@@ -72,23 +80,30 @@ class MobilityAgent(Agent):
         await self.invoke_location_update()
 
     async def step(self):
-        self.location["latitude"] += 0.00001
-        self.location["longitude"] += 0.00001
+        self.location["latitude"] += 0.00001  # move 1 meter north
+        self.location["longitude"] += 0.00001  # move 1 meter east
         await self.invoke_location_update()
 
     async def invoke_location_update(self):
         self._logger.info("Updating location")
-        proximity_agents = geosearch_agents_by_protocol(
+        proximity_agents = geosearch_agents_by_proximity(
             self.location["latitude"],
             self.location["longitude"],
             self.location["radius"],
-            "<proto:digest>",
             30,
         )
         # send a check-in message to all agents that are in the current proximity
         for agent in proximity_agents:
             await self._send_checkin(agent)
-        agents_that_left_proximity = set(self._proximity_agents) - set(proximity_agents)
+        # find out which agents left proximity and send them a check-out message
+        addresses_that_left_proximity = {a.address for a in self._proximity_agents} - {
+            a.address for a in proximity_agents
+        }
+        agents_that_left_proximity = [
+            a
+            for a in self._proximity_agents
+            if a.address in addresses_that_left_proximity
+        ]
         for agent in agents_that_left_proximity:
             # send a check-out message to all agents that left the proximity
             await self._send_checkout(agent)

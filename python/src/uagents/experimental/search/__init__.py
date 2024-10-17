@@ -24,6 +24,7 @@ class ProtocolRepresentation(BaseModel):
     digest: str
 
 
+# TODO: this is missing the actual location of the agent
 class Agent(BaseModel):
     # the address of the agent (this should be used as the id of the agent)
     address: str
@@ -136,7 +137,7 @@ class AgentGeoSearchCriteria(AgentSearchCriteria):
     geo_filter: AgentGeoFilter
 
 
-def _geosearch_agents(criteria: AgentGeoSearchCriteria):
+def _geosearch_agents(criteria: AgentGeoSearchCriteria) -> list[Agent]:
     # TODO currently results will be returned based on radius overlap, i.e., results can
     # include agents that are farther away then the specified radius
     response = requests.post(
@@ -146,7 +147,7 @@ def _geosearch_agents(criteria: AgentGeoSearchCriteria):
     )
     if response.status_code == 200:
         data = response.json()
-        agents = [Agent.model_validate_json(agent) for agent in data["agents"]]
+        agents = [Agent.model_validate(agent) for agent in data["agents"]]
         return agents
     return []
 
@@ -162,6 +163,24 @@ def _search_agents(criteria: AgentSearchCriteria):
         agents = [Agent.model_validate(agent) for agent in data["agents"]]
         return agents
     return []
+
+
+def geosearch_agents_by_proximity(
+    latitude: float,
+    longitude: float,
+    radius: float,
+    limit: int = 30,
+):
+    """
+    Return all agents in a circle around the given coordinates that match the given search criteria
+    """
+    criteria = AgentGeoSearchCriteria(
+        geo_filter=AgentGeoFilter(
+            latitude=latitude, longitude=longitude, radius=radius
+        ),
+        limit=limit,
+    )
+    return _geosearch_agents(criteria)
 
 
 def geosearch_agents_by_protocol(
