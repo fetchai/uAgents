@@ -25,30 +25,31 @@ async def handle(ctx: Context, sender: str, msg: ExampleMessage):
 ```
 
 Also applies to protocol message handlers if you import the QuotaProtocol class
-and use it with the Quota agents callback function:
+and include it in your agent:
 ```python
-protocol = QuotaProtocol(
-    quota_callback=agent.add_request,
+quota_protocol = QuotaProtocol(
+    storage_reference=agent.storage,
     name="quota_proto",
     version=agent._version,
 )
 
-@protocol.on_message(ExampleMessage)
+@quota_protocol.on_message(ExampleMessage)
 async def handle(ctx: Context, sender: str, msg: ExampleMessage):
     ...
 
-agent.include(protocol)
+agent.include(quota_protocol)
 ```
 """
 
 import functools
 import time
-from typing import Callable, Optional, Set, Type, Union
+from typing import Optional, Set, Type, Union
 
 from pydantic import BaseModel
 
 from uagents import Agent, Context, Model, Protocol
 from uagents.models import ErrorMessage
+from uagents.storage import StorageAPI
 from uagents.types import MessageCallback
 
 WINDOW_SIZE_MINUTES = 60
@@ -62,10 +63,61 @@ class Usage(BaseModel):
     max_requests: int
 
 
+class AccessControlList(BaseModel):
+    default: bool
+    allowed: list[str]
+    blocked: list[str]
+
+
 class QuotaProtocol(Protocol):
-    def __init__(self, quota_callback: Callable, *args, **kwargs):
+    def __init__(
+        self,
+        storage_reference: StorageAPI,
+        *args,
+        acl: Optional[AccessControlList] = None,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
-        self.quota_callback = quota_callback
+        self.storage_ref = storage_reference
+        self.acl = acl or AccessControlList(default=True, allowed=[], blocked=[])
+
+    @property
+    def access_control_list(self) -> AccessControlList:
+        return self.acl
+
+    def set_access_control_default(self, allowed: bool = True):
+        """
+        Set the default access control rule.
+
+        Args:
+            allowed: Whether the default rule should allow or block
+        """
+        self.acl.default = allowed
+
+    def add_agent_to_acl(self, agent_address: str, allowed: bool = True):
+        """
+        Add an agent to the access control list.
+
+        Args:
+            agent_address: The address of the agent to add to the ACL
+            allowed: Whether the agent should be allowed or blocked
+        """
+        if allowed:
+            self.acl.allowed.append(agent_address)
+        else:
+            self.acl.blocked.append(agent_address)
+
+    def remove_agent_from_acl(self, agent_address: str):
+        """
+        Remove an agent from the access control list.
+
+        Args:
+            agent_address: The address of the agent to remove from the ACL
+        """
+        if agent_address in self.acl.allowed:
+            self.acl.allowed.remove(agent_address)
+        if agent_address in self.acl.blocked:
+            self.acl.blocked.remove(agent_address)
 
     def on_message(
         self,
@@ -119,7 +171,7 @@ class QuotaProtocol(Protocol):
 
         @functools.wraps(func)
         async def decorator(ctx: Context, sender: str, msg: Type[Model]):
-            if self.quota_callback(
+            if self.add_request(
                 sender, func.__name__, window_size_minutes, max_requests
             ):
                 result = await func(ctx, sender, msg)
@@ -138,12 +190,73 @@ class QuotaProtocol(Protocol):
 
         return decorator  # type: ignore
 
+    def _clean_usage(self, usage: dict[str, dict]):
+        """
+        Remove all time windows that are older than the current time window.
+
+        Args:
+            usage: The usage dictionary to clean
+        """
+        now = int(time.time())
+        for key in list(usage.keys()):
+            if (now - usage[key]["time_window_start"]) > usage[key][
+                "window_size_minutes"
+            ] * 60:
+                del usage[key]
+
+    def add_request(
+        self,
+        agent_address: str,
+        function_name: str,
+        window_size_minutes: int,
+        max_requests: int,
+    ) -> bool:
+        """
+        Add a request to the rate limiter if the current time is still within the
+        time window since the beginning of the most recent time window. Otherwise,
+        reset the time window and add the request.
+
+        Args:
+            agent_address: The address of the agent making the request
+
+        Returns:
+            False if the maximum number of requests has been exceeded, True otherwise
+        """
+
+        now = int(time.time())
+
+        usage = self.storage_ref.get(agent_address) or {}
+
+        if function_name in usage:
+            quota = Usage(**usage[function_name])
+            if (now - quota.time_window_start) <= window_size_minutes * 60:
+                if quota.requests >= max_requests:
+                    return False
+                quota.requests += 1
+            else:
+                quota.time_window_start = now
+                quota.requests = 1
+            usage[function_name] = quota.model_dump()
+        else:
+            usage[function_name] = Usage(
+                time_window_start=now,
+                window_size_minutes=window_size_minutes,
+                requests=1,
+                max_requests=max_requests,
+            ).model_dump()
+
+        self._clean_usage(usage)
+
+        self.storage_ref.set(agent_address, usage)
+
+        return True
+
 
 class QuotaAgent(Agent):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._protocol = QuotaProtocol(
-            quota_callback=self.add_request, name=self._name, version=self._version
+            storage_reference=self.storage, name=self._name, version=self._version
         )
 
         # only necessary because this feature is not implemented in the core
@@ -182,64 +295,3 @@ class QuotaAgent(Agent):
     def _add_error_message_handler(self):
         # This would not be necessary if this feature was implemented in the core
         pass
-
-    def _clean_usage(self, usage: dict[str, dict]):
-        """
-        Remove all time windows that are older than the current time window.
-
-        Args:
-            usage: The usage dictionary to clean
-        """
-        now = int(time.time())
-        for key in list(usage.keys()):
-            if (now - usage[key]["time_window_start"]) > usage[key][
-                "window_size_minutes"
-            ] * 60:
-                del usage[key]
-
-    def add_request(
-        self,
-        agent_address: str,
-        function_name: str,
-        window_size_minutes: int,
-        max_requests: int,
-    ) -> bool:
-        """
-        Add a request to the rate limiter if the current time is still within the
-        time window since the beginning of the most recent time window. Otherwise,
-        reset the time window and add the request.
-
-        Args:
-            agent_address: The address of the agent making the request
-
-        Returns:
-            False if the maximum number of requests has been exceeded, True otherwise
-        """
-
-        now = int(time.time())
-
-        usage = self.storage.get(agent_address) or {}
-
-        if function_name in usage:
-            quota = Usage(**usage[function_name])
-            if (now - quota.time_window_start) <= window_size_minutes * 60:
-                if quota.requests >= max_requests:
-                    return False
-                quota.requests += 1
-            else:
-                quota.time_window_start = now
-                quota.requests = 1
-            usage[function_name] = quota.model_dump()
-        else:
-            usage[function_name] = Usage(
-                time_window_start=now,
-                window_size_minutes=window_size_minutes,
-                requests=1,
-                max_requests=max_requests,
-            ).model_dump()
-
-        self._clean_usage(usage)
-
-        self.storage.set(agent_address, usage)
-
-        return True
