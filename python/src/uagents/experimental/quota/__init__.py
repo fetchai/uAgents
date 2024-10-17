@@ -24,7 +24,8 @@ async def handle(ctx: Context, sender: str, msg: ExampleMessage):
     ...
 ```
 
-Also applies to protocol message handlers if you import the QuotaProtocol class:
+Also applies to protocol message handlers if you import the QuotaProtocol class
+and use it with the Quota agents callback function:
 ```python
 protocol = QuotaProtocol(
     quota_callback=agent.add_request,
