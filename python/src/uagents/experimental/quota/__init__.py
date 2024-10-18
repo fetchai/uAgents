@@ -6,7 +6,7 @@ made by another agent within a given time window. If the number of requests exce
 a specified limit, the rate limiter will block further requests until the time
 window resets.
 
-> Default: 6 requests per hour
+> Default: Not rate limited, but you can set a default during initialization.
 
 Additionally, the protocol can be used to set access control rules for handlers
 allowing or blocking specific agents from accessing the handler.
@@ -21,25 +21,33 @@ Usage examples:
 ```python
 from uagents.experimental.quota import AccessControlList, QuotaProtocol, RateLimit
 
+# Initialize the QuotaProtocol instance
 quota_protocol = QuotaProtocol(
     storage_reference=agent.storage,
     name="quota_proto",
     version=agent._version,
-)  # Initialize the QuotaProtocol instance
+    # default_rate_limit=RateLimit(window_size_minutes=1, max_requests=3), # Optional
+)
 
-# This message handler is rate limited with default values
+# This message handler is not rate limited
 @quota_protocol.on_message(ExampleMessage1)
 async def handle(ctx: Context, sender: str, msg: ExampleMessage1):
     ...
 
 # This message handler is rate limited with custom window size and request limit
-@agent.on_message(ExampleMessage2, rate_limit=RateLimit(window_size_minutes=1, max_requests=3))
+@quota_protocol.on_message(
+    ExampleMessage2,
+    rate_limit=RateLimit(window_size_minutes=1, max_requests=3),
+)
 async def handle(ctx: Context, sender: str, msg: ExampleMessage2):
     ...
 
 # This message handler has access control rules set
-@agent.on_message(ExampleMessage2, acl=AccessControlList(default=False, allowed={"agent1"}))
-async def handle(ctx: Context, sender: str, msg: ExampleMessage2):
+@quota_protocol.on_message(
+    ExampleMessage3,
+    acl=AccessControlList(default=False, allowed={"<agent_address>"}),
+)
+async def handle(ctx: Context, sender: str, msg: ExampleMessage3):
     ...
 
 agent.include(quota_protocol)
@@ -112,9 +120,7 @@ class QuotaProtocol(Protocol):
         """
         super().__init__(name=name, version=version)
         self.storage_ref = storage_reference
-        self.default_rate_limit = default_rate_limit or RateLimit(
-            window_size_minutes=WINDOW_SIZE_MINUTES, max_requests=MAX_REQUESTS
-        )
+        self.default_rate_limit = default_rate_limit
 
     def on_message(
         self,
@@ -134,8 +140,9 @@ class QuotaProtocol(Protocol):
             reply types. Defaults to None.
             allow_unverified (Optional[bool], optional): Whether to allow unverified messages.
             Defaults to False.
-            window_size_minutes (int, optional): The size of the time window in minutes.
-            max_requests (int, optional): The maximum number of requests allowed in the time window.
+            rate_limit (Optional[RateLimit], optional): The rate limit to apply. Defaults to None.
+            access_control_list (Optional[AccessControlList], optional): The access control list to
+            apply.
 
         Returns:
             Callable: The decorator to register the message handler.
@@ -159,14 +166,16 @@ class QuotaProtocol(Protocol):
 
         Args:
             func: The function to wrap with rate limiting
-            window_size_minutes: The size of the time window in minutes
-            max_requests: The maximum number of requests allowed in the time window
+            rate_limit: The rate limit to apply
+            acl: The access control list to apply
 
         Returns:
             Callable: The decorated
         """
         if acl is None:
             acl = AccessControlList(default=True, allowed=set(), blocked=set())
+
+        rate_limit = rate_limit or self.default_rate_limit
 
         @functools.wraps(func)
         async def decorator(ctx: Context, sender: str, msg: Type[Model]):
