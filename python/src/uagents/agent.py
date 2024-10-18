@@ -42,9 +42,16 @@ from uagents.dispatch import Sink, dispatcher
 from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
 from uagents.mailbox import MailboxClient
 from uagents.models import ErrorMessage, Model
-from uagents.network import InsufficientFundsError, get_almanac_contract, get_ledger
+from uagents.network import (
+    InsufficientFundsError,
+    get_almanac_contract,
+    get_ledger,
+)
 from uagents.protocol import Protocol
-from uagents.registration import AgentRegistrationPolicy, DefaultRegistrationPolicy
+from uagents.registration import (
+    AgentRegistrationPolicy,
+    DefaultRegistrationPolicy,
+)
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.types import (
@@ -1150,9 +1157,14 @@ class Agent(Sink):
 
         """
         if self._enable_agent_inspector:
-            inspector_url = f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/inspect"
-            self._logger.debug(
-                f"Agent inspector available at {inspector_url}/?uri=http://127.0.0.1:{self._port}"
+            agentverse_url = (
+                f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}"
+            )
+            inspector_url = f"{agentverse_url}/inspect/"
+            escaped_uri = requests.utils.quote(f"http://127.0.0.1:{self._port}")
+            self._logger.info(
+                f"Agent inspector available at {inspector_url}"
+                f"?uri={escaped_uri}&address={self.address}"
             )
         await self._server.serve()
 
