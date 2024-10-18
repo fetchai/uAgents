@@ -202,7 +202,7 @@ class QuotaProtocol(Protocol):
                         error=(
                             f"Rate limit exceeded for {msg.schema()["title"]}. "
                             f"This endpoint allows for {rate_limit.max_requests} calls per "
-                            f"{rate_limit. window_size_minutes} minutes. Try again later."
+                            f"{rate_limit.window_size_minutes} minutes. Try again later."
                         )
                     ),
                 )
