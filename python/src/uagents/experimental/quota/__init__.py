@@ -1,5 +1,5 @@
 """
-This agent class can be used to rate limit your message handlers.
+This Protocol class can be used to rate limit `on_message` message handlers.
 
 The rate limiter uses the agents storage to keep track of the number of requests
 made by another agent within a given time window. If the number of requests exceeds
@@ -8,37 +8,56 @@ window resets.
 
 > Default: 6 requests per hour
 
+Additionally, the protocol can be used to set access control rules for handlers
+allowing or blocking specific agents from accessing the handler.
+The default access control rule can be set to allow or block all agents.
+
+Both rules can work together to provide a secure and rate-limited environment for
+message handlers.
+
+
 Usage examples:
 
-This message handler is rate limited with default values:
 ```python
-@agent.on_message(ExampleMessage)
-async def handle(ctx: Context, sender: str, msg: ExampleMessage):
-    ...
-```
+from uagents.experimental.quota import AccessControlList, QuotaProtocol, RateLimit
 
-This message handler is rate limited with custom window size and request limit:
-```python
-@agent.on_message(ExampleMessage, window_size_minutes=30, max_requests=10)
-async def handle(ctx: Context, sender: str, msg: ExampleMessage):
-    ...
-```
-
-Also applies to protocol message handlers if you import the QuotaProtocol class
-and include it in your agent:
-```python
 quota_protocol = QuotaProtocol(
     storage_reference=agent.storage,
     name="quota_proto",
     version=agent._version,
-)
+)  # Initialize the QuotaProtocol instance
 
-@quota_protocol.on_message(ExampleMessage)
-async def handle(ctx: Context, sender: str, msg: ExampleMessage):
+# This message handler is rate limited with default values
+@quota_protocol.on_message(ExampleMessage1)
+async def handle(ctx: Context, sender: str, msg: ExampleMessage1):
+    ...
+
+# This message handler is rate limited with custom window size and request limit
+@agent.on_message(ExampleMessage2, rate_limit=RateLimit(window_size_minutes=1, max_requests=3))
+async def handle(ctx: Context, sender: str, msg: ExampleMessage2):
+    ...
+
+# This message handler has access control rules set
+@agent.on_message(ExampleMessage2, acl=AccessControlList(default=False, allowed={"agent1"}))
+async def handle(ctx: Context, sender: str, msg: ExampleMessage2):
     ...
 
 agent.include(quota_protocol)
 ```
+
+Tip: The `AccessControlList` object can be used to set access control rules during
+runtime. This can be useful for dynamic access control rules based on the state of the
+agent or the network.
+```python
+acl = AccessControlList(default=True, allowed={""}, blocked={""})
+
+@proto.on_message(model=Message, access_control_list=acl)
+async def message_handler(ctx: Context, sender: str, msg: Message):
+    if REASON_TO_BLOCK:
+        acl.blocked.add(sender)
+    ctx.logger.info(f"Received message from {sender}: {msg.text}")
+```
+
 """
 
 import functools
@@ -47,7 +66,7 @@ from typing import Optional, Set, Type, Union
 
 from pydantic import BaseModel
 
-from uagents import Agent, Context, Model, Protocol
+from uagents import Context, Model, Protocol
 from uagents.models import ErrorMessage
 from uagents.storage import StorageAPI
 from uagents.types import MessageCallback
@@ -63,69 +82,47 @@ class Usage(BaseModel):
     max_requests: int
 
 
+class RateLimit(BaseModel):
+    window_size_minutes: int
+    max_requests: int
+
+
 class AccessControlList(BaseModel):
     default: bool
-    allowed: list[str]
-    blocked: list[str]
+    allowed: set[str]
+    blocked: set[str]
 
 
 class QuotaProtocol(Protocol):
     def __init__(
         self,
         storage_reference: StorageAPI,
-        *args,
-        acl: Optional[AccessControlList] = None,
-        **kwargs,
+        name: Optional[str] = None,
+        version: Optional[str] = None,
+        default_rate_limit: Optional[RateLimit] = None,
     ):
-        super().__init__(*args, **kwargs)
+        """
+        Initialize a QuotaProtocol instance.
+
+        Args:
+            storage_reference (StorageAPI): The storage reference to use for rate limiting.
+            name (Optional[str], optional): The name of the protocol. Defaults to None.
+            version (Optional[str], optional): The version of the protocol. Defaults to None.
+            acl (Optional[AccessControlList], optional): The access control list. Defaults to None.
+        """
+        super().__init__(name=name, version=version)
         self.storage_ref = storage_reference
-        self.acl = acl or AccessControlList(default=True, allowed=[], blocked=[])
-
-    @property
-    def access_control_list(self) -> AccessControlList:
-        return self.acl
-
-    def set_access_control_default(self, allowed: bool = True):
-        """
-        Set the default access control rule.
-
-        Args:
-            allowed: Whether the default rule should allow or block
-        """
-        self.acl.default = allowed
-
-    def add_agent_to_acl(self, agent_address: str, allowed: bool = True):
-        """
-        Add an agent to the access control list.
-
-        Args:
-            agent_address: The address of the agent to add to the ACL
-            allowed: Whether the agent should be allowed or blocked
-        """
-        if allowed:
-            self.acl.allowed.append(agent_address)
-        else:
-            self.acl.blocked.append(agent_address)
-
-    def remove_agent_from_acl(self, agent_address: str):
-        """
-        Remove an agent from the access control list.
-
-        Args:
-            agent_address: The address of the agent to remove from the ACL
-        """
-        if agent_address in self.acl.allowed:
-            self.acl.allowed.remove(agent_address)
-        if agent_address in self.acl.blocked:
-            self.acl.blocked.remove(agent_address)
+        self.default_rate_limit = default_rate_limit or RateLimit(
+            window_size_minutes=WINDOW_SIZE_MINUTES, max_requests=MAX_REQUESTS
+        )
 
     def on_message(
         self,
         model: Type[Model],
         replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
         allow_unverified: Optional[bool] = False,
-        window_size_minutes: int = WINDOW_SIZE_MINUTES,
-        max_requests: int = MAX_REQUESTS,
+        rate_limit: Optional[RateLimit] = None,
+        access_control_list: Optional[AccessControlList] = None,
     ):
         """
         Overwritten decorator to register a message handler for the protocol
@@ -145,7 +142,7 @@ class QuotaProtocol(Protocol):
         """
 
         def decorator_on_message(func: MessageCallback):
-            handler = self.wrap(func, window_size_minutes, max_requests)
+            handler = self.wrap(func, rate_limit, access_control_list)
             self._add_message_handler(model, handler, replies, allow_unverified)
             return handler
 
@@ -154,8 +151,8 @@ class QuotaProtocol(Protocol):
     def wrap(
         self,
         func: MessageCallback,
-        window_size_minutes: int = WINDOW_SIZE_MINUTES,
-        max_requests: int = MAX_REQUESTS,
+        rate_limit: Optional[RateLimit] = None,
+        acl: Optional[AccessControlList] = None,
     ) -> MessageCallback:
         """
         Decorator to wrap a function with rate limiting.
@@ -168,11 +165,25 @@ class QuotaProtocol(Protocol):
         Returns:
             Callable: The decorated
         """
+        if acl is None:
+            acl = AccessControlList(default=True, allowed=set(), blocked=set())
 
         @functools.wraps(func)
         async def decorator(ctx: Context, sender: str, msg: Type[Model]):
-            if self.add_request(
-                sender, func.__name__, window_size_minutes, max_requests
+            if (acl.default and sender in acl.blocked) or (
+                not acl.default and sender not in acl.allowed
+            ):
+                return await ctx.send(
+                    sender,
+                    ErrorMessage(
+                        error=("You are not allowed to access this endpoint.")
+                    ),
+                )
+            if not rate_limit or self.add_request(
+                sender,
+                func.__name__,
+                rate_limit.window_size_minutes,
+                rate_limit.max_requests,
             ):
                 result = await func(ctx, sender, msg)
             else:
@@ -181,8 +192,8 @@ class QuotaProtocol(Protocol):
                     ErrorMessage(
                         error=(
                             f"Rate limit exceeded for {msg.schema()["title"]}. "
-                            f"This endpoint allows for {max_requests} calls per "
-                            f"{window_size_minutes} minutes. Try again later."
+                            f"This endpoint allows for {rate_limit.max_requests} calls per "
+                            f"{rate_limit. window_size_minutes} minutes. Try again later."
                         )
                     ),
                 )
@@ -250,48 +261,3 @@ class QuotaProtocol(Protocol):
         self.storage_ref.set(agent_address, usage)
 
         return True
-
-
-class QuotaAgent(Agent):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._protocol = QuotaProtocol(
-            storage_reference=self.storage, name=self._name, version=self._version
-        )
-
-        # only necessary because this feature is not implemented in the core
-        @self.on_message(ErrorMessage)
-        async def _handle_error_message(ctx: Context, sender: str, msg: ErrorMessage):
-            ctx.logger.exception(f"Received error message from {sender}: {msg.error}")
-
-    def on_message(
-        self,
-        model: Type[Model],
-        replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
-        allow_unverified: Optional[bool] = False,
-        window_size_minutes: int = WINDOW_SIZE_MINUTES,
-        max_requests: int = MAX_REQUESTS,
-    ):
-        """
-        Overwritten decorator to register an message handler for the provided
-        message model including rate limiting.
-
-        Args:
-            model (Type[Model]): The message model.
-            replies (Optional[Union[Type[Model], Set[Type[Model]]]]): Optional reply models.
-            allow_unverified (Optional[bool]): Allow unverified messages.
-            window_size_minutes (int): The size of the time window in minutes.
-            max_requests (int): The maximum number of requests allowed in the time window.
-
-        Returns:
-            Callable: The decorator function for registering message handlers.
-
-        """
-
-        return self._protocol.on_message(
-            model, replies, allow_unverified, window_size_minutes, max_requests
-        )
-
-    def _add_error_message_handler(self):
-        # This would not be necessary if this feature was implemented in the core
-        pass

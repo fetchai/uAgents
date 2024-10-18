@@ -393,7 +393,10 @@ class Agent(Sink):
             logger=self._logger,
         )
 
-        self._add_error_message_handler()
+        # define default error message handler
+        @self.on_message(ErrorMessage)
+        async def _handle_error_message(ctx: Context, sender: str, msg: ErrorMessage):
+            ctx.logger.exception(f"Received error message from {sender}: {msg.error}")
 
         # define default rest message handlers if agent inspector is enabled
         if enable_agent_inspector:
@@ -413,12 +416,6 @@ class Agent(Sink):
         self._enable_agent_inspector = enable_agent_inspector
 
         self._init_done = True
-
-    def _add_error_message_handler(self):
-        # define default error message handler
-        @self.on_message(ErrorMessage)
-        async def _handle_error_message(ctx: Context, sender: str, msg: ErrorMessage):
-            ctx.logger.exception(f"Received error message from {sender}: {msg.error}")
 
     def _build_context(self) -> InternalContext:
         """
