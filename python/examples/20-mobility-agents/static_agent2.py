@@ -6,14 +6,14 @@ from uagents.experimental.mobility.protocols import base_protocol
 from uagents.types import AgentGeolocation
 
 static_agent = Agent(
-    name="traffic light #1",
-    mobility_type="traffic_light",
-    port=8112,
-    endpoint="http://localhost:8112/submit",
+    name="roadworks",
+    mobility_type="roadworks",
+    port=8113,
+    endpoint="http://localhost:8113/submit",
     location=AgentGeolocation(
-        latitude=52.507429,
-        longitude=13.378264,
-        radius=50,
+        latitude=52.507674,
+        longitude=13.378124,
+        radius=15,
     ),
 )
 
@@ -37,8 +37,8 @@ async def handle_checkin(ctx: Context, sender: str, msg: base_protocol.CheckIn):
         sender,
         base_protocol.CheckInResponse(
             mobility_type=static_agent.mobility_type,
-            signal=static_agent.storage.get("signal") or "red",
-            description="Traffic lights. Be wary, the yellow bulb isn't working",
+            signal="road blocked, please take a detour",
+            description="Roadworks on Stresemannstraße 124",
         ),
     )
 
@@ -85,22 +85,13 @@ async def handle_checkout_response(
 static_agent.include(proto)
 
 
-@static_agent.on_interval(5)
-async def switch_signal(ctx: Context):
-    signal = ctx.storage.get("signal") or "red"
-    signal = "green" if signal == "red" else "red"
-    ctx.storage.set("signal", signal)
-    for addr in static_agent.checkedin_agents:
-        await ctx.send(addr, base_protocol.StatusUpdate(signal=signal))
-
-
 @static_agent.on_event("startup")
 async def startup(ctx: Context):
     current_location = (
         static_agent.location["latitude"],
         static_agent.location["longitude"],
     )
-    ctx.logger.info(f"Traffic light agent ready at {current_location}")
+    ctx.logger.info(f"Roadworks agent ready at {current_location}")
 
 
 if __name__ == "__main__":

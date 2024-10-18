@@ -32,10 +32,7 @@ class MobilityAgent(Agent):
         @self.on_rest_get("/step", Location)
         async def _handle_step(_ctx: Context):
             await self.step()
-            loc = self.location
-            for key, val in loc.items():
-                loc[key] = round(val, 6)
-            return loc
+            return self.location
 
     @property
     def location(self) -> dict:
@@ -80,12 +77,16 @@ class MobilityAgent(Agent):
         await self.invoke_location_update()
 
     async def step(self):
-        self.location["latitude"] += 0.00001  # move 1 meter north
-        self.location["longitude"] += 0.00001  # move 1 meter east
+        self.location["latitude"] += 0.00003  # move 3 meter north
+        self.location["latitude"] = round(self.location["latitude"], 6)
+        self.location["longitude"] += 0.00003  # move 3 meter east
+        self.location["longitude"] = round(self.location["longitude"], 6)
         await self.invoke_location_update()
 
     async def invoke_location_update(self):
-        self._logger.info("Updating location")
+        self._logger.info(
+            f"Updating location {(self.location['latitude'], self.location['longitude'])}"
+        )
         proximity_agents = geosearch_agents_by_proximity(
             self.location["latitude"],
             self.location["longitude"],

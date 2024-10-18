@@ -1,6 +1,7 @@
 from uagents import Context
 from uagents.experimental.mobility import MobilityAgent as Agent
 from uagents.experimental.mobility.protocols import base_protocol
+from uagents.experimental.search import geosearch_agents_by_proximity
 from uagents.types import AgentGeolocation
 
 vehicle_agent = Agent(
@@ -12,12 +13,11 @@ vehicle_agent = Agent(
     location=AgentGeolocation(
         latitude=52.506926,
         longitude=13.377207,
-        radius=1,
+        radius=2,
     ),
 )
 
 
-current_active_eois = {}
 proto = base_protocol.mobility_base_protocol
 
 
@@ -46,9 +46,9 @@ async def handle_status_update(
         (a for a in vehicle_agent.proximity_agents if a.address == sender), None
     )
     if not known_agent:
-        ctx.logger.info("got status update from agent out of reach")
+        ctx.logger.info("Got status update from agent out of reach")
     else:
-        ctx.logger.info(f"new signal from {known_agent.name}: {msg.signal}")
+        ctx.logger.info(f"New signal from {known_agent.address[:10]}...: {msg.signal}")
 
 
 @proto.on_message(model=base_protocol.CheckOut, replies=base_protocol.CheckOutResponse)
@@ -66,13 +66,24 @@ async def handle_checkout_response(
 vehicle_agent.include(proto)
 
 
-# @vehicle_agent.on_event("startup")
-# async def startup(ctx: Context):
-#     # test the search api
-#     resp = search_agents_by_text("traffic light")
-#     ctx.logger.info(f"found {len(resp)} agents:")
-#     for agent in resp:
-#         ctx.logger.info(f"{agent.name}")
+@vehicle_agent.on_event("startup")
+async def startup(ctx: Context):
+    current_location = (
+        vehicle_agent.location["latitude"],
+        vehicle_agent.location["longitude"],
+    )
+    ctx.logger.info(f"Vehicle agent ready at {current_location}")
+    # test the search api
+    proximity_agents = geosearch_agents_by_proximity(
+        vehicle_agent.location["latitude"],
+        vehicle_agent.location["longitude"],
+        vehicle_agent.location["radius"],
+        30,
+    )
+    filtered_agents = [
+        a for a in proximity_agents if a.address != vehicle_agent.address
+    ]
+    ctx.logger.info(f"There are currently {len(filtered_agents)} agents nearby.")
 
 
 if __name__ == "__main__":
