@@ -173,7 +173,7 @@ An agent that interacts within a communication environment.
 - `mailbox_client` _MailboxClient_ - The client for interacting with the agentverse mailbox.
 - `protocols` _Dict[str, Protocol]_ - Dictionary mapping all supported protocol digests to their
   corresponding protocols.
-- `metadata` _Dict[str, Any]_ - Metadata associated with the agent.
+- `metadata` _Optional[Dict[str, Any]]_ - Metadata associated with the agent.
 
 <a id="src.uagents.agent.Agent.__init__"></a>
 
@@ -532,6 +532,20 @@ Update the queries attribute.
 **Arguments**:
 
 - `queries` - The queries attribute.
+
+<a id="src.uagents.agent.Agent.update_registration_policy"></a>
+
+#### update`_`registration`_`policy
+
+```python
+def update_registration_policy(policy: AgentRegistrationPolicy)
+```
+
+Update the registration policy.
+
+**Arguments**:
+
+- `policy` - The registration policy.
 
 <a id="src.uagents.agent.Agent.register"></a>
 
