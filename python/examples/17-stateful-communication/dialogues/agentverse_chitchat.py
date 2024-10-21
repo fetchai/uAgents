@@ -1,7 +1,7 @@
 """
 Specific dialogue class for the Agentverse chit-chat dialogue.
 
-See python/examples/17-stateful-communication/agent5.py for a usage example.
+See https://github.com/fetchai/uAgent-Examples/blob/main/1-uagents/uagent-101/network/08-stateful-communication/agent5.py for a usage example.
 """
 
 from typing import Type

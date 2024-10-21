@@ -1,7 +1,7 @@
 """
 Specific agent example for the Agentverse chit-chat dialogue.
 
-See python/examples/17-stateful-communication/dialogues/agentverse_chitchat.py
+See https://github.com/fetchai/uAgent-Examples/blob/main/1-uagents/uagent-101/network/08-stateful-communication/dialogues/agentverse_chitchat.py
 for the dialogue implementation.
 """
 
@@ -11,7 +11,6 @@ from dialogues.agentverse_chitchat import (
     ConcludeChitChatDialogue,
     InitiateChitChatDialogue,
 )
-
 from uagents import Agent, Context
 
 HOSTED_AGENT_ADDRESS = "<your hosted agent address here>"

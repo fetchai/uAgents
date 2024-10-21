@@ -88,11 +88,9 @@ Please see the [official documentation](https://fetch.ai/docs) for full setup in
 
 ## 🌱 Examples
 
-The [`examples`](https://github.com/fetchai/uAgents/tree/main/python/examples) folder contains several examples of how to create and run various types of agents.
+The [`uAgent examples`](https://github.com/fetchai/uAgent-Examples) repository contains examples of uAgents, collections of uAgents that work together to solve a problem (i.e. solutions), and uAgent-based applications. 
 
-## 🌲 Integrations
-
-The [`integrations`](https://github.com/fetchai/uAgents/tree/main/integrations) folder contains examples that provide a more in depth use of the uAgents library.
+See the [uagent-101 folder](https://github.com/fetchai/uAgent-Examples/tree/main/1-uagents/uagent-101) for a collection of educational examples to get you started.
 
 ## Python Library
 
