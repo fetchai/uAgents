@@ -293,3 +293,40 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
         except Exception as e:
             self._logger.error(f"Failed to register on Almanac contract: {e}")
             raise
+
+
+class AgentStatusUpdate(BaseModel):
+    agent_address: str
+    is_active: bool
+    signature: Optional[str] = None
+
+    def sign(self, identity: Identity):
+        digest = self._build_digest()
+        self.signature = identity.sign_digest(digest)
+
+    def verify(self) -> bool:
+        return self.signature is not None and Identity.verify_digest(
+            self.agent_address, self._build_digest(), self.signature
+        )
+
+    def _build_digest(self) -> bytes:
+        sha256 = hashlib.sha256()
+        sha256.update(
+            json.dumps(
+                self.model_dump(exclude={"signature"}),
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        )
+        return sha256.digest()
+
+
+async def update_agent_status(status: AgentStatusUpdate, almanac_api: str):
+    async with aiohttp.ClientSession() as session:  # noqa: SIM117
+        async with session.post(
+            f"{almanac_api}/agents/{status.agent_address}/status",
+            headers={"content-type": "application/json"},
+            data=status.model_dump_json(),
+            timeout=aiohttp.ClientTimeout(total=ALMANAC_API_TIMEOUT_SECONDS),
+        ) as resp:
+            resp.raise_for_status()
