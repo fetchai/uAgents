@@ -1,3 +1,5 @@
+import hashlib
+import json
 import uuid
 from dataclasses import dataclass
 from enum import Enum
@@ -16,8 +18,9 @@ from typing import (
     Union,
 )
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
+from uagents.crypto import Identity
 from uagents.models import Model
 
 if TYPE_CHECKING:
@@ -128,3 +131,46 @@ class MsgStatus:
     destination: str
     endpoint: str
     session: Optional[uuid.UUID] = None
+
+
+class VerifiableModel(BaseModel):
+    agent_address: str
+    signature: Optional[str] = None
+
+    def sign(self, identity: Identity):
+        digest = self._build_digest()
+        self.signature = identity.sign_digest(digest)
+
+    def verify(self) -> bool:
+        return self.signature is not None and Identity.verify_digest(
+            self.agent_address, self._build_digest(), self.signature
+        )
+
+    def _build_digest(self) -> bytes:
+        sha256 = hashlib.sha256()
+        sha256.update(
+            json.dumps(
+                self.model_dump(exclude={"signature"}),
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        )
+        return sha256.digest()
+
+
+class AgentRegistrationAttestation(VerifiableModel):
+    protocols: List[str]
+    endpoints: List[AgentEndpoint]
+    metadata: Optional[Dict[str, Union[str, Dict[str, str]]]] = None
+
+    @field_serializer("protocols")
+    def sort_protocols(self, val: List[str]) -> List[str]:
+        return sorted(val)
+
+    @field_serializer("endpoints")
+    def sort_endpoints(self, val: List[AgentEndpoint]) -> List[AgentEndpoint]:
+        return sorted(val, key=lambda x: x.url)
+
+
+class AgentStatusUpdate(VerifiableModel):
+    is_active: bool

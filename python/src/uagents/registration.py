@@ -1,5 +1,4 @@
 import asyncio
-import hashlib
 import json
 import logging
 from abc import ABC, abstractmethod
@@ -20,7 +19,7 @@ from uagents.config import (
 )
 from uagents.crypto import Identity
 from uagents.network import AlmanacContract, InsufficientFundsError, add_testnet_funds
-from uagents.types import AgentEndpoint
+from uagents.types import AgentEndpoint, AgentRegistrationAttestation, AgentStatusUpdate
 
 
 def generate_backoff_time(retry: int) -> float:
@@ -49,6 +48,29 @@ def coerce_metadata_to_str(
     return out
 
 
+async def use_almanac_api(
+    url: str, data: BaseModel, raise_from: bool = True, retries: int = 3
+) -> bool:
+    async with aiohttp.ClientSession() as session:
+        for retry in range(retries):
+            try:
+                async with session.post(
+                    url,
+                    headers={"content-type": "application/json"},
+                    data=data.model_dump_json(),
+                    timeout=aiohttp.ClientTimeout(total=ALMANAC_API_TIMEOUT_SECONDS),
+                ) as resp:
+                    resp.raise_for_status()
+                    return True
+            except (aiohttp.ClientError, asyncio.exceptions.TimeoutError) as e:
+                if retry == retries - 1:
+                    if raise_from:
+                        raise e
+                    return False
+                await asyncio.sleep(generate_backoff_time(retry))
+    return False
+
+
 class AgentRegistrationPolicy(ABC):
     @abstractmethod
     # pylint: disable=unnecessary-pass
@@ -60,43 +82,6 @@ class AgentRegistrationPolicy(ABC):
         metadata: Optional[Dict[str, Any]] = None,
     ):
         pass
-
-
-class AgentRegistrationAttestation(BaseModel):
-    agent_address: str
-    protocols: List[str]
-    endpoints: List[AgentEndpoint]
-    metadata: Optional[Dict[str, Union[str, Dict[str, str]]]] = None
-    signature: Optional[str] = None
-
-    def sign(self, identity: Identity):
-        digest = self._build_digest()
-        self.signature = identity.sign_digest(digest)
-
-    def verify(self) -> bool:
-        if self.signature is None:
-            raise ValueError("Attestation signature is missing")
-        return Identity.verify_digest(
-            self.agent_address, self._build_digest(), self.signature
-        )
-
-    def _build_digest(self) -> bytes:
-        normalised_attestation = AgentRegistrationAttestation(
-            agent_address=self.agent_address,
-            protocols=sorted(self.protocols),
-            endpoints=sorted(self.endpoints, key=lambda x: x.url),
-            metadata=self.metadata,
-        )
-
-        sha256 = hashlib.sha256()
-        sha256.update(
-            json.dumps(
-                normalised_attestation.model_dump(exclude={"signature"}),
-                sort_keys=True,
-                separators=(",", ":"),
-            ).encode("utf-8")
-        )
-        return sha256.digest()
 
 
 class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
@@ -137,25 +122,11 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         # sign the attestation
         attestation.sign(self._identity)
 
-        # submit the attestation to the API
-        async with aiohttp.ClientSession() as session:  # noqa: SIM117
-            for retry in range(self._max_retries):
-                try:
-                    async with session.post(
-                        f"{self._almanac_api}/agents",
-                        headers={"content-type": "application/json"},
-                        data=attestation.model_dump_json(),
-                        timeout=aiohttp.ClientTimeout(
-                            total=ALMANAC_API_TIMEOUT_SECONDS
-                        ),
-                    ) as resp:
-                        resp.raise_for_status()
-                        self._logger.info("Registration on Almanac API successful")
-                        return
-                except (aiohttp.ClientError, asyncio.exceptions.TimeoutError) as e:
-                    if retry == self._max_retries - 1:
-                        raise e
-                    await asyncio.sleep(generate_backoff_time(retry))
+        success = await use_almanac_api(
+            f"{self._almanac_api}/agents", attestation, retries=self._max_retries
+        )
+        if success:
+            self._logger.info("Registration on Almanac API successful")
 
 
 class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
@@ -295,38 +266,9 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
             raise
 
 
-class AgentStatusUpdate(BaseModel):
-    agent_address: str
-    is_active: bool
-    signature: Optional[str] = None
-
-    def sign(self, identity: Identity):
-        digest = self._build_digest()
-        self.signature = identity.sign_digest(digest)
-
-    def verify(self) -> bool:
-        return self.signature is not None and Identity.verify_digest(
-            self.agent_address, self._build_digest(), self.signature
-        )
-
-    def _build_digest(self) -> bytes:
-        sha256 = hashlib.sha256()
-        sha256.update(
-            json.dumps(
-                self.model_dump(exclude={"signature"}),
-                sort_keys=True,
-                separators=(",", ":"),
-            ).encode("utf-8")
-        )
-        return sha256.digest()
-
-
 async def update_agent_status(status: AgentStatusUpdate, almanac_api: str):
-    async with aiohttp.ClientSession() as session:  # noqa: SIM117
-        async with session.post(
-            f"{almanac_api}/agents/{status.agent_address}/status",
-            headers={"content-type": "application/json"},
-            data=status.model_dump_json(),
-            timeout=aiohttp.ClientTimeout(total=ALMANAC_API_TIMEOUT_SECONDS),
-        ) as resp:
-            resp.raise_for_status()
+    await use_almanac_api(
+        f"{almanac_api}/agents/{status.agent_address}/status",
+        status,
+        raise_from=False,
+    )
