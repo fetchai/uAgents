@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import time
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Union
 
@@ -26,8 +27,10 @@ from uagents.types import AgentEndpoint
 class VerifiableModel(BaseModel):
     agent_address: str
     signature: Optional[str] = None
+    timestamp: Optional[int] = None
 
     def sign(self, identity: Identity):
+        self.timestamp = int(time.time())
         digest = self._build_digest()
         self.signature = identity.sign_digest(digest)
 
