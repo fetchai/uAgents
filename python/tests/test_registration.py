@@ -1,3 +1,4 @@
+import time
 import unittest
 
 import pytest
@@ -60,12 +61,14 @@ def test_attestation_signature_with_metadata():
 
 def test_recovery_of_attestation():
     identity = Identity.generate()
+    ts = int(time.time())
 
     # create an attestation
     original_attestation = AgentRegistrationAttestation(
         agent_address=identity.address,
         protocols=TEST_PROTOCOLS,
         endpoints=TEST_ENDPOINTS,
+        timestamp=ts,
     )
     original_attestation.sign(identity)
 
@@ -75,27 +78,34 @@ def test_recovery_of_attestation():
         protocols=TEST_PROTOCOLS,
         endpoints=TEST_ENDPOINTS,
         signature=original_attestation.signature,
+        timestamp=ts,
     )
     assert recovered.verify()
 
 
 def test_order_of_protocols_or_endpoints_does_not_matter():
     identity = Identity.generate()
+    ts = int(time.time())
+
+    reversed_protocols = list(reversed(TEST_PROTOCOLS))
+    reversed_endpoints = list(reversed(TEST_ENDPOINTS))
 
     # create an attestation
     original_attestation = AgentRegistrationAttestation(
         agent_address=identity.address,
         protocols=TEST_PROTOCOLS,
         endpoints=TEST_ENDPOINTS,
+        timestamp=ts,
     )
     original_attestation.sign(identity)
 
     # recover the attestation
     recovered = AgentRegistrationAttestation(
         agent_address=original_attestation.agent_address,
-        protocols=TEST_PROTOCOLS,
-        endpoints=TEST_ENDPOINTS,
+        protocols=reversed_protocols,
+        endpoints=reversed_endpoints,
         signature=original_attestation.signature,
+        timestamp=ts,
     )
     assert recovered.verify()
 
