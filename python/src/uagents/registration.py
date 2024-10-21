@@ -265,9 +265,12 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
         self._api_policy = AlmanacApiRegistrationPolicy(
             identity, almanac_api=almanac_api, logger=logger
         )
-        self._ledger_policy = LedgerBasedRegistrationPolicy(
-            identity, ledger, wallet, almanac_contract, testnet, logger=logger
-        )
+        if almanac_contract is None:
+            self._ledger_policy = None
+        else:
+            self._ledger_policy = LedgerBasedRegistrationPolicy(
+                identity, ledger, wallet, almanac_contract, testnet, logger=logger
+            )
 
     async def register(
         self,
@@ -285,6 +288,9 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
             self._logger.warning(
                 f"Failed to register on Almanac API: {e.__class__.__name__}"
             )
+
+        if self._ledger_policy is None:
+            return
 
         # schedule the ledger registration
         try:

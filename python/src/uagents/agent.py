@@ -26,7 +26,6 @@ from pydantic import ValidationError
 from uagents.asgi import ASGIServer
 from uagents.communication import Dispenser
 from uagents.config import (
-    ALMANAC_CONTRACT_VERSION,
     AVERAGE_BLOCK_INTERVAL,
     LEDGER_PREFIX,
     MAINNET_PREFIX,
@@ -765,16 +764,6 @@ class Agent(Sink):
         if necessary.
 
         """
-        # Check if the deployed contract version matches the supported version
-        deployed_version = self._almanac_contract.get_contract_version()
-        if deployed_version != ALMANAC_CONTRACT_VERSION:
-            self._logger.warning(
-                "Mismatch in almanac contract versions: supported (%s), deployed (%s). "
-                "Update uAgents to the latest version for compatibility.",
-                ALMANAC_CONTRACT_VERSION,
-                deployed_version,
-            )
-
         await self._registration_policy.register(
             self.address, list(self.protocols.keys()), self._endpoints, self._metadata
         )

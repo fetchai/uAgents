@@ -21,6 +21,7 @@ from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
 
 from uagents.config import (
+    ALMANAC_CONTRACT_VERSION,
     AVERAGE_BLOCK_INTERVAL,
     MAINNET_CONTRACT_ALMANAC,
     MAINNET_CONTRACT_NAME_SERVICE,
@@ -42,6 +43,10 @@ _mainnet_ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
 
 class InsufficientFundsError(Exception):
     """Raised when an agent has insufficient funds for a transaction."""
+
+
+class UnsupportedContractVersionError(Exception):
+    """Raised when the contract version is not supported."""
 
 
 def get_ledger(test: bool = True) -> LedgerClient:
@@ -149,6 +154,24 @@ class AlmanacContract(LedgerContract):
     checking if an agent is registered, retrieving the expiry height of an agent's
     registration, and getting the endpoints associated with an agent's registration.
     """
+
+    def check_version(self) -> bool:
+        """
+        Check if the contract version supported by this version of uAgents matches the
+        deployed version.
+
+        Returns:
+            bool: True if the contract version is supported, False otherwise.
+        """
+        deployed_version = self.get_contract_version()
+        if deployed_version != ALMANAC_CONTRACT_VERSION:
+            logger.warning(
+                f"The deployed version of the Almanac Contract is {deployed_version} "
+                f"and you are using version {ALMANAC_CONTRACT_VERSION}. "
+                "Update uAgents to the latest version for compatibility.",
+            )
+            return False
+        return True
 
     def query_contract(self, query_msg: Dict[str, Any]) -> Any:
         """
@@ -356,7 +379,7 @@ _testnet_almanac_contract = AlmanacContract(
 )
 
 
-def get_almanac_contract(test: bool = True) -> AlmanacContract:
+def get_almanac_contract(test: bool = True) -> Optional[AlmanacContract]:
     """
     Get the AlmanacContract instance.
 
@@ -364,11 +387,15 @@ def get_almanac_contract(test: bool = True) -> AlmanacContract:
         test (bool): Whether to use the testnet or mainnet. Defaults to True.
 
     Returns:
-        AlmanacContract: The AlmanacContract instance.
+        AlmanacContract: The AlmanacContract instance if version is supported.
     """
     if test:
-        return _testnet_almanac_contract
-    return _mainnet_almanac_contract
+        if _testnet_almanac_contract.check_version():
+            return _testnet_almanac_contract
+        return None
+    if _mainnet_almanac_contract.check_version():
+        return _mainnet_almanac_contract
+    return None
 
 
 class NameServiceContract(LedgerContract):

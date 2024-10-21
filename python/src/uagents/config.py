@@ -13,7 +13,7 @@ MAINNET_CONTRACT_ALMANAC = (
     "fetch1mezzhfj7qgveewzwzdk6lz5sae4dunpmmsjr9u7z0tpmdsae8zmquq3y0y"
 )
 TESTNET_CONTRACT_ALMANAC = (
-    "fetch135h26ys2nwqealykzey532gamw4l4s07aewpwc0cyd8z6m92vyhsplf0vp"
+    "fetch1tjagw8g8nn4cwuw00cf0m5tl4l6wfw9c0ue507fhx9e3yrsck8zs0l3q4w"
 )
 MAINNET_CONTRACT_NAME_SERVICE = (
     "fetch1479lwv5vy8skute5cycuz727e55spkhxut0valrcm38x9caa2x8q99ef0q"
