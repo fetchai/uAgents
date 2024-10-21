@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import logging
 from abc import ABC, abstractmethod
@@ -8,7 +9,7 @@ import aiohttp
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
 
 from uagents.config import (
     ALMANAC_API_MAX_RETRIES,
@@ -19,7 +20,50 @@ from uagents.config import (
 )
 from uagents.crypto import Identity
 from uagents.network import AlmanacContract, InsufficientFundsError, add_testnet_funds
-from uagents.types import AgentEndpoint, AgentRegistrationAttestation, AgentStatusUpdate
+from uagents.types import AgentEndpoint
+
+
+class VerifiableModel(BaseModel):
+    agent_address: str
+    signature: Optional[str] = None
+
+    def sign(self, identity: Identity):
+        digest = self._build_digest()
+        self.signature = identity.sign_digest(digest)
+
+    def verify(self) -> bool:
+        return self.signature is not None and Identity.verify_digest(
+            self.agent_address, self._build_digest(), self.signature
+        )
+
+    def _build_digest(self) -> bytes:
+        sha256 = hashlib.sha256()
+        sha256.update(
+            json.dumps(
+                self.model_dump(exclude={"signature"}),
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        )
+        return sha256.digest()
+
+
+class AgentRegistrationAttestation(VerifiableModel):
+    protocols: List[str]
+    endpoints: List[AgentEndpoint]
+    metadata: Optional[Dict[str, Union[str, Dict[str, str]]]] = None
+
+    @field_serializer("protocols")
+    def sort_protocols(self, val: List[str]) -> List[str]:
+        return sorted(val)
+
+    @field_serializer("endpoints")
+    def sort_endpoints(self, val: List[AgentEndpoint]) -> List[AgentEndpoint]:
+        return sorted(val, key=lambda x: x.url)
+
+
+class AgentStatusUpdate(VerifiableModel):
+    is_active: bool
 
 
 def generate_backoff_time(retry: int) -> float:
