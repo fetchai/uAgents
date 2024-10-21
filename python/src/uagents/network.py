@@ -45,10 +45,6 @@ class InsufficientFundsError(Exception):
     """Raised when an agent has insufficient funds for a transaction."""
 
 
-class UnsupportedContractVersionError(Exception):
-    """Raised when the contract version is not supported."""
-
-
 def get_ledger(test: bool = True) -> LedgerClient:
     """
     Get the Ledger client.
