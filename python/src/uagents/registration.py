@@ -331,26 +331,10 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
 
     async def register(self):
         self._logger.info("Registering agents on Almanac contract...")
-        for agent in self._agents:
-            if self._almanac_contract.registration_needs_update(
-                agent.agent_address,
-                agent.protocols,
-                agent.endpoints,
-                REGISTRATION_UPDATE_INTERVAL_SECONDS,
-            ):
-                signature = agent.sign_registration(agent.agent_address)
-                await self._almanac_contract.register(
-                    self._ledger,
-                    self._wallet,
-                    agent.agent_address,
-                    agent.protocols,
-                    agent.endpoints,
-                    signature,
-                )
-            else:
-                self._logger.info(
-                    f"Agent {agent.agent_address} registration is up to date!"
-                )
+
+        # transaction = Transaction()
+
+        self._almanac_contract.register_batch(self._ledger, self._wallet, self._agents)
 
 
 class DefaultRegistrationPolicy(AgentRegistrationPolicy):

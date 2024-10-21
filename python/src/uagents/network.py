@@ -29,7 +29,7 @@ from uagents.config import (
     TESTNET_CONTRACT_ALMANAC,
     TESTNET_CONTRACT_NAME_SERVICE,
 )
-from uagents.types import AgentEndpoint
+from uagents.types import AgentEndpoint, AgentInfo
 from uagents.utils import get_logger
 
 logger = get_logger("network")
@@ -366,6 +366,49 @@ class AlmanacContract(LedgerContract):
                 funds=f"{REGISTRATION_FEE}{REGISTRATION_DENOM}",
             )
         )
+
+        transaction = prepare_and_broadcast_basic_transaction(
+            ledger, transaction, wallet
+        )
+        await wait_for_tx_to_complete(transaction.tx_hash, ledger)
+
+    async def register_batch(
+        self,
+        ledger: LedgerClient,
+        wallet: LocalWallet,
+        agents: List[AgentInfo],
+    ):
+        """
+        Register multiple agents with the Almanac contract.
+
+        Args:
+            ledger (LedgerClient): The Ledger client.
+            wallet (LocalWallet): The wallet of the agent.
+            agents (List[AgentInfo]): The list of agents to register.
+        """
+        if not self.address:
+            raise ValueError("Contract address not set")
+
+        transaction = Transaction()
+
+        for agent in agents:
+            sequence = self.get_sequence(agent.agent_address)
+            almanac_msg = self.get_registration_msg(
+                protocols=agent.protocols,
+                endpoints=agent.endpoints,
+                signature=agent.metadata.get("signature"),
+                sequence=sequence,
+                address=agent.agent_address,
+            )
+
+            transaction.add_message(
+                create_cosmwasm_execute_msg(
+                    wallet.address(),
+                    self.address,
+                    almanac_msg,
+                    funds=f"{REGISTRATION_FEE}{REGISTRATION_DENOM}",
+                )
+            )
 
         transaction = prepare_and_broadcast_basic_transaction(
             ledger, transaction, wallet
