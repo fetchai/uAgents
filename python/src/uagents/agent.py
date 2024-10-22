@@ -49,7 +49,9 @@ from uagents.network import (
 from uagents.protocol import Protocol
 from uagents.registration import (
     AgentRegistrationPolicy,
+    AgentStatusUpdate,
     DefaultRegistrationPolicy,
+    update_agent_status,
 )
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
@@ -345,10 +347,10 @@ class Agent(Sink):
         else:
             self._mailbox_client = None
 
-        almanac_api_url = f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/v1/almanac"
+        self._almanac_api_url = f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/v1/almanac"
         self._resolver = resolve or GlobalResolver(
             max_endpoints=max_resolver_endpoints,
-            almanac_api_url=almanac_api_url,
+            almanac_api_url=self._almanac_api_url,
         )
 
         self._ledger = get_ledger(test)
@@ -377,7 +379,7 @@ class Agent(Sink):
             self._almanac_contract,
             self._test,
             logger=self._logger,
-            almanac_api=almanac_api_url,
+            almanac_api=self._almanac_api_url,
         )
         self._metadata = self._initialize_metadata(metadata)
 
@@ -1085,6 +1087,13 @@ class Agent(Sink):
         Perform shutdown actions.
 
         """
+        try:
+            status = AgentStatusUpdate(agent_address=self.address, is_active=False)
+            status.sign(self._identity)
+            await update_agent_status(status, self._almanac_api_url)
+        except Exception as ex:
+            self._logger.exception(f"Failed to update agent registration status: {ex}")
+
         for handler in self._on_shutdown:
             try:
                 ctx = self._build_context()
