@@ -95,7 +95,7 @@ def coerce_metadata_to_str(
     return out
 
 
-async def use_almanac_api(
+async def almanac_api_post(
     url: str, data: BaseModel, raise_from: bool = True, retries: int = 3
 ) -> bool:
     async with aiohttp.ClientSession() as session:
@@ -169,7 +169,7 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         # sign the attestation
         attestation.sign(self._identity)
 
-        success = await use_almanac_api(
+        success = await almanac_api_post(
             f"{self._almanac_api}/agents", attestation, retries=self._max_retries
         )
         if success:
@@ -314,7 +314,7 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
 
 
 async def update_agent_status(status: AgentStatusUpdate, almanac_api: str):
-    await use_almanac_api(
+    await almanac_api_post(
         f"{almanac_api}/agents/{status.agent_address}/status",
         status,
         raise_from=False,
