@@ -10,7 +10,7 @@ import aiohttp
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
-from pydantic import BaseModel, field_serializer
+from pydantic import BaseModel
 
 from uagents.config import (
     ALMANAC_API_MAX_RETRIES,
@@ -55,14 +55,6 @@ class AgentRegistrationAttestation(VerifiableModel):
     protocols: List[str]
     endpoints: List[AgentEndpoint]
     metadata: Optional[Dict[str, Union[str, Dict[str, str]]]] = None
-
-    @field_serializer("protocols")
-    def sort_protocols(self, val: List[str]) -> List[str]:
-        return sorted(val)
-
-    @field_serializer("endpoints")
-    def sort_endpoints(self, val: List[AgentEndpoint]) -> List[AgentEndpoint]:
-        return sorted(val, key=lambda x: x.url)
 
 
 class AgentStatusUpdate(VerifiableModel):

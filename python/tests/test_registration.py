@@ -87,33 +87,6 @@ def test_recovery_of_attestation():
     assert recovered.verify()
 
 
-def test_order_of_protocols_or_endpoints_does_not_matter():
-    identity = Identity.generate()
-    ts = int(time.time())
-
-    reversed_protocols = list(reversed(TEST_PROTOCOLS))
-    reversed_endpoints = list(reversed(TEST_ENDPOINTS))
-
-    # create an attestation
-    original_attestation = AgentRegistrationAttestation(
-        agent_address=identity.address,
-        protocols=TEST_PROTOCOLS,
-        endpoints=TEST_ENDPOINTS,
-        timestamp=ts,
-    )
-    original_attestation.sign(identity)
-
-    # recover the attestation
-    recovered = AgentRegistrationAttestation(
-        agent_address=original_attestation.agent_address,
-        protocols=reversed_protocols,
-        endpoints=reversed_endpoints,
-        signature=original_attestation.signature,
-        timestamp=ts,
-    )
-    assert recovered.verify()
-
-
 class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
     # we use a mocked almanac API uri
     MOCKED_ALMANAC_API = "http://127.0.0.1:8888/v1/almanac"
