@@ -1,4 +1,3 @@
-import time
 import unittest
 
 import pytest
@@ -22,14 +21,12 @@ TEST_ENDPOINTS = [
 
 def test_attestation_signature():
     identity = Identity.generate()
-    ts = int(time.time())
 
     # create a dummy attestation
     attestation = AgentRegistrationAttestation(
         agent_address=identity.address,
         protocols=TEST_PROTOCOLS,
         endpoints=TEST_ENDPOINTS,
-        timestamp=ts,
     )
 
     # sign the attestation with the identity
@@ -42,7 +39,6 @@ def test_attestation_signature():
 
 def test_attestation_signature_with_metadata():
     identity = Identity.generate()
-    ts = int(time.time())
 
     # create a dummy attestation
     attestation = AgentRegistrationAttestation(
@@ -52,7 +48,6 @@ def test_attestation_signature_with_metadata():
         metadata=coerce_metadata_to_str(
             {"foo": "bar", "baz": 3.17, "qux": {"a": "b", "c": 4, "d": 5.6}}
         ),
-        timestamp=ts,
     )
 
     # sign the attestation with the identity
@@ -65,14 +60,12 @@ def test_attestation_signature_with_metadata():
 
 def test_recovery_of_attestation():
     identity = Identity.generate()
-    ts = int(time.time())
 
     # create an attestation
     original_attestation = AgentRegistrationAttestation(
         agent_address=identity.address,
         protocols=TEST_PROTOCOLS,
         endpoints=TEST_ENDPOINTS,
-        timestamp=ts,
     )
     original_attestation.sign(identity)
 
@@ -82,7 +75,7 @@ def test_recovery_of_attestation():
         protocols=TEST_PROTOCOLS,
         endpoints=TEST_ENDPOINTS,
         signature=original_attestation.signature,
-        timestamp=ts,
+        timestamp=original_attestation.timestamp,
     )
     assert recovered.verify()
 
