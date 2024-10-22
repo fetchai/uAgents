@@ -10,5 +10,5 @@ packages = [{include = "ai_engine", from = "src" }]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
-uagents = "^0.15.0"
+uagents = "^0.17.0"
 pydantic = "~2.8"
