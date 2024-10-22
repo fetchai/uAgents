@@ -141,12 +141,18 @@ class Identity:
         """Sign the provided digest."""
         return _encode_bech32("sig", self._sk.sign_digest(digest))
 
-    def sign_registration(self, contract_address: str, sequence: int) -> str:
+    def sign_registration(
+        self,
+        contract_address: str,
+        sequence: int,
+        wallet_address: str,
+    ) -> str:
         """Sign the registration data for the Almanac contract."""
         hasher = hashlib.sha256()
         hasher.update(encode_length_prefixed(contract_address))
         hasher.update(encode_length_prefixed(self.address))
         hasher.update(encode_length_prefixed(sequence))
+        hasher.update(encode_length_prefixed(wallet_address))
         return self.sign_digest(hasher.digest())
 
     def sign_arbitrary(self, data: bytes) -> Tuple[str, str]:
