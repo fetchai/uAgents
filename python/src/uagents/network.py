@@ -159,12 +159,18 @@ class AlmanacContract(LedgerContract):
         Returns:
             bool: True if the contract version is supported, False otherwise.
         """
-        deployed_version = self.get_contract_version()
-        if deployed_version != ALMANAC_CONTRACT_VERSION:
-            logger.warning(
-                f"The deployed version of the Almanac Contract is {deployed_version} "
-                f"and you are using version {ALMANAC_CONTRACT_VERSION}. "
-                "Update uAgents to the latest version for compatibility.",
+        try:
+            deployed_version = self.get_contract_version()
+            if deployed_version != ALMANAC_CONTRACT_VERSION:
+                logger.warning(
+                    f"The deployed version of the Almanac Contract is {deployed_version} "
+                    f"and you are using version {ALMANAC_CONTRACT_VERSION}. "
+                    "Update uAgents to the latest version to enable contract interactions.",
+                )
+                return False
+        except Exception:
+            logger.error(
+                "Failed to query contract version. Contract interactions will be disabled."
             )
             return False
         return True
