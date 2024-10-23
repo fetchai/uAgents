@@ -1,5 +1,3 @@
-
-```toml
 [tool.poetry]
 name = "spotify-integration"
 version = "0.1.0"
@@ -10,7 +8,7 @@ authors = ["Abhi abhi.gangani@fetch.ai"]
 python = "^3.8"
 requests = "^2.25.1"
 spotipy = "^2.19.0"
-uagents = {git = "https://github.com/fetchai/uAgents.git", rev = "v0.12.0"}
+uagents = { git = "https://github.com/fetchai/uAgents.git", rev = "v0.12.0" }
 python-dotenv = "^0.19.2"
 uagents-ai-engine = "==0.2.1"
 
