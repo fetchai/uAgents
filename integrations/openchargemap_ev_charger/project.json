@@ -1,6 +1,0 @@
-{
-    "title": "EV charger integration",
-    "description": "Agent integration with Openchargemap.",
-    "categories":   ["Mobility", "EV", "Charging"],
-    "deltav": true
-}
