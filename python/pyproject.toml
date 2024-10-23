@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "uagents"
-version = "0.16.2"
+version = "0.17.0"
 description = "Lightweight framework for rapid agent-based development"
 authors = [
     "Ed FitzGerald <edward.fitzgerald@fetch.ai>",
@@ -37,7 +37,7 @@ pytest-asyncio = "^0.23.8"
 pytest-order = "^1.2.1"
 mkdocs = "^1.4.2"
 mkdocs-material = "^9.1.13"
-ruff = "^0.6.0"
+ruff = "^0.6.9"
 pre-commit = "^3.6.2"
 pydoc-markdown = "^4.8.2"
 
