@@ -8,9 +8,7 @@ class CodeLinesRequest(Model):
     repository: str
     prompt: str
 ```
-with a description of relevant code along with links in the form:
-https://github.com/fetchai/uAgents/blob/main/python/src/uagents/agent.py#L253-L268
-
+with a description of relevant code along with links in [this format](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/agent.py#L253-L268).
 
 Example AI-Engine prompt:
 "I would like to refactor some logic from `_process_message_queue` to the `Dialogue` class in 'github.com/fetchai/uAgents/python/src/uagents'. What code is relevant for this?"
@@ -32,5 +30,5 @@ Example AI-Engine prompt:
     - Set your agent's secure seed phrase in `SEED_PHRASE` environment variable
 
 4. Add a mailbox key on Agentverse (optional)
-    - See https://fetch.ai/docs/guides/agentverse/utilising-the-mailbox
-    - If you do not use the Agentverse mailroom, you will need to make sure your agent is remotely reachable. For example: https://github.com/fetchai/uAgents/tree/main/python/examples/12-remote-agents.
+    - See [this guide](https://fetch.ai/docs/guides/agentverse/utilising-the-mailbox).
+    - If you do not use the Agentverse mailroom, you will need to make sure your agent is remotely reachable. See [this example](https://github.com/fetchai/uAgent-Examples/tree/main/1-uagents/uagent-101/network/05-remote-agents).
