@@ -49,9 +49,11 @@ from uagents.network import (
 from uagents.protocol import Protocol
 from uagents.registration import (
     AgentRegistrationPolicy,
+    AgentStatusUpdate,
     BatchAlmanacApiRegistrationPolicy,
     BatchRegistrationPolicy,
     DefaultRegistrationPolicy,
+    update_agent_status,
 )
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
@@ -263,7 +265,7 @@ class Agent(Sink):
         mailbox_client (MailboxClient): The client for interacting with the agentverse mailbox.
         protocols (Dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
         corresponding protocols.
-        metadata (Dict[str, Any]): Metadata associated with the agent.
+        metadata (Optional[Dict[str, Any]]): Metadata associated with the agent.
 
     """
 
@@ -347,10 +349,10 @@ class Agent(Sink):
         else:
             self._mailbox_client = None
 
-        almanac_api_url = f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/v1/almanac"
+        self._almanac_api_url = f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/v1/almanac"
         self._resolver = resolve or GlobalResolver(
             max_endpoints=max_resolver_endpoints,
-            almanac_api_url=almanac_api_url,
+            almanac_api_url=self._almanac_api_url,
         )
 
         self._ledger = get_ledger(test)
@@ -379,7 +381,7 @@ class Agent(Sink):
             self._almanac_contract,
             self._test,
             logger=self._logger,
-            almanac_api=almanac_api_url,
+            almanac_api=self._almanac_api_url,
         )
         self._metadata = self._initialize_metadata(metadata)
 
@@ -521,26 +523,23 @@ class Agent(Sink):
         """
         Initialize the metadata for the agent.
 
-        The metadata is filtered to include only location-based metadata and the
-        model ensures that the metadata is valid and complete.
-
         Args:
             metadata (Optional[Dict[str, Any]]): The metadata to include in the agent object.
 
         Returns:
             Dict[str, Any]: The filtered metadata.
         """
-        if not metadata or "geolocation" not in metadata:
+        if not metadata:
             return {}
 
         try:
-            model = AgentMetadata.model_validate(metadata, strict=True)
-            filtered_metadata = model.model_dump()
+            model = AgentMetadata.model_validate(metadata)
+            validated_metadata = model.model_dump(exclude_unset=True)
         except ValidationError as e:
-            self._logger.error(f"Invalid metadata: {e}")
-            filtered_metadata = {}
+            self._logger.error(e)
+            raise RuntimeError("Invalid metadata provided for agent.") from None
 
-        return filtered_metadata
+        return validated_metadata
 
     @property
     def name(self) -> str:
@@ -702,7 +701,7 @@ class Agent(Sink):
         """
         return self._identity.sign_digest(digest)
 
-    def sign_registration(self) -> str:
+    def sign_registration(self, current_time: int) -> str:
         """
         Sign the registration data for Almanac contract.
         Returns:
@@ -713,7 +712,8 @@ class Agent(Sink):
         assert self._almanac_contract.address is not None
         return self._identity.sign_registration(
             str(self._almanac_contract.address),
-            self._almanac_contract.get_sequence(self.address),
+            current_time,
+            str(self.wallet.address()),
         )
 
     def update_endpoints(self, endpoints: List[AgentEndpoint]):
@@ -748,6 +748,17 @@ class Agent(Sink):
         """
 
         self._queries = queries
+
+    def update_registration_policy(self, policy: AgentRegistrationPolicy):
+        """
+        Update the registration policy.
+
+        Args:
+            policy: The registration policy.
+
+        """
+
+        self._registration_policy = policy
 
     async def register(self):
         """
@@ -907,9 +918,7 @@ class Agent(Sink):
     def on_rest_get(self, endpoint: str, response: Type[Model]):
         return self._on_rest("GET", endpoint, None, response)
 
-    def on_rest_post(
-        self, endpoint: str, request: Optional[Type[Model]], response: Type[Model]
-    ):
+    def on_rest_post(self, endpoint: str, request: Type[Model], response: Type[Model]):
         return self._on_rest("POST", endpoint, request, response)
 
     def _add_event_handler(
@@ -1080,6 +1089,13 @@ class Agent(Sink):
         Perform shutdown actions.
 
         """
+        try:
+            status = AgentStatusUpdate(agent_address=self.address, is_active=False)
+            status.sign(self._identity)
+            await update_agent_status(status, self._almanac_api_url)
+        except Exception as ex:
+            self._logger.exception(f"Failed to update agent registration status: {ex}")
+
         for handler in self._on_shutdown:
             try:
                 ctx = self._build_context()
@@ -1142,9 +1158,14 @@ class Agent(Sink):
 
         """
         if self._enable_agent_inspector:
-            inspector_url = f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/inspect"
-            self._logger.debug(
-                f"Agent inspector available at {inspector_url}/?uri=http://127.0.0.1:{self._port}"
+            agentverse_url = (
+                f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}"
+            )
+            inspector_url = f"{agentverse_url}/inspect/"
+            escaped_uri = requests.utils.quote(f"http://127.0.0.1:{self._port}")
+            self._logger.info(
+                f"Agent inspector available at {inspector_url}"
+                f"?uri={escaped_uri}&address={self.address}"
             )
         await self._server.serve()
 

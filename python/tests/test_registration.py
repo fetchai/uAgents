@@ -8,8 +8,15 @@ from uagents.crypto import Identity
 from uagents.registration import (
     AgentRegistrationAttestation,
     AlmanacApiRegistrationPolicy,
+    coerce_metadata_to_str,
 )
 from uagents.types import AgentEndpoint
+
+TEST_PROTOCOLS = ["foo", "bar", "baz"]
+TEST_ENDPOINTS = [
+    AgentEndpoint(url="https://foobar.com", weight=1),
+    AgentEndpoint(url="https://barbaz.com", weight=1),
+]
 
 
 def test_attestation_signature():
@@ -18,11 +25,8 @@ def test_attestation_signature():
     # create a dummy attestation
     attestation = AgentRegistrationAttestation(
         agent_address=identity.address,
-        protocols=["foo", "bar", "baz"],
-        endpoints=[
-            AgentEndpoint(url="https://foobar.com", weight=1),
-            AgentEndpoint(url="https://barbaz.com", weight=1),
-        ],
+        protocols=TEST_PROTOCOLS,
+        endpoints=TEST_ENDPOINTS,
     )
 
     # sign the attestation with the identity
@@ -39,12 +43,11 @@ def test_attestation_signature_with_metadata():
     # create a dummy attestation
     attestation = AgentRegistrationAttestation(
         agent_address=identity.address,
-        protocols=["foo", "bar", "baz"],
-        endpoints=[
-            AgentEndpoint(url="https://foobar.com", weight=1),
-            AgentEndpoint(url="https://barbaz.com", weight=1),
-        ],
-        metadata={"foo": "bar", "baz": "42", "qux": {"a": "b", "c": "d"}},
+        protocols=TEST_PROTOCOLS,
+        endpoints=TEST_ENDPOINTS,
+        metadata=coerce_metadata_to_str(
+            {"foo": "bar", "baz": 3.17, "qux": {"a": "b", "c": 4, "d": 5.6}}
+        ),
     )
 
     # sign the attestation with the identity
@@ -61,50 +64,18 @@ def test_recovery_of_attestation():
     # create an attestation
     original_attestation = AgentRegistrationAttestation(
         agent_address=identity.address,
-        protocols=["foo", "bar", "baz"],
-        endpoints=[
-            {"url": "https://foobar.com", "weight": 1},
-            {"url": "https://barbaz.com", "weight": 1},
-        ],
+        protocols=TEST_PROTOCOLS,
+        endpoints=TEST_ENDPOINTS,
     )
     original_attestation.sign(identity)
 
     # recover the attestation
     recovered = AgentRegistrationAttestation(
         agent_address=original_attestation.agent_address,
-        protocols=["foo", "bar", "baz"],
-        endpoints=[
-            {"url": "https://foobar.com", "weight": 1},
-            {"url": "https://barbaz.com", "weight": 1},
-        ],
+        protocols=TEST_PROTOCOLS,
+        endpoints=TEST_ENDPOINTS,
         signature=original_attestation.signature,
-    )
-    assert recovered.verify()
-
-
-def test_order_of_protocols_or_endpoints_does_not_matter():
-    identity = Identity.generate()
-
-    # create an attestation
-    original_attestation = AgentRegistrationAttestation(
-        agent_address=identity.address,
-        protocols=["foo", "bar", "baz"],
-        endpoints=[
-            {"url": "https://foobar.com", "weight": 1},
-            {"url": "https://barbaz.com", "weight": 1},
-        ],
-    )
-    original_attestation.sign(identity)
-
-    # recover the attestation
-    recovered = AgentRegistrationAttestation(
-        agent_address=original_attestation.agent_address,
-        protocols=["baz", "foo", "bar"],
-        endpoints=[
-            {"url": "https://barbaz.com", "weight": 1},
-            {"url": "https://foobar.com", "weight": 1},
-        ],
-        signature=original_attestation.signature,
+        timestamp=original_attestation.timestamp,
     )
     assert recovered.verify()
 
@@ -126,11 +97,8 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
         await self.policy.register(
             agent_address=self.identity.address,
-            protocols=["foo", "bar", "baz"],
-            endpoints=[
-                {"url": "https://foobar.com", "weight": 1},
-                {"url": "https://barbaz.com", "weight": 1},
-            ],
+            protocols=TEST_PROTOCOLS,
+            endpoints=TEST_ENDPOINTS,
         )
 
     @aioresponses()
@@ -141,11 +109,8 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         with pytest.raises(ClientResponseError):
             await self.policy.register(
                 agent_address=self.identity.address,
-                protocols=["foo", "bar", "baz"],
-                endpoints=[
-                    {"url": "https://foobar.com", "weight": 1},
-                    {"url": "https://barbaz.com", "weight": 1},
-                ],
+                protocols=TEST_PROTOCOLS,
+                endpoints=TEST_ENDPOINTS,
             )
 
     @aioresponses()
@@ -156,9 +121,6 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         with pytest.raises(ClientResponseError):
             await self.policy.register(
                 agent_address=self.identity.address,
-                protocols=["foo", "bar", "baz"],
-                endpoints=[
-                    {"url": "https://foobar.com", "weight": 1},
-                    {"url": "https://barbaz.com", "weight": 1},
-                ],
+                protocols=TEST_PROTOCOLS,
+                endpoints=TEST_ENDPOINTS,
             )

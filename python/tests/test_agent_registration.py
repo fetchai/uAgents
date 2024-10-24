@@ -13,11 +13,14 @@ from uagents.network import get_name_service_contract
 EXPECTED_FUNDS = Coin(amount="8640000000000000", denom="atestfet")
 
 
-def generate_digest(agent_address: str, contract_address: str, sequence: int) -> bytes:
+def generate_digest(
+    agent_address: str, contract_address: str, sequence: int, wallet_address: str
+) -> bytes:
     hasher = hashlib.sha256()
     hasher.update(encode_length_prefixed(contract_address))
     hasher.update(encode_length_prefixed(agent_address))
     hasher.update(encode_length_prefixed(sequence))
+    hasher.update(encode_length_prefixed(wallet_address))
     return hasher.digest()
 
 
@@ -112,7 +115,7 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
             endpoint=["http://localhost:8000/submit"], seed="almanact_reg_agent"
         )
 
-        signature = agent.sign_registration()
+        signature = agent.sign_registration(0)
 
         almanac_msg = agent._almanac_contract.get_registration_msg(
             list(agent.protocols.keys()), agent._endpoints, signature, 0, agent.address
@@ -120,7 +123,9 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
 
         contract_address = str(agent._almanac_contract.address)
 
-        digest = generate_digest(agent.address, contract_address, 0)
+        digest = generate_digest(
+            agent.address, contract_address, 0, str(agent.wallet.address())
+        )
 
         self.assertEqual(
             mock_almanac_registration(almanac_msg, digest),
