@@ -1,6 +1,7 @@
 """Network and Contracts."""
 
 import asyncio
+import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -22,6 +23,7 @@ from cosmpy.crypto.address import Address
 
 from uagents.config import (
     ALMANAC_CONTRACT_VERSION,
+    ALMANAC_REGISTRATION_WAIT,
     AVERAGE_BLOCK_INTERVAL,
     MAINNET_CONTRACT_ALMANAC,
     MAINNET_CONTRACT_NAME_SERVICE,
@@ -30,6 +32,7 @@ from uagents.config import (
     TESTNET_CONTRACT_ALMANAC,
     TESTNET_CONTRACT_NAME_SERVICE,
 )
+from uagents.crypto import Identity
 from uagents.types import AgentEndpoint, AgentInfo
 from uagents.utils import get_logger
 
@@ -43,6 +46,19 @@ _mainnet_ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
 
 class InsufficientFundsError(Exception):
     """Raised when an agent has insufficient funds for a transaction."""
+
+
+class AlmanacContractRecord(AgentInfo):
+    contract_address: str
+    sender_address: str
+    timestamp: Optional[int] = None
+    signature: Optional[str] = None
+
+    def sign(self, identity: Identity):
+        self.timestamp = int(time.time()) - ALMANAC_REGISTRATION_WAIT
+        self.signature = identity.sign_registration(
+            self.contract_address, self.timestamp, self.sender_address
+        )
 
 
 def get_ledger(test: bool = True) -> LedgerClient:
@@ -401,29 +417,34 @@ class AlmanacContract(LedgerContract):
         self,
         ledger: LedgerClient,
         wallet: LocalWallet,
-        agents: List[AgentInfo],
+        agent_records: List[AlmanacContractRecord],
     ):
         """
         Register multiple agents with the Almanac contract.
 
         Args:
             ledger (LedgerClient): The Ledger client.
-            wallet (LocalWallet): The wallet of the agent.
-            agents (List[AgentInfo]): The list of agents to register.
+            wallet (LocalWallet): The wallet of the registration sender.
+            agents (List[ALmanacContractRecord]): The list of signed agent records to register.
         """
         if not self.address:
             raise ValueError("Contract address not set")
 
         transaction = Transaction()
 
-        for agent in agents:
-            sequence = self.get_sequence(agent.agent_address)
+        for record in agent_records:
+            if record.timestamp is None:
+                raise ValueError("Agent record is missing timestamp")
+
+            if record.signature is None:
+                raise ValueError("Agent record is not signed")
+
             almanac_msg = self.get_registration_msg(
-                protocols=agent.protocols,
-                endpoints=agent.endpoints,
-                signature=agent.metadata.get("signature"),
-                sequence=sequence,
-                address=agent.agent_address,
+                protocols=record.protocols,
+                endpoints=record.endpoints,
+                signature=record.signature,
+                sequence=record.timestamp,
+                address=record.agent_address,
             )
 
             transaction.add_message(
