@@ -21,6 +21,7 @@ from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
 
 from uagents.config import (
+    ALMANAC_CONTRACT_VERSION,
     AVERAGE_BLOCK_INTERVAL,
     MAINNET_CONTRACT_ALMANAC,
     MAINNET_CONTRACT_NAME_SERVICE,
@@ -149,6 +150,30 @@ class AlmanacContract(LedgerContract):
     checking if an agent is registered, retrieving the expiry height of an agent's
     registration, and getting the endpoints associated with an agent's registration.
     """
+
+    def check_version(self) -> bool:
+        """
+        Check if the contract version supported by this version of uAgents matches the
+        deployed version.
+
+        Returns:
+            bool: True if the contract version is supported, False otherwise.
+        """
+        try:
+            deployed_version = self.get_contract_version()
+            if deployed_version != ALMANAC_CONTRACT_VERSION:
+                logger.warning(
+                    f"The deployed version of the Almanac Contract is {deployed_version} "
+                    f"and you are using version {ALMANAC_CONTRACT_VERSION}. "
+                    "Update uAgents to the latest version to enable contract interactions.",
+                )
+                return False
+        except Exception:
+            logger.error(
+                "Failed to query contract version. Contract interactions will be disabled."
+            )
+            return False
+        return True
 
     def query_contract(self, query_msg: Dict[str, Any]) -> Any:
         """
@@ -292,6 +317,7 @@ class AlmanacContract(LedgerContract):
         protocols: List[str],
         endpoints: List[AgentEndpoint],
         signature: str,
+        current_time: int,
     ):
         """
         Register an agent with the Almanac contract.
@@ -309,12 +335,11 @@ class AlmanacContract(LedgerContract):
 
         transaction = Transaction()
 
-        sequence = self.get_sequence(agent_address)
         almanac_msg = self.get_registration_msg(
             protocols=protocols,
             endpoints=endpoints,
             signature=signature,
-            sequence=sequence,
+            sequence=current_time,
             address=agent_address,
         )
 
@@ -356,7 +381,7 @@ _testnet_almanac_contract = AlmanacContract(
 )
 
 
-def get_almanac_contract(test: bool = True) -> AlmanacContract:
+def get_almanac_contract(test: bool = True) -> Optional[AlmanacContract]:
     """
     Get the AlmanacContract instance.
 
@@ -364,11 +389,15 @@ def get_almanac_contract(test: bool = True) -> AlmanacContract:
         test (bool): Whether to use the testnet or mainnet. Defaults to True.
 
     Returns:
-        AlmanacContract: The AlmanacContract instance.
+        AlmanacContract: The AlmanacContract instance if version is supported.
     """
     if test:
-        return _testnet_almanac_contract
-    return _mainnet_almanac_contract
+        if _testnet_almanac_contract.check_version():
+            return _testnet_almanac_contract
+        return None
+    if _mainnet_almanac_contract.check_version():
+        return _mainnet_almanac_contract
+    return None
 
 
 class NameServiceContract(LedgerContract):

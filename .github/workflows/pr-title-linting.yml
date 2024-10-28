@@ -32,4 +32,5 @@ jobs:
             core
             example
             integration
+            experimental
           requireScope: true
