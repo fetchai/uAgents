@@ -494,7 +494,7 @@ class InternalContext(Context):
         # Handle external dispatch of messages
         env = Envelope(
             version=1,
-            sender=self.agent.address,
+            sender=self.agent.identifier,
             target=destination_address,
             session=self._session,
             schema_digest=message_schema_digest,

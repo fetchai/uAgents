@@ -54,7 +54,12 @@ from uagents.registration import (
     DefaultRegistrationPolicy,
     update_agent_status,
 )
-from uagents.resolver import GlobalResolver, Resolver, get_agent_address
+from uagents.resolver import (
+    GlobalResolver,
+    Resolver,
+    get_agent_address,
+    parse_identifier,
+)
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.types import (
     AgentEndpoint,
@@ -148,6 +153,7 @@ class AgentRepresentation:
     def __init__(
         self,
         address: str,
+        identifier: str,
         name: Optional[str],
         signing_callback: Callable,
     ):
@@ -160,6 +166,7 @@ class AgentRepresentation:
             signing_callback (Callable): The callback for signing messages.
         """
         self._address = address
+        self._identifier = identifier
         self._name = name
         self._signing_callback = signing_callback
 
@@ -193,7 +200,7 @@ class AgentRepresentation:
         Returns:
             str: The agent's address and network prefix.
         """
-        return TESTNET_PREFIX + "://" + self._address
+        return self._identifier
 
     def sign_digest(self, data: bytes) -> str:
         """
@@ -441,6 +448,7 @@ class Agent(Sink):
         return InternalContext(
             agent=AgentRepresentation(
                 address=self.address,
+                identifier=self.identifier,
                 name=self._name,
                 signing_callback=self._identity.sign_digest,
             ),
@@ -584,7 +592,8 @@ class Agent(Sink):
             str: The agent's identifier.
         """
         prefix = TESTNET_PREFIX if self._test else MAINNET_PREFIX
-        return prefix + "://" + self._identity.address
+        domain = f"{self._domain}/" if self._domain else ""
+        return prefix + "://" + domain + self._identity.address
 
     @property
     def wallet(self) -> LocalWallet:
@@ -1249,6 +1258,8 @@ class Agent(Sink):
             # get an element from the queue
             schema_digest, sender, message, session = await self._message_queue.get()
 
+            _, _, parsed_address = parse_identifier(sender)
+
             # lookup the model definition
             model_class: Optional[Type[Model]] = self._models.get(schema_digest)
             if model_class is None:
@@ -1263,7 +1274,7 @@ class Agent(Sink):
             self._message_cache.add_entry(
                 EnvelopeHistoryEntry(
                     version=1,
-                    sender=sender,
+                    sender=parsed_address,
                     target=self.address,
                     session=session,
                     schema_digest=schema_digest,
@@ -1275,6 +1286,7 @@ class Agent(Sink):
             context = ExternalContext(
                 agent=AgentRepresentation(
                     address=self.address,
+                    identifier=self.identifier,
                     name=self._name,
                     signing_callback=self._identity.sign_digest,
                 ),
@@ -1305,7 +1317,7 @@ class Agent(Sink):
                 self._logger.warning(f"Unable to parse message: {ex}")
                 await _send_error_message(
                     context,
-                    sender,
+                    parsed_address,
                     ErrorMessage(
                         error=f"Message does not conform to expected schema: {ex}"
                     ),
@@ -1317,12 +1329,12 @@ class Agent(Sink):
                 schema_digest
             )
             if handler is None:
-                if not is_user_address(sender):
+                if not is_user_address(parsed_address):
                     handler = self._signed_message_handlers.get(schema_digest)
                 elif schema_digest in self._signed_message_handlers:
                     await _send_error_message(
                         context,
-                        sender,
+                        parsed_address,
                         ErrorMessage(
                             error="Message must be sent from verified agent address"
                         ),

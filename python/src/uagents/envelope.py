@@ -14,6 +14,7 @@ from pydantic import (
 )
 
 from uagents.crypto import Identity
+from uagents.resolver import parse_identifier
 from uagents.types import JsonStr
 
 
@@ -93,7 +94,8 @@ class Envelope(BaseModel):
         """
         if self.signature is None:
             raise ValueError("Envelope signature is missing")
-        return Identity.verify_digest(self.sender, self._digest(), self.signature)
+        _, _, parsed_address = parse_identifier(self.sender)
+        return Identity.verify_digest(parsed_address, self._digest(), self.signature)
 
     def _digest(self) -> bytes:
         """
