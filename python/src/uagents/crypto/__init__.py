@@ -144,14 +144,14 @@ class Identity:
     def sign_registration(
         self,
         contract_address: str,
-        sequence: int,
+        timestamp: int,
         wallet_address: str,
     ) -> str:
         """Sign the registration data for the Almanac contract."""
         hasher = hashlib.sha256()
         hasher.update(encode_length_prefixed(contract_address))
         hasher.update(encode_length_prefixed(self.address))
-        hasher.update(encode_length_prefixed(sequence))
+        hasher.update(encode_length_prefixed(timestamp))
         hasher.update(encode_length_prefixed(wallet_address))
         return self.sign_digest(hasher.digest())
 

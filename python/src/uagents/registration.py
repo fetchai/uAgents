@@ -313,9 +313,12 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
     def _get_balance(self) -> int:
         return self._ledger.query_bank_balance(Address(self._wallet.address()))
 
-    def _sign_registration(self, current_time: int) -> str:
+    def _sign_registration(self, timestamp: int) -> str:
         """
         Sign the registration data for Almanac contract.
+
+        Args:
+            timestamp (int): The timestamp for the registration.
 
         Returns:
             str: The signature of the registration data.
@@ -327,7 +330,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         assert self._almanac_contract.address is not None
         return self._identity.sign_registration(
             str(self._almanac_contract.address),
-            current_time,
+            timestamp,
             str(self._wallet.address()),
         )
 
