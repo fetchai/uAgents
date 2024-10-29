@@ -722,21 +722,28 @@ class Agent(Sink):
         return self._identity.sign_digest(digest)
 
     def sign_registration(
-        self, current_time: int, sender_address: Optional[str] = None
+        self, timestamp: int, sender_address: Optional[str] = None
     ) -> str:
         """
         Sign the registration data for Almanac contract.
+
+        Args:
+            timestamp (int): The timestamp for the registration.
+            sender_address (Optional[str]): The address of the sender.
+
         Returns:
             str: The signature of the registration data.
+
         Raises:
-            AssertionError: If the Almanac contract address is None.
+            AssertionError: If the Almanac contract is None.
         """
         sender_address = sender_address or str(self.wallet.address())
 
-        assert self._almanac_contract.address is not None
+        assert self._almanac_contract is not None
+
         return self._identity.sign_registration(
             str(self._almanac_contract.address),
-            current_time,
+            timestamp,
             sender_address,
         )
 
@@ -791,6 +798,8 @@ class Agent(Sink):
         if necessary.
 
         """
+        assert self._registration_policy is not None, "Agent has no registration policy"
+
         await self._registration_policy.register(
             self.address, list(self.protocols.keys()), self._endpoints, self._metadata
         )
