@@ -817,7 +817,7 @@ class Agent(Sink):
                 if get_agent_address(self._domain, self._test) == self.address:
                     return
                 self._logger.warning(
-                    f"Agent address {self.address} is not registered domain {self._domain}. "
+                    f"Agent address {self.address} is not registered to domain {self._domain}. "
                 )
                 self._domain = None
             except Exception:
