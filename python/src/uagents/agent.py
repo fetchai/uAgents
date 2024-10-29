@@ -564,7 +564,7 @@ class Agent(Sink):
         return self._name or self.address[0:16]
 
     @property
-    def domain(self) -> str | None:
+    def domain(self) -> Optional[str]:
         """
         Get the domain name of the agent.
 
