@@ -64,6 +64,10 @@ class AgentRegistrationAttestation(VerifiableModel):
     metadata: Optional[Dict[str, Union[str, Dict[str, str]]]] = None
 
 
+class AgentRegistrationAttestationBatch(BaseModel):
+    attestations: List[AgentRegistrationAttestation]
+
+
 class AgentStatusUpdate(VerifiableModel):
     is_active: bool
 
@@ -184,6 +188,8 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         )
         if success:
             self._logger.info("Registration on Almanac API successful")
+        else:
+            self._logger.warning("Registration on Almanac API failed")
 
 
 class BatchAlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
@@ -199,7 +205,7 @@ class BatchAlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
             agent_address=agent_info.agent_address,
             protocols=list(agent_info.protocols),
             endpoints=agent_info.endpoints,
-            metadata=agent_info.metadata,
+            metadata=coerce_metadata_to_str(agent_info.metadata),
         )
         attestation.sign(identity)
         self._attestations.append(attestation)
@@ -207,33 +213,16 @@ class BatchAlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
     async def register(self):
         if not self._attestations:
             return
-
-        attestations = [a.model_dump() for a in self._attestations]
-
-        async with aiohttp.ClientSession() as session:
-            for retry in range(ALMANAC_API_MAX_RETRIES):
-                try:
-                    async with session.post(
-                        f"{self._almanac_api}/agents/batch",
-                        headers={"content-type": "application/json"},
-                        data=json.dumps(attestations),
-                        timeout=aiohttp.ClientTimeout(
-                            total=ALMANAC_API_TIMEOUT_SECONDS
-                        ),
-                    ) as resp:
-                        resp.raise_for_status()
-                        self._logger.info(
-                            "Batch registration on Almanac API successful"
-                        )
-                        return
-                except (aiohttp.ClientError, asyncio.exceptions.TimeoutError) as e:
-                    if retry == ALMANAC_API_MAX_RETRIES - 1:
-                        raise e
-                    time_to_retry = generate_backoff_time(retry)
-                    self._logger.debug(
-                        f"Batch registration failed. Retrying in {time_to_retry} seconds..."
-                    )
-                    await asyncio.sleep(time_to_retry)
+        attestations = AgentRegistrationAttestationBatch(
+            attestations=self._attestations
+        )
+        success = await almanac_api_post(
+            f"{self._almanac_api}/agents/batch", attestations
+        )
+        if success:
+            self._logger.info("Batch registration on Almanac API successful")
+        else:
+            self._logger.warning("Batch registration on Almanac API failed")
 
 
 class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
