@@ -7,7 +7,7 @@ from uagents.network import get_faucet, get_name_service_contract, logger
 
 
 class Message(Model):
-    message: str
+    text: str
 
 
 DOMAIN = "bob.example.agent"
@@ -39,7 +39,7 @@ async def register_agent_name(ctx: Context):
 
 @bob.on_message(model=Message)
 async def message_handler(ctx: Context, sender: str, msg: Message):
-    ctx.logger.info(f"Received message from {sender}: {msg.message}")
+    ctx.logger.info(f"Received message from {sender}: {msg.text}")
 
 
 if __name__ == "__main__":
