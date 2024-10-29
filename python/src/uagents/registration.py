@@ -98,6 +98,17 @@ def coerce_metadata_to_str(
     return out
 
 
+def extract_geo_metadata(
+    metadata: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    """
+    Extract geo-location metadata from the metadata dictionary.
+    """
+    if metadata is None:
+        return None
+    return {k: v for k, v in metadata.items() if k == "geolocation"}
+
+
 async def almanac_api_post(
     url: str, data: BaseModel, raise_from: bool = True, retries: int = 3
 ) -> bool:
@@ -166,18 +177,12 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         endpoints: List[AgentEndpoint],
         metadata: Optional[Dict[str, Any]] = None,
     ):
-        clean_metadata = (
-            {k: v for k, v in metadata.items() if k == "geolocation"}
-            if metadata
-            else None
-        )  # only keep geolocation metadata for registration
-
         # create the attestation
         attestation = AgentRegistrationAttestation(
             agent_address=agent_address,
             protocols=protocols,
             endpoints=endpoints,
-            metadata=coerce_metadata_to_str(clean_metadata),
+            metadata=coerce_metadata_to_str(extract_geo_metadata(metadata)),
         )
 
         # sign the attestation
@@ -205,7 +210,7 @@ class BatchAlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
             agent_address=agent_info.agent_address,
             protocols=list(agent_info.protocols),
             endpoints=agent_info.endpoints,
-            metadata=coerce_metadata_to_str(agent_info.metadata),
+            metadata=coerce_metadata_to_str(extract_geo_metadata(agent_info.metadata)),
         )
         attestation.sign(identity)
         self._attestations.append(attestation)
@@ -357,7 +362,7 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
             agent_address=agent_info.agent_address,
             protocols=agent_info.protocols,
             endpoints=agent_info.endpoints,
-            metadata=agent_info.metadata,
+            metadata=coerce_metadata_to_str(extract_geo_metadata(agent_info.metadata)),
             contract_address=str(self._almanac_contract.address),
             sender_address=str(self._wallet.address()),
         )
