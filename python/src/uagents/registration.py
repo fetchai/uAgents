@@ -362,7 +362,6 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
             agent_address=agent_info.agent_address,
             protocols=agent_info.protocols,
             endpoints=agent_info.endpoints,
-            metadata=coerce_metadata_to_str(extract_geo_metadata(agent_info.metadata)),
             contract_address=str(self._almanac_contract.address),
             sender_address=str(self._wallet.address()),
         )
