@@ -10,10 +10,10 @@ class Message(Model):
     message: str
 
 
-DOMAIN = "example.agent"
+DOMAIN = "bob.example.agent"
 
 bob = Agent(
-    name="bob-0",
+    name="bob",
     domain=DOMAIN,
     seed="agent bob-0 secret phrase",
     port=8001,
@@ -24,7 +24,6 @@ bob = Agent(
 my_wallet = LocalWallet.from_unsafe_seed("registration test wallet")
 name_service_contract = get_name_service_contract(test=True)
 faucet = get_faucet()
-DOMAIN = "example.agent"
 
 logger.info(f"Adding testnet funds to {my_wallet.address()}...")
 faucet.get_wealth(my_wallet.address())

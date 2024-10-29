@@ -16,6 +16,7 @@ from typing import (
     Type,
     Union,
 )
+from urllib.parse import quote
 
 import requests
 from cosmpy.aerial.client import LedgerClient
@@ -1193,7 +1194,7 @@ class Agent(Sink):
                 f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}"
             )
             inspector_url = f"{agentverse_url}/inspect/"
-            escaped_uri = requests.utils.compat.quote(f"http://127.0.0.1:{self._port}")
+            escaped_uri = quote(f"http://127.0.0.1:{self._port}")
             self._logger.info(
                 f"Agent inspector available at {inspector_url}"
                 f"?uri={escaped_uri}&address={self.address}"
