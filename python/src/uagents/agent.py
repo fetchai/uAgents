@@ -53,7 +53,7 @@ from uagents.registration import (
     DefaultRegistrationPolicy,
     update_agent_status,
 )
-from uagents.resolver import GlobalResolver, Resolver
+from uagents.resolver import GlobalResolver, Resolver, get_agent_address
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.types import (
     AgentEndpoint,
@@ -251,9 +251,11 @@ class Agent(Sink):
         _test (bool): True if the agent will register and transact on the testnet.
         _enable_agent_inspector (bool): Enable the agent inspector REST endpoints.
         _metadata (Dict[str, Any]): Metadata associated with the agent.
+        _domain (str): The domain name of the agent.
 
     Properties:
         name (str): The name of the agent.
+        domain (str): The domain name of the agent.
         address (str): The address of the agent used for communication.
         identifier (str): The Agent Identifier, including network prefix and address.
         wallet (LocalWallet): The agent's wallet for transacting on the ledger.
@@ -270,6 +272,7 @@ class Agent(Sink):
     def __init__(
         self,
         name: Optional[str] = None,
+        domain: Optional[str] = None,
         port: Optional[int] = None,
         seed: Optional[str] = None,
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
@@ -292,6 +295,7 @@ class Agent(Sink):
 
         Args:
             name (Optional[str]): The name of the agent.
+            domain (Optional[str]): The domain name of the agent.
             port (Optional[int]): The port on which the agent's server will run.
             seed (Optional[str]): The seed for generating keys.
             endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration.
@@ -312,6 +316,7 @@ class Agent(Sink):
         """
         self._init_done = False
         self._name = name
+        self._domain = domain
         self._port = port or 8000
 
         self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
@@ -548,6 +553,16 @@ class Agent(Sink):
             str: The name of the agent.
         """
         return self._name or self.address[0:16]
+
+    @property
+    def domain(self) -> str | None:
+        """
+        Get the domain name of the agent.
+
+        Returns:
+            str: The domain name of the agent.
+        """
+        return self._domain
 
     @property
     def address(self) -> str:
@@ -791,6 +806,22 @@ class Agent(Sink):
         self._loop.create_task(
             _delay(self._registration_loop(), time_until_next_registration)
         )
+
+    async def _verify_domain(self):
+        """
+        Verify that the agent's domain is registered to its address. If not, delete self._domain.
+
+        """
+        if self._domain is not None:
+            try:
+                if get_agent_address(self._domain, self._test) == self.address:
+                    return
+                self._logger.warning(
+                    f"Agent address {self.address} is not registered domain {self._domain}. "
+                )
+                self._domain = None
+            except Exception:
+                pass
 
     def on_interval(
         self,
@@ -1066,11 +1097,13 @@ class Agent(Sink):
         """
         if self._endpoints:
             await self._registration_loop()
-
         else:
             self._logger.warning(
                 "No endpoints provided. Skipping registration: Agent won't be reachable."
             )
+
+        await self._verify_domain()
+
         for handler in self._on_startup:
             try:
                 ctx = self._build_context()

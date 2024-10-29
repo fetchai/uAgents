@@ -10,8 +10,11 @@ class Message(Model):
     message: str
 
 
+DOMAIN = "example.agent"
+
 bob = Agent(
     name="bob-0",
+    domain=DOMAIN,
     seed="agent bob-0 secret phrase",
     port=8001,
     endpoint=["http://localhost:8001/submit"],
