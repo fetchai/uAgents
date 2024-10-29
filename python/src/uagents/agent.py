@@ -748,7 +748,6 @@ class Agent(Sink):
             endpoints (List[AgentEndpoint]): List of endpoint dictionaries.
 
         """
-
         self._endpoints = endpoints
 
     def update_loop(self, loop):
@@ -1441,6 +1440,11 @@ class Bureau:
         if agent.agentverse["use_mailbox"]:
             self._use_mailbox = True
         else:
+            if agent._endpoints:
+                self._logger.warning(
+                    f"Overwriting the agent's endpoints {agent._endpoints} "
+                    f"with the Bureau's endpoints {self._endpoints}."
+                )
             agent.update_endpoints(self._endpoints)
         self._server._rest_handler_map.update(agent._server._rest_handler_map)
 
@@ -1484,6 +1488,10 @@ class Bureau:
         Start the batch registration loop.
 
         """
+
+        if not any(agent._endpoints for agent in self._agents):
+            return
+
         time_to_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
         try:
             await self._registration_policy.register()
