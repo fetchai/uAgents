@@ -24,6 +24,7 @@ from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
 from uagents.models import ErrorMessage, Model
+from uagents.resolver import parse_identifier
 from uagents.types import RestHandlerDetails, RestMethod
 from uagents.utils import get_logger
 
@@ -336,14 +337,15 @@ class ASGIServer:
                 send, 400, body={"error": "contents do not match envelope schema"}
             )
             return
+        _, _, parsed_address = parse_identifier(env.sender)
 
         expects_response = headers.get(b"x-uagents-connection") == b"sync"
 
         if expects_response:
             # Add a future that will be resolved once the query is answered
-            self._queries[env.sender] = asyncio.Future()
+            self._queries[parsed_address] = asyncio.Future()
 
-        if not is_user_address(env.sender):  # verify signature if sent from agent
+        if not is_user_address(parsed_address):  # verify signature if sent from agent
             try:
                 env.verify()
             except Exception as err:
@@ -356,12 +358,16 @@ class ASGIServer:
             return
 
         await dispatcher.dispatch_msg(
-            env.sender, env.target, env.schema_digest, env.decode_payload(), env.session
+            env.sender,  # fully qualified address of the sender
+            env.target,
+            env.schema_digest,
+            env.decode_payload(),
+            env.session,
         )
 
         # wait for any queries to be resolved
         if expects_response:
-            response_msg, schema_digest = await self._queries[env.sender]
+            response_msg, schema_digest = await self._queries[parsed_address]
             if (env.expires is not None) and (
                 datetime.now() > datetime.fromtimestamp(env.expires)
             ):
@@ -370,7 +376,7 @@ class ASGIServer:
                 ).model_dump_json()
                 schema_digest = ERROR_MESSAGE_DIGEST
             sender = env.target
-            target = env.sender
+            target = parsed_address
             response = enclose_response_raw(
                 response_msg, schema_digest, sender, env.session, target=target
             )

@@ -16,6 +16,7 @@ from typing import (
     Type,
     Union,
 )
+from urllib.parse import quote
 
 import requests
 from cosmpy.aerial.client import LedgerClient
@@ -53,7 +54,12 @@ from uagents.registration import (
     DefaultRegistrationPolicy,
     update_agent_status,
 )
-from uagents.resolver import GlobalResolver, Resolver
+from uagents.resolver import (
+    GlobalResolver,
+    Resolver,
+    get_agent_address,
+    parse_identifier,
+)
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.types import (
     AgentEndpoint,
@@ -147,6 +153,7 @@ class AgentRepresentation:
     def __init__(
         self,
         address: str,
+        identifier: str,
         name: Optional[str],
         signing_callback: Callable,
     ):
@@ -159,6 +166,7 @@ class AgentRepresentation:
             signing_callback (Callable): The callback for signing messages.
         """
         self._address = address
+        self._identifier = identifier
         self._name = name
         self._signing_callback = signing_callback
 
@@ -192,7 +200,7 @@ class AgentRepresentation:
         Returns:
             str: The agent's address and network prefix.
         """
-        return TESTNET_PREFIX + "://" + self._address
+        return self._identifier
 
     def sign_digest(self, data: bytes) -> str:
         """
@@ -251,9 +259,11 @@ class Agent(Sink):
         _test (bool): True if the agent will register and transact on the testnet.
         _enable_agent_inspector (bool): Enable the agent inspector REST endpoints.
         _metadata (Dict[str, Any]): Metadata associated with the agent.
+        _domain (str): The domain name of the agent.
 
     Properties:
         name (str): The name of the agent.
+        domain (str): The domain name of the agent.
         address (str): The address of the agent used for communication.
         identifier (str): The Agent Identifier, including network prefix and address.
         wallet (LocalWallet): The agent's wallet for transacting on the ledger.
@@ -270,6 +280,7 @@ class Agent(Sink):
     def __init__(
         self,
         name: Optional[str] = None,
+        domain: Optional[str] = None,
         port: Optional[int] = None,
         seed: Optional[str] = None,
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
@@ -292,6 +303,7 @@ class Agent(Sink):
 
         Args:
             name (Optional[str]): The name of the agent.
+            domain (Optional[str]): The domain name of the agent.
             port (Optional[int]): The port on which the agent's server will run.
             seed (Optional[str]): The seed for generating keys.
             endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration.
@@ -312,6 +324,7 @@ class Agent(Sink):
         """
         self._init_done = False
         self._name = name
+        self._domain = domain
         self._port = port or 8000
 
         self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
@@ -435,6 +448,7 @@ class Agent(Sink):
         return InternalContext(
             agent=AgentRepresentation(
                 address=self.address,
+                identifier=self.identifier,
                 name=self._name,
                 signing_callback=self._identity.sign_digest,
             ),
@@ -550,6 +564,16 @@ class Agent(Sink):
         return self._name or self.address[0:16]
 
     @property
+    def domain(self) -> Optional[str]:
+        """
+        Get the domain name of the agent.
+
+        Returns:
+            str: The domain name of the agent.
+        """
+        return self._domain
+
+    @property
     def address(self) -> str:
         """
         Get the address of the agent used for communication.
@@ -568,7 +592,8 @@ class Agent(Sink):
             str: The agent's identifier.
         """
         prefix = TESTNET_PREFIX if self._test else MAINNET_PREFIX
-        return prefix + "://" + self._identity.address
+        domain = f"{self._domain}/" if self._domain else ""
+        return prefix + "://" + domain + self._identity.address
 
     @property
     def wallet(self) -> LocalWallet:
@@ -791,6 +816,22 @@ class Agent(Sink):
         self._loop.create_task(
             _delay(self._registration_loop(), time_until_next_registration)
         )
+
+    async def _verify_domain(self):
+        """
+        Verify that the agent's domain is registered to its address. If not, delete self._domain.
+
+        """
+        if self._domain is not None:
+            try:
+                if get_agent_address(self._domain, self._test) == self.address:
+                    return
+                self._logger.warning(
+                    f"Agent address {self.address} is not registered to domain {self._domain}. "
+                )
+                self._domain = None
+            except Exception:
+                pass
 
     def on_interval(
         self,
@@ -1066,11 +1107,13 @@ class Agent(Sink):
         """
         if self._endpoints:
             await self._registration_loop()
-
         else:
             self._logger.warning(
                 "No endpoints provided. Skipping registration: Agent won't be reachable."
             )
+
+        await self._verify_domain()
+
         for handler in self._on_startup:
             try:
                 ctx = self._build_context()
@@ -1160,7 +1203,7 @@ class Agent(Sink):
                 f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}"
             )
             inspector_url = f"{agentverse_url}/inspect/"
-            escaped_uri = requests.utils.quote(f"http://127.0.0.1:{self._port}")
+            escaped_uri = quote(f"http://127.0.0.1:{self._port}")
             self._logger.info(
                 f"Agent inspector available at {inspector_url}"
                 f"?uri={escaped_uri}&address={self.address}"
@@ -1215,6 +1258,8 @@ class Agent(Sink):
             # get an element from the queue
             schema_digest, sender, message, session = await self._message_queue.get()
 
+            _, _, parsed_address = parse_identifier(sender)
+
             # lookup the model definition
             model_class: Optional[Type[Model]] = self._models.get(schema_digest)
             if model_class is None:
@@ -1229,7 +1274,7 @@ class Agent(Sink):
             self._message_cache.add_entry(
                 EnvelopeHistoryEntry(
                     version=1,
-                    sender=sender,
+                    sender=parsed_address,
                     target=self.address,
                     session=session,
                     schema_digest=schema_digest,
@@ -1241,6 +1286,7 @@ class Agent(Sink):
             context = ExternalContext(
                 agent=AgentRepresentation(
                     address=self.address,
+                    identifier=self.identifier,
                     name=self._name,
                     signing_callback=self._identity.sign_digest,
                 ),
@@ -1271,7 +1317,7 @@ class Agent(Sink):
                 self._logger.warning(f"Unable to parse message: {ex}")
                 await _send_error_message(
                     context,
-                    sender,
+                    parsed_address,
                     ErrorMessage(
                         error=f"Message does not conform to expected schema: {ex}"
                     ),
@@ -1283,12 +1329,12 @@ class Agent(Sink):
                 schema_digest
             )
             if handler is None:
-                if not is_user_address(sender):
+                if not is_user_address(parsed_address):
                     handler = self._signed_message_handlers.get(schema_digest)
                 elif schema_digest in self._signed_message_handlers:
                     await _send_error_message(
                         context,
-                        sender,
+                        parsed_address,
                         ErrorMessage(
                             error="Message must be sent from verified agent address"
                         ),

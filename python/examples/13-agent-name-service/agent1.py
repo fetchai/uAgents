@@ -7,11 +7,14 @@ from uagents.network import get_faucet, get_name_service_contract, logger
 
 
 class Message(Model):
-    message: str
+    text: str
 
+
+DOMAIN = "bob.example.agent"
 
 bob = Agent(
-    name="bob-0",
+    name="bob",
+    domain=DOMAIN,
     seed="agent bob-0 secret phrase",
     port=8001,
     endpoint=["http://localhost:8001/submit"],
@@ -21,7 +24,6 @@ bob = Agent(
 my_wallet = LocalWallet.from_unsafe_seed("registration test wallet")
 name_service_contract = get_name_service_contract(test=True)
 faucet = get_faucet()
-DOMAIN = "example.agent"
 
 logger.info(f"Adding testnet funds to {my_wallet.address()}...")
 faucet.get_wealth(my_wallet.address())
@@ -37,7 +39,7 @@ async def register_agent_name(ctx: Context):
 
 @bob.on_message(model=Message)
 async def message_handler(ctx: Context, sender: str, msg: Message):
-    ctx.logger.info(f"Received message from {sender}: {msg.message}")
+    ctx.logger.info(f"Received message from {sender}: {msg.text}")
 
 
 if __name__ == "__main__":
