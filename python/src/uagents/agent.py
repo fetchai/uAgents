@@ -1377,6 +1377,7 @@ class Bureau:
         registration_policy: Optional[BatchRegistrationPolicy] = None,
         ledger: Optional[LedgerClient] = None,
         wallet: Optional[LocalWallet] = None,
+        seed: Optional[str] = None,
         test: bool = True,
         loop: Optional[asyncio.AbstractEventLoop] = None,
         log_level: Union[int, str] = logging.INFO,
@@ -1390,7 +1391,8 @@ class Bureau:
             endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration.
             agentverse (Optional[Union[str, Dict[str, str]]]): The agentverse configuration.
             registration_policy (Optional[BatchRegistrationPolicy]): The registration policy.
-            wallet (Optional[LocalWallet]): The wallet for the bureau.
+            wallet (Optional[LocalWallet]): The wallet for the bureau (overrides 'seed').
+            seed (Optional[str]): The seed phrase for the wallet (overridden by 'wallet').
             test (Optional[bool]): True if the bureau will register and transact on the testnet.
             loop (Optional[asyncio.AbstractEventLoop]): The event loop.
             log_level (Union[int, str]): The logging level for the bureau.
@@ -1411,6 +1413,16 @@ class Bureau:
         self._use_mailbox = self._agentverse["use_mailbox"]
         almanac_api_url = f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/v1/almanac"
         almanac_contract = get_almanac_contract(test)
+
+        if wallet and seed:
+            self._logger.warning(
+                "Ignoring 'seed' argument because 'wallet' is provided."
+            )
+        elif seed:
+            wallet = LocalWallet(
+                PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
+                prefix=LEDGER_PREFIX,
+            )
 
         if registration_policy is not None:
             if (
