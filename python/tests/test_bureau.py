@@ -20,7 +20,7 @@ BUREAU_ENDPOINT = AgentEndpoint(url="http://bureau:8000/submit", weight=1)
 bureau_wallet = LocalWallet.generate()
 
 
-class TestBureau(unittest.TestCase):
+class TestBureau(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self.loop = asyncio.get_event_loop()
         return super().setUp()
