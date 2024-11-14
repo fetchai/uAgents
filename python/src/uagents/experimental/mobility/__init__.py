@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import Any
 
-from uagents import Agent, Context
+from pydantic import BaseModel
+
+from uagents import Agent
 from uagents.experimental.mobility.protocols.base_protocol import (
     CheckIn,
     CheckOut,
@@ -13,26 +15,38 @@ from uagents.experimental.search import geosearch_agents_by_proximity
 from uagents.types import AgentGeolocation
 
 
+class MobilityMetadata(BaseModel):
+    mobility_type: MobilityType
+    coordinates: AgentGeolocation
+    static_signal: str = ""
+    metadata: dict[str, Any] = {}
+
+
 class MobilityAgent(Agent):
     def __init__(
-        self, location: AgentGeolocation, mobility_type: MobilityType, **kwargs
+        self,
+        location: AgentGeolocation,
+        mobility_type: MobilityType,
+        static_signal: str,
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.mobility = True
         self._metadata["geolocation"] = location.model_dump()
         self._metadata["mobility_type"] = mobility_type
+        self._metadata["static_signal"] = static_signal
         self._proximity_agents: list[SearchResultAgent] = []
         self._checkedin_agents: dict[str, dict[str, Any]] = {}
 
-        @self.on_rest_post("/set_location", Location, Location)
-        async def _handle_location_update(_ctx: Context, req: Location):
-            await self._update_geolocation(req)
-            return self.location
+        # @self.on_rest_post("/set_location", Location, Location)
+        # async def _handle_location_update(_ctx: Context, req: Location):
+        #     await self._update_geolocation(req)
+        #     return self.location
 
-        @self.on_rest_get("/step", Location)
-        async def _handle_step(_ctx: Context):
-            await self.step()
-            return self.location
+        # @self.on_rest_get("/step", Location)
+        # async def _handle_step(_ctx: Context):
+        #     await self.step()
+        #     return self.location
 
     @property
     def location(self) -> dict:
@@ -41,6 +55,10 @@ class MobilityAgent(Agent):
     @property
     def mobility_type(self) -> MobilityType:
         return self.metadata["mobility_type"]
+
+    @property
+    def static_signal(self) -> str:
+        return self.metadata["static_signal"]
 
     @property
     def proximity_agents(self) -> list[SearchResultAgent]:
@@ -127,11 +145,3 @@ class MobilityAgent(Agent):
         ctx = self._build_context()
         # send checkout message to all agents that left the proximity
         await ctx.send(agent.address, CheckOut())
-
-    async def register(self):
-        """
-        Overwrite the register method to include the geolocation in the metadata
-        """
-        await self._registration_policy.register(
-            self.address, list(self.protocols.keys()), self._endpoints, self._metadata
-        )

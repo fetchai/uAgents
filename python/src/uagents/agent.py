@@ -422,6 +422,7 @@ class Agent(Sink):
                     agent_address=self.address,
                     endpoints=self._endpoints,
                     protocols=list(self.protocols.keys()),
+                    metadata=self.metadata,
                 )
 
             @self.on_rest_get("/messages", EnvelopeHistory)  # type: ignore
@@ -801,7 +802,7 @@ class Agent(Sink):
         assert self._registration_policy is not None, "Agent has no registration policy"
 
         await self._registration_policy.register(
-            self.address, list(self.protocols.keys()), self._endpoints
+            self.address, list(self.protocols.keys()), self._endpoints, self._metadata
         )
 
     async def _schedule_registration(self):

@@ -15,13 +15,12 @@ class Location(Model):
 
 
 MobilityType = Literal[
-    "traffic_light",
+    "traffic_signal",
     "traffic_sign",
+    "speed_camera",
+    "incident",  # collection for temporary situations
     "vehicle",
-    "bike",
-    "pedestrian",
-    "roadworks",
-    "construction",
+    "movable",  # collection for anything mobile except vehicles
 ]
 
 
@@ -45,16 +44,6 @@ class CheckInResponse(Model):
     description: str = ""
     # the mobility related protocols this agent supports
     supported_protocols: Optional[list[str]] = None
-
-
-# > There may be more specific check-in responses for different types of agents
-# class TrafficLightCheckIn(CheckInResponse):
-#     """Traffic light specific check-in response"""
-
-#     # the current signal of the traffic light
-#     signal: str
-#     # the time the signal was last changed
-#     last_change: str
 
 
 class CheckOut(Model):
