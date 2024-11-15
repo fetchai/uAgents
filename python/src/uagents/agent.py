@@ -1501,8 +1501,8 @@ class Bureau:
         """
         if agent in self._agents:
             return
-        self._registration_policy.add_agent(agent.info, agent._identity)
         self._update_agent(agent)
+        self._registration_policy.add_agent(agent.info, agent._identity)
         self._agents.append(agent)
 
     async def _schedule_registration(self):
