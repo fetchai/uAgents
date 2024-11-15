@@ -110,7 +110,11 @@ def extract_geo_metadata(
 
 
 async def almanac_api_post(
-    url: str, data: BaseModel, raise_from: bool = True, retries: int = 3
+    url: str,
+    data: BaseModel,
+    raise_from: bool = True,
+    retries: int = 3,
+    timeout: float = ALMANAC_API_TIMEOUT_SECONDS,
 ) -> bool:
     async with aiohttp.ClientSession() as session:
         for retry in range(retries):
@@ -119,7 +123,7 @@ async def almanac_api_post(
                     url,
                     headers={"content-type": "application/json"},
                     data=data.model_dump_json(),
-                    timeout=aiohttp.ClientTimeout(total=ALMANAC_API_TIMEOUT_SECONDS),
+                    timeout=aiohttp.ClientTimeout(total=timeout),
                 ) as resp:
                     resp.raise_for_status()
                     return True
@@ -222,7 +226,9 @@ class BatchAlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
             attestations=self._attestations
         )
         success = await almanac_api_post(
-            f"{self._almanac_api}/agents/batch", attestations
+            f"{self._almanac_api}/agents/batch",
+            attestations,
+            timeout=10 * ALMANAC_API_TIMEOUT_SECONDS,
         )
         if success:
             self._logger.info("Batch registration on Almanac API successful")
