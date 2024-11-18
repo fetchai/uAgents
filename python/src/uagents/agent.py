@@ -8,7 +8,6 @@ import uuid
 from typing import (
     Any,
     Callable,
-    Coroutine,
     Dict,
     List,
     Optional,
@@ -105,18 +104,6 @@ async def _run_interval(
             logger.exception(f"Exception in interval handler: {ex}")
 
         await asyncio.sleep(period)
-
-
-async def _delay(coroutine: Coroutine, delay_seconds: float):
-    """
-    Delay the execution of the provided coroutine by the specified number of seconds.
-
-    Args:
-        coroutine (Coroutine): The coroutine to delay.
-        delay_seconds (float): The delay time in seconds.
-    """
-    await asyncio.sleep(delay_seconds)
-    await coroutine
 
 
 async def _send_error_message(ctx: Context, destination: str, msg: ErrorMessage):
@@ -1524,23 +1511,20 @@ class Bureau:
         Start the batch registration loop.
 
         """
-
         if not any(agent._endpoints for agent in self._agents):
             return
 
-        time_to_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
-        try:
-            await self._registration_policy.register()
-        except InsufficientFundsError:
-            time_to_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
-        except Exception as ex:
-            self._logger.exception(f"Failed to register: {ex}")
-            time_to_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
+        while True:
+            time_to_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
+            try:
+                await self._registration_policy.register()
+            except InsufficientFundsError:
+                time_to_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
+            except Exception as ex:
+                self._logger.exception(f"Failed to register: {ex}")
+                time_to_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
 
-        # schedule the next registration update
-        self._loop.create_task(
-            _delay(self._schedule_registration(), time_to_next_registration)
-        )
+            await asyncio.sleep(time_to_next_registration)
 
     async def run_async(self):
         """
