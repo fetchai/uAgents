@@ -201,8 +201,8 @@ class ASGIServer:
         )
         try:
             await self._server.serve()
-        except KeyboardInterrupt:
-            self._logger.info("Shutting down server")
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            self._logger.info("Shutting down server...")
 
     async def _handle_rest(
         self,

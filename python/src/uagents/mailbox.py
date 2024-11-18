@@ -67,7 +67,9 @@ class MailboxClient:
         """
         Runs the mailbox client.
         """
-        await asyncio.gather(self.start_polling(), self.process_deletion_queue())
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.start_polling())
+        loop.create_task(self.process_deletion_queue())
 
     async def start_polling(self):
         """
