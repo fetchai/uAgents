@@ -1,13 +1,13 @@
 """Agent"""
 
 import asyncio
+import contextlib
 import functools
 import logging
 import uuid
 from typing import (
     Any,
     Callable,
-    Coroutine,
     Dict,
     List,
     Optional,
@@ -104,18 +104,6 @@ async def _run_interval(
             logger.exception(f"Exception in interval handler: {ex}")
 
         await asyncio.sleep(period)
-
-
-async def _delay(coroutine: Coroutine, delay_seconds: float):
-    """
-    Delay the execution of the provided coroutine by the specified number of seconds.
-
-    Args:
-        coroutine (Coroutine): The coroutine to delay.
-        delay_seconds (float): The delay time in seconds.
-    """
-    await asyncio.sleep(delay_seconds)
-    await coroutine
 
 
 async def _send_error_message(ctx: Context, destination: str, msg: ErrorMessage):
@@ -812,19 +800,17 @@ class Agent(Sink):
         registration.
 
         """
-        time_until_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
-        try:
-            await self.register()
-        except InsufficientFundsError:
-            time_until_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
-        except Exception as ex:
-            self._logger.exception(f"Failed to register: {ex}")
-            time_until_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
+        while True:
+            time_until_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
+            try:
+                await self.register()
+            except InsufficientFundsError:
+                time_until_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
+            except Exception as ex:
+                self._logger.exception(f"Failed to register: {ex}")
+                time_until_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
 
-        # schedule the next registration update
-        self._loop.create_task(
-            _delay(self._schedule_registration(), time_until_next_registration)
-        )
+            await asyncio.sleep(time_until_next_registration)
 
     def on_interval(
         self,
@@ -1100,7 +1086,7 @@ class Agent(Sink):
         """
         if self._registration_policy:
             if self._endpoints:
-                await self._schedule_registration()
+                self.start_registration_loop()
             else:
                 self._logger.warning(
                     "No endpoints provided. Skipping registration: Agent won't be reachable."
@@ -1148,6 +1134,13 @@ class Agent(Sink):
         await self._startup()
         self.start_message_receivers()
         self.start_interval_tasks()
+
+    def start_registration_loop(self):
+        """
+        Start the registration loop.
+
+        """
+        self._loop.create_task(self._schedule_registration())
 
     def start_message_dispenser(self):
         """
@@ -1217,16 +1210,25 @@ class Agent(Sink):
             tasks.append(self._mailbox_client.run())
 
         try:
-            await asyncio.gather(*tasks)
+            await asyncio.gather(*tasks, return_exceptions=True)
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            pass
         finally:
             await self._shutdown()
+            tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+            _ = [task.cancel() for task in tasks]
+            await asyncio.gather(*tasks)
 
     def run(self):
         """
-        Run the agent.
+        Run the agent by itself.
+        A fresh event loop is created for the agent and it is closed after the agent stops.
 
         """
-        self._loop.run_until_complete(self.run_async())
+        with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
+            self._loop.run_until_complete(self.run_async())
+        self._loop.stop()
+        self._loop.close()
 
     def get_message_protocol(
         self, message_schema_digest
@@ -1509,23 +1511,20 @@ class Bureau:
         Start the batch registration loop.
 
         """
-
         if not any(agent._endpoints for agent in self._agents):
             return
 
-        time_to_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
-        try:
-            await self._registration_policy.register()
-        except InsufficientFundsError:
-            time_to_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
-        except Exception as ex:
-            self._logger.exception(f"Failed to register: {ex}")
-            time_to_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
+        while True:
+            time_to_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
+            try:
+                await self._registration_policy.register()
+            except InsufficientFundsError:
+                time_to_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
+            except Exception as ex:
+                self._logger.exception(f"Failed to register: {ex}")
+                time_to_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
 
-        # schedule the next registration update
-        self._loop.create_task(
-            _delay(self._schedule_registration(), time_to_next_registration)
-        )
+            await asyncio.sleep(time_to_next_registration)
 
     async def run_async(self):
         """
@@ -1533,6 +1532,9 @@ class Bureau:
 
         """
         tasks = [self._server.serve()]
+        if not self._agents:
+            self._logger.warning("No agents to run.")
+            return
         for agent in self._agents:
             await agent.setup()
             if agent.agentverse["use_mailbox"] and agent.mailbox_client is not None:
@@ -1540,9 +1542,11 @@ class Bureau:
         tasks.append(self._schedule_registration())
 
         try:
-            await asyncio.gather(*tasks)
+            await asyncio.gather(*tasks, return_exceptions=True)
         finally:
-            await asyncio.gather(*[agent._shutdown() for agent in self._agents])
+            await asyncio.gather(
+                *[agent._shutdown() for agent in self._agents], return_exceptions=True
+            )
 
     def run(self):
         """
