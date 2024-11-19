@@ -1539,18 +1539,25 @@ class Bureau:
             await agent.setup()
             if agent.agentverse["use_mailbox"] and agent.mailbox_client is not None:
                 tasks.append(agent.mailbox_client.run())
-        tasks.append(self._schedule_registration())
+        self._loop.create_task(self._schedule_registration())
 
         try:
             await asyncio.gather(*tasks, return_exceptions=True)
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            pass
         finally:
-            await asyncio.gather(
-                *[agent._shutdown() for agent in self._agents], return_exceptions=True
-            )
+            for agent in self._agents:
+                await agent._shutdown()
+            tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+            _ = [task.cancel() for task in tasks]
+            await asyncio.gather(*tasks)
 
     def run(self):
         """
         Run the bureau.
 
         """
-        self._loop.run_until_complete(self.run_async())
+        with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
+            self._loop.run_until_complete(self.run_async())
+        self._loop.stop()
+        self._loop.close()
