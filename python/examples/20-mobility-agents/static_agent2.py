@@ -7,7 +7,7 @@ from uagents.types import AgentGeolocation
 
 static_agent = Agent(
     name="roadworks",
-    mobility_type="roadworks",
+    mobility_type="incident",
     port=8113,
     endpoint="http://localhost:8113/submit",
     location=AgentGeolocation(
@@ -15,6 +15,7 @@ static_agent = Agent(
         longitude=13.378124,
         radius=15,
     ),
+    static_signal="I'm a roadworks agent",
 )
 
 proto = base_protocol.mobility_base_protocol

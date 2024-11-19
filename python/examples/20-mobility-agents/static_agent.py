@@ -6,8 +6,8 @@ from uagents.experimental.mobility.protocols import base_protocol
 from uagents.types import AgentGeolocation
 
 static_agent = Agent(
-    name="traffic light #1",
-    mobility_type="traffic_light",
+    name="traffic sign #1",
+    mobility_type="traffic_sign",
     port=8112,
     endpoint="http://localhost:8112/submit",
     location=AgentGeolocation(
@@ -15,6 +15,7 @@ static_agent = Agent(
         longitude=13.378264,
         radius=50,
     ),
+    static_signal="I'm a traffic light agent",
 )
 
 proto = base_protocol.mobility_base_protocol

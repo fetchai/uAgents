@@ -15,6 +15,7 @@ vehicle_agent = Agent(
         longitude=13.377207,
         radius=2,
     ),
+    static_signal="I'm a vehicle agent",
 )
 
 
