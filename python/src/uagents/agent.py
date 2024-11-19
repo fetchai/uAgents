@@ -1350,24 +1350,19 @@ class Bureau:
 
     This class manages a collection of agents and orchestrates their execution.
 
-    Args:
-        agents (Optional[List[Agent]]): The list of agents to be managed by the bureau.
-        port (Optional[int]): The port number for the server.
-        endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): Configuration
-        for agent endpoints.
-
     Attributes:
         _loop (asyncio.AbstractEventLoop): The event loop.
         _agents (List[Agent]): The list of agents to be managed by the bureau.
-        _registered_agents (List[Agent]): The list of agents contained in the bureau.
         _endpoints (List[Dict[str, Any]]): The endpoint configuration for the bureau.
         _port (int): The port on which the bureau's server runs.
         _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their
         response Futures.
         _logger (Logger): The logger instance.
         _server (ASGIServer): The ASGI server instance for handling requests.
+        _agentverse (Dict[str, str]): The agentverse configuration for the bureau.
         _use_mailbox (bool): A flag indicating whether mailbox functionality is enabled for any
         of the agents.
+        _registration_policy (AgentRegistrationPolicy): The registration policy for the bureau.
 
     """
 
@@ -1394,6 +1389,7 @@ class Bureau:
             endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration.
             agentverse (Optional[Union[str, Dict[str, str]]]): The agentverse configuration.
             registration_policy (Optional[BatchRegistrationPolicy]): The registration policy.
+            ledger (Optional[LedgerClient]): The ledger for the bureau.
             wallet (Optional[LocalWallet]): The wallet for the bureau (overrides 'seed').
             seed (Optional[str]): The seed phrase for the wallet (overridden by 'wallet').
             test (Optional[bool]): True if the bureau will register and transact on the testnet.
@@ -1540,18 +1536,25 @@ class Bureau:
             await agent.setup()
             if agent.agentverse["use_mailbox"] and agent.mailbox_client is not None:
                 tasks.append(agent.mailbox_client.run())
-        tasks.append(self._schedule_registration())
+        self._loop.create_task(self._schedule_registration())
 
         try:
             await asyncio.gather(*tasks, return_exceptions=True)
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            pass
         finally:
-            await asyncio.gather(
-                *[agent._shutdown() for agent in self._agents], return_exceptions=True
-            )
+            for agent in self._agents:
+                await agent._shutdown()
+            tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+            _ = [task.cancel() for task in tasks]
+            await asyncio.gather(*tasks)
 
     def run(self):
         """
         Run the bureau.
 
         """
-        self._loop.run_until_complete(self.run_async())
+        with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
+            self._loop.run_until_complete(self.run_async())
+        self._loop.stop()
+        self._loop.close()
