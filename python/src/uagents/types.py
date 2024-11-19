@@ -43,10 +43,17 @@ class AgentEndpoint(BaseModel):
     weight: int
 
 
+class ProtocolDetails(BaseModel):
+    name: str
+    version: str
+    digest: str
+
+
 class AgentInfo(BaseModel):
     agent_address: str
+    agent_name: str = ""
+    protocols: List[ProtocolDetails]
     endpoints: List[AgentEndpoint]
-    protocols: List[str]
     metadata: Optional[Dict[str, Any]] = None
 
 

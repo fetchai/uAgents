@@ -20,6 +20,7 @@ from cosmpy.aerial.tx import Transaction
 from cosmpy.aerial.tx_helpers import TxResponse
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
+from pydantic import BaseModel
 
 from uagents.config import (
     ALMANAC_CONTRACT_VERSION,
@@ -33,7 +34,7 @@ from uagents.config import (
     TESTNET_CONTRACT_NAME_SERVICE,
 )
 from uagents.crypto import Identity
-from uagents.types import AgentEndpoint, AgentInfo
+from uagents.types import AgentEndpoint
 from uagents.utils import get_logger
 
 logger = get_logger("network")
@@ -48,7 +49,10 @@ class InsufficientFundsError(Exception):
     """Raised when an agent has insufficient funds for a transaction."""
 
 
-class AlmanacContractRecord(AgentInfo):
+class AlmanacContractRecord(BaseModel):
+    agent_address: str
+    protocols: List[str]
+    endpoints: List[AgentEndpoint]
     contract_address: str
     sender_address: str
     timestamp: Optional[int] = None

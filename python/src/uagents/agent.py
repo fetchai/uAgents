@@ -406,11 +406,7 @@ class Agent(Sink):
 
             @self.on_rest_get("/agent_info", AgentInfo)  # type: ignore
             async def _handle_get_info(_ctx: Context):
-                return AgentInfo(
-                    agent_address=self.address,
-                    endpoints=self._endpoints,
-                    protocols=list(self.protocols.keys()),
-                )
+                return self.info
 
             @self.on_rest_get("/messages", EnvelopeHistory)  # type: ignore
             async def _handle_get_messages(_ctx: Context):
@@ -647,8 +643,9 @@ class Agent(Sink):
         """
         return AgentInfo(
             agent_address=self.address,
+            agent_name=self._name or "",
             endpoints=self._endpoints,
-            protocols=list(self.protocols.keys()),
+            protocols=[p.info for p in self.protocols.values()],
             metadata=self.metadata,
         )
 
@@ -788,9 +785,7 @@ class Agent(Sink):
         """
         assert self._registration_policy is not None, "Agent has no registration policy"
 
-        await self._registration_policy.register(
-            self.address, list(self.protocols.keys()), self._endpoints, self._metadata
-        )
+        await self._registration_policy.register(self.info)
 
     async def _schedule_registration(self):
         """

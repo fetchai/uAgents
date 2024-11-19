@@ -28,7 +28,7 @@ from uagents.network import (
     InsufficientFundsError,
     add_testnet_funds,
 )
-from uagents.types import AgentEndpoint, AgentInfo
+from uagents.types import AgentEndpoint, AgentInfo, ProtocolDetails
 
 
 class VerifiableModel(BaseModel):
@@ -59,7 +59,8 @@ class VerifiableModel(BaseModel):
 
 
 class AgentRegistrationAttestation(VerifiableModel):
-    protocols: List[str]
+    agent_name: Optional[str] = None
+    protocols: List[Union[ProtocolDetails, str]]  # str for backwards compatibility
     endpoints: List[AgentEndpoint]
     metadata: Optional[Dict[str, Union[str, Dict[str, str]]]] = None
 
@@ -120,8 +121,8 @@ async def almanac_api_post(
                     headers={"content-type": "application/json"},
                     data=data.model_dump_json(),
                     timeout=aiohttp.ClientTimeout(total=ALMANAC_API_TIMEOUT_SECONDS),
-                ) as resp:
-                    resp.raise_for_status()
+                ) as response:
+                    response.raise_for_status()
                     return True
             except (aiohttp.ClientError, asyncio.exceptions.TimeoutError) as e:
                 if retry == retries - 1:
@@ -134,20 +135,12 @@ async def almanac_api_post(
 
 class AgentRegistrationPolicy(ABC):
     @abstractmethod
-    # pylint: disable=unnecessary-pass
-    async def register(
-        self,
-        agent_address: str,
-        protocols: List[str],
-        endpoints: List[AgentEndpoint],
-        metadata: Optional[Dict[str, Any]] = None,
-    ):
+    async def register(self, agent_info: AgentInfo):
         pass
 
 
 class BatchRegistrationPolicy(ABC):
     @abstractmethod
-    # pylint: disable=unnecessary-pass
     async def register(self):
         pass
 
@@ -170,19 +163,14 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         self._identity = identity
         self._logger = logger or logging.getLogger(__name__)
 
-    async def register(
-        self,
-        agent_address: str,
-        protocols: List[str],
-        endpoints: List[AgentEndpoint],
-        metadata: Optional[Dict[str, Any]] = None,
-    ):
+    async def register(self, agent_info: AgentInfo):
         # create the attestation
         attestation = AgentRegistrationAttestation(
-            agent_address=agent_address,
-            protocols=protocols,
-            endpoints=endpoints,
-            metadata=coerce_metadata_to_str(extract_geo_metadata(metadata)),
+            agent_address=agent_info.agent_address,
+            agent_name=agent_info.agent_name,
+            protocols=list(agent_info.protocols),
+            endpoints=agent_info.endpoints,
+            metadata=coerce_metadata_to_str(extract_geo_metadata(agent_info.metadata)),
         )
 
         # sign the attestation
@@ -208,6 +196,7 @@ class BatchAlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
     def add_agent(self, agent_info: AgentInfo, identity: Identity):
         attestation = AgentRegistrationAttestation(
             agent_address=agent_info.agent_address,
+            agent_name=agent_info.agent_name,
             protocols=list(agent_info.protocols),
             endpoints=agent_info.endpoints,
             metadata=coerce_metadata_to_str(extract_geo_metadata(agent_info.metadata)),
@@ -215,7 +204,7 @@ class BatchAlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         attestation.sign(identity)
         self._attestations.append(attestation)
 
-    async def register(self):
+    async def register(self, *args, **kwargs):
         if not self._attestations:
             return
         attestations = AgentRegistrationAttestationBatch(
@@ -262,25 +251,21 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
                 deployed_version,
             )
 
-    async def register(
-        self,
-        agent_address: str,
-        protocols: List[str],
-        endpoints: List[AgentEndpoint],
-        metadata: Optional[Dict[str, Any]] = None,
-    ):
+    async def register(self, agent_info: AgentInfo):
         """
         Register the agent on the Almanac contract if registration is about to expire or
         the registration data has changed.
         """
         self.check_contract_version()
-
+        protocol_list = [p.digest for p in agent_info.protocols]
         if (
-            not self._almanac_contract.is_registered(agent_address)
-            or self._almanac_contract.get_expiry(agent_address)
+            not self._almanac_contract.is_registered(agent_info.agent_address)
+            or self._almanac_contract.get_expiry(agent_info.agent_address)
             < REGISTRATION_UPDATE_INTERVAL_SECONDS
-            or endpoints != self._almanac_contract.get_endpoints(agent_address)
-            or protocols != self._almanac_contract.get_protocols(agent_address)
+            or agent_info.endpoints
+            != self._almanac_contract.get_endpoints(agent_info.agent_address)
+            or protocol_list
+            != self._almanac_contract.get_protocols(agent_info.agent_address)
         ):
             if self._get_balance() < REGISTRATION_FEE:
                 self._logger.warning(
@@ -305,9 +290,9 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
             await self._almanac_contract.register(
                 self._ledger,
                 self._wallet,
-                agent_address,
-                protocols,
-                endpoints,
+                agent_info.agent_address,
+                protocol_list,
+                agent_info.endpoints,
                 signature,
                 current_time,
             )
@@ -360,7 +345,7 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
     def add_agent(self, agent_info: AgentInfo, identity: Identity):
         agent_record = AlmanacContractRecord(
             agent_address=agent_info.agent_address,
-            protocols=agent_info.protocols,
+            protocols=[p.digest for p in agent_info.protocols],
             endpoints=agent_info.endpoints,
             contract_address=str(self._almanac_contract.address),
             sender_address=str(self._wallet.address()),
@@ -420,18 +405,10 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
                 identity, ledger, wallet, almanac_contract, testnet, logger=logger
             )
 
-    async def register(
-        self,
-        agent_address: str,
-        protocols: List[str],
-        endpoints: List[AgentEndpoint],
-        metadata: Optional[Dict[str, Any]] = None,
-    ):
+    async def register(self, agent_info: AgentInfo):
         # prefer the API registration policy as it is faster
         try:
-            await self._api_policy.register(
-                agent_address, protocols, endpoints, metadata
-            )
+            await self._api_policy.register(agent_info)
         except Exception as e:
             self._logger.warning(
                 f"Failed to register on Almanac API: {e.__class__.__name__}"
@@ -442,9 +419,7 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
 
         # schedule the ledger registration
         try:
-            await self._ledger_policy.register(
-                agent_address, protocols, endpoints, metadata
-            )
+            await self._ledger_policy.register(agent_info)
         except InsufficientFundsError:
             self._logger.warning(
                 "Failed to register on Almanac contract due to insufficient funds"
