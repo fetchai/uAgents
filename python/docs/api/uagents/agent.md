@@ -389,6 +389,21 @@ Get the balance of the agent.
 
 - `int` - Bank balance.
 
+<a id="src.uagents.agent.Agent.info"></a>
+
+#### info
+
+```python
+@property
+def info() -> AgentInfo
+```
+
+Get basic information about the agent.
+
+**Returns**:
+
+- `AgentInfo` - The agent's address, endpoints, protocols, and metadata.
+
 <a id="src.uagents.agent.Agent.metadata"></a>
 
 #### metadata
@@ -478,18 +493,26 @@ Sign the provided digest.
 #### sign`_`registration
 
 ```python
-def sign_registration() -> str
+def sign_registration(timestamp: int,
+                      sender_wallet_address: Optional[str] = None) -> str
 ```
 
 Sign the registration data for Almanac contract.
 
+**Arguments**:
+
+- `timestamp` _int_ - The timestamp for the registration.
+- `sender_wallet_address` _Optional[str]_ - The wallet address of the transaction sender.
+  
+
 **Returns**:
 
 - `str` - The signature of the registration data.
+  
 
 **Raises**:
 
-- `AssertionError` - If the Almanac contract address is None.
+- `AssertionError` - If the Almanac contract is None.
 
 <a id="src.uagents.agent.Agent.update_endpoints"></a>
 
@@ -736,6 +759,16 @@ async def setup()
 
 Include the internal agent protocol, run startup tasks, and start background tasks.
 
+<a id="src.uagents.agent.Agent.start_registration_loop"></a>
+
+#### start`_`registration`_`loop
+
+```python
+def start_registration_loop()
+```
+
+Start the registration loop.
+
 <a id="src.uagents.agent.Agent.start_message_dispenser"></a>
 
 #### start`_`message`_`dispenser
@@ -794,7 +827,8 @@ Create all tasks for the agent.
 def run()
 ```
 
-Run the agent.
+Run the agent by itself.
+A fresh event loop is created for the agent and it is closed after the agent stops.
 
 <a id="src.uagents.agent.Agent.get_message_protocol"></a>
 
@@ -819,27 +853,20 @@ A class representing a Bureau of agents.
 
 This class manages a collection of agents and orchestrates their execution.
 
-**Arguments**:
-
-- `agents` _Optional[List[Agent]]_ - The list of agents to be managed by the bureau.
-- `port` _Optional[int]_ - The port number for the server.
-- `endpoint` _Optional[Union[str, List[str], Dict[str, dict]]]_ - Configuration
-  for agent endpoints.
-  
-
 **Attributes**:
 
 - `_loop` _asyncio.AbstractEventLoop_ - The event loop.
 - `_agents` _List[Agent]_ - The list of agents to be managed by the bureau.
-- `_registered_agents` _List[Agent]_ - The list of agents contained in the bureau.
 - `_endpoints` _List[Dict[str, Any]]_ - The endpoint configuration for the bureau.
 - `_port` _int_ - The port on which the bureau's server runs.
 - `_queries` _Dict[str, asyncio.Future]_ - Dictionary mapping query senders to their
   response Futures.
 - `_logger` _Logger_ - The logger instance.
 - `_server` _ASGIServer_ - The ASGI server instance for handling requests.
+- `_agentverse` _Dict[str, str]_ - The agentverse configuration for the bureau.
 - `_use_mailbox` _bool_ - A flag indicating whether mailbox functionality is enabled for any
   of the agents.
+- `_registration_policy` _AgentRegistrationPolicy_ - The registration policy for the bureau.
 
 <a id="src.uagents.agent.Bureau.__init__"></a>
 
@@ -849,6 +876,12 @@ This class manages a collection of agents and orchestrates their execution.
 def __init__(agents: Optional[List[Agent]] = None,
              port: Optional[int] = None,
              endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
+             agentverse: Optional[Union[str, Dict[str, str]]] = None,
+             registration_policy: Optional[BatchRegistrationPolicy] = None,
+             ledger: Optional[LedgerClient] = None,
+             wallet: Optional[LocalWallet] = None,
+             seed: Optional[str] = None,
+             test: bool = True,
              loop: Optional[asyncio.AbstractEventLoop] = None,
              log_level: Union[int, str] = logging.INFO)
 ```
@@ -857,9 +890,17 @@ Initialize a Bureau instance.
 
 **Arguments**:
 
-- `port` _Optional[int]_ - The port on which the bureau's server will run.
-- `endpoint` _Optional[Union[str, List[str], Dict[str, dict]]]_ - The endpoint configuration
-  for the bureau.
+- `agents` _Optional[List[Agent]]_ - The list of agents to be managed by the bureau.
+- `port` _Optional[int]_ - The port number for the server.
+- `endpoint` _Optional[Union[str, List[str], Dict[str, dict]]]_ - The endpoint configuration.
+- `agentverse` _Optional[Union[str, Dict[str, str]]]_ - The agentverse configuration.
+- `registration_policy` _Optional[BatchRegistrationPolicy]_ - The registration policy.
+- `ledger` _Optional[LedgerClient]_ - The ledger for the bureau.
+- `wallet` _Optional[LocalWallet]_ - The wallet for the bureau (overrides 'seed').
+- `seed` _Optional[str]_ - The seed phrase for the wallet (overridden by 'wallet').
+- `test` _Optional[bool]_ - True if the bureau will register and transact on the testnet.
+- `loop` _Optional[asyncio.AbstractEventLoop]_ - The event loop.
+- `log_level` _Union[int, str]_ - The logging level for the bureau.
 
 <a id="src.uagents.agent.Bureau.add"></a>
 
