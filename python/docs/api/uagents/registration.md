@@ -2,6 +2,20 @@
 
 # src.uagents.registration
 
+<a id="src.uagents.registration.AgentRegistrationAttestation"></a>
+
+## AgentRegistrationAttestation Objects
+
+```python
+class AgentRegistrationAttestation(VerifiableModel)
+```
+
+<a id="src.uagents.registration.AgentRegistrationAttestation.protocols"></a>
+
+#### protocols
+
+str for backwards compatibility
+
 <a id="src.uagents.registration.generate_backoff_time"></a>
 
 #### generate`_`backoff`_`time
@@ -59,10 +73,7 @@ if it is different from the supported version.
 #### register
 
 ```python
-async def register(agent_address: str,
-                   protocols: List[str],
-                   endpoints: List[AgentEndpoint],
-                   metadata: Optional[Dict[str, Any]] = None)
+async def register(agent_info: AgentInfo)
 ```
 
 Register the agent on the Almanac contract if registration is about to expire or
