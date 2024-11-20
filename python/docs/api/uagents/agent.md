@@ -196,7 +196,8 @@ def __init__(name: Optional[str] = None,
              loop: Optional[asyncio.AbstractEventLoop] = None,
              log_level: Union[int, str] = logging.INFO,
              enable_agent_inspector: bool = True,
-             metadata: Optional[Dict[str, Any]] = None)
+             metadata: Optional[Dict[str, Any]] = None,
+             readme: Optional[str] = None)
 ```
 
 Initialize an Agent instance.
@@ -221,6 +222,7 @@ Initialize an Agent instance.
 - `log_level` _Union[int, str]_ - The logging level for the agent.
 - `enable_agent_inspector` _bool_ - Enable the agent inspector for debugging.
 - `metadata` _Optional[Dict[str, Any]]_ - Optional metadata to include in the agent object.
+- `readme` _Optional[str]_ - The path to the README for the agent.
 
 <a id="src.uagents.agent.Agent.initialize_wallet_messaging"></a>
 
@@ -418,6 +420,21 @@ Get the metadata associated with the agent.
 **Returns**:
 
   Dict[str, Any]: The metadata associated with the agent.
+
+<a id="src.uagents.agent.Agent.readme"></a>
+
+#### readme
+
+```python
+@property
+def readme() -> str
+```
+
+Get the README content for the agent.
+
+**Returns**:
+
+- `str` - The README content.
 
 <a id="src.uagents.agent.Agent.mailbox"></a>
 
