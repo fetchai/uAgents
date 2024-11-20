@@ -60,7 +60,10 @@ class VerifiableModel(BaseModel):
 
 class AgentRegistrationAttestation(VerifiableModel):
     agent_name: Optional[str] = None
-    protocols: List[Union[ProtocolDetails, str]]  # str for backwards compatibility
+    readme: Optional[str] = None
+    protocols: Union[
+        List[ProtocolDetails], List[str]
+    ]  # str for backwards compatibility
     endpoints: List[AgentEndpoint]
     metadata: Optional[Dict[str, Union[str, Dict[str, str]]]] = None
 
@@ -168,6 +171,7 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         attestation = AgentRegistrationAttestation(
             agent_address=agent_info.agent_address,
             agent_name=agent_info.agent_name,
+            readme=agent_info.readme,
             protocols=list(agent_info.protocols),
             endpoints=agent_info.endpoints,
             metadata=coerce_metadata_to_str(extract_geo_metadata(agent_info.metadata)),
@@ -197,6 +201,7 @@ class BatchAlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         attestation = AgentRegistrationAttestation(
             agent_address=agent_info.agent_address,
             agent_name=agent_info.agent_name,
+            readme=agent_info.readme,
             protocols=list(agent_info.protocols),
             endpoints=agent_info.endpoints,
             metadata=coerce_metadata_to_str(extract_geo_metadata(agent_info.metadata)),

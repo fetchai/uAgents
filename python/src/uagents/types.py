@@ -55,6 +55,7 @@ class AgentInfo(BaseModel):
     protocols: List[ProtocolDetails]
     endpoints: List[AgentEndpoint]
     metadata: Optional[Dict[str, Any]] = None
+    readme: str = ""
 
 
 class RestHandlerDetails(BaseModel):

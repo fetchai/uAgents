@@ -278,6 +278,7 @@ class Agent(Sink):
         log_level: Union[int, str] = logging.INFO,
         enable_agent_inspector: bool = True,
         metadata: Optional[Dict[str, Any]] = None,
+        readme: Optional[str] = None,
     ):
         """
         Initialize an Agent instance.
@@ -301,6 +302,7 @@ class Agent(Sink):
             log_level (Union[int, str]): The logging level for the agent.
             enable_agent_inspector (bool): Enable the agent inspector for debugging.
             metadata (Optional[Dict[str, Any]]): Optional metadata to include in the agent object.
+            readme (Optional[str]): The path to the README for the agent.
         """
         self._init_done = False
         self._name = name
@@ -395,6 +397,18 @@ class Agent(Sink):
             queries=self._queries,
             logger=self._logger,
         )
+
+        if readme is not None:
+            try:
+                with open(file=readme, mode="r", encoding="utf-8") as f:
+                    loaded_readme = f.read()
+            except (IOError, OSError):
+                self._logger.error(f"Could not open/read file: {readme}")
+                loaded_readme = ""
+            finally:
+                self._readme = loaded_readme
+        else:
+            self._readme = ""
 
         # define default error message handler
         @self.on_message(ErrorMessage)
@@ -647,6 +661,7 @@ class Agent(Sink):
             endpoints=self._endpoints,
             protocols=[p.info for p in self.protocols.values()],
             metadata=self.metadata,
+            readme=self.readme,
         )
 
     @property
@@ -658,6 +673,16 @@ class Agent(Sink):
             Dict[str, Any]: The metadata associated with the agent.
         """
         return self._metadata
+
+    @property
+    def readme(self) -> str:
+        """
+        Get the README content for the agent.
+
+        Returns:
+            str: The README content.
+        """
+        return self._readme
 
     @mailbox.setter
     def mailbox(self, config: Union[str, Dict[str, str]]):
