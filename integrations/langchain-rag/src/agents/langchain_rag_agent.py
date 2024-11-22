@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.retrievers import ContextualCompressionRetriever
-from langchain.retrievers.document_compressors import CohereRerank
+from langchain_cohere import CohereRerank
 from ai_engine import UAgentResponse, UAgentResponseType
 import nltk
 
@@ -86,7 +86,8 @@ def create_retriever(
         docs = loader.load_and_split()
         db = FAISS.from_documents(docs, OpenAIEmbeddings())
         compression_retriever = ContextualCompressionRetriever(
-            base_compressor=CohereRerank(), base_retriever=db.as_retriever()
+            base_compressor=CohereRerank(model="rerank-english-v3.0"),
+            base_retriever=db.as_retriever(),
         )
         return compression_retriever
     except Exception as exc:
