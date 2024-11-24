@@ -278,6 +278,7 @@ class Agent(Sink):
         log_level: Union[int, str] = logging.INFO,
         enable_agent_inspector: bool = True,
         metadata: Optional[Dict[str, Any]] = None,
+        readme: Optional[str] = None,
     ):
         """
         Initialize an Agent instance.
@@ -301,6 +302,7 @@ class Agent(Sink):
             log_level (Union[int, str]): The logging level for the agent.
             enable_agent_inspector (bool): Enable the agent inspector for debugging.
             metadata (Optional[Dict[str, Any]]): Optional metadata to include in the agent object.
+            readme (Optional[str]): The path to the README for the agent.
         """
         self._init_done = False
         self._name = name
@@ -396,6 +398,18 @@ class Agent(Sink):
             logger=self._logger,
         )
 
+        if readme is not None:
+            try:
+                with open(file=readme, mode="r", encoding="utf-8") as f:
+                    loaded_readme = f.read()
+            except (IOError, OSError):
+                self._logger.error(f"Could not open/read file: {readme}")
+                loaded_readme = ""
+            finally:
+                self._readme = loaded_readme
+        else:
+            self._readme = ""
+
         # define default error message handler
         @self.on_message(ErrorMessage)
         async def _handle_error_message(ctx: Context, sender: str, msg: ErrorMessage):
@@ -406,11 +420,7 @@ class Agent(Sink):
 
             @self.on_rest_get("/agent_info", AgentInfo)  # type: ignore
             async def _handle_get_info(_ctx: Context):
-                return AgentInfo(
-                    agent_address=self.address,
-                    endpoints=self._endpoints,
-                    protocols=list(self.protocols.keys()),
-                )
+                return self.info
 
             @self.on_rest_get("/messages", EnvelopeHistory)  # type: ignore
             async def _handle_get_messages(_ctx: Context):
@@ -647,9 +657,11 @@ class Agent(Sink):
         """
         return AgentInfo(
             agent_address=self.address,
+            agent_name=self._name or "",
             endpoints=self._endpoints,
-            protocols=list(self.protocols.keys()),
+            protocols=[p.info for p in self.protocols.values()],
             metadata=self.metadata,
+            readme=self.readme,
         )
 
     @property
@@ -661,6 +673,16 @@ class Agent(Sink):
             Dict[str, Any]: The metadata associated with the agent.
         """
         return self._metadata
+
+    @property
+    def readme(self) -> str:
+        """
+        Get the README content for the agent.
+
+        Returns:
+            str: The README content.
+        """
+        return self._readme
 
     @mailbox.setter
     def mailbox(self, config: Union[str, Dict[str, str]]):
@@ -788,9 +810,7 @@ class Agent(Sink):
         """
         assert self._registration_policy is not None, "Agent has no registration policy"
 
-        await self._registration_policy.register(
-            self.address, list(self.protocols.keys()), self._endpoints, self._metadata
-        )
+        await self._registration_policy.register(self.info)
 
     async def _schedule_registration(self):
         """

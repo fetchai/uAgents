@@ -183,6 +183,21 @@ Property to access the digest of the protocol's manifest.
 
 - `str` - The digest of the protocol's manifest.
 
+<a id="src.uagents.protocol.Protocol.info"></a>
+
+#### info
+
+```python
+@property
+def info()
+```
+
+Property to access the protocol details.
+
+**Returns**:
+
+- `ProtocolDetails` - The protocol details.
+
 <a id="src.uagents.protocol.Protocol.on_interval"></a>
 
 #### on`_`interval

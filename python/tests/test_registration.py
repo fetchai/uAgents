@@ -10,9 +10,13 @@ from uagents.registration import (
     AlmanacApiRegistrationPolicy,
     coerce_metadata_to_str,
 )
-from uagents.types import AgentEndpoint
+from uagents.types import AgentEndpoint, AgentInfo, ProtocolDetails
 
-TEST_PROTOCOLS = ["foo", "bar", "baz"]
+TEST_PROTOCOLS = [
+    ProtocolDetails(name="foo", version="1.0", digest="sha256:1234567890"),
+    ProtocolDetails(name="bar", version="2.0", digest="sha256:1234567890"),
+    ProtocolDetails(name="baz", version="3.0", digest="sha256:1234567890"),
+]
 TEST_ENDPOINTS = [
     AgentEndpoint(url="https://foobar.com", weight=1),
     AgentEndpoint(url="https://barbaz.com", weight=1),
@@ -25,7 +29,7 @@ def test_attestation_signature():
     # create a dummy attestation
     attestation = AgentRegistrationAttestation(
         agent_address=identity.address,
-        protocols=TEST_PROTOCOLS,
+        protocols=list(TEST_PROTOCOLS),
         endpoints=TEST_ENDPOINTS,
     )
 
@@ -43,7 +47,7 @@ def test_attestation_signature_with_metadata():
     # create a dummy attestation
     attestation = AgentRegistrationAttestation(
         agent_address=identity.address,
-        protocols=TEST_PROTOCOLS,
+        protocols=list(TEST_PROTOCOLS),
         endpoints=TEST_ENDPOINTS,
         metadata=coerce_metadata_to_str(
             {"foo": "bar", "baz": 3.17, "qux": {"a": "b", "c": 4, "d": 5.6}}
@@ -64,7 +68,7 @@ def test_recovery_of_attestation():
     # create an attestation
     original_attestation = AgentRegistrationAttestation(
         agent_address=identity.address,
-        protocols=TEST_PROTOCOLS,
+        protocols=list(TEST_PROTOCOLS),
         endpoints=TEST_ENDPOINTS,
     )
     original_attestation.sign(identity)
@@ -72,7 +76,7 @@ def test_recovery_of_attestation():
     # recover the attestation
     recovered = AgentRegistrationAttestation(
         agent_address=original_attestation.agent_address,
-        protocols=TEST_PROTOCOLS,
+        protocols=list(TEST_PROTOCOLS),
         endpoints=TEST_ENDPOINTS,
         signature=original_attestation.signature,
         timestamp=original_attestation.timestamp,
@@ -89,17 +93,18 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         self.policy = AlmanacApiRegistrationPolicy(
             self.identity, almanac_api=self.MOCKED_ALMANAC_API, max_retries=1
         )
+        self.info = AgentInfo(
+            agent_address=self.identity.address,
+            protocols=TEST_PROTOCOLS,
+            endpoints=TEST_ENDPOINTS,
+        )
 
     @aioresponses()
     async def test_registration_success(self, mocked_responses):
         # Mock the HTTP POST request with a status code and response content
         mocked_responses.post(f"{self.MOCKED_ALMANAC_API}/agents", status=200)
 
-        await self.policy.register(
-            agent_address=self.identity.address,
-            protocols=TEST_PROTOCOLS,
-            endpoints=TEST_ENDPOINTS,
-        )
+        await self.policy.register(self.info)
 
     @aioresponses()
     async def test_registration_failure(self, mocked_responses):
@@ -107,11 +112,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         mocked_responses.post(f"{self.MOCKED_ALMANAC_API}/agents", status=400)
 
         with pytest.raises(ClientResponseError):
-            await self.policy.register(
-                agent_address=self.identity.address,
-                protocols=TEST_PROTOCOLS,
-                endpoints=TEST_ENDPOINTS,
-            )
+            await self.policy.register(self.info)
 
     @aioresponses()
     async def test_registration_server_failure(self, mocked_responses):
@@ -119,8 +120,4 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         mocked_responses.post(f"{self.MOCKED_ALMANAC_API}/agents", status=500)
 
         with pytest.raises(ClientResponseError):
-            await self.policy.register(
-                agent_address=self.identity.address,
-                protocols=TEST_PROTOCOLS,
-                endpoints=TEST_ENDPOINTS,
-            )
+            await self.policy.register(self.info)

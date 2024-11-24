@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
 from apispec import APISpec
 
 from uagents.models import Model
-from uagents.types import IntervalCallback, MessageCallback
+from uagents.types import IntervalCallback, MessageCallback, ProtocolDetails
 
 OPENAPI_VERSION = "3.0.2"
 
@@ -148,6 +148,18 @@ class Protocol:
             str: The digest of the protocol's manifest.
         """
         return self.manifest()["metadata"]["digest"]
+
+    @property
+    def info(self):
+        """
+        Property to access the protocol details.
+
+        Returns:
+            ProtocolDetails: The protocol details.
+        """
+        return ProtocolDetails(
+            name=self._name, version=self._version, digest=self.digest
+        )
 
     def on_interval(
         self,
