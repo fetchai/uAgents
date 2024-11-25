@@ -125,18 +125,18 @@ def query_record(agent_address: str, service: str, test: bool) -> dict:
     return result
 
 
-def get_agent_address(name: str, test: bool) -> Optional[str]:
+def _aname_contract_resolve(domain: str, test: bool) -> Optional[str]:
     """
-    Get the agent address associated with the provided name from the name service contract.
+    Get the agent address associated with the provided domain from the name service contract.
 
     Args:
-        name (str): The name to query.
+        domain (str): The domain to query.
         test (bool): Whether to use the testnet or mainnet contract.
 
     Returns:
         Optional[str]: The associated agent address if found.
     """
-    query_msg = {"domain_record": {"domain": f"{name}"}}
+    query_msg = {"domain_record": {"domain": f"{domain}"}}
     result = get_name_service_contract(test).query(query_msg)
     if result["record"] is not None:
         registered_records = result["record"]["records"][0]["agent_address"]["records"]
@@ -183,7 +183,7 @@ class GlobalResolver(Resolver):
             max_endpoints=self._max_endpoints, almanac_api_url=almanac_api_url
         )
         self._name_service_resolver = NameServiceResolver(
-            max_endpoints=self._max_endpoints
+            max_endpoints=self._max_endpoints, almanac_api_url=almanac_api_url
         )
 
     async def resolve(self, destination: str) -> Tuple[Optional[str], List[str]]:
@@ -333,7 +333,9 @@ class AlmanacApiResolver(Resolver):
 
 
 class NameServiceResolver(Resolver):
-    def __init__(self, max_endpoints: Optional[int] = None):
+    def __init__(
+        self, max_endpoints: Optional[int] = None, almanac_api_url: Optional[str] = None
+    ):
         """
         Initialize the NameServiceResolver.
 
@@ -341,9 +343,39 @@ class NameServiceResolver(Resolver):
             max_endpoints (Optional[int]): The maximum number of endpoints to return.
         """
         self._max_endpoints = max_endpoints or DEFAULT_MAX_ENDPOINTS
+        self._almanac_api_url = almanac_api_url
         self._almanac_api_resolver = AlmanacApiResolver(
-            max_endpoints=self._max_endpoints
+            almanac_api_url=almanac_api_url, max_endpoints=self._max_endpoints
         )
+
+    async def _api_resolve(self, domain: str) -> Optional[str]:
+        """
+        Resolve the domain using the Alamanac API.
+
+        Args:
+            domain (str): The domain to resolve.
+
+        Returns:
+            Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
+        """
+        try:
+            response = requests.get(f"{self._almanac_api_url}/domains/{domain}")
+
+            if response.status_code != 200:
+                if response.status_code != 404:
+                    LOGGER.debug(
+                        f"Failed to resolve name {domain} from {self._almanac_api_url}: "
+                        f"{response.status_code}: {response.text}"
+                    )
+                return None
+
+            name_record = response.json()
+            agent_address = name_record.get("agent_address", None)
+            return agent_address
+        except Exception as ex:
+            LOGGER.error(f"Error when resolving {domain}: {ex}")
+
+        return None
 
     async def resolve(self, destination: str) -> Tuple[Optional[str], List[str]]:
         """
@@ -355,11 +387,22 @@ class NameServiceResolver(Resolver):
         Returns:
             Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
         """
-        prefix, name, _ = parse_identifier(destination)
+        prefix, domain, _ = parse_identifier(destination)
         use_testnet = prefix != MAINNET_PREFIX
-        address = get_agent_address(name, use_testnet)
+
+        if domain == "":
+            return None, []
+
+        # Prefer to resolve using the Almanac API
+        address = await self._api_resolve(domain)
+
+        if address is None:
+            # If the API resolution fails, fallback to the ANAME contract
+            address = _aname_contract_resolve(domain, use_testnet)
+
         if address is not None:
             return await self._almanac_api_resolver.resolve(address)
+
         return None, []
 
 
