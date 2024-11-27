@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 from dateutil import parser
+from pydantic import BaseModel
 
 from uagents.config import (
     AGENT_ADDRESS_LENGTH,
@@ -22,6 +23,16 @@ from uagents.network import get_almanac_contract, get_name_service_contract
 from uagents.utils import get_logger
 
 LOGGER = get_logger("resolver", logging.WARNING)
+
+
+class AgentRecord(BaseModel):
+    address: str
+    weight: float
+
+
+class DomainRecord(BaseModel):
+    name: str
+    agents: List[AgentRecord]
 
 
 def weighted_random_sample(
@@ -369,9 +380,17 @@ class NameServiceResolver(Resolver):
                     )
                 return None
 
-            name_record = response.json()
-            agent_address = name_record.get("agent_address", None)
-            return agent_address
+            domain_record = DomainRecord.model_validate(response.json())
+            agent_records = domain_record.agents
+            if len(agent_records) == 0:
+                return None
+            elif len(agent_records) == 1:
+                return agent_records[0].address
+            else:
+                addresses = [val.address for val in agent_records]
+                weights = [val.weight for val in agent_records]
+                return weighted_random_sample(addresses, weights=weights, k=1)[0]
+
         except Exception as ex:
             LOGGER.error(f"Error when resolving {domain}: {ex}")
 
