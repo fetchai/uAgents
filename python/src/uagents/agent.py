@@ -32,6 +32,7 @@ from uagents.config import (
     REGISTRATION_RETRY_INTERVAL_SECONDS,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     TESTNET_PREFIX,
+    AgentverseConfig,
     parse_agentverse_config,
     parse_endpoint_config,
 )
@@ -39,7 +40,12 @@ from uagents.context import Context, ContextFactory, ExternalContext, InternalCo
 from uagents.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents.dispatch import Sink, dispatcher
 from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
-from uagents.mailbox import MailboxClient
+from uagents.mailbox import (
+    AgentverseUserToken,
+    MailboxClient,
+    RegistrationResponse,
+    register_in_agentverse,
+)
 from uagents.models import ErrorMessage, Model
 from uagents.network import (
     InsufficientFundsError,
@@ -212,7 +218,7 @@ class Agent(Sink):
         _logger: The logger instance for logging agent activities.
         _endpoints (List[AgentEndpoint]): List of endpoints at which the agent is reachable.
         _use_mailbox (bool): Indicates if the agent uses a mailbox for communication.
-        _agentverse (dict): Agentverse configuration settings.
+        _agentverse (AgentverseConfig): Agentverse configuration settings.
         _mailbox_client (MailboxClient): The client for interacting with the agentverse mailbox.
         _ledger: The client for interacting with the blockchain ledger.
         _almanac_contract: The almanac contract for registering agent addresses to endpoints.
@@ -326,20 +332,20 @@ class Agent(Sink):
             else:
                 agentverse = mailbox
         self._agentverse = parse_agentverse_config(agentverse)
-        self._use_mailbox = self._agentverse["use_mailbox"]
+        self._use_mailbox = self._agentverse.agent_type == "mailbox"
         if self._use_mailbox:
-            self._mailbox_client = MailboxClient(self, self._logger)
+            self._mailbox_client = MailboxClient(self._agentverse, self._logger)
             # if mailbox is provided, override endpoints with mailbox endpoint
             self._endpoints = [
-                AgentEndpoint(
-                    url=f"{self.mailbox['http_prefix']}://{self.mailbox['base_url']}/v1/submit",
-                    weight=1,
-                )
+                AgentEndpoint(url=f"{self._agentverse.url}/v1/submit", weight=1)
             ]
         else:
             self._mailbox_client = None
+            proxy_url = f"{self._agentverse.url}/v1/proxy"
+            if proxy_url in [endpoint.url for endpoint in self._endpoints]:
+                self._agentverse.agent_type = "proxy"
 
-        self._almanac_api_url = f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/v1/almanac"
+        self._almanac_api_url = f"{self._agentverse.url}/v1/almanac"
         self._resolver = resolve or GlobalResolver(
             max_endpoints=max_resolver_endpoints,
             almanac_api_url=self._almanac_api_url,
@@ -415,6 +421,12 @@ class Agent(Sink):
             @self.on_rest_get("/messages", EnvelopeHistory)  # type: ignore
             async def _handle_get_messages(_ctx: Context):
                 return self._message_cache
+
+            @self.on_rest_post("/prove", AgentverseUserToken, RegistrationResponse)  # type: ignore
+            async def _handle_prove(token: AgentverseUserToken):
+                return await register_in_agentverse(
+                    token, self._identity, self._endpoints, self._agentverse
+                )
 
         self._enable_agent_inspector = enable_agent_inspector
 
@@ -596,7 +608,7 @@ class Agent(Sink):
         return self._storage
 
     @property
-    def mailbox(self) -> Dict[str, str]:
+    def mailbox(self) -> AgentverseConfig:
         """
         Get the mailbox configuration of the agent.
         Agentverse overrides it but mailbox is kept for backwards compatibility.
@@ -607,7 +619,7 @@ class Agent(Sink):
         return self._agentverse
 
     @property
-    def agentverse(self) -> Dict[str, str]:
+    def agentverse(self) -> AgentverseConfig:
         """
         Get the agentverse configuration of the agent.
 
@@ -1027,8 +1039,7 @@ class Agent(Sink):
         """
         try:
             resp = requests.post(
-                f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}"
-                + "/v1/almanac/manifests",
+                f"{self._agentverse.url}/v1/almanac/manifests",
                 json=manifest,
                 timeout=5,
             )
@@ -1183,10 +1194,7 @@ class Agent(Sink):
 
         """
         if self._enable_agent_inspector:
-            agentverse_url = (
-                f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}"
-            )
-            inspector_url = f"{agentverse_url}/inspect/"
+            inspector_url = f"{self._agentverse.url}/inspect/"
             escaped_uri = requests.utils.quote(f"http://127.0.0.1:{self._port}")
             self._logger.info(
                 f"Agent inspector available at {inspector_url}"
@@ -1358,7 +1366,7 @@ class Bureau:
         response Futures.
         _logger (Logger): The logger instance.
         _server (ASGIServer): The ASGI server instance for handling requests.
-        _agentverse (Dict[str, str]): The agentverse configuration for the bureau.
+        _agentverse (AgentverseConfig): The agentverse configuration for the bureau.
         _use_mailbox (bool): A flag indicating whether mailbox functionality is enabled for any
         of the agents.
         _registration_policy (AgentRegistrationPolicy): The registration policy for the bureau.
@@ -1408,8 +1416,10 @@ class Bureau:
             logger=self._logger,
         )
         self._agentverse = parse_agentverse_config(agentverse)
-        self._use_mailbox = self._agentverse["use_mailbox"]
-        almanac_api_url = f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/v1/almanac"
+        self._use_mailbox = self._agentverse.agent_type == "mailbox"
+        almanac_api_url = (
+            f"{self._agentverse.http_prefix}://{self._agentverse.base_url}/v1/almanac"
+        )
         almanac_contract = get_almanac_contract(test)
 
         if wallet and seed:
@@ -1533,7 +1543,10 @@ class Bureau:
             return
         for agent in self._agents:
             await agent.setup()
-            if agent.agentverse["use_mailbox"] and agent.mailbox_client is not None:
+            if (
+                agent.agentverse.agent_type == "mailbox"
+                and agent.mailbox_client is not None
+            ):
                 tasks.append(agent.mailbox_client.run())
         self._loop.create_task(self._schedule_registration())
 
