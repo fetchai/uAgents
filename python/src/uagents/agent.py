@@ -1417,9 +1417,6 @@ class Bureau:
         )
         self._agentverse = parse_agentverse_config(agentverse)
         self._use_mailbox = self._agentverse.agent_type == "mailbox"
-        almanac_api_url = (
-            f"{self._agentverse.http_prefix}://{self._agentverse.base_url}/v1/almanac"
-        )
         almanac_contract = get_almanac_contract(test)
 
         if wallet and seed:
@@ -1449,7 +1446,7 @@ class Bureau:
                 almanac_contract,
                 test,
                 logger=self._logger,
-                almanac_api=almanac_api_url,
+                almanac_api=f"{self._agentverse.url}/v1/almanac",
             )
 
         if agents is not None:
