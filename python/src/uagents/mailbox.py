@@ -11,14 +11,16 @@ from uagents.config import MAILBOX_POLL_INTERVAL_SECONDS, AgentType, AgentverseC
 from uagents.crypto import Identity, is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
+from uagents.models import Model
 from uagents.types import AgentEndpoint
 from uagents.utils import get_logger
 
 logger = get_logger("mailbox")
 
 
-class AgentverseUserToken(BaseModel):
-    value: str
+class AgentverseConnectRequest(Model):
+    user_token: str
+    agent_type: AgentType
 
 
 class ChallengeRequest(BaseModel):
@@ -33,12 +35,12 @@ class RegistrationRequest(BaseModel):
     address: str
     challenge: str
     challenge_response: str
-    agent_type: Optional[AgentType] = None
+    agent_type: AgentType
     endpoints: Optional[list[AgentEndpoint]] = None
     agent_mailbox_key: Optional[str] = None
 
 
-class RegistrationResponse(BaseModel):
+class RegistrationResponse(Model):
     access_token: Optional[str] = None
     expiry: Optional[datetime] = None
 
@@ -51,11 +53,11 @@ class StoredEnvelope(BaseModel):
 
 
 async def register_in_agentverse(
-    user_token: AgentverseUserToken,
+    request: AgentverseConnectRequest,
     identity: Identity,
     endpoints: list[AgentEndpoint],
     agentverse: AgentverseConfig,
-) -> Optional[RegistrationResponse]:
+) -> RegistrationResponse:
     """
     Registers agent in Agentverse
     """
@@ -63,24 +65,22 @@ async def register_in_agentverse(
         # get challenge
         challenge_url = f"{agentverse.url}/v1/auth/challenge"
         challenge_request = ChallengeRequest(address=identity.address)
+        logger.info("Requesting mailbox access challenge")
         async with session.post(
             challenge_url,
             data=challenge_request.model_dump_json(),
             headers={
                 "content-type": "application/json",
-                "Authorization": f"Bearer {user_token.value}",
+                "Authorization": f"Bearer {request.user_token}",
             },
         ) as resp:
-            if resp and resp.status == 200:
-                challenge = ChallengeResponse.model_validate_json(await resp.text())
-            else:
-                logger.exception(
-                    f"Failed to retrieve authorization challenge: {(await resp.text())}"
-                )
-                return None
+            resp.raise_for_status()
+            challenge = ChallengeResponse.model_validate_json(await resp.text())
 
         # response to challenge with signature to get token
         prove_url = f"{agentverse.url}/v1/auth/prove"
+        if request.agent_type == "proxy":
+            endpoints = [AgentEndpoint(url=f"{agentverse.url}/v1/proxy", weight=1)]
         async with session.post(
             prove_url,
             data=RegistrationRequest(
@@ -88,24 +88,17 @@ async def register_in_agentverse(
                 challenge=challenge.challenge,
                 challenge_response=identity.sign(challenge.challenge.encode()),
                 endpoints=endpoints,
+                agent_type=request.agent_type,
             ).model_dump_json(),
             headers={
                 "content-type": "application/json",
-                "Authorization": f"Bearer {user_token.value}",
+                "Authorization": f"Bearer {request.user_token}",
             },
         ) as resp:
-            if resp and resp.status == 200:
-                logger.info("Mailbox access token acquired")
-                registration_response = RegistrationResponse.model_validate_json(
-                    await resp.text()
-                )
-                return registration_response
-            else:
-                logger.exception(
-                    f"Failed to prove authorization: {(await resp.text())}"
-                )
+            resp.raise_for_status()
+            registration_response = RegistrationResponse.parse_raw(await resp.text())
 
-    return None
+    return registration_response
 
 
 class MailboxClient:

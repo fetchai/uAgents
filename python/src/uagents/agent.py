@@ -41,7 +41,7 @@ from uagents.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents.dispatch import Sink, dispatcher
 from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
 from uagents.mailbox import (
-    AgentverseUserToken,
+    AgentverseConnectRequest,
     MailboxClient,
     RegistrationResponse,
     register_in_agentverse,
@@ -422,8 +422,8 @@ class Agent(Sink):
             async def _handle_get_messages(_ctx: Context):
                 return self._message_cache
 
-            @self.on_rest_post("/prove", AgentverseUserToken, RegistrationResponse)  # type: ignore
-            async def _handle_prove(token: AgentverseUserToken):
+            @self.on_rest_post("/prove", AgentverseConnectRequest, RegistrationResponse)  # type: ignore
+            async def _handle_prove(_ctx: Context, token: AgentverseConnectRequest):
                 return await register_in_agentverse(
                     token, self._identity, self._endpoints, self._agentverse
                 )
@@ -1463,7 +1463,7 @@ class Bureau:
         """
         agent.update_loop(self._loop)
         agent.update_queries(self._queries)
-        if agent.agentverse["use_mailbox"]:
+        if agent.agentverse.agent_type == "mailbox":
             self._use_mailbox = True
         else:
             if agent._endpoints:
