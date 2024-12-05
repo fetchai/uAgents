@@ -42,7 +42,7 @@ class RegistrationRequest(BaseModel):
 
 class RegistrationResponse(Model):
     access_token: Optional[str] = None
-    expiry: Optional[datetime] = None
+    expiry: Optional[str] = None
 
 
 class StoredEnvelope(BaseModel):

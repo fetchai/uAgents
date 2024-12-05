@@ -424,6 +424,7 @@ class Agent(Sink):
 
             @self.on_rest_post("/prove", AgentverseConnectRequest, RegistrationResponse)  # type: ignore
             async def _handle_prove(_ctx: Context, token: AgentverseConnectRequest):
+                print(self._agentverse)
                 return await register_in_agentverse(
                     token, self._identity, self._endpoints, self._agentverse
                 )
