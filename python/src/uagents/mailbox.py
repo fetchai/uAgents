@@ -78,7 +78,7 @@ async def register_in_agentverse(
             challenge = ChallengeResponse.model_validate_json(await resp.text())
 
         # response to challenge with signature to get token
-        prove_url = f"{agentverse.url}/v1/auth/prove"
+        prove_url = f"{agentverse.url}/v1/auth/register"
         if request.agent_type == "proxy":
             endpoints = [AgentEndpoint(url=f"{agentverse.url}/v1/proxy", weight=1)]
         async with session.post(
