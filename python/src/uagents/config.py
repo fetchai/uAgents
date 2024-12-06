@@ -1,4 +1,6 @@
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
+
+from pydantic import BaseModel
 
 from uagents.types import AgentEndpoint
 
@@ -43,6 +45,21 @@ DEFAULT_MAX_ENDPOINTS = 10
 DEFAULT_SEARCH_LIMIT = 100
 
 
+AgentType = Literal["hosted", "local", "mailbox", "proxy", "custom"]
+
+
+class AgentverseConfig(BaseModel):
+    agent_mailbox_key: Optional[str]
+    base_url: str
+    protocol: str
+    http_prefix: str
+    agent_type: AgentType
+
+    @property
+    def url(self) -> str:
+        return f"{self.http_prefix}://{self.base_url}"
+
+
 def parse_endpoint_config(
     endpoint: Optional[Union[str, List[str], Dict[str, dict]]],
 ) -> List[AgentEndpoint]:
@@ -72,12 +89,12 @@ def parse_endpoint_config(
 
 def parse_agentverse_config(
     config: Optional[Union[str, Dict[str, str]]] = None,
-) -> Dict[str, Union[str, bool, None]]:
+) -> AgentverseConfig:
     """
     Parse the user-provided agentverse configuration.
 
     Returns:
-        Dict[str, Union[str, bool, None]]: The parsed agentverse configuration.
+        AgentverseConfig: The parsed agentverse configuration.
     """
     agent_mailbox_key = None
     base_url = AGENTVERSE_URL
@@ -98,10 +115,11 @@ def parse_agentverse_config(
         protocol, base_url = base_url.split("://")
     protocol = protocol_override or protocol or "https"
     http_prefix = "https" if protocol in {"wss", "https"} else "http"
-    return {
-        "agent_mailbox_key": agent_mailbox_key,
-        "base_url": base_url,
-        "protocol": protocol,
-        "http_prefix": http_prefix,
-        "use_mailbox": agent_mailbox_key is not None,
-    }
+
+    return AgentverseConfig(
+        agent_mailbox_key=agent_mailbox_key,
+        base_url=base_url,
+        protocol=protocol,
+        http_prefix=http_prefix,
+        agent_type="mailbox" if agent_mailbox_key else "custom",
+    )

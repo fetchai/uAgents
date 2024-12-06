@@ -29,7 +29,7 @@ from uagents.utils import get_logger
 
 HOST = "0.0.0.0"
 
-RESERVED_ENDPOINTS = ["/submit", "/messages", "/agent_info"]
+RESERVED_ENDPOINTS = ["/submit", "/messages", "/agent_info", "/prove"]
 
 
 async def _read_asgi_body(receive):
@@ -75,7 +75,7 @@ class ASGIServer:
             Tuple[str, RestMethod, str], RestHandlerDetails
         ] = {}
         self._logger = logger or get_logger("server")
-        self._server = None
+        self._server: Optional[uvicorn.Server] = None
 
     @property
     def server(self):
@@ -293,6 +293,11 @@ class ASGIServer:
         headers = CaseInsensitiveDict(scope.get("headers", {}))
         request_method = scope["method"]
         request_path = scope["path"]
+
+        # Handle OPTIONS preflight request for CORS
+        if request_method == "OPTIONS":
+            await self._asgi_send(send, 204)
+            return
 
         # check if the request is for a REST endpoint
         handlers = self._get_rest_handler_details(request_method, request_path)
