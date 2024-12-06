@@ -48,8 +48,8 @@ def extract_classes_and_methods(library_name):
                                     else None,
                                 }
                                 module_info["methods"].append(method_info)
-                            except Exception as _:
-                                pass
+                            except Exception as e:
+                                print(f"Error processing setter for {method_name}: {e}")
 
                         for attr_name, attr_value in inspect.getmembers(obj):
                             if isinstance(attr_value, property):
@@ -64,8 +64,10 @@ def extract_classes_and_methods(library_name):
                                         else None,
                                     }
                                     module_info["properties"].append(prop_info)
-                                except Exception as _:
-                                    pass
+                                except Exception as e:
+                                    print(
+                                        f"Error processing setter for {attr_name}: {e}"
+                                    )
 
                                 if attr_value.fset:
                                     try:
@@ -230,12 +232,10 @@ directory_path = "../docs/api/uagents/"
 
 
 def update_mds(directory=directory_path):
-    print(directory)
     for root, _, files in os.walk(directory):
         for file in files:
             if file.endswith(".md"):
                 file_path = os.path.join(root, file)
-                print(file_path)
                 update_markdown(file_path, data)
 
 
