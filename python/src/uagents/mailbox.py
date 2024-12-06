@@ -79,8 +79,6 @@ async def register_in_agentverse(
 
         # response to challenge with signature to get token
         prove_url = f"{agentverse.url}/v1/auth/register"
-        if request.agent_type == "proxy":
-            endpoints = [AgentEndpoint(url=f"{agentverse.url}/v1/proxy", weight=1)]
         async with session.post(
             prove_url,
             data=RegistrationRequest(
@@ -122,6 +120,10 @@ class MailboxClient:
                 await asyncio.sleep(self._poll_interval)
             except ClientConnectorError:
                 self._logger.exception("Failed to connect to mailbox server")
+            except Exception as ex:
+                self._logger.exception(
+                    f"Got exception while running mailbox client: {ex}"
+                )
 
     async def _check_mailbox(self):
         """
