@@ -150,11 +150,6 @@ async def register_in_agentverse(
             f"Agent endpoints {endpoints} do not match registered agent type: {request.agent_type}"
             f"Please restart agent with endpoint='{agentverse.url}/v1/submit'"
         )
-    elif request.agent_type == "proxy" and not is_proxy_agent(endpoints, agentverse):
-        logger.exception(
-            f"Agent endpoints {endpoints} do not match registered agent type: {request.agent_type}"
-            f"Please restart agent with endpoint='{agentverse.url}/v1/proxy/submit'"
-        )
 
     return registration_response
 

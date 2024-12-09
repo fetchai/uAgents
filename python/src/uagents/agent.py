@@ -333,6 +333,16 @@ class Agent(Sink):
             else:
                 agentverse = mailbox
         self._agentverse = parse_agentverse_config(agentverse)
+
+        # support legacy method of setting mailbox configuration if no endpoint is provided
+        if endpoint is None and mailbox:
+            self._logger.info(
+                f"Setting endpoint to mailbox: {self._agentverse.url}/v1/submit"
+            )
+            self._endpoints = [
+                AgentEndpoint(url=f"{self._agentverse.url}/v1/submit", weight=1)
+            ]
+
         self._use_mailbox = is_mailbox_agent(self._endpoints, self._agentverse)
         if self._use_mailbox:
             self._mailbox_client = MailboxClient(
