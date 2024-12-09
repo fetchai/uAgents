@@ -114,44 +114,43 @@ class MailboxClient:
         Runs the mailbox client.
         """
         self._logger.info(f"Starting mailbox client for {self._agentverse.url}")
-        while True:
-            try:
-                await self._check_mailbox()
-                await asyncio.sleep(self._poll_interval)
-            except ClientConnectorError:
-                self._logger.exception("Failed to connect to mailbox server")
-            except Exception as ex:
-                self._logger.exception(
-                    f"Got exception while running mailbox client: {ex}"
-                )
+        loop = asyncio.get_event_loop()
+        loop.create_task(self._check_mailbox_loop())
 
-    async def _check_mailbox(self):
+    async def _check_mailbox_loop(self):
         """
         Retrieves envelopes from the mailbox server and processes them.
         """
-        async with aiohttp.ClientSession() as session:
-            # check the inbox for envelopes and handle them
-            mailbox_url = f"{self._agentverse.url}/v1/mailbox"
-            async with session.get(
-                mailbox_url,
-                headers={
-                    "Authorization": f"token {self._agentverse.agent_mailbox_key}"
-                },
-            ) as resp:
-                success = resp.status == 200
-                if success:
-                    items = (await resp.json())["items"]
-                    for item in items:
-                        stored_env = StoredEnvelope.model_validate(item)
-                        await self._handle_envelope(stored_env)
-                elif resp.status == 401:
-                    self._logger.warning(
-                        f"Access token expired: reconnect your agent at {self._agentverse.url}"
-                    )
-                else:
-                    self._logger.exception(
-                        f"Failed to retrieve messages: {resp.status}:{(await resp.text())}"
-                    )
+        while True:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    # check the inbox for envelopes and handle them
+                    mailbox_url = f"{self._agentverse.url}/v1/mailbox"
+                    async with session.get(
+                        mailbox_url,
+                        headers={
+                            "Authorization": f"token {self._agentverse.agent_mailbox_key}"
+                        },
+                    ) as resp:
+                        success = resp.status == 200
+                        if success:
+                            items = (await resp.json())["items"]
+                            for item in items:
+                                stored_env = StoredEnvelope.model_validate(item)
+                                await self._handle_envelope(stored_env)
+                        elif resp.status == 401:
+                            self._logger.warning(
+                                "Access token expired: "
+                                f"reconnect your agent at {self._agentverse.url}"
+                            )
+                        else:
+                            self._logger.exception(
+                                f"Failed to retrieve messages: {resp.status}:{(await resp.text())}"
+                            )
+            except ClientConnectorError as ex:
+                self._logger.warning(f"Failed to connect to mailbox server: {ex}")
+
+            await asyncio.sleep(self._poll_interval)
 
     async def _handle_envelope(self, stored_env: StoredEnvelope):
         """
