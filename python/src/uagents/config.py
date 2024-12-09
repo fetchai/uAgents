@@ -49,11 +49,9 @@ AgentType = Literal["hosted", "local", "mailbox", "proxy", "custom"]
 
 
 class AgentverseConfig(BaseModel):
-    agent_mailbox_key: Optional[str]
     base_url: str
     protocol: str
     http_prefix: str
-    agent_type: AgentType
 
     @property
     def url(self) -> str:
@@ -96,19 +94,15 @@ def parse_agentverse_config(
     Returns:
         AgentverseConfig: The parsed agentverse configuration.
     """
-    agent_mailbox_key = None
     base_url = AGENTVERSE_URL
     protocol = None
     protocol_override = None
     if isinstance(config, str):
         if config.count("@") == 1:
-            agent_mailbox_key, base_url = config.split("@")
+            _, base_url = config.split("@")
         elif "://" in config:
             base_url = config
-        else:
-            agent_mailbox_key = config
     elif isinstance(config, dict):
-        agent_mailbox_key = config.get("agent_mailbox_key")
         base_url = config.get("base_url") or base_url
         protocol_override = config.get("protocol")
     if "://" in base_url:
@@ -117,9 +111,7 @@ def parse_agentverse_config(
     http_prefix = "https" if protocol in {"wss", "https"} else "http"
 
     return AgentverseConfig(
-        agent_mailbox_key=agent_mailbox_key,
         base_url=base_url,
         protocol=protocol,
         http_prefix=http_prefix,
-        agent_type="mailbox" if agent_mailbox_key else "custom",
     )

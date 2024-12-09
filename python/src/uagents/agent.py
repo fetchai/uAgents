@@ -44,6 +44,7 @@ from uagents.mailbox import (
     AgentverseConnectRequest,
     MailboxClient,
     RegistrationResponse,
+    is_mailbox_agent,
     register_in_agentverse,
 )
 from uagents.models import ErrorMessage, Model
@@ -332,18 +333,13 @@ class Agent(Sink):
             else:
                 agentverse = mailbox
         self._agentverse = parse_agentverse_config(agentverse)
-        self._use_mailbox = self._agentverse.agent_type == "mailbox"
+        self._use_mailbox = is_mailbox_agent(self._endpoints, self._agentverse)
         if self._use_mailbox:
-            self._mailbox_client = MailboxClient(self._agentverse, self._logger)
-            # if mailbox is provided, override endpoints with mailbox endpoint
-            self._endpoints = [
-                AgentEndpoint(url=f"{self._agentverse.url}/v1/submit", weight=1)
-            ]
+            self._mailbox_client = MailboxClient(
+                self._identity, self._agentverse, self._logger
+            )
         else:
             self._mailbox_client = None
-            proxy_url = f"{self._agentverse.url}/v1/proxy"
-            if proxy_url in [endpoint.url for endpoint in self._endpoints]:
-                self._agentverse.agent_type = "proxy"
 
         self._almanac_api_url = f"{self._agentverse.url}/v1/almanac"
         self._resolver = resolve or GlobalResolver(
@@ -422,9 +418,8 @@ class Agent(Sink):
             async def _handle_get_messages(_ctx: Context):
                 return self._message_cache
 
-            @self.on_rest_post("/prove", AgentverseConnectRequest, RegistrationResponse)  # type: ignore
+            @self.on_rest_post("/prove", AgentverseConnectRequest, RegistrationResponse)
             async def _handle_prove(_ctx: Context, token: AgentverseConnectRequest):
-                print(self._agentverse)
                 return await register_in_agentverse(
                     token, self._identity, self._endpoints, self._agentverse
                 )
@@ -1417,7 +1412,12 @@ class Bureau:
             logger=self._logger,
         )
         self._agentverse = parse_agentverse_config(agentverse)
-        self._use_mailbox = self._agentverse.agent_type == "mailbox"
+        self._use_mailbox = any(
+            [
+                is_mailbox_agent(agent._endpoints, self._agentverse)
+                for agent in self._agents
+            ]
+        )
         almanac_contract = get_almanac_contract(test)
 
         if wallet and seed:
@@ -1464,7 +1464,7 @@ class Bureau:
         """
         agent.update_loop(self._loop)
         agent.update_queries(self._queries)
-        if agent.agentverse.agent_type == "mailbox":
+        if is_mailbox_agent(agent._endpoints, self._agentverse):
             self._use_mailbox = True
         else:
             if agent._endpoints:
@@ -1542,7 +1542,7 @@ class Bureau:
         for agent in self._agents:
             await agent.setup()
             if (
-                agent.agentverse.agent_type == "mailbox"
+                is_mailbox_agent(agent._endpoints, self._agentverse)
                 and agent.mailbox_client is not None
             ):
                 tasks.append(agent.mailbox_client.run())
