@@ -1101,6 +1101,7 @@ class Agent(Sink):
         Perform startup actions.
 
         """
+        self._logger.info(f"Starting agent with address: {self.address}")
         if self._registration_policy:
             if self._endpoints:
                 self.start_registration_loop()
