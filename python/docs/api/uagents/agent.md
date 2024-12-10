@@ -130,7 +130,7 @@ An agent that interacts within a communication environment.
 - `_logger` - The logger instance for logging agent activities.
 - `_endpoints` _List[AgentEndpoint]_ - List of endpoints at which the agent is reachable.
 - `_use_mailbox` _bool_ - Indicates if the agent uses a mailbox for communication.
-- `_agentverse` _dict_ - Agentverse configuration settings.
+- `_agentverse` _AgentverseConfig_ - Agentverse configuration settings.
 - `_mailbox_client` _MailboxClient_ - The client for interacting with the agentverse mailbox.
 - `_ledger` - The client for interacting with the blockchain ledger.
 - `_almanac_contract` - The almanac contract for registering agent addresses to endpoints.
@@ -334,7 +334,7 @@ Get the key-value store used by the agent for data storage.
 
 ```python
 @property
-def mailbox() -> Dict[str, str]
+def mailbox() -> AgentverseConfig
 ```
 
 Get the mailbox configuration of the agent.
@@ -350,7 +350,7 @@ Agentverse overrides it but mailbox is kept for backwards compatibility.
 
 ```python
 @property
-def agentverse() -> Dict[str, str]
+def agentverse() -> AgentverseConfig
 ```
 
 Get the agentverse configuration of the agent.
@@ -863,7 +863,7 @@ This class manages a collection of agents and orchestrates their execution.
   response Futures.
 - `_logger` _Logger_ - The logger instance.
 - `_server` _ASGIServer_ - The ASGI server instance for handling requests.
-- `_agentverse` _Dict[str, str]_ - The agentverse configuration for the bureau.
+- `_agentverse` _AgentverseConfig_ - The agentverse configuration for the bureau.
 - `_use_mailbox` _bool_ - A flag indicating whether mailbox functionality is enabled for any
   of the agents.
 - `_registration_policy` _AgentRegistrationPolicy_ - The registration policy for the bureau.

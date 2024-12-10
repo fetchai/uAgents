@@ -24,13 +24,13 @@ Parse the user-provided endpoint configuration.
 
 ```python
 def parse_agentverse_config(
-    config: Optional[Union[str, Dict[str, str]]] = None
-) -> Dict[str, Union[str, bool, None]]
+        config: Optional[Union[str, Dict[str,
+                                         str]]] = None) -> AgentverseConfig
 ```
 
 Parse the user-provided agentverse configuration.
 
 **Returns**:
 
-  Dict[str, Union[str, bool, None]]: The parsed agentverse configuration.
+- `AgentverseConfig` - The parsed agentverse configuration.
 
