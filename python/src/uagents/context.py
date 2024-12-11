@@ -27,7 +27,6 @@ from typing_extensions import deprecated
 from uagents.communication import (
     Dispenser,
     dispatch_local_message,
-    dispatch_sync_response_envelope,
 )
 from uagents.config import (
     ALMANAC_API_URL,
@@ -382,7 +381,8 @@ class InternalContext(Context):
             ]
         )
         log(self.logger, logging.DEBUG, f"Sent {len(futures)} messages")
-        return futures
+
+        return futures  # type: ignore
 
     def _is_valid_interval_message(self, schema_digest: str) -> bool:
         """
@@ -404,7 +404,7 @@ class InternalContext(Context):
         message: Model,
         sync: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
-    ) -> MsgStatus:
+    ) -> Union[MsgStatus, Envelope]:
         """
         This is the pro-active send method which is used in on_event and
         on_interval methods. In these methods, interval messages are set but
@@ -441,7 +441,7 @@ class InternalContext(Context):
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
         protocol_digest: Optional[str] = None,
         queries: Optional[Dict[str, asyncio.Future]] = None,
-    ) -> MsgStatus:
+    ) -> Union[MsgStatus, Envelope]:
         # Extract address from destination agent identifier if present
         _, parsed_name, parsed_address = parse_identifier(destination)
 
@@ -520,9 +520,6 @@ class InternalContext(Context):
                 endpoint="",
                 session=self._session,
             )
-
-        if isinstance(result, Envelope):
-            return await dispatch_sync_response_envelope(result)
 
         return result
 

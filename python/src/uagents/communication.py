@@ -138,7 +138,7 @@ async def send_exchange_envelope(
                                     )
                                 if not verified:
                                     continue
-                            return await dispatch_sync_response_envelope(env)
+                            return env
                         return MsgStatus(
                             status=DeliveryStatus.DELIVERED,
                             detail="Message successfully delivered via HTTP",
@@ -162,27 +162,6 @@ async def send_exchange_envelope(
         destination=envelope.target,
         endpoint="",
         session=envelope.session,
-    )
-
-
-async def dispatch_sync_response_envelope(env: Envelope) -> Union[MsgStatus, Envelope]:
-    """Dispatch a synchronous response envelope locally."""
-    # If there are no sinks registered, return the envelope back to the caller
-    if len(dispatcher.sinks) == 0:
-        return env
-    await dispatcher.dispatch_msg(
-        env.sender,
-        env.target,
-        env.schema_digest,
-        env.decode_payload(),
-        env.session,
-    )
-    return MsgStatus(
-        status=DeliveryStatus.DELIVERED,
-        detail="Sync message successfully delivered via HTTP",
-        destination=env.target,
-        endpoint="",
-        session=env.session,
     )
 
 
