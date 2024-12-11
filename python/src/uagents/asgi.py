@@ -1,6 +1,6 @@
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from logging import Logger
 from typing import (
     Any,
@@ -361,12 +361,17 @@ class ASGIServer:
 
         # wait for any queries to be resolved
         if expects_response:
-            response_msg, schema_digest = await asyncio.wait_for(
-                self._queries[env.sender], DEFAULT_ENVELOPE_TIMEOUT_SECONDS
+            timeout = (
+                env.expires - datetime.now(timezone.utc).timestamp()
+                if env.expires
+                else None
             )
-            if (env.expires is not None) and (
-                datetime.now() > datetime.fromtimestamp(env.expires)
-            ):
+            try:
+                response_msg, schema_digest = await asyncio.wait_for(
+                    self._queries[env.sender],
+                    timeout or DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+                )
+            except asyncio.TimeoutError:
                 response_msg = ErrorMessage(
                     error="Query envelope expired"
                 ).model_dump_json()

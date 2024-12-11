@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import uuid
-from time import time
+from datetime import datetime, timezone
 from typing import List, Optional, Tuple, Type, Union
 
 import aiohttp
@@ -222,7 +222,7 @@ async def send_message_raw(
         target=destination_address,
         session=uuid.uuid4(),
         schema_digest=message_schema_digest,
-        expires=int(time()) + timeout,
+        expires=int(datetime.now(timezone.utc).timestamp()) + timeout,
     )
     env.encode_payload(message_body)
     if not is_user_address(sender_address) and isinstance(sender, Identity):

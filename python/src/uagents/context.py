@@ -623,7 +623,7 @@ class ExternalContext(InternalContext):
         message: Model,
         sync: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
-    ) -> MsgStatus:
+    ) -> Union[MsgStatus, Envelope]:
         """
         Send a message to the specified destination.
 
