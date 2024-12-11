@@ -1,101 +1,229 @@
 import asyncio
-import json
 import logging
+from datetime import datetime
 from typing import Optional
 
 import aiohttp
-import pydantic
-import websockets.exceptions
 from aiohttp.client_exceptions import ClientConnectorError
-from websockets import connect
+from pydantic import UUID4, BaseModel, ValidationError
 
-from uagents.config import MAILBOX_POLL_INTERVAL_SECONDS
-from uagents.crypto import is_user_address
+from uagents.config import MAILBOX_POLL_INTERVAL_SECONDS, AgentType, AgentverseConfig
+from uagents.crypto import Identity, is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
+from uagents.models import Model
+from uagents.types import AgentEndpoint
 from uagents.utils import get_logger
+
+logger = get_logger("mailbox")
+
+
+class AgentverseConnectRequest(Model):
+    user_token: str
+    agent_type: AgentType
+
+
+class ChallengeRequest(BaseModel):
+    address: str
+
+
+class ChallengeResponse(BaseModel):
+    challenge: str
+
+
+class ChallengeProof(BaseModel):
+    address: str
+    challenge: str
+    challenge_response: str
+
+
+class ChallengeProofResponse(Model):
+    access_token: str
+    expiry: str
+
+
+class RegistrationRequest(BaseModel):
+    address: str
+    challenge: str
+    challenge_response: str
+    agent_type: AgentType
+    endpoints: Optional[list[AgentEndpoint]] = None
+
+
+class RegistrationResponse(Model):
+    success: bool
+
+
+class StoredEnvelope(BaseModel):
+    uuid: UUID4
+    envelope: Envelope
+    received_at: datetime
+    expires_at: datetime
+
+
+def is_mailbox_agent(
+    endpoints: list[AgentEndpoint], agentverse: AgentverseConfig
+) -> bool:
+    """
+    Check if the agent is a mailbox agent.
+
+    Returns:
+        bool: True if the agent is a mailbox agent, False otherwise.
+    """
+    return any([f"{agentverse.url}/v1/submit" in ep.url for ep in endpoints])
+
+
+def is_proxy_agent(
+    endpoints: list[AgentEndpoint], agentverse: AgentverseConfig
+) -> bool:
+    """
+    Check if the agent is a proxy agent.
+
+    Returns:
+        bool: True if the agent is a proxy agent, False otherwise.
+    """
+    return any([f"{agentverse.url}/v1/proxy/submit" in ep.url for ep in endpoints])
+
+
+async def register_in_agentverse(
+    request: AgentverseConnectRequest,
+    identity: Identity,
+    endpoints: list[AgentEndpoint],
+    agentverse: AgentverseConfig,
+) -> RegistrationResponse:
+    """
+    Registers agent in Agentverse
+
+    Args:
+        request (AgentverseConnectRequest): Request object
+        identity (Identity): Agent identity object
+        endpoints (list[AgentEndpoint]): Endpoints of the agent
+        agentverse (AgentverseConfig): Agentverse configuration
+
+    Returns:
+        RegistrationResponse: Registration
+    """
+    async with aiohttp.ClientSession() as session:
+        # get challenge
+        challenge_url = f"{agentverse.url}/v1/auth/challenge"
+        challenge_request = ChallengeRequest(address=identity.address)
+        logger.debug("Requesting mailbox access challenge")
+        async with session.post(
+            challenge_url,
+            data=challenge_request.model_dump_json(),
+            headers={
+                "content-type": "application/json",
+                "Authorization": f"Bearer {request.user_token}",
+            },
+        ) as resp:
+            resp.raise_for_status()
+            challenge = ChallengeResponse.model_validate_json(await resp.text())
+
+        # response to challenge with signature to get token
+        prove_url = f"{agentverse.url}/v1/agents"
+        async with session.post(
+            prove_url,
+            data=RegistrationRequest(
+                address=identity.address,
+                challenge=challenge.challenge,
+                challenge_response=identity.sign(challenge.challenge.encode()),
+                endpoints=endpoints,
+                agent_type=request.agent_type,
+            ).model_dump_json(),
+            headers={
+                "content-type": "application/json",
+                "Authorization": f"Bearer {request.user_token}",
+            },
+        ) as resp:
+            if resp.status == 409:
+                logger.exception("Agent is already registered in Agentverse.")
+                return RegistrationResponse(success=False)
+            resp.raise_for_status()
+            registration_response = RegistrationResponse.parse_raw(await resp.text())
+            if registration_response.success:
+                logger.info(
+                    f"Successfully registered as {request.agent_type} agent in Agentverse"
+                )
+
+    if request.agent_type == "mailbox" and not is_mailbox_agent(endpoints, agentverse):
+        logger.exception(
+            f"Agent endpoints {endpoints} do not match registered agent type: {request.agent_type}"
+            f"Please restart agent with endpoint='{agentverse.url}/v1/submit'"
+        )
+
+    return registration_response
 
 
 class MailboxClient:
     """Client for interacting with the Agentverse mailbox server."""
 
-    def __init__(self, agent, logger: Optional[logging.Logger] = None):
-        self._agent = agent
+    def __init__(
+        self,
+        identity: Identity,
+        agentverse: AgentverseConfig,
+        logger: Optional[logging.Logger] = None,
+    ):
+        self._identity = identity
+        self._agentverse = agentverse
         self._access_token: Optional[str] = None
-        self._envelopes_to_delete = asyncio.Queue()
         self._poll_interval = MAILBOX_POLL_INTERVAL_SECONDS
         self._logger = logger or get_logger("mailbox")
-
-    @property
-    def base_url(self):
-        """
-        Property to access the base url of the mailbox server.
-
-        Returns: The base url of the mailbox server.
-
-        """
-        return self._agent.mailbox["base_url"]
-
-    @property
-    def agent_mailbox_key(self):
-        """
-        Property to access the agent_mailbox_key of the mailbox server.
-
-        Returns: The agent_mailbox_key of the mailbox server.
-        """
-        return self._agent.mailbox["agent_mailbox_key"]
-
-    @property
-    def protocol(self):
-        """
-        Property to access the protocol of the mailbox server.
-
-        Returns: The protocol of the mailbox server {ws, wss, http, https}.
-        """
-        return self._agent.mailbox["protocol"]
-
-    @property
-    def http_prefix(self):
-        """
-        Property to access the http prefix of the mailbox server.
-
-        Returns: The http prefix of the mailbox server {http, https}.
-        """
-        return self._agent.mailbox["http_prefix"]
 
     async def run(self):
         """
         Runs the mailbox client.
         """
+        self._logger.info(f"Starting mailbox client for {self._agentverse.url}")
         loop = asyncio.get_event_loop()
-        loop.create_task(self.start_polling())
-        loop.create_task(self.process_deletion_queue())
+        loop.create_task(self._check_mailbox_loop())
 
-    async def start_polling(self):
+    async def _check_mailbox_loop(self):
         """
-        Runs the mailbox client. Acquires an access token if needed and then starts a polling loop.
+        Retrieves envelopes from the mailbox server and processes them.
         """
-        self._logger.info(f"Connecting to mailbox server at {self.base_url}")
         while True:
             try:
-                if self._access_token is None:
-                    await self._get_access_token()
-                if self.protocol in {"ws", "wss"}:
-                    await self._open_websocket_connection()
-                else:
-                    await self._poll_server()
-                    await asyncio.sleep(self._poll_interval)
-            except ClientConnectorError:
-                self._logger.exception("Failed to connect to mailbox server")
+                async with aiohttp.ClientSession() as session:
+                    if self._access_token is None:
+                        await self._get_access_token()
+                    mailbox_url = f"{self._agentverse.url}/v1/mailbox"
+                    async with session.get(
+                        mailbox_url,
+                        headers={
+                            "Authorization": f"token {self._access_token}",
+                        },
+                    ) as resp:
+                        success = resp.status == 200
+                        if success:
+                            items = (await resp.json())["items"]
+                            for item in items:
+                                stored_env = StoredEnvelope.model_validate(item)
+                                await self._handle_envelope(stored_env)
+                        elif resp.status == 401:
+                            self._access_token = None
+                            self._logger.warning(
+                                "Access token expired: a new one should be retrieved automatically"
+                            )
+                        else:
+                            self._logger.exception(
+                                f"Failed to retrieve messages: {resp.status}:{(await resp.text())}"
+                            )
+            except ClientConnectorError as ex:
+                self._logger.warning(f"Failed to connect to mailbox server: {ex}")
 
-    async def _handle_envelope(self, payload: dict):
+            await asyncio.sleep(self._poll_interval)
+
+    async def _handle_envelope(self, stored_env: StoredEnvelope):
         """
         Handles an envelope received from the mailbox server.
         Dispatches the incoming messages and adds the envelope to the deletion queue.
+
+        Args:
+            stored_env (StoredEnvelope): Envelope to handle
         """
         try:
-            env = Envelope.model_validate(payload["envelope"])
-        except pydantic.ValidationError:
+            env = Envelope.model_validate(stored_env.envelope)
+        except ValidationError:
             self._logger.warning("Received invalid envelope")
             return
 
@@ -120,85 +248,34 @@ class MailboxClient:
             env.session,
         )
 
-        # queue envelope for deletion from server
-        await self._envelopes_to_delete.put(payload)
+        # delete envelope from server
+        await self._delete_envelope(stored_env.uuid)
 
-    async def process_deletion_queue(self):
+    async def _delete_envelope(self, uuid: UUID4):
         """
-        Processes the deletion queue. Deletes envelopes from the mailbox server.
-        """
-        async with aiohttp.ClientSession() as session:
-            while True:
-                try:
-                    env = await self._envelopes_to_delete.get()
-                    env_url = (
-                        f"{self.http_prefix}://{self.base_url}/v1/mailbox/{env['uuid']}"
-                    )
-                    self._logger.debug(f"Deleting message: {env}")
-                    async with session.delete(
-                        env_url,
-                        headers={"Authorization": f"token {self._access_token}"},
-                    ) as resp:
-                        if resp.status != 200:
-                            self._logger.exception(
-                                f"Failed to delete envelope from inbox: {(await resp.text())}"
-                            )
-                except ClientConnectorError as ex:
-                    self._logger.warning(f"Failed to connect to mailbox server: {ex}")
-                except Exception as ex:
-                    self._logger.exception(
-                        f"Got exception while processing deletion queue: {ex}"
-                    )
+        Deletes envelope from the mailbox server.
 
-    async def _poll_server(self):
-        """
-        Polls the mailbox server for envelopes and handles them.
-        """
-        async with aiohttp.ClientSession() as session:
-            # check the inbox for envelopes and handle them
-            mailbox_url = f"{self.http_prefix}://{self.base_url}/v1/mailbox"
-            async with session.get(
-                mailbox_url,
-                headers={"Authorization": f"token {self._access_token}"},
-            ) as resp:
-                success = resp.status == 200
-                if success:
-                    items = (await resp.json())["items"]
-                    for item in items:
-                        await self._handle_envelope(item)
-                elif resp.status == 401:
-                    self._access_token = None
-                    self._logger.warning(
-                        "Access token expired: a new one should be retrieved automatically"
-                    )
-                else:
-                    self._logger.exception(
-                        f"Failed to retrieve messages: {resp.status}:{(await resp.text())}"
-                    )
-
-    async def _open_websocket_connection(self):
-        """
-        Opens a websocket connection to the mailbox server and handles incoming envelopes.
+        Args:
+            uuid (UUID4): UUID of the envelope to delete
         """
         try:
-            async with connect(
-                f"{self.protocol}://{self.base_url}/v1/events?token={self._access_token}"
-            ) as websocket:
-                # wait for the event stream to come in
-                while True:
-                    msg = await websocket.recv()
-                    msg = json.loads(msg)
-                    if msg["type"] == "envelope":
-                        self._logger.debug(f"Got envelope: {msg['payload']}")
-                        await self._handle_envelope(msg["payload"])
-
-        except websockets.exceptions.ConnectionClosedError:
-            self._logger.warning("Mailbox connection closed")
-            self._access_token = None
-
-        except ConnectionRefusedError:
-            self._logger.warning("Mailbox connection refused")
-            self._access_token = None
+            async with aiohttp.ClientSession() as session:
+                env_url = f"{self._agentverse.url}/v1/mailbox/{str(uuid)}"
+                self._logger.debug(f"Deleting message: {str(uuid)}")
+                async with session.delete(
+                    env_url,
+                    headers={
+                        "Authorization": f"token {self._access_token}",
+                    },
+                ) as resp:
+                    if resp.status != 200:
+                        self._logger.exception(
+                            f"Failed to delete envelope from inbox: {(await resp.text())}"
+                        )
+        except ClientConnectorError as ex:
+            self._logger.warning(f"Failed to connect to mailbox server: {ex}")
+        except Exception as ex:
+            self._logger.exception(f"Got exception while deleting message: {ex}")
 
     async def _get_access_token(self):
         """
@@ -206,10 +283,11 @@ class MailboxClient:
         """
         async with aiohttp.ClientSession() as session:
             # get challenge
-            challenge_url = f"{self.http_prefix}://{self.base_url}/v1/auth/challenge"
+            challenge_url = f"{self._agentverse.url}/v1/auth/challenge"
+            challenge_request = ChallengeRequest(address=self._identity.address)
             async with session.post(
                 challenge_url,
-                data=json.dumps({"address": self._agent.address}),
+                data=challenge_request.model_dump_json(),
                 headers={"content-type": "application/json"},
             ) as resp:
                 if resp and resp.status == 200:
@@ -221,22 +299,23 @@ class MailboxClient:
                     return
 
             # response to challenge with signature to get token
-            prove_url = f"{self.http_prefix}://{self.base_url}/v1/auth/prove"
+            prove_url = f"{self._agentverse.url}/v1/auth/prove"
+            proof_request = ChallengeProof(
+                address=self._identity.address,
+                challenge=challenge,
+                challenge_response=self._identity.sign(challenge.encode()),
+            )
             async with session.post(
                 prove_url,
-                data=json.dumps(
-                    {
-                        "address": self._agent.address,
-                        "agent_mailbox_key": self.agent_mailbox_key,
-                        "challenge": challenge,
-                        "challenge_response": self._agent.sign(challenge.encode()),
-                    }
-                ),
+                data=proof_request.model_dump_json(),
                 headers={"content-type": "application/json"},
             ) as resp:
                 if resp and resp.status == 200:
+                    challenge_proof_response = ChallengeProofResponse.parse_raw(
+                        await resp.text()
+                    )
                     self._logger.info("Mailbox access token acquired")
-                    self._access_token = (await resp.json())["access_token"]
+                    self._access_token = challenge_proof_response.access_token
                 else:
                     self._logger.exception(
                         f"Failed to prove authorization: {(await resp.text())}"
