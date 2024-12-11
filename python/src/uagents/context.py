@@ -6,7 +6,7 @@ import asyncio
 import logging
 import uuid
 from abc import ABC, abstractmethod
-from time import time
+from datetime import datetime, timezone
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -489,7 +489,7 @@ class InternalContext(Context):
             )
 
         # Calculate when the envelope expires
-        expires = int(time()) + timeout
+        expires = int(datetime.now(timezone.utc).timestamp()) + timeout
 
         # Handle external dispatch of messages
         env = Envelope(
