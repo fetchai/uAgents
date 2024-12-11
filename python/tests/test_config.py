@@ -89,13 +89,12 @@ expected_configs = [
 
 class TestConfig(unittest.TestCase):
     def test_parse_agentverse_config(self):
-        for agent, expected_config, endpoints, index in zip(
+        for agent, expected_config, endpoints, index in zip(  # noqa
             agents,
             expected_configs,
             expected_endpoints,
             range(len(agents)),
-            strict=False,
-        ):  # noqa
+        ):
             self.assertEqual(
                 agent.agentverse.model_dump(),
                 expected_config,
