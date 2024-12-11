@@ -315,10 +315,12 @@ Please use the `ctx.agent.address` property instead.
 #### send
 
 ```python
-async def send(destination: str,
-               message: Model,
-               sync: bool = False,
-               timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS) -> MsgStatus
+async def send(
+    destination: str,
+    message: Model,
+    sync: bool = False,
+    timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS
+) -> Union[MsgStatus, Envelope]
 ```
 
 This is the pro-active send method which is used in on_event and

@@ -18,7 +18,7 @@ from pydantic.v1.error_wrappers import ErrorWrapper
 from requests.structures import CaseInsensitiveDict
 
 from uagents.communication import enclose_response_raw
-from uagents.config import RESPONSE_TIME_HINT_SECONDS
+from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS, RESPONSE_TIME_HINT_SECONDS
 from uagents.context import ERROR_MESSAGE_DIGEST
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
@@ -361,7 +361,9 @@ class ASGIServer:
 
         # wait for any queries to be resolved
         if expects_response:
-            response_msg, schema_digest = await self._queries[env.sender]
+            response_msg, schema_digest = await asyncio.wait_for(
+                self._queries[env.sender], DEFAULT_ENVELOPE_TIMEOUT_SECONDS
+            )
             if (env.expires is not None) and (
                 datetime.now() > datetime.fromtimestamp(env.expires)
             ):

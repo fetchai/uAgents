@@ -80,17 +80,6 @@ Method to send an exchange envelope.
 
   Union[MsgStatus, Envelope]: Either the status of the message or the response envelope.
 
-<a id="src.uagents.communication.dispatch_sync_response_envelope"></a>
-
-#### dispatch`_`sync`_`response`_`envelope
-
-```python
-async def dispatch_sync_response_envelope(
-        env: Envelope) -> Union[MsgStatus, Envelope]
-```
-
-Dispatch a synchronous response envelope locally.
-
 <a id="src.uagents.communication.send_message_raw"></a>
 
 #### send`_`message`_`raw
