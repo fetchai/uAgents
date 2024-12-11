@@ -376,10 +376,12 @@ Initialize the ExternalContext instance and attributes needed from the InternalC
 #### send
 
 ```python
-async def send(destination: str,
-               message: Model,
-               sync: bool = False,
-               timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS) -> MsgStatus
+async def send(
+    destination: str,
+    message: Model,
+    sync: bool = False,
+    timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS
+) -> Union[MsgStatus, Envelope]
 ```
 
 Send a message to the specified destination.
