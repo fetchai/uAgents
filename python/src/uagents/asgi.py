@@ -162,7 +162,7 @@ class ASGIServer:
         if b"x-uagents-address" not in headers:
             await self._asgi_send(send, headers={"x-uagents-status": "indeterminate"})
         else:
-            address = headers[b"x-uagents-address"].decode()
+            address = headers[b"x-uagents-address"].decode()  # type: ignore
             if not dispatcher.contains(address):
                 await self._asgi_send(send, headers={"x-uagents-status": "not-ready"})
             else:
@@ -232,7 +232,7 @@ class ASGIServer:
                     },
                 )
                 return
-            destination = headers[b"x-uagents-address"].decode()
+            destination = headers[b"x-uagents-address"].decode()  # type: ignore
             rest_handler = handlers.get(destination)
         else:
             destination, rest_handler = handlers.popitem()
@@ -329,7 +329,7 @@ class ASGIServer:
             await self.handle_missing_content_type(headers, send)
             return
 
-        if b"application/json" not in headers[b"content-type"]:
+        if b"application/json" not in headers[b"content-type"]:  # type: ignore
             await self._asgi_send(send, 400, body={"error": "invalid content-type"})
             return
 
@@ -350,7 +350,7 @@ class ASGIServer:
             )
             return
 
-        expects_response = headers.get(b"x-uagents-connection") == b"sync"
+        expects_response = headers.get(b"x-uagents-connection") == b"sync"  # type: ignore
 
         if expects_response:
             # Add a future that will be resolved once the query is answered
