@@ -1,8 +1,10 @@
+import logging
 from typing import Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel
 
 from uagents.types import AgentEndpoint
+from uagents.utils import get_logger
 
 AGENT_PREFIX = "agent"
 LEDGER_PREFIX = "fetch"
@@ -60,13 +62,38 @@ class AgentverseConfig(BaseModel):
 
 def parse_endpoint_config(
     endpoint: Optional[Union[str, List[str], Dict[str, dict]]],
+    agentverse: AgentverseConfig,
+    mailbox: bool = False,
+    proxy: bool = False,
+    logger: Optional[logging.Logger] = None,
 ) -> List[AgentEndpoint]:
     """
     Parse the user-provided endpoint configuration.
 
+    Args:
+        endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration.
+        agentverse (AgentverseConfig): The agentverse configuration.
+        mailbox (bool): Whether to use the mailbox endpoint.
+        proxy (bool): Whether to use the proxy endpoint.
+        logger (Optional[logging.Logger]): The logger to use.
+
     Returns:
-        Optional[List[Dict[str, Any]]]: The parsed endpoint configuration.
+        Optional[List[AgentEndpoint]: The parsed endpoint configuration.
     """
+
+    logger = logger or get_logger("config")
+
+    if endpoint:
+        if mailbox:
+            logger.warning("Endpoint configuration overrides mailbox setting.")
+        if proxy:
+            logger.warning("Endpoint configuration overrides proxy setting.")
+    elif mailbox and proxy:
+        logger.warning(
+            "Mailbox and proxy settings are mutually exclusive. "
+            "Defaulting to mailbox."
+        )
+
     if isinstance(endpoint, dict):
         endpoints = [
             AgentEndpoint.model_validate(
@@ -80,6 +107,10 @@ def parse_endpoint_config(
         ]
     elif isinstance(endpoint, str):
         endpoints = [AgentEndpoint.model_validate({"url": endpoint, "weight": 1})]
+    elif mailbox:
+        endpoints = [AgentEndpoint(url=f"{agentverse.url}/v1/submit", weight=1)]
+    elif proxy:
+        endpoints = [AgentEndpoint(url=f"{agentverse.url}/v1/proxy/submit", weight=1)]
     else:
         endpoints = []
     return endpoints

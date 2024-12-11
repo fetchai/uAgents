@@ -133,19 +133,27 @@ class ASGIServer:
         body: Optional[Union[Dict[str, Any], ErrorWrapper]] = None,
     ):
         header = (
-            [[k.encode(), v.encode()] for k, v in headers.items()] if headers else None
+            [[k.encode(), v.encode()] for k, v in headers.items()]
+            if headers is not None
+            else [[b"content-type", b"application/json"]]
         )
-        if body is None:
-            body = {}
 
         await send(
             {
                 "type": "http.response.start",
                 "status": status_code,
-                "headers": header or [[b"content-type", b"application/json"]],
+                "headers": header,
             }
         )
-        await send({"type": "http.response.body", "body": json.dumps(body).encode()})
+
+        if body is None:
+            encoded_body = (
+                b"{}" if [[b"content-type", b"application/json"]] in header else b""
+            )
+        else:
+            encoded_body = json.dumps(body).encode()
+
+        await send({"type": "http.response.body", "body": encoded_body})
 
     async def handle_readiness_probe(self, headers: CaseInsensitiveDict, send):
         """
@@ -296,7 +304,7 @@ class ASGIServer:
 
         # Handle OPTIONS preflight request for CORS
         if request_method == "OPTIONS":
-            await self._asgi_send(send, 204)
+            await self._asgi_send(send, 204, headers={})
             return
 
         # check if the request is for a REST endpoint

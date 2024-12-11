@@ -8,16 +8,9 @@ class Message(Model):
 # Copy ALICE_ADDRESS generated in alice.py
 ALICE_ADDRESS = "paste_alice_address_here"
 
-# Generate a second seed phrase (e.g. https://pypi.org/project/mnemonic/)
-SEED_PHRASE = "put_your_seed_phrase_here"
 
 # Now your agent is ready to join the agentverse!
-agent = Agent(
-    name="bob",
-    seed=SEED_PHRASE,
-    port=8001,
-    endpoint="http://agentverse.ai/v1/submit",
-)
+agent = Agent(name="bob", port=8009, mailbox=True)
 
 
 @agent.on_interval(period=2.0)

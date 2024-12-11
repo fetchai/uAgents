@@ -257,8 +257,7 @@ class Agent(Sink):
         identifier (str): The Agent Identifier, including network prefix and address.
         wallet (LocalWallet): The agent's wallet for transacting on the ledger.
         storage (KeyValueStore): The key-value store for storage operations.
-        mailbox (Dict[str, str]): The mailbox configuration for the agent.
-        agentverse (Dict[str, str]): The agentverse configuration for the agent.
+        agentverse (AgentverseConfig): The agentverse configuration for the agent.
         mailbox_client (MailboxClient): The client for interacting with the agentverse mailbox.
         protocols (Dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
         corresponding protocols.
@@ -273,7 +272,8 @@ class Agent(Sink):
         seed: Optional[str] = None,
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
         agentverse: Optional[Union[str, Dict[str, str]]] = None,
-        mailbox: Optional[Union[str, Dict[str, str]]] = None,
+        mailbox: bool = False,
+        proxy: bool = False,
         resolve: Optional[Resolver] = None,
         registration_policy: Optional[AgentRegistrationPolicy] = None,
         enable_wallet_messaging: Union[bool, Dict[str, str]] = False,
@@ -295,7 +295,8 @@ class Agent(Sink):
             seed (Optional[str]): The seed for generating keys.
             endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration.
             agentverse (Optional[Union[str, Dict[str, str]]]): The agentverse configuration.
-            mailbox (Optional[Union[str, Dict[str, str]]]): The mailbox configuration.
+            mailbox (bool): True if the agent will receive messages via an Agentverse mailbox.
+            proxy (bool): True if the agent will receive messages via an Agentverse proxy endpoint.
             resolve (Optional[Resolver]): The resolver to use for agent communication.
             enable_wallet_messaging (Optional[Union[bool, Dict[str, str]]]): Whether to enable
             wallet messaging. If '{"chain_id": CHAIN_ID}' is provided, this sets the chain ID for
@@ -319,29 +320,12 @@ class Agent(Sink):
         self._initialize_wallet_and_identity(seed, name, wallet_key_derivation_index)
         self._logger = get_logger(self.name, level=log_level)
 
-        # configure endpoints and mailbox
-        self._endpoints = parse_endpoint_config(endpoint)
-        self._use_mailbox = False
-
-        if mailbox:
-            # agentverse config overrides mailbox config
-            # but mailbox is kept for backwards compatibility
-            if agentverse:
-                self._logger.warning(
-                    "Ignoring the provided 'mailbox' configuration since 'agentverse' overrides it"
-                )
-            else:
-                agentverse = mailbox
         self._agentverse = parse_agentverse_config(agentverse)
 
-        # support legacy method of setting mailbox configuration if no endpoint is provided
-        if endpoint is None and mailbox:
-            self._logger.info(
-                f"Setting endpoint to mailbox: {self._agentverse.url}/v1/submit"
-            )
-            self._endpoints = [
-                AgentEndpoint(url=f"{self._agentverse.url}/v1/submit", weight=1)
-            ]
+        # configure endpoints and mailbox
+        self._endpoints = parse_endpoint_config(
+            endpoint, self._agentverse, mailbox, proxy, self._logger
+        )
 
         self._use_mailbox = is_mailbox_agent(self._endpoints, self._agentverse)
         if self._use_mailbox:
@@ -614,17 +598,6 @@ class Agent(Sink):
         return self._storage
 
     @property
-    def mailbox(self) -> AgentverseConfig:
-        """
-        Get the mailbox configuration of the agent.
-        Agentverse overrides it but mailbox is kept for backwards compatibility.
-
-        Returns:
-            Dict[str, str]: The mailbox configuration.
-        """
-        return self._agentverse
-
-    @property
     def agentverse(self) -> AgentverseConfig:
         """
         Get the agentverse configuration of the agent.
@@ -679,17 +652,6 @@ class Agent(Sink):
             Dict[str, Any]: The metadata associated with the agent.
         """
         return self._metadata
-
-    @mailbox.setter
-    def mailbox(self, config: Union[str, Dict[str, str]]):
-        """
-        Set the mailbox configuration for the agent.
-        Agentverse overrides it but mailbox is kept for backwards compatibility.
-
-        Args:
-            config (Union[str, Dict[str, str]]): The new mailbox configuration.
-        """
-        self._agentverse = parse_agentverse_config(config)
 
     @agentverse.setter
     def agentverse(self, config: Union[str, Dict[str, str]]):
@@ -937,7 +899,7 @@ class Agent(Sink):
             return lambda func: func
 
         def decorator_on_rest(func: RestHandler):
-            @functools.wraps(RestGetHandler if method == "GET" else RestPostHandler)
+            @functools.wraps(RestGetHandler if method == "GET" else RestPostHandler)  # type: ignore
             def handler(*args, **kwargs):
                 return func(*args, **kwargs)
 
@@ -1412,7 +1374,6 @@ class Bureau:
         """
         self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
         self._agents: List[Agent] = []
-        self._endpoints = parse_endpoint_config(endpoint)
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
         self._logger = get_logger("bureau", log_level)
@@ -1423,6 +1384,9 @@ class Bureau:
             logger=self._logger,
         )
         self._agentverse = parse_agentverse_config(agentverse)
+        self._endpoints = parse_endpoint_config(
+            endpoint, self._agentverse, False, False, self._logger
+        )
         self._use_mailbox = any(
             [
                 is_mailbox_agent(agent._endpoints, self._agentverse)
