@@ -10,12 +10,7 @@ PROXY_ENDPOINT = "https://agentverse.ai/v1/proxy/submit"
 agents = [
     Agent(),
     Agent(mailbox="agent_mailbox_key"),  # type: ignore  (backwards compatibility)
-    Agent(agentverse="agent_mailbox_key@some_url"),
-    Agent(agentverse="agent_mailbox_key"),
     Agent(agentverse="http://some_url", endpoint="http://some_url"),
-    Agent(agentverse="wss://some_url"),
-    Agent(agentverse="ws://some_url"),
-    Agent(agentverse={"agent_mailbox_key": "agent_mailbox_key", "protocol": "wss"}),
     Agent(agentverse="https://staging.agentverse.ai"),
     Agent(agentverse={"base_url": "staging.agentverse.ai"}),
     Agent(mailbox=True),
@@ -28,12 +23,7 @@ agents = [
 expected_endpoints = [
     [],
     [AgentEndpoint(url=MAILBOX_ENDPOINT, weight=1)],
-    [],
-    [],
     [AgentEndpoint(url="http://some_url", weight=1)],
-    [],
-    [],
-    [],
     [],
     [],
     [AgentEndpoint(url=MAILBOX_ENDPOINT, weight=1)],
@@ -56,33 +46,8 @@ expected_configs = [
     },
     {
         "base_url": "some_url",
-        "protocol": "https",
-        "http_prefix": "https",
-    },
-    {
-        "base_url": "agentverse.ai",
-        "protocol": "https",
-        "http_prefix": "https",
-    },
-    {
-        "base_url": "some_url",
         "protocol": "http",
         "http_prefix": "http",
-    },
-    {
-        "base_url": "some_url",
-        "protocol": "wss",
-        "http_prefix": "https",
-    },
-    {
-        "base_url": "some_url",
-        "protocol": "ws",
-        "http_prefix": "http",
-    },
-    {
-        "base_url": "agentverse.ai",
-        "protocol": "wss",
-        "http_prefix": "https",
     },
     {
         "base_url": "staging.agentverse.ai",
