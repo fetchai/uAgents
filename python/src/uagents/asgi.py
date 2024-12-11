@@ -364,12 +364,12 @@ class ASGIServer:
             timeout = (
                 env.expires - datetime.now(timezone.utc).timestamp()
                 if env.expires
-                else None
+                else DEFAULT_ENVELOPE_TIMEOUT_SECONDS
             )
             try:
                 response_msg, schema_digest = await asyncio.wait_for(
                     self._queries[env.sender],
-                    timeout or DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+                    timeout,
                 )
             except asyncio.TimeoutError:
                 response_msg = ErrorMessage(
