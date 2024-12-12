@@ -36,7 +36,6 @@ async def act_on_message(ctx: Context, sender: str, msg: Message):
     ctx.logger.info(f"Received message from {sender[-8:]}: {msg.message}")
 
 
-print(f"Agent address: {alice.address}")
 print(f"Agent public URL: {http_tunnel.public_url}/submit")
 
 if __name__ == "__main__":

@@ -49,5 +49,4 @@ async def start_cycle(ctx: Context):
 agent.include(chitchat_dialogue)
 
 if __name__ == "__main__":
-    print(f"Agent address: {agent.address}")
     agent.run()

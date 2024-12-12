@@ -120,5 +120,4 @@ async def start_cycle(ctx: Context):
 
 
 if __name__ == "__main__":
-    print(f"Agent address: {agent.address}")
     agent.run()
