@@ -6,7 +6,8 @@ from pydantic import BaseModel, Field
 
 # from uagents.config import SEARCH_API_URL
 
-SEARCH_API_URL = "https://engine-staging.sandbox-london-b.fetch-ai.com/v1/search/agents"
+# SEARCH_API_URL = "https://engine-staging.sandbox-london-b.fetch-ai.com/v1/search/agents"
+SEARCH_API_URL = "https://agentverse.ai/v1/search/agents"
 
 StatusType = Literal["active", "inactive"]
 AgentType = Literal["hosted", "local", "mailbox"]
@@ -24,7 +25,17 @@ class ProtocolRepresentation(BaseModel):
     digest: str
 
 
-# TODO: this is missing the actual location of the agent
+class AgentGeoLocation(BaseModel):
+    # the latitude of the agent
+    latitude: float
+
+    # the longitude of the agent
+    longitude: float
+
+    # the radius in meters defining the area of effect of the agent
+    radius: float = 0
+
+
 class Agent(BaseModel):
     # the address of the agent (this should be used as the id of the agent)
     address: str
@@ -61,6 +72,9 @@ class Agent(BaseModel):
 
     # signaled if the agent is featured or not
     featured: bool = False
+
+    # the geolocation of the agent
+    geo_location: AgentGeoLocation | None
 
     # the time at which the agent was last updated at
     last_updated: datetime
@@ -140,6 +154,9 @@ class AgentGeoSearchCriteria(AgentSearchCriteria):
 def _geosearch_agents(criteria: AgentGeoSearchCriteria) -> list[Agent]:
     # TODO currently results will be returned based on radius overlap, i.e., results can
     # include agents that are farther away then the specified radius
+
+    # filter only for active agents
+    criteria.filters = AgentFilters(state=["active"])
     response = requests.post(
         url=SEARCH_API_URL + "/geo",
         json=criteria.model_dump(),

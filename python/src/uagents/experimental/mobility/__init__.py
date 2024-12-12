@@ -4,6 +4,8 @@ from typing import Any
 from pydantic import BaseModel
 
 from uagents import Agent
+
+# from uagents.config import AgentverseConfig
 from uagents.experimental.mobility.protocols.base_protocol import (
     CheckIn,
     CheckOut,
@@ -37,6 +39,33 @@ class MobilityAgent(Agent):
         self._metadata["static_signal"] = static_signal
         self._proximity_agents: list[SearchResultAgent] = []
         self._checkedin_agents: dict[str, dict[str, Any]] = {}
+
+        if not self._agentverse["agent_mailbox_key"]:
+            self._logger.info(
+                "couldn't find api key. Will not register with agentverse"
+            )
+            return
+
+        # av_conn_req = AgentverseConnectRequest(
+        #     user_token=self._agentverse["agent_mailbox_key"], agent_type="custom"
+        # )
+        # agentverse_config = AgentverseConfig(
+        #     base_url="staging.agentverse.ai", protocol="https", http_prefix="https"
+        # )
+        # resp = register_in_agentverse(
+        #     av_conn_req, self._identity, self._endpoints, agentverse_config
+        # )
+        # if not resp.success:
+        #     print(f"WARNING: agent could not be registered: {agent.address}")
+        # update name and description
+        # resp = requests.post(
+        #     f"{self._agentverse["protocol"]}://{self._agentverse["base_url"]}/v1/auth/register",
+        #     json = {"name": self.name, "readme": self.static_signal},
+        #     headers = {
+        #         "Authorization": f"Bearer {self._agentverse["agent_mailbox_key"]}",
+        #         "content-type": "application/json"})
+
+        # self._logger.info(resp.text)
 
         # @self.on_rest_post("/set_location", Location, Location)
         # async def _handle_location_update(_ctx: Context, req: Location):
@@ -76,7 +105,7 @@ class MobilityAgent(Agent):
         )
 
     def checkout_agent(self, addr: str):
-        del self._checkedin_agents[addr]
+        return self._checkedin_agents.pop(addr)
 
     def activate_agent(self, agent: SearchResultAgent):
         for activated in self._proximity_agents:
@@ -94,13 +123,6 @@ class MobilityAgent(Agent):
         self._metadata["geolocation"]["radius"] = location.radius
         await self.invoke_location_update()
 
-    async def step(self):
-        self.location["latitude"] += 0.00003  # move 3 meter north
-        self.location["latitude"] = round(self.location["latitude"], 6)
-        self.location["longitude"] += 0.00003  # move 3 meter east
-        self.location["longitude"] = round(self.location["longitude"], 6)
-        await self.invoke_location_update()
-
     async def invoke_location_update(self):
         self._logger.info(
             f"Updating location {(self.location['latitude'], self.location['longitude'])}"
@@ -113,6 +135,8 @@ class MobilityAgent(Agent):
         )
         # send a check-in message to all agents that are in the current proximity
         for agent in proximity_agents:
+            if agent.status != "active":
+                continue
             await self._send_checkin(agent)
         # find out which agents left proximity and send them a check-out message
         addresses_that_left_proximity = {a.address for a in self._proximity_agents} - {

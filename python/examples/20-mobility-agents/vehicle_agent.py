@@ -13,10 +13,33 @@ vehicle_agent = Agent(
     location=AgentGeolocation(
         latitude=52.506926,
         longitude=13.377207,
-        radius=2,
+        radius=20,
     ),
     static_signal="I'm a vehicle agent",
+    # agentverse="https://staging.agentverse.ai"
 )
+
+
+async def step():
+    vehicle_agent.location["latitude"] += 0.00003  # move 3 meter north
+    vehicle_agent.location["latitude"] = round(vehicle_agent.location["latitude"], 6)
+    vehicle_agent.location["longitude"] += 0.00003  # move 3 meter east
+    vehicle_agent.location["longitude"] = round(vehicle_agent.location["longitude"], 6)
+    await vehicle_agent.invoke_location_update()
+
+
+@vehicle_agent.on_rest_get("/step", base_protocol.Location)
+async def _handle_step(_ctx: Context):
+    await step()
+    return vehicle_agent.location
+
+
+@vehicle_agent.on_rest_post(
+    "/set_location", base_protocol.Location, base_protocol.Location
+)
+async def _handle_location_update(_ctx: Context, req: base_protocol.Location):
+    await vehicle_agent._update_geolocation(req)
+    return vehicle_agent.location
 
 
 proto = base_protocol.mobility_base_protocol
@@ -33,7 +56,8 @@ async def handle_checkin_response(
     ctx: Context, sender: str, msg: base_protocol.CheckInResponse
 ):
     ctx.logger.info(
-        f"checked in with agent of type {msg.mobility_type}. Signal: {msg.signal}"
+        f"""checked in with agent of type "{msg.mobility_type}".
+        Signal: {msg.signal}\ndescription: {msg.description}"""
     )
 
 

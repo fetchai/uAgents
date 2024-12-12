@@ -11,7 +11,9 @@ PROTOCOL_VERSION = "0.1.0"
 class Location(Model):
     latitude: confloat(strict=True, ge=-90, le=90, allow_inf_nan=False)
     longitude: confloat(strict=True, ge=-180, le=180, allow_inf_nan=False)
-    radius: confloat(gt=0, allow_inf_nan=False)
+    radius: confloat(
+        gt=0, allow_inf_nan=False
+    )  # TODO we might not need/want this in the base protocol
 
 
 MobilityType = Literal[
@@ -21,6 +23,7 @@ MobilityType = Literal[
     "incident",  # collection for temporary situations
     "vehicle",
     "movable",  # collection for anything mobile except vehicles
+    "zone",
 ]
 
 
