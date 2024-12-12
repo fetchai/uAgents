@@ -130,7 +130,7 @@ An agent that interacts within a communication environment.
 - `_logger` - The logger instance for logging agent activities.
 - `_endpoints` _List[AgentEndpoint]_ - List of endpoints at which the agent is reachable.
 - `_use_mailbox` _bool_ - Indicates if the agent uses a mailbox for communication.
-- `_agentverse` _dict_ - Agentverse configuration settings.
+- `_agentverse` _AgentverseConfig_ - Agentverse configuration settings.
 - `_mailbox_client` _MailboxClient_ - The client for interacting with the agentverse mailbox.
 - `_ledger` - The client for interacting with the blockchain ledger.
 - `_almanac_contract` - The almanac contract for registering agent addresses to endpoints.
@@ -168,8 +168,7 @@ An agent that interacts within a communication environment.
 - `identifier` _str_ - The Agent Identifier, including network prefix and address.
 - `wallet` _LocalWallet_ - The agent's wallet for transacting on the ledger.
 - `storage` _KeyValueStore_ - The key-value store for storage operations.
-- `mailbox` _Dict[str, str]_ - The mailbox configuration for the agent.
-- `agentverse` _Dict[str, str]_ - The agentverse configuration for the agent.
+- `agentverse` _AgentverseConfig_ - The agentverse configuration for the agent.
 - `mailbox_client` _MailboxClient_ - The client for interacting with the agentverse mailbox.
 - `protocols` _Dict[str, Protocol]_ - Dictionary mapping all supported protocol digests to their
   corresponding protocols.
@@ -185,7 +184,8 @@ def __init__(name: Optional[str] = None,
              seed: Optional[str] = None,
              endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
              agentverse: Optional[Union[str, Dict[str, str]]] = None,
-             mailbox: Optional[Union[str, Dict[str, str]]] = None,
+             mailbox: bool = False,
+             proxy: bool = False,
              resolve: Optional[Resolver] = None,
              registration_policy: Optional[AgentRegistrationPolicy] = None,
              enable_wallet_messaging: Union[bool, Dict[str, str]] = False,
@@ -208,7 +208,8 @@ Initialize an Agent instance.
 - `seed` _Optional[str]_ - The seed for generating keys.
 - `endpoint` _Optional[Union[str, List[str], Dict[str, dict]]]_ - The endpoint configuration.
 - `agentverse` _Optional[Union[str, Dict[str, str]]]_ - The agentverse configuration.
-- `mailbox` _Optional[Union[str, Dict[str, str]]]_ - The mailbox configuration.
+- `mailbox` _bool_ - True if the agent will receive messages via an Agentverse mailbox.
+- `proxy` _bool_ - True if the agent will receive messages via an Agentverse proxy endpoint.
 - `resolve` _Optional[Resolver]_ - The resolver to use for agent communication.
 - `enable_wallet_messaging` _Optional[Union[bool, Dict[str, str]]]_ - Whether to enable
   wallet messaging. If '{"chain_id": CHAIN_ID}' is provided, this sets the chain ID for
@@ -328,29 +329,13 @@ Get the key-value store used by the agent for data storage.
 
 - `KeyValueStore` - The key-value store instance.
 
-<a id="src.uagents.agent.Agent.mailbox"></a>
-
-#### mailbox
-
-```python
-@property
-def mailbox() -> Dict[str, str]
-```
-
-Get the mailbox configuration of the agent.
-Agentverse overrides it but mailbox is kept for backwards compatibility.
-
-**Returns**:
-
-  Dict[str, str]: The mailbox configuration.
-
 <a id="src.uagents.agent.Agent.agentverse"></a>
 
 #### agentverse
 
 ```python
 @property
-def agentverse() -> Dict[str, str]
+def agentverse() -> AgentverseConfig
 ```
 
 Get the agentverse configuration of the agent.
@@ -418,22 +403,6 @@ Get the metadata associated with the agent.
 **Returns**:
 
   Dict[str, Any]: The metadata associated with the agent.
-
-<a id="src.uagents.agent.Agent.mailbox"></a>
-
-#### mailbox
-
-```python
-@mailbox.setter
-def mailbox(config: Union[str, Dict[str, str]])
-```
-
-Set the mailbox configuration for the agent.
-Agentverse overrides it but mailbox is kept for backwards compatibility.
-
-**Arguments**:
-
-- `config` _Union[str, Dict[str, str]]_ - The new mailbox configuration.
 
 <a id="src.uagents.agent.Agent.agentverse"></a>
 
@@ -863,7 +832,7 @@ This class manages a collection of agents and orchestrates their execution.
   response Futures.
 - `_logger` _Logger_ - The logger instance.
 - `_server` _ASGIServer_ - The ASGI server instance for handling requests.
-- `_agentverse` _Dict[str, str]_ - The agentverse configuration for the bureau.
+- `_agentverse` _AgentverseConfig_ - The agentverse configuration for the bureau.
 - `_use_mailbox` _bool_ - A flag indicating whether mailbox functionality is enabled for any
   of the agents.
 - `_registration_policy` _AgentRegistrationPolicy_ - The registration policy for the bureau.
