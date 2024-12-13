@@ -261,6 +261,7 @@ class InternalContext(Context):
         interval_messages: Optional[Set[str]] = None,
         wallet_messaging_client: Optional[Any] = None,
         logger: Optional[logging.Logger] = None,
+        models: Optional[Dict[str, Type[Model]]] = None,
     ):
         self._agent = agent
         self._storage = storage
@@ -272,6 +273,7 @@ class InternalContext(Context):
         self._interval_messages = interval_messages
         self._wallet_messaging_client = wallet_messaging_client
         self._outbound_messages: Dict[str, Tuple[JsonStr, str]] = {}
+        self._models = models
 
     @property
     def agent(self) -> AgentRepresentation:
@@ -404,7 +406,7 @@ class InternalContext(Context):
         message: Model,
         sync: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
-    ) -> Union[MsgStatus, Envelope]:
+    ) -> Union[MsgStatus, Model]:
         """
         This is the pro-active send method which is used in on_event and
         on_interval methods. In these methods, interval messages are set but
@@ -441,7 +443,7 @@ class InternalContext(Context):
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
         protocol_digest: Optional[str] = None,
         queries: Optional[Dict[str, asyncio.Future]] = None,
-    ) -> Union[MsgStatus, Envelope]:
+    ) -> Union[MsgStatus, Model]:
         # Extract address from destination agent identifier if present
         _, parsed_name, parsed_address = parse_identifier(destination)
 
@@ -520,6 +522,16 @@ class InternalContext(Context):
                 endpoint="",
                 session=self._session,
             )
+
+        if isinstance(result, Envelope):
+            model_class: Optional[Type[Model]] = self._models.get(result.schema_digest)
+            if model_class is None:
+                log(self.logger, logging.DEBUG, "unexpected sync reply")
+            else:
+                try:
+                    result = model_class.parse_raw(result.decode_payload())
+                except Exception as ex:
+                    log(self.logger, logging.ERROR, f"Unable to parse message: {ex}")
 
         return result
 
@@ -623,7 +635,7 @@ class ExternalContext(InternalContext):
         message: Model,
         sync: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
-    ) -> Union[MsgStatus, Envelope]:
+    ) -> Union[MsgStatus, Model]:
         """
         Send a message to the specified destination.
 
