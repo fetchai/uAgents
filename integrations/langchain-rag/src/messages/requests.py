@@ -1,6 +1,5 @@
 from typing import Optional
-from pydantic import Field
-from uagents import Model
+from uagents import Model, Field
 
 
 class RagRequest(Model):

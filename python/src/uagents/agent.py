@@ -32,6 +32,7 @@ from uagents.config import (
     REGISTRATION_RETRY_INTERVAL_SECONDS,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     TESTNET_PREFIX,
+    AgentverseConfig,
     parse_agentverse_config,
     parse_endpoint_config,
 )
@@ -39,7 +40,13 @@ from uagents.context import Context, ContextFactory, ExternalContext, InternalCo
 from uagents.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents.dispatch import Sink, dispatcher
 from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
-from uagents.mailbox import MailboxClient
+from uagents.mailbox import (
+    AgentverseConnectRequest,
+    MailboxClient,
+    RegistrationResponse,
+    is_mailbox_agent,
+    register_in_agentverse,
+)
 from uagents.models import ErrorMessage, Model
 from uagents.network import (
     InsufficientFundsError,
@@ -212,7 +219,7 @@ class Agent(Sink):
         _logger: The logger instance for logging agent activities.
         _endpoints (List[AgentEndpoint]): List of endpoints at which the agent is reachable.
         _use_mailbox (bool): Indicates if the agent uses a mailbox for communication.
-        _agentverse (dict): Agentverse configuration settings.
+        _agentverse (AgentverseConfig): Agentverse configuration settings.
         _mailbox_client (MailboxClient): The client for interacting with the agentverse mailbox.
         _ledger: The client for interacting with the blockchain ledger.
         _almanac_contract: The almanac contract for registering agent addresses to endpoints.
@@ -250,8 +257,7 @@ class Agent(Sink):
         identifier (str): The Agent Identifier, including network prefix and address.
         wallet (LocalWallet): The agent's wallet for transacting on the ledger.
         storage (KeyValueStore): The key-value store for storage operations.
-        mailbox (Dict[str, str]): The mailbox configuration for the agent.
-        agentverse (Dict[str, str]): The agentverse configuration for the agent.
+        agentverse (AgentverseConfig): The agentverse configuration for the agent.
         mailbox_client (MailboxClient): The client for interacting with the agentverse mailbox.
         protocols (Dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
         corresponding protocols.
@@ -266,7 +272,8 @@ class Agent(Sink):
         seed: Optional[str] = None,
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
         agentverse: Optional[Union[str, Dict[str, str]]] = None,
-        mailbox: Optional[Union[str, Dict[str, str]]] = None,
+        mailbox: bool = False,
+        proxy: bool = False,
         resolve: Optional[Resolver] = None,
         registration_policy: Optional[AgentRegistrationPolicy] = None,
         enable_wallet_messaging: Union[bool, Dict[str, str]] = False,
@@ -288,7 +295,8 @@ class Agent(Sink):
             seed (Optional[str]): The seed for generating keys.
             endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration.
             agentverse (Optional[Union[str, Dict[str, str]]]): The agentverse configuration.
-            mailbox (Optional[Union[str, Dict[str, str]]]): The mailbox configuration.
+            mailbox (bool): True if the agent will receive messages via an Agentverse mailbox.
+            proxy (bool): True if the agent will receive messages via an Agentverse proxy endpoint.
             resolve (Optional[Resolver]): The resolver to use for agent communication.
             enable_wallet_messaging (Optional[Union[bool, Dict[str, str]]]): Whether to enable
             wallet messaging. If '{"chain_id": CHAIN_ID}' is provided, this sets the chain ID for
@@ -312,34 +320,22 @@ class Agent(Sink):
         self._initialize_wallet_and_identity(seed, name, wallet_key_derivation_index)
         self._logger = get_logger(self.name, level=log_level)
 
-        # configure endpoints and mailbox
-        self._endpoints = parse_endpoint_config(endpoint)
-        self._use_mailbox = False
-
-        if mailbox:
-            # agentverse config overrides mailbox config
-            # but mailbox is kept for backwards compatibility
-            if agentverse:
-                self._logger.warning(
-                    "Ignoring the provided 'mailbox' configuration since 'agentverse' overrides it"
-                )
-            else:
-                agentverse = mailbox
         self._agentverse = parse_agentverse_config(agentverse)
-        self._use_mailbox = self._agentverse["use_mailbox"]
+
+        # configure endpoints and mailbox
+        self._endpoints = parse_endpoint_config(
+            endpoint, self._agentverse, mailbox, proxy, self._logger
+        )
+
+        self._use_mailbox = is_mailbox_agent(self._endpoints, self._agentverse)
         if self._use_mailbox:
-            self._mailbox_client = MailboxClient(self, self._logger)
-            # if mailbox is provided, override endpoints with mailbox endpoint
-            self._endpoints = [
-                AgentEndpoint(
-                    url=f"{self.mailbox['http_prefix']}://{self.mailbox['base_url']}/v1/submit",
-                    weight=1,
-                )
-            ]
+            self._mailbox_client = MailboxClient(
+                self._identity, self._agentverse, self._logger
+            )
         else:
             self._mailbox_client = None
 
-        self._almanac_api_url = f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/v1/almanac"
+        self._almanac_api_url = f"{self._agentverse.url}/v1/almanac"
         self._resolver = resolve or GlobalResolver(
             max_endpoints=max_resolver_endpoints,
             almanac_api_url=self._almanac_api_url,
@@ -416,6 +412,12 @@ class Agent(Sink):
             @self.on_rest_get("/messages", EnvelopeHistory)  # type: ignore
             async def _handle_get_messages(_ctx: Context):
                 return self._message_cache
+
+            @self.on_rest_post("/prove", AgentverseConnectRequest, RegistrationResponse)
+            async def _handle_prove(_ctx: Context, token: AgentverseConnectRequest):
+                return await register_in_agentverse(
+                    token, self._identity, self._endpoints, self._agentverse
+                )
 
         self._enable_agent_inspector = enable_agent_inspector
 
@@ -597,18 +599,7 @@ class Agent(Sink):
         return self._storage
 
     @property
-    def mailbox(self) -> Dict[str, str]:
-        """
-        Get the mailbox configuration of the agent.
-        Agentverse overrides it but mailbox is kept for backwards compatibility.
-
-        Returns:
-            Dict[str, str]: The mailbox configuration.
-        """
-        return self._agentverse
-
-    @property
-    def agentverse(self) -> Dict[str, str]:
+    def agentverse(self) -> AgentverseConfig:
         """
         Get the agentverse configuration of the agent.
 
@@ -662,17 +653,6 @@ class Agent(Sink):
             Dict[str, Any]: The metadata associated with the agent.
         """
         return self._metadata
-
-    @mailbox.setter
-    def mailbox(self, config: Union[str, Dict[str, str]]):
-        """
-        Set the mailbox configuration for the agent.
-        Agentverse overrides it but mailbox is kept for backwards compatibility.
-
-        Args:
-            config (Union[str, Dict[str, str]]): The new mailbox configuration.
-        """
-        self._agentverse = parse_agentverse_config(config)
 
     @agentverse.setter
     def agentverse(self, config: Union[str, Dict[str, str]]):
@@ -920,7 +900,7 @@ class Agent(Sink):
             return lambda func: func
 
         def decorator_on_rest(func: RestHandler):
-            @functools.wraps(RestGetHandler if method == "GET" else RestPostHandler)
+            @functools.wraps(RestGetHandler if method == "GET" else RestPostHandler)  # type: ignore
             def handler(*args, **kwargs):
                 return func(*args, **kwargs)
 
@@ -1028,8 +1008,7 @@ class Agent(Sink):
         """
         try:
             resp = requests.post(
-                f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}"
-                + "/v1/almanac/manifests",
+                f"{self._agentverse.url}/v1/almanac/manifests",
                 json=manifest,
                 timeout=5,
             )
@@ -1085,6 +1064,7 @@ class Agent(Sink):
         Perform startup actions.
 
         """
+        self._logger.info(f"Starting agent with address: {self.address}")
         if self._registration_policy:
             if self._endpoints:
                 self.start_registration_loop()
@@ -1184,10 +1164,7 @@ class Agent(Sink):
 
         """
         if self._enable_agent_inspector:
-            agentverse_url = (
-                f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}"
-            )
-            inspector_url = f"{agentverse_url}/inspect/"
+            inspector_url = f"{self._agentverse.url}/inspect/"
             escaped_uri = requests.utils.quote(f"http://127.0.0.1:{self._port}")
             self._logger.info(
                 f"Agent inspector available at {inspector_url}"
@@ -1359,7 +1336,7 @@ class Bureau:
         response Futures.
         _logger (Logger): The logger instance.
         _server (ASGIServer): The ASGI server instance for handling requests.
-        _agentverse (Dict[str, str]): The agentverse configuration for the bureau.
+        _agentverse (AgentverseConfig): The agentverse configuration for the bureau.
         _use_mailbox (bool): A flag indicating whether mailbox functionality is enabled for any
         of the agents.
         _registration_policy (AgentRegistrationPolicy): The registration policy for the bureau.
@@ -1398,7 +1375,6 @@ class Bureau:
         """
         self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
         self._agents: List[Agent] = []
-        self._endpoints = parse_endpoint_config(endpoint)
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
         self._logger = get_logger("bureau", log_level)
@@ -1409,8 +1385,15 @@ class Bureau:
             logger=self._logger,
         )
         self._agentverse = parse_agentverse_config(agentverse)
-        self._use_mailbox = self._agentverse["use_mailbox"]
-        almanac_api_url = f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/v1/almanac"
+        self._endpoints = parse_endpoint_config(
+            endpoint, self._agentverse, False, False, self._logger
+        )
+        self._use_mailbox = any(
+            [
+                is_mailbox_agent(agent._endpoints, self._agentverse)
+                for agent in self._agents
+            ]
+        )
         almanac_contract = get_almanac_contract(test)
 
         if wallet and seed:
@@ -1440,7 +1423,7 @@ class Bureau:
                 almanac_contract,
                 test,
                 logger=self._logger,
-                almanac_api=almanac_api_url,
+                almanac_api=f"{self._agentverse.url}/v1/almanac",
             )
 
         if agents is not None:
@@ -1457,7 +1440,7 @@ class Bureau:
         """
         agent.update_loop(self._loop)
         agent.update_queries(self._queries)
-        if agent.agentverse["use_mailbox"]:
+        if is_mailbox_agent(agent._endpoints, self._agentverse):
             self._use_mailbox = True
         else:
             if agent._endpoints:
@@ -1534,7 +1517,10 @@ class Bureau:
             return
         for agent in self._agents:
             await agent.setup()
-            if agent.agentverse["use_mailbox"] and agent.mailbox_client is not None:
+            if (
+                is_mailbox_agent(agent._endpoints, self._agentverse)
+                and agent.mailbox_client is not None
+            ):
                 tasks.append(agent.mailbox_client.run())
         self._loop.create_task(self._schedule_registration())
 
