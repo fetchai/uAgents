@@ -442,6 +442,7 @@ class Agent(Sink):
             interval_messages=self._interval_messages,
             wallet_messaging_client=self._wallet_messaging_client,
             logger=self._logger,
+            models=self._models,
         )
 
     def _initialize_wallet_and_identity(self, seed, name, wallet_key_derivation_index):
