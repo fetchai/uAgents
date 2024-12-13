@@ -29,6 +29,7 @@ from uagents.config import (
     MAINNET_CONTRACT_NAME_SERVICE,
     REGISTRATION_DENOM,
     REGISTRATION_FEE,
+    TESTNET_CHAINID,
     TESTNET_CONTRACT_ALMANAC,
     TESTNET_CONTRACT_NAME_SERVICE,
 )
@@ -724,7 +725,7 @@ class NameServiceContract(LedgerContract):
             wallet.address(),
             records,
             domain,
-            chain_id == "dorado-1",
+            chain_id == TESTNET_CHAINID,
         )
 
         if transaction is None:
