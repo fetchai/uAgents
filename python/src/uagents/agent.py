@@ -422,13 +422,16 @@ class Agent(Sink):
 
             @self.on_rest_post("/prove", AgentverseConnectRequest, RegistrationResponse)
             async def _handle_prove(_ctx: Context, request: AgentverseConnectRequest):
-                if publish_agent_details:
-                    agent_details = AgentUpdates(
+                agent_details = (
+                    AgentUpdates(
                         name=self.name,
                         readme=self._readme,
                         avatar_url=self._avatar_url,
                         agent_type=request.agent_type,
                     )
+                    if publish_agent_details
+                    else None
+                )
                 return await register_in_agentverse(
                     request,
                     self._identity,
