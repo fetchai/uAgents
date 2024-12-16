@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Literal, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel
 
@@ -47,13 +47,10 @@ DEFAULT_MAX_ENDPOINTS = 10
 DEFAULT_SEARCH_LIMIT = 100
 
 
-AgentType = Literal["hosted", "local", "mailbox", "proxy", "custom"]
-
-
 class AgentverseConfig(BaseModel):
-    base_url: str
-    protocol: str
-    http_prefix: str
+    base_url: str = AGENTVERSE_URL
+    protocol: str = "https"
+    http_prefix: str = "https"
 
     @property
     def url(self) -> str:

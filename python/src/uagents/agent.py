@@ -41,6 +41,7 @@ from uagents.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents.dispatch import Sink, dispatcher
 from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
 from uagents.mailbox import (
+    AgentUpdates,
     AgentverseConnectRequest,
     MailboxClient,
     RegistrationResponse,
@@ -285,6 +286,9 @@ class Agent(Sink):
         log_level: Union[int, str] = logging.INFO,
         enable_agent_inspector: bool = True,
         metadata: Optional[Dict[str, Any]] = None,
+        readme_path: Optional[str] = None,
+        avatar_url: Optional[str] = None,
+        publish_agent_details: bool = False,
     ):
         """
         Initialize an Agent instance.
@@ -373,6 +377,10 @@ class Agent(Sink):
                 almanac_api=self._almanac_api_url,
             )
         self._metadata = self._initialize_metadata(metadata)
+        if readme_path:
+            with open(readme_path, "r") as f:
+                self._readme = f.read()
+        self._avatar_url = avatar_url
 
         self.initialize_wallet_messaging(enable_wallet_messaging)
 
@@ -413,9 +421,20 @@ class Agent(Sink):
                 return self._message_cache
 
             @self.on_rest_post("/prove", AgentverseConnectRequest, RegistrationResponse)
-            async def _handle_prove(_ctx: Context, token: AgentverseConnectRequest):
+            async def _handle_prove(_ctx: Context, request: AgentverseConnectRequest):
+                if publish_agent_details:
+                    agent_details = AgentUpdates(
+                        name=self.name,
+                        readme=self._readme,
+                        avatar_url=self._avatar_url,
+                        agent_type=request.agent_type,
+                    )
                 return await register_in_agentverse(
-                    token, self._identity, self._endpoints, self._agentverse
+                    request,
+                    self._identity,
+                    self._endpoints,
+                    self._agentverse,
+                    agent_details,
                 )
 
         self._enable_agent_inspector = enable_agent_inspector
