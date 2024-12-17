@@ -251,6 +251,8 @@ class Agent(Sink):
         _test (bool): True if the agent will register and transact on the testnet.
         _enable_agent_inspector (bool): Enable the agent inspector REST endpoints.
         _metadata (Dict[str, Any]): Metadata associated with the agent.
+        _readme (Optional[str]): The agent's README file.
+        _avatar_url (Optional[str]): The URL for the agent's avatar image on Agentverse.
 
     Properties:
         name (str): The name of the agent.
@@ -313,6 +315,10 @@ class Agent(Sink):
             log_level (Union[int, str]): The logging level for the agent.
             enable_agent_inspector (bool): Enable the agent inspector for debugging.
             metadata (Optional[Dict[str, Any]]): Optional metadata to include in the agent object.
+            readme_path (Optional[str]): The path to the agent's README file.
+            avatar_url (Optional[str]): The URL for the agent's avatar image on Agentverse.
+            publish_agent_details (bool): Publish agent details to Agentverse on connection via
+            local agent inspector.
         """
         self._init_done = False
         self._name = name

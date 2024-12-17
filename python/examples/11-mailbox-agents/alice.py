@@ -6,7 +6,7 @@ class Message(Model):
 
 
 # Now your agent is ready to join the agentverse!
-agent = Agent(name="alice", port=8008, mailbox=True)
+agent = Agent(name="alice", mailbox=True)
 
 
 @agent.on_message(model=Message, replies=Message)

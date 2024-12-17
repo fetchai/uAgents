@@ -147,14 +147,17 @@ async def register_in_agentverse(
             },
         ) as resp:
             if resp.status == 409:
-                logger.exception("Agent is already registered in Agentverse.")
-                return RegistrationResponse(success=False)
-            resp.raise_for_status()
-            registration_response = RegistrationResponse.parse_raw(await resp.text())
-            if registration_response.success:
-                logger.info(
-                    f"Successfully registered as {request.agent_type} agent in Agentverse"
+                logger.info("Agent is already registered in Agentverse.")
+                registration_response = RegistrationResponse(success=False)
+            else:
+                resp.raise_for_status()
+                registration_response = RegistrationResponse.parse_raw(
+                    await resp.text()
                 )
+                if registration_response.success:
+                    logger.info(
+                        f"Successfully registered as {request.agent_type} agent in Agentverse"
+                    )
 
     if agent_details:
         await update_agent_details(
