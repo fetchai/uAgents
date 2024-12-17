@@ -392,7 +392,6 @@ class Agent(Sink):
                 self._readme = f.read()
         else:
             self._readme = None
-        print(self._readme)
         self._avatar_url = avatar_url
 
         self.initialize_wallet_messaging(enable_wallet_messaging)
