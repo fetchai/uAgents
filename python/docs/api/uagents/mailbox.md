@@ -38,9 +38,11 @@ Check if the agent is a proxy agent.
 
 ```python
 async def register_in_agentverse(
-        request: AgentverseConnectRequest, identity: Identity,
+        request: AgentverseConnectRequest,
+        identity: Identity,
         endpoints: list[AgentEndpoint],
-        agentverse: AgentverseConfig) -> RegistrationResponse
+        agentverse: AgentverseConfig,
+        agent_details: Optional[AgentUpdates] = None) -> RegistrationResponse
 ```
 
 Registers agent in Agentverse
@@ -56,6 +58,26 @@ Registers agent in Agentverse
 **Returns**:
 
 - `RegistrationResponse` - Registration
+
+<a id="src.uagents.mailbox.update_agent_details"></a>
+
+#### update`_`agent`_`details
+
+```python
+async def update_agent_details(user_token: str,
+                               agent_address: str,
+                               agent_details: AgentUpdates,
+                               agentverse: Optional[AgentverseConfig] = None)
+```
+
+Updates agent details in Agentverse.
+
+**Arguments**:
+
+- `user_token` _str_ - User token
+- `agent_address` _str_ - Agent address
+- `agent_details` _AgentUpdates_ - Agent details
+- `agentverse` _Optional[AgentverseConfig]_ - Agentverse configuration
 
 <a id="src.uagents.mailbox.MailboxClient"></a>
 
