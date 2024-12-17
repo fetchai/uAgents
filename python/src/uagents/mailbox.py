@@ -193,6 +193,7 @@ async def update_agent_details(
                 update_url,
                 data=agent_details.model_dump_json(),
                 headers={
+                    "content-type": "application/json",
                     "Authorization": f"token {user_token}",
                 },
             ) as resp:
