@@ -4,6 +4,7 @@ import asyncio
 import contextlib
 import functools
 import logging
+import os
 import uuid
 from typing import (
     Any,
@@ -384,8 +385,14 @@ class Agent(Sink):
             )
         self._metadata = self._initialize_metadata(metadata)
         if readme_path:
-            with open(readme_path, "r") as f:
+            path = os.path.join(os.getcwd(), readme_path)
+            if os.path.isdir(readme_path):
+                path = os.path.join(readme_path, "README.md")
+            with open(path) as f:
                 self._readme = f.read()
+        else:
+            self._readme = None
+        print(self._readme)
         self._avatar_url = avatar_url
 
         self.initialize_wallet_messaging(enable_wallet_messaging)
