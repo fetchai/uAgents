@@ -161,6 +161,8 @@ An agent that interacts within a communication environment.
 - `_test` _bool_ - True if the agent will register and transact on the testnet.
 - `_enable_agent_inspector` _bool_ - Enable the agent inspector REST endpoints.
 - `_metadata` _Dict[str, Any]_ - Metadata associated with the agent.
+- `_readme` _Optional[str]_ - The agent's README file.
+- `_avatar_url` _Optional[str]_ - The URL for the agent's avatar image on Agentverse.
   
   Properties:
 - `name` _str_ - The name of the agent.
@@ -196,7 +198,10 @@ def __init__(name: Optional[str] = None,
              loop: Optional[asyncio.AbstractEventLoop] = None,
              log_level: Union[int, str] = logging.INFO,
              enable_agent_inspector: bool = True,
-             metadata: Optional[Dict[str, Any]] = None)
+             metadata: Optional[Dict[str, Any]] = None,
+             readme_path: Optional[str] = None,
+             avatar_url: Optional[str] = None,
+             publish_agent_details: bool = False)
 ```
 
 Initialize an Agent instance.
@@ -222,6 +227,10 @@ Initialize an Agent instance.
 - `log_level` _Union[int, str]_ - The logging level for the agent.
 - `enable_agent_inspector` _bool_ - Enable the agent inspector for debugging.
 - `metadata` _Optional[Dict[str, Any]]_ - Optional metadata to include in the agent object.
+- `readme_path` _Optional[str]_ - The path to the agent's README file.
+- `avatar_url` _Optional[str]_ - The URL for the agent's avatar image on Agentverse.
+- `publish_agent_details` _bool_ - Publish agent details to Agentverse on connection via
+  local agent inspector.
 
 <a id="src.uagents.agent.Agent.initialize_wallet_messaging"></a>
 

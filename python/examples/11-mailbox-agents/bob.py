@@ -10,7 +10,7 @@ ALICE_ADDRESS = "paste_alice_address_here"
 
 
 # Now your agent is ready to join the agentverse!
-agent = Agent(name="bob", port=8009, mailbox=True)
+agent = Agent(name="bob", port=8001, mailbox=True)
 
 
 @agent.on_interval(period=2.0)
