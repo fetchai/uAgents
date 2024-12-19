@@ -29,7 +29,7 @@ from uagents.utils import get_logger
 
 HOST = "0.0.0.0"
 
-RESERVED_ENDPOINTS = ["/submit", "/messages", "/agent_info", "/prove"]
+RESERVED_ENDPOINTS = ["/submit", "/messages", "/agent_info", "/connect"]
 
 
 async def _read_asgi_body(receive):
