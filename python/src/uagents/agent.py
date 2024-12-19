@@ -432,8 +432,10 @@ class Agent(Sink):
             async def _handle_get_messages(_ctx: Context):
                 return self._message_cache
 
-            @self.on_rest_post("/prove", AgentverseConnectRequest, RegistrationResponse)
-            async def _handle_prove(_ctx: Context, request: AgentverseConnectRequest):
+            @self.on_rest_post(
+                "/connect", AgentverseConnectRequest, RegistrationResponse
+            )
+            async def _handle_connect(_ctx: Context, request: AgentverseConnectRequest):
                 agent_details = (
                     AgentUpdates(
                         name=self.name,
