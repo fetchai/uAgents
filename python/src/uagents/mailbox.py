@@ -24,6 +24,7 @@ AgentType = Literal["mailbox", "proxy", "custom"]
 class AgentverseConnectRequest(Model):
     user_token: str
     agent_type: AgentType
+    endpoint: Optional[str] = None
 
 
 class ChallengeRequest(BaseModel):
@@ -50,7 +51,7 @@ class RegistrationRequest(BaseModel):
     challenge: str
     challenge_response: str
     agent_type: AgentType
-    endpoints: Optional[list[AgentEndpoint]] = None
+    endpoint: Optional[str] = None
 
 
 class RegistrationResponse(Model):
@@ -83,22 +84,9 @@ def is_mailbox_agent(
     return any([f"{agentverse.url}/v1/submit" in ep.url for ep in endpoints])
 
 
-def is_proxy_agent(
-    endpoints: list[AgentEndpoint], agentverse: AgentverseConfig
-) -> bool:
-    """
-    Check if the agent is a proxy agent.
-
-    Returns:
-        bool: True if the agent is a proxy agent, False otherwise.
-    """
-    return any([f"{agentverse.url}/v1/proxy/submit" in ep.url for ep in endpoints])
-
-
 async def register_in_agentverse(
     request: AgentverseConnectRequest,
     identity: Identity,
-    endpoints: list[AgentEndpoint],
     agentverse: AgentverseConfig,
     agent_details: Optional[AgentUpdates] = None,
 ) -> RegistrationResponse:
@@ -108,8 +96,8 @@ async def register_in_agentverse(
     Args:
         request (AgentverseConnectRequest): Request object
         identity (Identity): Agent identity object
-        endpoints (list[AgentEndpoint]): Endpoints of the agent
         agentverse (AgentverseConfig): Agentverse configuration
+        agent_details (Optional[AgentUpdates]): Agent details (name, readme, avatar_url)
 
     Returns:
         RegistrationResponse: Registration
@@ -138,7 +126,7 @@ async def register_in_agentverse(
                 address=identity.address,
                 challenge=challenge.challenge,
                 challenge_response=identity.sign(challenge.challenge.encode()),
-                endpoints=endpoints,
+                endpoint=request.endpoint,
                 agent_type=request.agent_type,
             ).model_dump_json(),
             headers={
@@ -162,12 +150,6 @@ async def register_in_agentverse(
     if agent_details:
         await update_agent_details(
             request.user_token, identity.address, agent_details, agentverse
-        )
-
-    if request.agent_type == "mailbox" and not is_mailbox_agent(endpoints, agentverse):
-        logger.exception(
-            f"Agent endpoints {endpoints} do not match registered agent type: {request.agent_type}"
-            f"Please restart agent with endpoint='{agentverse.url}/v1/submit'"
         )
 
     return registration_response

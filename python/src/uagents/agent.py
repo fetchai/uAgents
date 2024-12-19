@@ -447,7 +447,6 @@ class Agent(Sink):
                 return await register_in_agentverse(
                     request,
                     self._identity,
-                    self._endpoints,
                     self._agentverse,
                     agent_details,
                 )
