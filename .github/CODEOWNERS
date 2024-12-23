@@ -1,5 +1,5 @@
 # The default code owners of the uagents repo.
-* @jrriehl @Archento @lrahmani
+* @jrriehl @Archento @lrahmani @qati
 
 # Code owner of the integrations folder
 /integrations/ @devjsc
