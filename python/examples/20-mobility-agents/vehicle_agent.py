@@ -1,22 +1,31 @@
+import os
+
 from uagents import Context
 from uagents.experimental.mobility import MobilityAgent as Agent
 from uagents.experimental.mobility.protocols import base_protocol
 from uagents.experimental.search import geosearch_agents_by_proximity
+from uagents.mailbox import (
+    AgentverseConnectRequest,
+    register_in_agentverse,
+)
 from uagents.types import AgentGeolocation
+
+AGENTVERSE_API_KEY = os.getenv("AGENTVERSE_API_KEY")
 
 vehicle_agent = Agent(
     name="My vehicle agent",
-    seed="test vehicle agent #1",
+    seed="test vehicle agent #2",
     mobility_type="vehicle",
     port=8111,
-    endpoint="http://localhost:8111/submit",
+    # endpoint="http://localhost:8111/submit",
     location=AgentGeolocation(
         latitude=52.506926,
         longitude=13.377207,
         radius=20,
     ),
     static_signal="I'm a vehicle agent",
-    # agentverse="https://staging.agentverse.ai"
+    agentverse="https://staging.agentverse.ai",
+    mailbox=True,
 )
 
 
@@ -109,6 +118,14 @@ async def startup(ctx: Context):
         a for a in proximity_agents if a.address != vehicle_agent.address
     ]
     ctx.logger.info(f"There are currently {len(filtered_agents)} agents nearby.")
+
+    av_conn_req = AgentverseConnectRequest(
+        user_token=AGENTVERSE_API_KEY, agent_type="mailbox"
+    )
+
+    await register_in_agentverse(
+        av_conn_req, vehicle_agent._identity, vehicle_agent.agentverse
+    )
 
 
 if __name__ == "__main__":
