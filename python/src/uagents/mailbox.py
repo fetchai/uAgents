@@ -1,13 +1,13 @@
 import asyncio
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Annotated, Literal, Optional
 
 import aiohttp
 from aiohttp.client_exceptions import ClientConnectorError
-from pydantic import UUID4, BaseModel, ValidationError
+from pydantic import UUID4, BaseModel, StringConstraints, ValidationError
 
-from uagents.config import MAILBOX_POLL_INTERVAL_SECONDS, AgentType, AgentverseConfig
+from uagents.config import MAILBOX_POLL_INTERVAL_SECONDS, AgentverseConfig
 from uagents.crypto import Identity, is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
@@ -18,9 +18,13 @@ from uagents.utils import get_logger
 logger = get_logger("mailbox")
 
 
+AgentType = Literal["mailbox", "proxy", "custom"]
+
+
 class AgentverseConnectRequest(Model):
     user_token: str
     agent_type: AgentType
+    endpoint: Optional[str] = None
 
 
 class ChallengeRequest(BaseModel):
@@ -47,11 +51,18 @@ class RegistrationRequest(BaseModel):
     challenge: str
     challenge_response: str
     agent_type: AgentType
-    endpoints: Optional[list[AgentEndpoint]] = None
+    endpoint: Optional[str] = None
 
 
 class RegistrationResponse(Model):
     success: bool
+
+
+class AgentUpdates(BaseModel):
+    name: Annotated[str, StringConstraints(min_length=1, max_length=80)]
+    readme: Optional[Annotated[str, StringConstraints(max_length=80000)]] = None
+    avatar_url: Optional[Annotated[str, StringConstraints(max_length=4000)]] = None
+    agent_type: Optional[AgentType] = "mailbox"
 
 
 class StoredEnvelope(BaseModel):
@@ -73,23 +84,11 @@ def is_mailbox_agent(
     return any([f"{agentverse.url}/v1/submit" in ep.url for ep in endpoints])
 
 
-def is_proxy_agent(
-    endpoints: list[AgentEndpoint], agentverse: AgentverseConfig
-) -> bool:
-    """
-    Check if the agent is a proxy agent.
-
-    Returns:
-        bool: True if the agent is a proxy agent, False otherwise.
-    """
-    return any([f"{agentverse.url}/v1/proxy/submit" in ep.url for ep in endpoints])
-
-
 async def register_in_agentverse(
     request: AgentverseConnectRequest,
     identity: Identity,
-    endpoints: list[AgentEndpoint],
     agentverse: AgentverseConfig,
+    agent_details: Optional[AgentUpdates] = None,
 ) -> RegistrationResponse:
     """
     Registers agent in Agentverse
@@ -97,8 +96,8 @@ async def register_in_agentverse(
     Args:
         request (AgentverseConnectRequest): Request object
         identity (Identity): Agent identity object
-        endpoints (list[AgentEndpoint]): Endpoints of the agent
         agentverse (AgentverseConfig): Agentverse configuration
+        agent_details (Optional[AgentUpdates]): Agent details (name, readme, avatar_url)
 
     Returns:
         RegistrationResponse: Registration
@@ -127,7 +126,7 @@ async def register_in_agentverse(
                 address=identity.address,
                 challenge=challenge.challenge,
                 challenge_response=identity.sign(challenge.challenge.encode()),
-                endpoints=endpoints,
+                endpoint=request.endpoint,
                 agent_type=request.agent_type,
             ).model_dump_json(),
             headers={
@@ -136,22 +135,57 @@ async def register_in_agentverse(
             },
         ) as resp:
             if resp.status == 409:
-                logger.exception("Agent is already registered in Agentverse.")
-                return RegistrationResponse(success=False)
-            resp.raise_for_status()
-            registration_response = RegistrationResponse.parse_raw(await resp.text())
-            if registration_response.success:
-                logger.info(
-                    f"Successfully registered as {request.agent_type} agent in Agentverse"
+                logger.info("Agent is already registered in Agentverse.")
+                registration_response = RegistrationResponse(success=False)
+            else:
+                resp.raise_for_status()
+                registration_response = RegistrationResponse.parse_raw(
+                    await resp.text()
                 )
+                if registration_response.success:
+                    logger.info(
+                        f"Successfully registered as {request.agent_type} agent in Agentverse"
+                    )
 
-    if request.agent_type == "mailbox" and not is_mailbox_agent(endpoints, agentverse):
-        logger.exception(
-            f"Agent endpoints {endpoints} do not match registered agent type: {request.agent_type}"
-            f"Please restart agent with endpoint='{agentverse.url}/v1/submit'"
+    if agent_details:
+        await update_agent_details(
+            request.user_token, identity.address, agent_details, agentverse
         )
 
     return registration_response
+
+
+async def update_agent_details(
+    user_token: str,
+    agent_address: str,
+    agent_details: AgentUpdates,
+    agentverse: Optional[AgentverseConfig] = None,
+):
+    """
+    Updates agent details in Agentverse.
+
+    Args:
+        user_token (str): User token
+        agent_address (str): Agent address
+        agent_details (AgentUpdates): Agent details
+        agentverse (Optional[AgentverseConfig]): Agentverse configuration
+    """
+    agentverse = agentverse or AgentverseConfig()
+    try:
+        async with aiohttp.ClientSession() as session:
+            update_url = f"{agentverse.url}/v1/agents/{agent_address}"
+            async with session.put(
+                update_url,
+                data=agent_details.model_dump_json(),
+                headers={
+                    "content-type": "application/json",
+                    "Authorization": f"Bearer {user_token}",
+                },
+            ) as resp:
+                resp.raise_for_status()
+                logger.info("Agent details updated in Agentverse")
+    except Exception as ex:
+        logger.warning(f"Failed to update agent details: {ex}")
 
 
 class MailboxClient:
@@ -205,7 +239,7 @@ class MailboxClient:
                                 "Access token expired: a new one should be retrieved automatically"
                             )
                         else:
-                            self._logger.exception(
+                            self._logger.debug(
                                 f"Failed to retrieve messages: {resp.status}:{(await resp.text())}"
                             )
             except ClientConnectorError as ex:

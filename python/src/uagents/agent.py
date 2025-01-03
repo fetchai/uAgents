@@ -4,6 +4,7 @@ import asyncio
 import contextlib
 import functools
 import logging
+import os
 import uuid
 from typing import (
     Any,
@@ -41,6 +42,7 @@ from uagents.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents.dispatch import Sink, dispatcher
 from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
 from uagents.mailbox import (
+    AgentUpdates,
     AgentverseConnectRequest,
     MailboxClient,
     RegistrationResponse,
@@ -250,6 +252,8 @@ class Agent(Sink):
         _test (bool): True if the agent will register and transact on the testnet.
         _enable_agent_inspector (bool): Enable the agent inspector REST endpoints.
         _metadata (Dict[str, Any]): Metadata associated with the agent.
+        _readme (Optional[str]): The agent's README file.
+        _avatar_url (Optional[str]): The URL for the agent's avatar image on Agentverse.
 
     Properties:
         name (str): The name of the agent.
@@ -285,6 +289,9 @@ class Agent(Sink):
         log_level: Union[int, str] = logging.INFO,
         enable_agent_inspector: bool = True,
         metadata: Optional[Dict[str, Any]] = None,
+        readme_path: Optional[str] = None,
+        avatar_url: Optional[str] = None,
+        publish_agent_details: bool = False,
     ):
         """
         Initialize an Agent instance.
@@ -309,6 +316,10 @@ class Agent(Sink):
             log_level (Union[int, str]): The logging level for the agent.
             enable_agent_inspector (bool): Enable the agent inspector for debugging.
             metadata (Optional[Dict[str, Any]]): Optional metadata to include in the agent object.
+            readme_path (Optional[str]): The path to the agent's README file.
+            avatar_url (Optional[str]): The URL for the agent's avatar image on Agentverse.
+            publish_agent_details (bool): Publish agent details to Agentverse on connection via
+            local agent inspector.
         """
         self._init_done = False
         self._name = name
@@ -373,6 +384,15 @@ class Agent(Sink):
                 almanac_api=self._almanac_api_url,
             )
         self._metadata = self._initialize_metadata(metadata)
+        if readme_path:
+            path = os.path.join(os.getcwd(), readme_path)
+            if os.path.isdir(readme_path):
+                path = os.path.join(readme_path, "README.md")
+            with open(path) as f:
+                self._readme = f.read()
+        else:
+            self._readme = None
+        self._avatar_url = avatar_url
 
         self.initialize_wallet_messaging(enable_wallet_messaging)
 
@@ -413,10 +433,25 @@ class Agent(Sink):
             async def _handle_get_messages(_ctx: Context):
                 return self._message_cache
 
-            @self.on_rest_post("/prove", AgentverseConnectRequest, RegistrationResponse)
-            async def _handle_prove(_ctx: Context, token: AgentverseConnectRequest):
+            @self.on_rest_post(
+                "/connect", AgentverseConnectRequest, RegistrationResponse
+            )
+            async def _handle_connect(_ctx: Context, request: AgentverseConnectRequest):
+                agent_details = (
+                    AgentUpdates(
+                        name=self.name,
+                        readme=self._readme,
+                        avatar_url=self._avatar_url,
+                        agent_type=request.agent_type,
+                    )
+                    if publish_agent_details
+                    else None
+                )
                 return await register_in_agentverse(
-                    token, self._identity, self._endpoints, self._agentverse
+                    request,
+                    self._identity,
+                    self._agentverse,
+                    agent_details,
                 )
 
         self._enable_agent_inspector = enable_agent_inspector
