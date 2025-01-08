@@ -36,9 +36,9 @@ def lookup_endpoint_for_agent(agent_address: str, *, agentverse_url: Optional[st
     return r.json()["endpoints"][0]["url"]
 
 
-def send_message_to_agent(
+def send_message_dict(
     sender: Identity,
-    target: str,
+    destination: str,
     payload: Any,
     protocol_digest: str,
     model_digest: str,
@@ -47,21 +47,26 @@ def send_message_to_agent(
     agentverse_url: Optional[str] = None,
 ):
     """
-    Send a message to an agent.
-    :param session: The unique identifier for the dialogue between two agents
-    :param sender: The identity of the sender.
-    :param target: The address of the target agent.
-    :param protocol_digest: The digest of the protocol that is being used
-    :param model_digest: The digest of the model that is being used
-    :param payload: The payload of the message.
-    :return:
+    Send a message (dict) to an agent.
+
+    Args:
+        sender (Identity): The identity of the sender.
+        destination (str): The address of the target agent.
+        payload (Any): The payload of the message.
+        protocol_digest (str): The digest of the protocol that is being used
+        model_digest (str): The digest of the model that is being used
+        session (UUID): The unique identifier for the dialogue between two agents
+        agentverse_url (Optional[str]): The URL of the agentverse API
+    
+    Returns:
+        None
     """
     json_payload = json.dumps(payload, separators=(",", ":"))
 
     env = Envelope(
         version=1,
         sender=sender.address,
-        target=target,
+        target=destination,
         session=session,
         schema_digest=model_digest,
         protocol_digest=protocol_digest,
@@ -72,11 +77,11 @@ def send_message_to_agent(
 
     logger.debug("Sending message to agent", extra={"envelope": env.model_dump()})
 
-    # query the almanac to lookup the target agent
-    endpoint = lookup_endpoint_for_agent(target, agentverse_url=agentverse_url)
+    # query the almanac to lookup the destination agent
+    endpoint = lookup_endpoint_for_agent(destination, agentverse_url=agentverse_url)
 
-    # send the envelope to the target agent
-    request_meta = {"agent_address": target, "agent_endpoint": endpoint}
+    # send the envelope to the destination agent
+    request_meta = {"agent_address": destination, "agent_endpoint": endpoint}
     logger.debug("Sending message to agent", extra=request_meta)
     r = requests.post(
         endpoint,

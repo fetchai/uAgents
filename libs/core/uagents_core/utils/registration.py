@@ -12,7 +12,7 @@ from uagents_core.types import AgentEndpoint, AgentType
 from uagents_core.config import (
     DEFAULT_AGENTVERSE_URL,
     DEFAULT_ALMANAC_API_PATH,
-    DEFAULT_MAILBOX_API_PATH,
+    DEFAULT_REGISTRATION_PATH,
     DEFAULT_CHALLENGE_PATH,
 )
 from uagents_core.logger import get_logger
@@ -83,7 +83,7 @@ class AgentUpdates(BaseModel):
     agent_type: Optional[AgentType] = "custom"
 
 
-def register_with_agentverse(
+def register_in_agentverse(
     identity: Identity,
     url: str,
     agentverse_token: str,
@@ -96,18 +96,23 @@ def register_with_agentverse(
 ):
     """
     Register the agent with the Agentverse API.
-    :param identity: The identity of the agent.
-    :param url: The URL endpoint for the agent
-    :param protocol_digest: The digest of the protocol that the agent supports
-    :param agentverse_token: The token to use to authenticate with the Agentverse API
-    :param agent_title: The title of the agent
-    :param readme: The readme for the agent
-    :param agentverse_url: The URL of agentverse (if different from the default)
-    :return:
+
+    Args:
+        identity (Identity): The identity of the agent.
+        url (str): The URL endpoint for the agent
+        agentverse_token (str): The token to use to authenticate with the Agentverse API
+        agent_title (str): The title of the agent
+        readme (str): The readme for the agent
+        protocol_digest (str): The digest of the protocol that the agent supports
+        agentverse_url (Optional[str]): The URL of agentverse (if different from the default)
+        agent_type (AgentType): The type of agent to register as
+
+    Returns:
+        None
     """
     agentverse_url = agentverse_url or DEFAULT_AGENTVERSE_URL
     almanac_api = urllib.parse.urljoin(agentverse_url, DEFAULT_ALMANAC_API_PATH)
-    mailbox_api = urllib.parse.urljoin(agentverse_url, DEFAULT_MAILBOX_API_PATH)
+    registration_api = urllib.parse.urljoin(agentverse_url, DEFAULT_REGISTRATION_PATH)
     challenge_api = urllib.parse.urljoin(agentverse_url, DEFAULT_CHALLENGE_PATH)
 
     agent_address = identity.address
@@ -150,7 +155,7 @@ def register_with_agentverse(
 
     # check to see if the agent exists
     r = requests.get(
-        f"{mailbox_api}/{agent_address}",
+        f"{registration_api}/{agent_address}",
         headers={
             "content-type": "application/json",
             "authorization": f"Bearer {agentverse_token}",
@@ -187,7 +192,7 @@ def register_with_agentverse(
             agent_type=agent_type,
         ).model_dump_json()
         r = requests.post(
-            mailbox_api,
+            registration_api,
             headers={
                 "content-type": "application/json",
                 "authorization": f"Bearer {agentverse_token}",
@@ -215,7 +220,7 @@ def register_with_agentverse(
     )
     update = AgentUpdates(name=agent_title, readme=readme)
     r = requests.put(
-        f"{mailbox_api}/{agent_address}",
+        f"{registration_api}/{agent_address}",
         headers={
             "content-type": "application/json",
             "authorization": f"Bearer {agentverse_token}",
