@@ -10,7 +10,7 @@ import aiohttp
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
-from pydantic import BaseModel
+from pydantic import AliasChoices, BaseModel, Field
 
 from uagents.config import (
     ALMANAC_API_MAX_RETRIES,
@@ -33,7 +33,9 @@ from uagents.types import AgentEndpoint, AgentInfo
 
 
 class VerifiableModel(BaseModel):
-    agent_identifier: str
+    agent_identifier: str = Field(
+        validation_alias=AliasChoices("agent_identifier", "agent_address")
+    )
     signature: Optional[str] = None
     timestamp: Optional[int] = None
 

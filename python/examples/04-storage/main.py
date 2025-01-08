@@ -1,6 +1,6 @@
 from uagents import Agent, Context
 
-agent = Agent(name="bob", endpoint="test", agentverse="http://localhost:8001")
+agent = Agent(name="bob")
 
 
 @agent.on_event("startup")
