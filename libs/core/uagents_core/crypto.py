@@ -20,6 +20,10 @@ def _encode_bech32(prefix: str, value: bytes) -> str:
     return bech32.bech32_encode(prefix, value_base5)
 
 
+def is_user_address(address: str) -> bool:
+    return address[0 : len(USER_PREFIX)] == USER_PREFIX
+
+
 def _key_derivation_hash(prefix: str, index: int) -> bytes:
     hasher = hashlib.sha256()
     hasher.update(prefix.encode())
@@ -101,10 +105,6 @@ class Identity:
 
         return Identity(signing_key)
 
-    @property
-    def public_key(self) -> str:
-        return self._pub_key
-
     # this is not the real private key but a signing key derived from the private key
     @property
     def private_key(self) -> str:
@@ -116,9 +116,17 @@ class Identity:
         """Property to access the address of the identity."""
         return self._address
 
+    @property
+    def pub_key(self) -> str:
+        return self._pub_key
+
     def sign(self, data: bytes) -> str:
         """Sign the provided data."""
         return _encode_bech32("sig", self._sk.sign(data))
+
+    def sign_b64(self, data: bytes) -> str:
+        raw_signature = bytes(self._sk.sign(data, sigencode=sigencode_string_canonize))
+        return base64.b64encode(raw_signature).decode()
 
     def sign_digest(self, digest: bytes) -> str:
         """Sign the provided digest."""

@@ -1,70 +1,18 @@
-import base64
-import hashlib
 import json
-import struct
 from typing import Optional, Any
 from uuid import uuid4, UUID
-from dataclasses import dataclass
 
 import requests
-from pydantic import BaseModel, UUID4
 import urllib.parse
 
 from uagents_core.crypto import Identity
+from uagents_core.envelope import Envelope
 from uagents_core.config import DEFAULT_AGENTVERSE_URL, DEFAULT_ALMANAC_API_PATH
-from uagents_core.utils import get_logger
+from uagents_core.logger import get_logger
 
 
-JsonStr = str
 
-logger = get_logger("uagents_core.communication")
-
-
-class Envelope(BaseModel):
-    version: int
-    sender: str
-    target: str
-    session: UUID4
-    schema_digest: str
-    protocol_digest: str
-    payload: Optional[str] = None
-    expires: Optional[int] = None
-    nonce: Optional[int] = None
-    signature: Optional[str] = None
-
-    def encode_payload(self, value: JsonStr):
-        self.payload = base64.b64encode(value.encode()).decode()
-
-    def decode_payload(self) -> str:
-        if self.payload is None:
-            return ""
-
-        return base64.b64decode(self.payload).decode()
-
-    def sign(self, identity: Identity):
-        try:
-            self.signature = identity.sign_digest(self._digest())
-        except Exception as err:
-            raise ValueError(f"Failed to sign envelope: {err}") from err
-
-    def verify(self) -> bool:
-        if self.signature is None:
-            raise ValueError("Envelope signature is missing")
-        return Identity.verify_digest(self.sender, self._digest(), self.signature)
-
-    def _digest(self) -> bytes:
-        hasher = hashlib.sha256()
-        hasher.update(self.sender.encode())
-        hasher.update(self.target.encode())
-        hasher.update(str(self.session).encode())
-        hasher.update(self.schema_digest.encode())
-        if self.payload is not None:
-            hasher.update(self.payload.encode())
-        if self.expires is not None:
-            hasher.update(struct.pack(">Q", self.expires))
-        if self.nonce is not None:
-            hasher.update(struct.pack(">Q", self.nonce))
-        return hasher.digest()
+logger = get_logger("uagents_core.utils.communication")
 
 
 def lookup_endpoint_for_agent(agent_address: str, *, agentverse_url: Optional[str] = None) -> str:
@@ -137,31 +85,3 @@ def send_message_to_agent(
     )
     r.raise_for_status()
     logger.info("Sent message to agent", extra=request_meta)
-
-
-@dataclass
-class AgentMessage:
-    # The address of the sender of the message.
-    sender: str
-    # The address of the target of the message.
-    target: str
-    # The payload of the message.
-    payload: Any
-
-
-def parse_message_from_agent(content: JsonStr) -> AgentMessage:
-    """
-    Parse a message from an agent.
-    :param content: A string containing the JSON envelope.
-    :return: An AgentMessage object.
-    """
-
-    env = Envelope.model_validate_json(content)
-
-    if not env.verify():
-        raise ValueError("Invalid envelope signature")
-
-    json_payload = env.decode_payload()
-    payload = json.loads(json_payload)
-
-    return AgentMessage(sender=env.sender, target=env.target, payload=payload)

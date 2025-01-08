@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Literal
 
+JsonStr = str
 
 AgentType = Literal["mailbox", "proxy", "custom"]
 

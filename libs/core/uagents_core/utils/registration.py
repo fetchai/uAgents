@@ -15,12 +15,12 @@ from uagents_core.config import (
     DEFAULT_MAILBOX_API_PATH,
     DEFAULT_CHALLENGE_PATH,
 )
-from uagents_core.utils import get_logger
+from uagents_core.logger import get_logger
 
 
 
 
-logger = get_logger("uagents_core.registration")
+logger = get_logger("uagents_core.utils.registration")
 
 
 class VerifiableModel(BaseModel):
