@@ -446,7 +446,7 @@ class AlmanacContract(LedgerContract):
                 endpoints=record.endpoints,
                 signature=record.signature,
                 sequence=record.timestamp,
-                address=record.agent_address,
+                address=record.identifier,
             )
 
             denom = self._client.network_config.fee_denomination
