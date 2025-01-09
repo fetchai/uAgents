@@ -804,7 +804,11 @@ class Agent(Sink):
         assert self._registration_policy is not None, "Agent has no registration policy"
 
         await self._registration_policy.register(
-            self.address, list(self.protocols.keys()), self._endpoints, self._metadata
+            self.address,
+            self._identity,
+            list(self.protocols.keys()),
+            self._endpoints,
+            self._metadata,
         )
 
     async def _schedule_registration(self):
