@@ -3,11 +3,7 @@ import os
 from uagents import Context
 from uagents.experimental.mobility import MobilityAgent as Agent
 from uagents.experimental.mobility.protocols import base_protocol
-from uagents.experimental.search import geosearch_agents_by_proximity
-from uagents.mailbox import (
-    AgentverseConnectRequest,
-    register_in_agentverse,
-)
+from uagents.registration import AlmanacApiRegistrationPolicy
 from uagents.types import AgentGeolocation
 
 AGENTVERSE_API_KEY = os.getenv("AGENTVERSE_API_KEY")
@@ -17,15 +13,17 @@ vehicle_agent = Agent(
     seed="test vehicle agent #2",
     mobility_type="vehicle",
     port=8111,
-    # endpoint="http://localhost:8111/submit",
+    endpoint="http://localhost:8111/submit",
     location=AgentGeolocation(
-        latitude=52.506926,
-        longitude=13.377207,
+        latitude=48.758473,
+        longitude=9.123754,
         radius=20,
     ),
     static_signal="I'm a vehicle agent",
     agentverse="https://staging.agentverse.ai",
-    mailbox=True,
+    registration_policy=AlmanacApiRegistrationPolicy(
+        almanac_api="http://localhost:8001/v1/almanac"
+    ),
 )
 
 
@@ -108,24 +106,24 @@ async def startup(ctx: Context):
     )
     ctx.logger.info(f"Vehicle agent ready at {current_location}")
     # test the search api
-    proximity_agents = geosearch_agents_by_proximity(
-        vehicle_agent.location["latitude"],
-        vehicle_agent.location["longitude"],
-        vehicle_agent.location["radius"],
-        30,
-    )
-    filtered_agents = [
-        a for a in proximity_agents if a.address != vehicle_agent.address
-    ]
-    ctx.logger.info(f"There are currently {len(filtered_agents)} agents nearby.")
+    # proximity_agents = geosearch_agents_by_proximity(
+    #     vehicle_agent.location["latitude"],
+    #     vehicle_agent.location["longitude"],
+    #     vehicle_agent.location["radius"],
+    #     30,
+    # )
+    # filtered_agents = [
+    #     a for a in proximity_agents if a.address != vehicle_agent.address
+    # ]
+    # ctx.logger.info(f"There are currently {len(filtered_agents)} agents nearby.")
 
-    av_conn_req = AgentverseConnectRequest(
-        user_token=AGENTVERSE_API_KEY, agent_type="mailbox"
-    )
+    # av_conn_req = AgentverseConnectRequest(
+    #     user_token=AGENTVERSE_API_KEY, agent_type="mailbox"
+    # )
 
-    await register_in_agentverse(
-        av_conn_req, vehicle_agent._identity, vehicle_agent.agentverse
-    )
+    # await register_in_agentverse(
+    #     av_conn_req, vehicle_agent._identity, vehicle_agent.agentverse
+    # )
 
 
 if __name__ == "__main__":
