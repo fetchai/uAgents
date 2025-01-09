@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "uagents-core"
 version = "0.1.0"
-description = "Lightweight framework for rapid agent-based development"
+description = "Core components for agent based systems"
 authors = [
     "Ed FitzGerald <edward.fitzgerald@fetch.ai>",
     "James Riehl <james.riehl@fetch.ai>",
