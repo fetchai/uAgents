@@ -10,7 +10,7 @@ import aiohttp
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
-from pydantic import BaseModel
+from pydantic import AliasChoices, BaseModel, Field
 
 from uagents.config import (
     ALMANAC_API_MAX_RETRIES,
@@ -28,11 +28,14 @@ from uagents.network import (
     InsufficientFundsError,
     add_testnet_funds,
 )
+from uagents.resolver import parse_identifier
 from uagents.types import AgentEndpoint, AgentInfo
 
 
 class VerifiableModel(BaseModel):
-    agent_address: str
+    agent_identifier: str = Field(
+        validation_alias=AliasChoices("agent_identifier", "agent_address")
+    )
     signature: Optional[str] = None
     timestamp: Optional[int] = None
 
@@ -42,8 +45,9 @@ class VerifiableModel(BaseModel):
         self.signature = identity.sign_digest(digest)
 
     def verify(self) -> bool:
+        _, _, agent_address = parse_identifier(self.agent_identifier)
         return self.signature is not None and Identity.verify_digest(
-            self.agent_address, self._build_digest(), self.signature
+            agent_address, self._build_digest(), self.signature
         )
 
     def _build_digest(self) -> bytes:
@@ -176,14 +180,14 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
 
     async def register(
         self,
-        agent_address: str,
+        agent_identifier: str,
         protocols: List[str],
         endpoints: List[AgentEndpoint],
         metadata: Optional[Dict[str, Any]] = None,
     ):
         # create the attestation
         attestation = AgentRegistrationAttestation(
-            agent_address=agent_address,
+            agent_identifier=agent_identifier,
             protocols=protocols,
             endpoints=endpoints,
             metadata=coerce_metadata_to_str(extract_geo_metadata(metadata)),
@@ -211,7 +215,7 @@ class BatchAlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
 
     def add_agent(self, agent_info: AgentInfo, identity: Identity):
         attestation = AgentRegistrationAttestation(
-            agent_address=agent_info.agent_address,
+            agent_identifier=agent_info.identifier,
             protocols=list(agent_info.protocols),
             endpoints=agent_info.endpoints,
             metadata=coerce_metadata_to_str(extract_geo_metadata(agent_info.metadata)),
@@ -270,7 +274,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
 
     async def register(
         self,
-        agent_address: str,
+        agent_identifier: str,
         protocols: List[str],
         endpoints: List[AgentEndpoint],
         metadata: Optional[Dict[str, Any]] = None,
@@ -280,6 +284,8 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         the registration data has changed.
         """
         self.check_contract_version()
+
+        _, _, agent_address = parse_identifier(agent_identifier)
 
         if (
             not self._almanac_contract.is_registered(agent_address)
@@ -365,14 +371,14 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
 
     def add_agent(self, agent_info: AgentInfo, identity: Identity):
         agent_record = AlmanacContractRecord(
-            agent_address=agent_info.agent_address,
+            identifier=agent_info.identifier,
             protocols=agent_info.protocols,
             endpoints=agent_info.endpoints,
             contract_address=str(self._almanac_contract.address),
             sender_address=str(self._wallet.address()),
         )
         self._records.append(agent_record)
-        self._identities[agent_info.agent_address] = identity
+        self._identities[agent_info.identifier] = identity
 
     def _get_balance(self) -> int:
         return self._ledger.query_bank_balance(Address(self._wallet.address()))
@@ -380,7 +386,8 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
     async def register(self):
         self._logger.info("Registering agents on Almanac contract...")
         for record in self._records:
-            record.sign(self._identities[record.agent_address])
+            _, _, agent_address = parse_identifier(record.identifier)
+            record.sign(self._identities[agent_address])
 
         if self._get_balance() < REGISTRATION_FEE * len(self._records):
             self._logger.warning(
@@ -462,8 +469,9 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
 
 
 async def update_agent_status(status: AgentStatusUpdate, almanac_api: str):
+    _, _, agent_address = parse_identifier(status.agent_identifier)
     await almanac_api_post(
-        f"{almanac_api}/agents/{status.agent_address}/status",
+        f"{almanac_api}/agents/{agent_address}/status",
         status,
         raise_from=False,
     )

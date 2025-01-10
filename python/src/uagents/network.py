@@ -25,9 +25,9 @@ from uagents.config import (
     ALMANAC_CONTRACT_VERSION,
     ALMANAC_REGISTRATION_WAIT,
     AVERAGE_BLOCK_INTERVAL,
+    DEFAULT_LEDGER_TX_WAIT_SECONDS,
     MAINNET_CONTRACT_ALMANAC,
     MAINNET_CONTRACT_NAME_SERVICE,
-    REGISTRATION_DENOM,
     REGISTRATION_FEE,
     TESTNET_CONTRACT_ALMANAC,
     TESTNET_CONTRACT_NAME_SERVICE,
@@ -399,19 +399,21 @@ class AlmanacContract(LedgerContract):
             address=agent_address,
         )
 
+        denom = self._client.network_config.fee_denomination
         transaction.add_message(
             create_cosmwasm_execute_msg(
                 wallet.address(),
                 self.address,
                 almanac_msg,
-                funds=f"{REGISTRATION_FEE}{REGISTRATION_DENOM}",
+                funds=f"{REGISTRATION_FEE}{denom}",
             )
         )
 
         transaction = prepare_and_broadcast_basic_transaction(
             ledger, transaction, wallet
         )
-        await wait_for_tx_to_complete(transaction.tx_hash, ledger)
+        timeout = timedelta(seconds=DEFAULT_LEDGER_TX_WAIT_SECONDS)
+        await wait_for_tx_to_complete(transaction.tx_hash, ledger, timeout=timeout)
 
     async def register_batch(
         self,
@@ -444,22 +446,24 @@ class AlmanacContract(LedgerContract):
                 endpoints=record.endpoints,
                 signature=record.signature,
                 sequence=record.timestamp,
-                address=record.agent_address,
+                address=record.identifier,
             )
 
+            denom = self._client.network_config.fee_denomination
             transaction.add_message(
                 create_cosmwasm_execute_msg(
                     wallet.address(),
                     self.address,
                     almanac_msg,
-                    funds=f"{REGISTRATION_FEE}{REGISTRATION_DENOM}",
+                    funds=f"{REGISTRATION_FEE}{denom}",
                 )
             )
 
         transaction = prepare_and_broadcast_basic_transaction(
             ledger, transaction, wallet
         )
-        await wait_for_tx_to_complete(transaction.tx_hash, ledger)
+        timeout = timedelta(seconds=DEFAULT_LEDGER_TX_WAIT_SECONDS)
+        await wait_for_tx_to_complete(transaction.tx_hash, ledger, timeout=timeout)
 
     def get_sequence(self, address: str) -> int:
         """

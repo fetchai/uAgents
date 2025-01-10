@@ -24,7 +24,7 @@ def test_attestation_signature():
 
     # create a dummy attestation
     attestation = AgentRegistrationAttestation(
-        agent_address=identity.address,
+        agent_identifier=identity.address,
         protocols=TEST_PROTOCOLS,
         endpoints=TEST_ENDPOINTS,
     )
@@ -42,7 +42,7 @@ def test_attestation_signature_with_metadata():
 
     # create a dummy attestation
     attestation = AgentRegistrationAttestation(
-        agent_address=identity.address,
+        agent_identifier=identity.address,
         protocols=TEST_PROTOCOLS,
         endpoints=TEST_ENDPOINTS,
         metadata=coerce_metadata_to_str(
@@ -63,7 +63,7 @@ def test_recovery_of_attestation():
 
     # create an attestation
     original_attestation = AgentRegistrationAttestation(
-        agent_address=identity.address,
+        agent_identifier=identity.address,
         protocols=TEST_PROTOCOLS,
         endpoints=TEST_ENDPOINTS,
     )
@@ -71,7 +71,7 @@ def test_recovery_of_attestation():
 
     # recover the attestation
     recovered = AgentRegistrationAttestation(
-        agent_address=original_attestation.agent_address,
+        agent_identifier=original_attestation.agent_identifier,
         protocols=TEST_PROTOCOLS,
         endpoints=TEST_ENDPOINTS,
         signature=original_attestation.signature,
@@ -96,7 +96,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         mocked_responses.post(f"{self.MOCKED_ALMANAC_API}/agents", status=200)
 
         await self.policy.register(
-            agent_address=self.identity.address,
+            agent_identifier=self.identity.address,
             protocols=TEST_PROTOCOLS,
             endpoints=TEST_ENDPOINTS,
         )
@@ -108,7 +108,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
         with pytest.raises(ClientResponseError):
             await self.policy.register(
-                agent_address=self.identity.address,
+                agent_identifier=self.identity.address,
                 protocols=TEST_PROTOCOLS,
                 endpoints=TEST_ENDPOINTS,
             )
@@ -120,7 +120,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
         with pytest.raises(ClientResponseError):
             await self.policy.register(
-                agent_address=self.identity.address,
+                agent_identifier=self.identity.address,
                 protocols=TEST_PROTOCOLS,
                 endpoints=TEST_ENDPOINTS,
             )

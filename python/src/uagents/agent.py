@@ -423,7 +423,7 @@ class Agent(Sink):
             @self.on_rest_get("/agent_info", AgentInfo)  # type: ignore
             async def _handle_get_info(_ctx: Context):
                 return AgentInfo(
-                    agent_address=self.address,
+                    identifier=self.identifier,
                     endpoints=self._endpoints,
                     protocols=list(self.protocols.keys()),
                     metadata=self.metadata,
@@ -673,7 +673,7 @@ class Agent(Sink):
             AgentInfo: The agent's address, endpoints, protocols, and metadata.
         """
         return AgentInfo(
-            agent_address=self.address,
+            identifier=self.identifier,
             endpoints=self._endpoints,
             protocols=list(self.protocols.keys()),
             metadata=self.metadata,
@@ -805,7 +805,10 @@ class Agent(Sink):
         assert self._registration_policy is not None, "Agent has no registration policy"
 
         await self._registration_policy.register(
-            self.address, list(self.protocols.keys()), self._endpoints, self._metadata
+            self.identifier,
+            list(self.protocols.keys()),
+            self._endpoints,
+            self._metadata,
         )
 
     async def _schedule_registration(self):
@@ -1124,7 +1127,9 @@ class Agent(Sink):
 
         """
         try:
-            status = AgentStatusUpdate(agent_address=self.address, is_active=False)
+            status = AgentStatusUpdate(
+                agent_identifier=self.identifier, is_active=False
+            )
             status.sign(self._identity)
             await update_agent_status(status, self._almanac_api_url)
         except Exception as ex:

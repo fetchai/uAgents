@@ -44,7 +44,7 @@ class AgentEndpoint(BaseModel):
 
 
 class AgentInfo(BaseModel):
-    agent_address: str
+    identifier: str
     endpoints: List[AgentEndpoint]
     protocols: List[str]
     metadata: Optional[Dict[str, Any]] = None
