@@ -141,7 +141,7 @@ class AgentRegistrationPolicy(ABC):
     # pylint: disable=unnecessary-pass
     async def register(
         self,
-        agent_address: str,
+        agent_identifier: str,
         identity: Identity,
         protocols: List[str],
         endpoints: List[AgentEndpoint],
