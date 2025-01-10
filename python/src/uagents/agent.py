@@ -375,7 +375,6 @@ class Agent(Sink):
 
         if self._registration_policy is None:
             self._registration_policy = DefaultRegistrationPolicy(
-                self._identity,
                 self._ledger,
                 self._wallet,
                 self._almanac_contract,
