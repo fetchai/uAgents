@@ -51,7 +51,7 @@ AddressPrefix = Literal["agent", "test-agent"]
 
 class RegistrationRequest(BaseModel):
     address: str
-    prefix: AddressPrefix
+    prefix: Optional[AddressPrefix] = "test-agent"
     challenge: str
     challenge_response: str
     agent_type: AgentType
