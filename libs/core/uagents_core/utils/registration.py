@@ -14,6 +14,7 @@ from uagents_core.config import (
     DEFAULT_ALMANAC_API_PATH,
     DEFAULT_REGISTRATION_PATH,
     DEFAULT_CHALLENGE_PATH,
+    AgentverseConfig,
 )
 from uagents_core.logger import get_logger
 
@@ -64,6 +65,12 @@ class RegistrationRequest(BaseModel):
     endpoint: Optional[str] = None
 
 
+class AgentverseConnectRequest(BaseModel):
+    user_token: str
+    agent_type: AgentType
+    endpoint: Optional[str] = None
+
+
 class RegistrationResponse(BaseModel):
     success: bool
 
@@ -80,49 +87,44 @@ class AgentUpdates(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     readme: Optional[str] = Field(default=None, max_length=80000)
     avatar_url: Optional[str] = Field(default=None, max_length=4000)
-    agent_type: Optional[AgentType] = "custom"
 
 
-def register_in_agentverse(
+def register_in_almanac(
+    request: AgentverseConnectRequest,
     identity: Identity,
-    url: str,
-    agentverse_token: str,
-    agent_title: str,
-    readme: str,
     *,
-    protocol_digest: str,
-    agentverse_url: Optional[str] = None,
-    agent_type: AgentType = "custom",
+    protocol_digests: List[str],
+    agentverse_config: AgentverseConfig = AgentverseConfig(),
 ):
     """
-    Register the agent with the Agentverse API.
+    Register the agent with the Almanac API.
 
     Args:
+        request (AgentverseConnectRequest): The request containing the agent details.
         identity (Identity): The identity of the agent.
-        url (str): The URL endpoint for the agent
-        agentverse_token (str): The token to use to authenticate with the Agentverse API
-        agent_title (str): The title of the agent
-        readme (str): The readme for the agent
-        protocol_digest (str): The digest of the protocol that the agent supports
-        agentverse_url (Optional[str]): The URL of agentverse (if different from the default)
-        agent_type (AgentType): The type of agent to register as
-
-    Returns:
-        None
+        protocol_digest (List[str]): The digest of the protocol that the agent supports
+        agentverse_config (AgentverseConfig): The configuration for the agentverse API
     """
-    agentverse_url = agentverse_url or DEFAULT_AGENTVERSE_URL
-    almanac_api = urllib.parse.urljoin(agentverse_url, DEFAULT_ALMANAC_API_PATH)
-    registration_api = urllib.parse.urljoin(agentverse_url, DEFAULT_REGISTRATION_PATH)
-    challenge_api = urllib.parse.urljoin(agentverse_url, DEFAULT_CHALLENGE_PATH)
 
+    # get the almanac API endpoint
+    almanac_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_ALMANAC_API_PATH)
+
+    # get the agent address
     agent_address = identity.address
+
     registration_metadata = {
         "almanac_endpoint": almanac_api,
-        "agent_title": agent_title,
         "agent_address": agent_address,
-        "agent_endpoint": url,
-        "protocol_digest": protocol_digest,
+        "agent_endpoint": request.endpoint or "",
+        "protocol_digest": ",".join(protocol_digests),
     }
+    if request.endpoint is None:
+        logger.warning(
+            "No endpoint provided for agent registration",
+            extra=registration_metadata,
+        )
+        return
+
     logger.info(
         "Registering with Almanac API",
         extra=registration_metadata,
@@ -131,9 +133,9 @@ def register_in_agentverse(
     # create the attestation
     attestation = AgentRegistrationAttestation(
         agent_address=agent_address,
-        protocols=[protocol_digest],
+        protocols=protocol_digests,
         endpoints=[
-            AgentEndpoint(url=url, weight=1),
+            AgentEndpoint(url=request.endpoint, weight=1),
         ],
         metadata=None,
     )
@@ -153,12 +155,48 @@ def register_in_agentverse(
         extra=registration_metadata,
     )
 
+
+def register_in_agentverse(
+    request: AgentverseConnectRequest,
+    identity: Identity,
+    agent_details: Optional[AgentUpdates] = None,
+    *,
+    agentverse_config: AgentverseConfig = AgentverseConfig(),
+):
+    """
+    Register the agent with the Agentverse API.
+
+    Args:
+        request (AgentverseConnectRequest): The request containing the agent details.
+        identity (Identity): The identity of the agent.
+        agent_details (Optional[AgentUpdates]): The agent details to update.
+        agentverse_config (AgentverseConfig): The configuration for the agentverse API
+    Returns:
+        None
+    """
+
+    # API endpoints
+    registration_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_REGISTRATION_PATH)
+    challenge_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_CHALLENGE_PATH)
+    
+    # get the agent address
+    agent_address = identity.address
+
+    registration_metadata = {
+        "registration_api": registration_api,
+        "challenge_api": challenge_api,
+        "agent_address": agent_address,
+        "agent_endpoint": request.endpoint or "",
+        "agent_type": request.agent_type,
+        "agent_name": agent_details.name if agent_details else "",
+    }
+
     # check to see if the agent exists
     r = requests.get(
         f"{registration_api}/{agent_address}",
         headers={
             "content-type": "application/json",
-            "authorization": f"Bearer {agentverse_token}",
+            "authorization": f"Bearer {request.user_token}",
         },
     )
 
@@ -179,7 +217,7 @@ def register_in_agentverse(
             data=challenge_request.model_dump_json(),
             headers={
                 "content-type": "application/json",
-                "Authorization": f"Bearer {agentverse_token}",
+                "Authorization": f"Bearer {request.user_token}",
             },
         )
         r.raise_for_status()
@@ -188,14 +226,14 @@ def register_in_agentverse(
             address=identity.address,
             challenge=challenge.challenge,
             challenge_response=identity.sign(challenge.challenge.encode()),
-            endpoint=url,
-            agent_type=agent_type,
+            endpoint=request.endpoint,
+            agent_type=request.agent_type,
         ).model_dump_json()
         r = requests.post(
             registration_api,
             headers={
                 "content-type": "application/json",
-                "authorization": f"Bearer {agentverse_token}",
+                "authorization": f"Bearer {request.user_token}",
             },
             data=registration_payload,
         )
@@ -209,21 +247,27 @@ def register_in_agentverse(
             registration_response = RegistrationResponse.model_validate_json(r.text)
             if registration_response.success:
                 logger.info(
-                    f"Successfully registered as {agent_type} agent in Agentverse",
+                    f"Successfully registered as {request.agent_type} agent in Agentverse",
                     extra=registration_metadata,
                 )
+    if not agent_details:
+        logger.debug(
+            "No agent details provided; skipping agent update",
+            extra=registration_metadata,
+        )
+        return
 
     # update the readme and the title of the agent to make it easier to find
     logger.debug(
         "Registering agent title and readme with Agentverse",
         extra=registration_metadata,
     )
-    update = AgentUpdates(name=agent_title, readme=readme)
+    update = AgentUpdates(name=agent_details.name, readme=agent_details.readme)
     r = requests.put(
         f"{registration_api}/{agent_address}",
         headers={
             "content-type": "application/json",
-            "authorization": f"Bearer {agentverse_token}",
+            "authorization": f"Bearer {request.user_token}",
         },
         data=update.model_dump_json(),
     )
