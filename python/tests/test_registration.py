@@ -87,7 +87,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.identity = Identity.generate()
         self.policy = AlmanacApiRegistrationPolicy(
-            self.identity, almanac_api=self.MOCKED_ALMANAC_API, max_retries=1
+            almanac_api=self.MOCKED_ALMANAC_API, max_retries=1
         )
 
     @aioresponses()
@@ -97,6 +97,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
         await self.policy.register(
             agent_identifier=self.identity.address,
+            identity=self.identity,
             protocols=TEST_PROTOCOLS,
             endpoints=TEST_ENDPOINTS,
         )
@@ -109,6 +110,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         with pytest.raises(ClientResponseError):
             await self.policy.register(
                 agent_identifier=self.identity.address,
+                identity=self.identity,
                 protocols=TEST_PROTOCOLS,
                 endpoints=TEST_ENDPOINTS,
             )
@@ -121,6 +123,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         with pytest.raises(ClientResponseError):
             await self.policy.register(
                 agent_identifier=self.identity.address,
+                identity=self.identity,
                 protocols=TEST_PROTOCOLS,
                 endpoints=TEST_ENDPOINTS,
             )

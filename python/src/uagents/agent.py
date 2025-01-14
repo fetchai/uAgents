@@ -375,7 +375,6 @@ class Agent(Sink):
 
         if self._registration_policy is None:
             self._registration_policy = DefaultRegistrationPolicy(
-                self._identity,
                 self._ledger,
                 self._wallet,
                 self._almanac_contract,
@@ -805,6 +804,7 @@ class Agent(Sink):
 
         await self._registration_policy.register(
             self.identifier,
+            self._identity,
             list(self.protocols.keys()),
             self._endpoints,
             self._metadata,
@@ -1313,9 +1313,9 @@ class Agent(Sink):
             )
 
             # sanity check
-            assert (
-                context.session == session
-            ), "Context object should always have message session"
+            assert context.session == session, (
+                "Context object should always have message session"
+            )
 
             # parse the received message
             try:
@@ -1500,7 +1500,6 @@ class Bureau:
             and agent._almanac_contract is not None
         ):
             agent._registration_policy = LedgerBasedRegistrationPolicy(
-                agent._identity,
                 agent._ledger,
                 agent._wallet,
                 agent._almanac_contract,
