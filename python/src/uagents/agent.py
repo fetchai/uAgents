@@ -1313,9 +1313,9 @@ class Agent(Sink):
             )
 
             # sanity check
-            assert (
-                context.session == session
-            ), "Context object should always have message session"
+            assert context.session == session, (
+                "Context object should always have message session"
+            )
 
             # parse the received message
             try:
@@ -1500,7 +1500,6 @@ class Bureau:
             and agent._almanac_contract is not None
         ):
             agent._registration_policy = LedgerBasedRegistrationPolicy(
-                agent._identity,
                 agent._ledger,
                 agent._wallet,
                 agent._almanac_contract,

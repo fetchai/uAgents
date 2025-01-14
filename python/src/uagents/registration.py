@@ -138,7 +138,6 @@ async def almanac_api_post(
 
 class AgentRegistrationPolicy(ABC):
     @abstractmethod
-    # pylint: disable=unnecessary-pass
     async def register(
         self,
         agent_identifier: str,
@@ -152,7 +151,6 @@ class AgentRegistrationPolicy(ABC):
 
 class BatchRegistrationPolicy(ABC):
     @abstractmethod
-    # pylint: disable=unnecessary-pass
     async def register(self):
         pass
 
@@ -201,7 +199,7 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
             self._logger.warning("Registration on Almanac API failed")
 
 
-class BatchAlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
+class BatchAlmanacApiRegistrationPolicy(BatchRegistrationPolicy):
     def __init__(
         self, almanac_api: Optional[str] = None, logger: Optional[logging.Logger] = None
     ):
@@ -427,7 +425,7 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
 
     async def register(
         self,
-        agent_address: str,
+        agent_identifier: str,
         identity: Identity,
         protocols: List[str],
         endpoints: List[AgentEndpoint],
@@ -436,7 +434,7 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
         # prefer the API registration policy as it is faster
         try:
             await self._api_policy.register(
-                agent_address, identity, protocols, endpoints, metadata
+                agent_identifier, identity, protocols, endpoints, metadata
             )
         except Exception as e:
             self._logger.warning(
@@ -449,7 +447,7 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
         # schedule the ledger registration
         try:
             await self._ledger_policy.register(
-                agent_address, identity, protocols, endpoints, metadata
+                agent_identifier, identity, protocols, endpoints, metadata
             )
         except InsufficientFundsError:
             self._logger.warning(
