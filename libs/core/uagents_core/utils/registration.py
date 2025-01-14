@@ -10,7 +10,6 @@ import urllib.parse
 from uagents_core.crypto import Identity
 from uagents_core.types import AgentEndpoint, AgentType
 from uagents_core.config import (
-    DEFAULT_AGENTVERSE_URL,
     DEFAULT_ALMANAC_API_PATH,
     DEFAULT_REGISTRATION_PATH,
     DEFAULT_CHALLENGE_PATH,
@@ -118,6 +117,12 @@ def register_in_almanac(
         "agent_endpoint": request.endpoint or "",
         "protocol_digest": ",".join(protocol_digests),
     }
+    if request.endpoint is None:
+        if request.agent_type == "mailbox":
+            request.endpoint = f"{agentverse_config.url}/v1/submit"
+        elif request.agent_type == "proxy":
+            request.endpoint = f"{agentverse_config.url}/v1/proxy/submit"
+
     if request.endpoint is None:
         logger.warning(
             "No endpoint provided for agent registration",
