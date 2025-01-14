@@ -146,6 +146,8 @@ async def register_in_agentverse(
                     logger.info(
                         f"Successfully registered as {request.agent_type} agent in Agentverse"
                     )
+                else:
+                    logger.info(f"registration failed: {resp.text()}")
 
     if agent_details:
         await update_agent_details(
