@@ -448,6 +448,7 @@ class Agent(Sink):
                 return await register_in_agentverse(
                     request,
                     self._identity,
+                    TESTNET_PREFIX if self._test else MAINNET_PREFIX,
                     self._agentverse,
                     agent_details,
                 )
