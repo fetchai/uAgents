@@ -7,7 +7,7 @@ ctx.storage.set("key", "value")
 ```
 within a handler, where `ctx` is the agent's `Context` object.
 
-This will save the information in a JSON file, you can retreive it a any time using:
+This will save the information in a JSON file, you can retrieve it a any time using:
 
 ```python
  ctx.storage.get("key")
