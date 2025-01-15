@@ -40,6 +40,7 @@ Check if the agent is a proxy agent.
 async def register_in_agentverse(
         request: AgentverseConnectRequest,
         identity: Identity,
+        prefix: AddressPrefix,
         endpoints: list[AgentEndpoint],
         agentverse: AgentverseConfig,
         agent_details: Optional[AgentUpdates] = None) -> RegistrationResponse
@@ -51,6 +52,7 @@ Registers agent in Agentverse
 
 - `request` _AgentverseConnectRequest_ - Request object
 - `identity` _Identity_ - Agent identity object
+- `prefix` _AddressPrefix_ - Agent address prefix - can be "agent" (mainnet) or "test-agent" (testnet) 
 - `endpoints` _list[AgentEndpoint]_ - Endpoints of the agent
 - `agentverse` _AgentverseConfig_ - Agentverse configuration
   
