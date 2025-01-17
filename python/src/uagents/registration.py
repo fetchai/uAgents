@@ -378,8 +378,7 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
     async def register(self):
         self._logger.info("Registering agents on Almanac contract...")
         for record in self._records:
-            _, _, agent_address = parse_identifier(record.address)
-            record.sign(self._identities[agent_address])
+            record.sign(self._identities[record.address])
 
         if self._get_balance() < REGISTRATION_FEE * len(self._records):
             self._logger.warning(
