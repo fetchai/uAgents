@@ -1,0 +1,67 @@
+[tool.poetry]
+name = "uagents-core"
+version = "0.1.0"
+description = "Core components for agent based systems"
+authors = [
+    "Ed FitzGerald <edward.fitzgerald@fetch.ai>",
+    "James Riehl <james.riehl@fetch.ai>",
+    "Alejandro Morales <alejandro.madrigal@fetch.ai>",
+    "Florian Wilde <florian.wilde@fetch.ai>",
+    "Attila Bagoly <attila.bagoly@fetch.ai>",
+]
+packages = [{include = "uagents_core"}]
+license = "Apache 2.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.13"
+pydantic = "~2.8"
+msgpack = "^1.0.4"
+bech32 = "^1.2.0"
+ecdsa = "^0.19.0"
+aiohttp = "^3.8.3"
+requests =">=2.32.3,<3.0"
+structlog = "^24.4.0"
+rich = "^13.9.4"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.10.0"
+aioresponses = "^0.7.4"
+pytest = "^8.3.4"
+pytest-asyncio = "^0.25.0"
+pytest-order = "^1.3.0"
+ruff = "^0.8.4"
+pyright = "^1.1.391"
+pre-commit = "^4.0.1"
+
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle (Errors, Warnings)
+    "E",
+    "W",
+    # Pyflakes
+    "F",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # pep8-naming
+    "N",
+    # pylint
+    "PL",
+]
+ignore = ["PLR0913", "PLR0912", "PLR0911", "PLR2004", "PLR0915"]
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 100
