@@ -12,7 +12,7 @@ from uagents.crypto import Identity, is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
 from uagents.models import Model
-from uagents.types import AgentEndpoint
+from uagents.types import AddressPrefix, AgentEndpoint
 from uagents.utils import get_logger
 
 logger = get_logger("mailbox")
@@ -44,9 +44,6 @@ class ChallengeProof(BaseModel):
 class ChallengeProofResponse(Model):
     access_token: str
     expiry: str
-
-
-AddressPrefix = Literal["agent", "test-agent"]
 
 
 class RegistrationRequest(BaseModel):

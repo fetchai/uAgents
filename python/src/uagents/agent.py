@@ -422,7 +422,8 @@ class Agent(Sink):
             @self.on_rest_get("/agent_info", AgentInfo)  # type: ignore
             async def _handle_get_info(_ctx: Context):
                 return AgentInfo(
-                    identifier=self.identifier,
+                    address=self.address,
+                    prefix=TESTNET_PREFIX if self._test else MAINNET_PREFIX,
                     endpoints=self._endpoints,
                     protocols=list(self.protocols.keys()),
                 )
@@ -672,7 +673,8 @@ class Agent(Sink):
             AgentInfo: The agent's address, endpoints, protocols, and metadata.
         """
         return AgentInfo(
-            identifier=self.identifier,
+            address=self.address,
+            prefix=TESTNET_PREFIX if self._test else MAINNET_PREFIX,
             endpoints=self._endpoints,
             protocols=list(self.protocols.keys()),
             metadata=self.metadata,
