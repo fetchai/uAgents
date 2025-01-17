@@ -65,4 +65,4 @@ Use DeltaV to interact with the agent and request song searches.
 **Song Search Results:** The agent provides a list of songs matching the keyword, including details like song name, artists, album, preview URL, and a link to listen on Spotify.
 
 ![Song Search Image 1](image1.png)
-![Song Serach Umage 2](image2.png)
+![Song Search Umage 2](image2.png)
