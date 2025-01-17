@@ -209,7 +209,7 @@ class BatchAlmanacApiRegistrationPolicy(BatchRegistrationPolicy):
 
     def add_agent(self, agent_info: AgentInfo, identity: Identity):
         attestation = AgentRegistrationAttestation(
-            agent_identifier=agent_info.identifier,
+            agent_identifier=f"{agent_info.prefix}://{agent_info.address}",
             protocols=list(agent_info.protocols),
             endpoints=agent_info.endpoints,
             metadata=coerce_metadata_to_str(extract_geo_metadata(agent_info.metadata)),
@@ -362,14 +362,15 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
 
     def add_agent(self, agent_info: AgentInfo, identity: Identity):
         agent_record = AlmanacContractRecord(
-            identifier=agent_info.identifier,
+            address=agent_info.address,
+            prefix=agent_info.prefix,
             protocols=agent_info.protocols,
             endpoints=agent_info.endpoints,
             contract_address=str(self._almanac_contract.address),
             sender_address=str(self._wallet.address()),
         )
         self._records.append(agent_record)
-        self._identities[agent_info.identifier] = identity
+        self._identities[agent_info.address] = identity
 
     def _get_balance(self) -> int:
         return self._ledger.query_bank_balance(Address(self._wallet.address()))
@@ -377,8 +378,7 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
     async def register(self):
         self._logger.info("Registering agents on Almanac contract...")
         for record in self._records:
-            _, _, agent_address = parse_identifier(record.identifier)
-            record.sign(self._identities[agent_address])
+            record.sign(self._identities[record.address])
 
         if self._get_balance() < REGISTRATION_FEE * len(self._records):
             self._logger.warning(
