@@ -440,8 +440,12 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
             self._logger.warning(
                 f"Failed to register on Almanac API: {e.__class__.__name__}"
             )
+            self._logger.debug(e)
 
         if self._ledger_policy is None:
+            self._logger.info(
+                "No Ledger available. Skipping registration on Almanac contract."
+            )
             return
 
         # schedule the ledger registration
@@ -455,7 +459,10 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
             )
             raise
         except Exception as e:
-            self._logger.error(f"Failed to register on Almanac contract: {e}")
+            self._logger.error(
+                f"Failed to register on Almanac contract: {e.__class__.__name__}"
+            )
+            self._logger.debug(e)
             raise
 
 
@@ -504,6 +511,7 @@ class DefaultBatchRegistrationPolicy(BatchRegistrationPolicy):
             self._logger.warning(
                 f"Failed to batch register on Almanac API: {e.__class__.__name__}"
             )
+            self._logger.debug(e)
 
         if self._ledger_policy is None:
             return
@@ -517,5 +525,8 @@ class DefaultBatchRegistrationPolicy(BatchRegistrationPolicy):
             )
             raise
         except Exception as e:
-            self._logger.error(f"Failed to batch register on Almanac contract: {e}")
+            self._logger.error(
+                f"Failed to batch register on Almanac contract: {e.__class__.__name__}"
+            )
+            self._logger.debug(e)
             raise

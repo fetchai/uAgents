@@ -184,10 +184,11 @@ class AlmanacContract(LedgerContract):
                     "Update uAgents to the latest version to enable contract interactions.",
                 )
                 return False
-        except Exception:
+        except Exception as e:
             logger.error(
                 "Failed to query contract version. Contract interactions will be disabled."
             )
+            logger.debug(e)
             return False
         return True
 
@@ -210,7 +211,8 @@ class AlmanacContract(LedgerContract):
                 raise ValueError("Invalid response format")
             return response
         except Exception as e:
-            logger.error(f"Query failed: {e}")
+            logger.error(f"Query failed with error: {e.__class__.__name__}.")
+            logger.debug(e)
             raise
 
     def get_contract_version(self) -> str:
@@ -528,7 +530,7 @@ class NameServiceContract(LedgerContract):
             Any: The query response.
 
         Raises:
-            RuntimeError: If the contract address is not set or the query fails.
+            ValueError: If the response from contract is not a dict.
         """
         try:
             response = self.query(query_msg)
@@ -536,7 +538,8 @@ class NameServiceContract(LedgerContract):
                 raise ValueError("Invalid response format")
             return response
         except Exception as e:
-            logger.error(f"Query failed: {e}")
+            logger.error(f"Querying NameServiceContract failed for query {query_msg}.")
+            logger.debug(e)
             raise
 
     def is_name_available(self, name: str, domain: str) -> bool:
