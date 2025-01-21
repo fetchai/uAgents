@@ -131,7 +131,7 @@ class ReleaseTool:
 
         print("\nMake release")
         make_release(current_version)
-        print("Release made." "")
+        print("Release made.")
 
         print("\nDONE")
 

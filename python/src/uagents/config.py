@@ -87,8 +87,7 @@ def parse_endpoint_config(
             logger.warning("Endpoint configuration overrides proxy setting.")
     elif mailbox and proxy:
         logger.warning(
-            "Mailbox and proxy settings are mutually exclusive. "
-            "Defaulting to mailbox."
+            "Mailbox and proxy settings are mutually exclusive. Defaulting to mailbox."
         )
 
     if isinstance(endpoint, dict):

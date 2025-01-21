@@ -17,21 +17,6 @@ Check if the agent is a mailbox agent.
 
 - `bool` - True if the agent is a mailbox agent, False otherwise.
 
-<a id="src.uagents.mailbox.is_proxy_agent"></a>
-
-#### is`_`proxy`_`agent
-
-```python
-def is_proxy_agent(endpoints: list[AgentEndpoint],
-                   agentverse: AgentverseConfig) -> bool
-```
-
-Check if the agent is a proxy agent.
-
-**Returns**:
-
-- `bool` - True if the agent is a proxy agent, False otherwise.
-
 <a id="src.uagents.mailbox.register_in_agentverse"></a>
 
 #### register`_`in`_`agentverse
@@ -40,7 +25,7 @@ Check if the agent is a proxy agent.
 async def register_in_agentverse(
         request: AgentverseConnectRequest,
         identity: Identity,
-        endpoints: list[AgentEndpoint],
+        prefix: AddressPrefix,
         agentverse: AgentverseConfig,
         agent_details: Optional[AgentUpdates] = None) -> RegistrationResponse
 ```
@@ -51,8 +36,10 @@ Registers agent in Agentverse
 
 - `request` _AgentverseConnectRequest_ - Request object
 - `identity` _Identity_ - Agent identity object
-- `endpoints` _list[AgentEndpoint]_ - Endpoints of the agent
+- `prefix` _AddressPrefix_ - Agent address prefix
+  can be "agent" (mainnet) or "test-agent" (testnet)
 - `agentverse` _AgentverseConfig_ - Agentverse configuration
+- `agent_details` _Optional[AgentUpdates]_ - Agent details (name, readme, avatar_url)
   
 
 **Returns**:
