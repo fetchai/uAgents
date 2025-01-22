@@ -32,9 +32,9 @@ async def send_message(ctx: Context):
 
 @alice.on_message(model=Message)
 async def alice_rx_message(ctx: Context, sender: str, msg: Message):
-    assert Identity.verify_digest(
-        sender, bytes.fromhex(msg.digest), msg.signature
-    ), "couldn't verify bob's message"
+    assert Identity.verify_digest(sender, bytes.fromhex(msg.digest), msg.signature), (
+        "couldn't verify bob's message"
+    )
 
     ctx.logger.info("Bob's message verified!")
     ctx.logger.info(f"Received message from {sender}: {msg.message}")
@@ -42,9 +42,9 @@ async def alice_rx_message(ctx: Context, sender: str, msg: Message):
 
 @bob.on_message(model=Message)
 async def bob_rx_message(ctx: Context, sender: str, msg: Message):
-    assert Identity.verify_digest(
-        sender, bytes.fromhex(msg.digest), msg.signature
-    ), "couldn't verify alice's message"
+    assert Identity.verify_digest(sender, bytes.fromhex(msg.digest), msg.signature), (
+        "couldn't verify alice's message"
+    )
     ctx.logger.info("Alice's message verified!")
 
     ctx.logger.info(f"Received message from {sender}: {msg.message}")

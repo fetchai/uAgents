@@ -35,4 +35,19 @@ def log(logger: Optional[logging.Logger], level: int, message: str):
         BACKUP_LOGGER.log(level, message)
 
 
+def set_global_log_level(level: Union[int, str]):
+    """
+    Set the log level for all modules globally. Can still be overruled manually.
+
+    Args:
+        level (Union[int, str]): The logging level as defined in _logging_.
+    """
+    logging.basicConfig(level=level)
+    # the manager of the root logger should be its only instance and contain
+    # all loggers of the process. Update the new log level in all of them.
+    for name in logging.Logger.manager.loggerDict:
+        # TODO only apply to framework loggers?
+        logging.getLogger(name).setLevel(level)
+
+
 BACKUP_LOGGER = get_logger("uagents", logging.INFO)

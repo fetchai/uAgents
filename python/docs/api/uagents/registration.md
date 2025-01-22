@@ -59,7 +59,8 @@ if it is different from the supported version.
 #### register
 
 ```python
-async def register(agent_address: str,
+async def register(agent_identifier: str,
+                   identity: Identity,
                    protocols: List[str],
                    endpoints: List[AgentEndpoint],
                    metadata: Optional[Dict[str, Any]] = None)
