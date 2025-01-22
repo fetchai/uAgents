@@ -310,7 +310,10 @@ class ASGIServer:
         # check if the request is for a REST endpoint
         handlers = self._get_rest_handler_details(request_method, request_path)
         if handlers:
-            if "127.0.0.1" not in scope["client"]:
+            if (
+                request_path in RESERVED_ENDPOINTS
+                and "127.0.0.1" not in scope["client"]
+            ):
                 await self._asgi_send(send, 403, body={"error": "forbidden"})
                 return
             await self._handle_rest(headers, handlers, send, receive)

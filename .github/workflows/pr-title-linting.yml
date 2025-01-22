@@ -30,6 +30,7 @@ jobs:
           # core scope should be replaced by language specific scopes later
           scopes: |
             core
+            libs
             example
             integration
             experimental
