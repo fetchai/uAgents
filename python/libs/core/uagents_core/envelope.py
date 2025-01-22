@@ -69,12 +69,31 @@ class Envelope(BaseModel):
         return base64.b64decode(self.payload).decode()
 
     def sign(self, identity: Identity):
+        """
+        Sign the envelope with the provided identity.
+
+        Args:
+            identity (Identity): The identity to use for signing.
+
+        Raises:
+            ValueError: If the signature cannot be computed.
+        """
         try:
             self.signature = identity.sign_digest(self._digest())
         except Exception as err:
             raise ValueError(f"Failed to sign envelope: {err}") from err
 
     def verify(self) -> bool:
+        """
+        Verify the envelope's signature.
+
+        Returns:
+            bool: True if the signature is valid.
+
+        Raises:
+            ValueError: If the signature is missing.
+            ecdsa.BadSignatureError: If the signature is invalid.
+        """
         if self.signature is None:
             raise ValueError("Envelope signature is missing")
         return Identity.verify_digest(self.sender, self._digest(), self.signature)

@@ -1,9 +1,12 @@
+import base64
 import hashlib
 import struct
+from secrets import token_bytes
 from typing import Tuple, Union
 
 import bech32
 import ecdsa
+from ecdsa.util import sigencode_string_canonize
 
 USER_PREFIX = "user"
 SHA_LENGTH = 256
@@ -22,6 +25,10 @@ def _encode_bech32(prefix: str, value: bytes) -> str:
 
 def is_user_address(address: str) -> bool:
     return address[0 : len(USER_PREFIX)] == USER_PREFIX
+
+
+def generate_user_address() -> str:
+    return _encode_bech32(USER_PREFIX, token_bytes(32))
 
 
 def _key_derivation_hash(prefix: str, index: int) -> bytes:
