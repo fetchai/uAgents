@@ -83,7 +83,7 @@ from uagents.types import (
     RestMethod,
     RestPostHandler,
 )
-from uagents.utils import get_logger
+from uagents.utils import get_logger, set_global_log_level
 
 
 async def _run_interval(
@@ -329,6 +329,8 @@ class Agent(Sink):
 
         # initialize wallet and identity
         self._initialize_wallet_and_identity(seed, name, wallet_key_derivation_index)
+        if log_level != logging.INFO:
+            set_global_log_level(log_level)
         self._logger = get_logger(self.name, level=log_level)
 
         self._agentverse = parse_agentverse_config(agentverse)
@@ -379,7 +381,6 @@ class Agent(Sink):
                 self._wallet,
                 self._almanac_contract,
                 self._test,
-                logger=self._logger,
                 almanac_api=self._almanac_api_url,
             )
         self._metadata = self._initialize_metadata(metadata)
@@ -726,6 +727,7 @@ class Agent(Sink):
         """
         return self._identity.sign_digest(digest)
 
+    # TODO this is not used anywhere in the framework
     def sign_registration(
         self, timestamp: int, sender_wallet_address: Optional[str] = None
     ) -> str:
