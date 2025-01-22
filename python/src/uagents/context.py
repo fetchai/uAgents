@@ -23,6 +23,8 @@ from typing import (
 import requests
 from cosmpy.aerial.client import LedgerClient
 from typing_extensions import deprecated
+from uagents_core.envelope import Envelope
+from uagents_core.models import ErrorMessage, Model
 
 from uagents.communication import (
     Dispenser,
@@ -35,8 +37,6 @@ from uagents.config import (
     DEFAULT_SEARCH_LIMIT,
 )
 from uagents.dispatch import dispatcher
-from uagents.envelope import Envelope
-from uagents.models import ErrorMessage, Model
 from uagents.resolver import Resolver, parse_identifier
 from uagents.storage import KeyValueStore
 from uagents.types import DeliveryStatus, JsonStr, MsgDigest, MsgStatus

@@ -23,6 +23,8 @@ from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
 from pydantic import ValidationError
+from uagents_core.crypto import Identity, derive_key_from_seed, is_user_address
+from uagents_core.models import ErrorMessage, Model
 
 from uagents.asgi import ASGIServer
 from uagents.communication import Dispenser
@@ -38,7 +40,6 @@ from uagents.config import (
     parse_endpoint_config,
 )
 from uagents.context import Context, ContextFactory, ExternalContext, InternalContext
-from uagents.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents.dispatch import Sink, dispatcher
 from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
 from uagents.mailbox import (
@@ -49,7 +50,6 @@ from uagents.mailbox import (
     is_mailbox_agent,
     register_in_agentverse,
 )
-from uagents.models import ErrorMessage, Model
 from uagents.network import (
     InsufficientFundsError,
     get_almanac_contract,

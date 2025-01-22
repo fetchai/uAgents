@@ -17,8 +17,7 @@ from typing import (
 )
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-
-from uagents.models import Model
+from uagents_core.models import Model
 
 if TYPE_CHECKING:
     from uagents.context import Context

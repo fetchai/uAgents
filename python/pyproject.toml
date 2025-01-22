@@ -13,6 +13,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
+uagents-core = { path = "libs/core" }
 pydantic = "~2.8"
 msgpack = "^1.0.4"
 bech32 = "^1.2.0"

@@ -1,30 +1,28 @@
 import hashlib
 import json
-
-import requests
-from typing import Optional, Union, List, Dict
-from pydantic import BaseModel, Field
 import time
 import urllib.parse
+from typing import Dict, List, Optional, Union
 
-from uagents_core.crypto import Identity
-from uagents_core.types import AgentEndpoint, AgentType
+import requests
+from pydantic import BaseModel, Field
+
 from uagents_core.config import (
     DEFAULT_ALMANAC_API_PATH,
-    DEFAULT_REGISTRATION_PATH,
     DEFAULT_CHALLENGE_PATH,
+    DEFAULT_REGISTRATION_PATH,
     AgentverseConfig,
 )
+from uagents_core.crypto import Identity
 from uagents_core.logger import get_logger
-
-
-
+from uagents_core.types import AddressPrefix, AgentEndpoint, AgentType
+from uagents_core.utils.communication import parse_identifier
 
 logger = get_logger("uagents_core.utils.registration")
 
 
 class VerifiableModel(BaseModel):
-    agent_address: str
+    agent_identifier: str
     signature: Optional[str] = None
     timestamp: Optional[int] = None
 
@@ -34,8 +32,9 @@ class VerifiableModel(BaseModel):
         self.signature = identity.sign_digest(digest)
 
     def verify(self) -> bool:
+        _, _, agent_address = parse_identifier(self.agent_identifier)
         return self.signature is not None and Identity.verify_digest(
-            self.agent_address, self._build_digest(), self.signature
+            agent_address, self._build_digest(), self.signature
         )
 
     def _build_digest(self) -> bytes:
@@ -58,6 +57,7 @@ class AgentRegistrationAttestation(VerifiableModel):
 
 class RegistrationRequest(BaseModel):
     address: str
+    prefix: Optional[AddressPrefix] = "test-agent"
     challenge: str
     challenge_response: str
     agent_type: AgentType
@@ -93,7 +93,7 @@ def register_in_almanac(
     identity: Identity,
     *,
     protocol_digests: List[str],
-    agentverse_config: AgentverseConfig = AgentverseConfig(),
+    agentverse_config: Optional[AgentverseConfig] = None,
 ):
     """
     Register the agent with the Almanac API.
@@ -106,6 +106,7 @@ def register_in_almanac(
     """
 
     # get the almanac API endpoint
+    agentverse_config = agentverse_config or AgentverseConfig()
     almanac_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_ALMANAC_API_PATH)
 
     # get the agent address
@@ -137,7 +138,7 @@ def register_in_almanac(
 
     # create the attestation
     attestation = AgentRegistrationAttestation(
-        agent_address=agent_address,
+        agent_identifier=agent_address,
         protocols=protocol_digests,
         endpoints=[
             AgentEndpoint(url=request.endpoint, weight=1),
@@ -166,7 +167,7 @@ def register_in_agentverse(
     identity: Identity,
     agent_details: Optional[AgentUpdates] = None,
     *,
-    agentverse_config: AgentverseConfig = AgentverseConfig(),
+    agentverse_config: Optional[AgentverseConfig] = None,
 ):
     """
     Register the agent with the Agentverse API.
@@ -181,9 +182,12 @@ def register_in_agentverse(
     """
 
     # API endpoints
-    registration_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_REGISTRATION_PATH)
+    agentverse_config = agentverse_config or AgentverseConfig()
+    registration_api = urllib.parse.urljoin(
+        agentverse_config.url, DEFAULT_REGISTRATION_PATH
+    )
     challenge_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_CHALLENGE_PATH)
-    
+
     # get the agent address
     agent_address = identity.address
 
