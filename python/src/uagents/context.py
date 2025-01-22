@@ -502,7 +502,7 @@ class InternalContext(Context):
             expires=expires,
         )
         env.encode_payload(message_body)
-        env.sign(self.agent.sign_digest)
+        env.sign(self.agent.identity)
 
         # Create awaitable future for MsgStatus and sync response
         fut = asyncio.Future()

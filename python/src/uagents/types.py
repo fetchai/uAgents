@@ -18,6 +18,7 @@ from typing import (
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from uagents_core.models import Model
+from uagents_core.types import AgentEndpoint
 
 if TYPE_CHECKING:
     from uagents.context import Context
@@ -38,11 +39,6 @@ RestHandlerMap = Dict[Tuple[RestMethod, str], RestHandler]
 
 
 AddressPrefix = Literal["agent", "test-agent"]
-
-
-class AgentEndpoint(BaseModel):
-    url: str
-    weight: int
 
 
 class AgentInfo(BaseModel):
