@@ -2,7 +2,8 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Set, Union
 
-from uagents.models import Model
+from uagents_core.models import Model
+
 from uagents.types import JsonStr, RestMethod
 
 

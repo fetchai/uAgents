@@ -4,7 +4,7 @@ import base64
 import hashlib
 import struct
 import time
-from typing import Callable, List, Optional
+from typing import List, Optional
 
 from pydantic import (
     UUID4,
@@ -13,8 +13,8 @@ from pydantic import (
     field_serializer,
 )
 
-from uagents.crypto import Identity
-from uagents.types import JsonStr
+from uagents_core.crypto import Identity
+from uagents_core.types import JsonStr
 
 
 class Envelope(BaseModel):
@@ -68,15 +68,18 @@ class Envelope(BaseModel):
 
         return base64.b64decode(self.payload).decode()
 
-    def sign(self, signing_fn: Callable):
+    def sign(self, identity: Identity):
         """
-        Sign the envelope using the provided signing function.
+        Sign the envelope with the provided identity.
 
         Args:
-            signing_fn (callback): The callback used for signing.
+            identity (Identity): The identity to use for signing.
+
+        Raises:
+            ValueError: If the signature cannot be computed.
         """
         try:
-            self.signature = signing_fn(self._digest())
+            self.signature = identity.sign_digest(self._digest())
         except Exception as err:
             raise ValueError(f"Failed to sign envelope: {err}") from err
 

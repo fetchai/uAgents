@@ -2,10 +2,11 @@
 
 from typing import Optional, Union
 
+from uagents_core.crypto import generate_user_address
+from uagents_core.envelope import Envelope
+from uagents_core.models import Model
+
 from uagents.communication import MsgStatus, send_sync_message
-from uagents.crypto import generate_user_address
-from uagents.envelope import Envelope
-from uagents.models import Model
 from uagents.resolver import Resolver
 
 

@@ -6,12 +6,13 @@ from typing import Annotated, Literal, Optional
 import aiohttp
 from aiohttp.client_exceptions import ClientConnectorError
 from pydantic import UUID4, BaseModel, StringConstraints, ValidationError
+from uagents_core.crypto import is_user_address
+from uagents_core.envelope import Envelope
+from uagents_core.models import Model
 
 from uagents.config import MAILBOX_POLL_INTERVAL_SECONDS, AgentverseConfig
-from uagents.crypto import Identity, is_user_address
+from uagents.crypto import Identity
 from uagents.dispatch import dispatcher
-from uagents.envelope import Envelope
-from uagents.models import Model
 from uagents.types import AddressPrefix, AgentEndpoint
 from uagents.utils import get_logger
 
