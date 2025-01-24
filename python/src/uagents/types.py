@@ -38,13 +38,17 @@ RestMethod = Literal["GET", "POST"]
 RestHandlerMap = Dict[Tuple[RestMethod, str], RestHandler]
 
 
+AddressPrefix = Literal["agent", "test-agent"]
+
+
 class AgentEndpoint(BaseModel):
     url: str
     weight: int
 
 
 class AgentInfo(BaseModel):
-    agent_address: str
+    address: str
+    prefix: AddressPrefix
     endpoints: List[AgentEndpoint]
     protocols: List[str]
     metadata: Optional[Dict[str, Any]] = None

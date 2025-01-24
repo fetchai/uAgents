@@ -25,9 +25,9 @@ from uagents.config import (
     ALMANAC_CONTRACT_VERSION,
     ALMANAC_REGISTRATION_WAIT,
     AVERAGE_BLOCK_INTERVAL,
+    DEFAULT_LEDGER_TX_WAIT_SECONDS,
     MAINNET_CONTRACT_ALMANAC,
     MAINNET_CONTRACT_NAME_SERVICE,
-    REGISTRATION_DENOM,
     REGISTRATION_FEE,
     TESTNET_CONTRACT_ALMANAC,
     TESTNET_CONTRACT_NAME_SERVICE,
@@ -184,10 +184,11 @@ class AlmanacContract(LedgerContract):
                     "Update uAgents to the latest version to enable contract interactions.",
                 )
                 return False
-        except Exception:
+        except Exception as e:
             logger.error(
                 "Failed to query contract version. Contract interactions will be disabled."
             )
+            logger.debug(e)
             return False
         return True
 
@@ -210,7 +211,8 @@ class AlmanacContract(LedgerContract):
                 raise ValueError("Invalid response format")
             return response
         except Exception as e:
-            logger.error(f"Query failed: {e}")
+            logger.error(f"Query failed with error: {e.__class__.__name__}.")
+            logger.debug(e)
             raise
 
     def get_contract_version(self) -> str:
@@ -399,19 +401,21 @@ class AlmanacContract(LedgerContract):
             address=agent_address,
         )
 
+        denom = self._client.network_config.fee_denomination
         transaction.add_message(
             create_cosmwasm_execute_msg(
                 wallet.address(),
                 self.address,
                 almanac_msg,
-                funds=f"{REGISTRATION_FEE}{REGISTRATION_DENOM}",
+                funds=f"{REGISTRATION_FEE}{denom}",
             )
         )
 
         transaction = prepare_and_broadcast_basic_transaction(
             ledger, transaction, wallet
         )
-        await wait_for_tx_to_complete(transaction.tx_hash, ledger)
+        timeout = timedelta(seconds=DEFAULT_LEDGER_TX_WAIT_SECONDS)
+        await wait_for_tx_to_complete(transaction.tx_hash, ledger, timeout=timeout)
 
     async def register_batch(
         self,
@@ -444,22 +448,24 @@ class AlmanacContract(LedgerContract):
                 endpoints=record.endpoints,
                 signature=record.signature,
                 sequence=record.timestamp,
-                address=record.agent_address,
+                address=record.address,
             )
 
+            denom = self._client.network_config.fee_denomination
             transaction.add_message(
                 create_cosmwasm_execute_msg(
                     wallet.address(),
                     self.address,
                     almanac_msg,
-                    funds=f"{REGISTRATION_FEE}{REGISTRATION_DENOM}",
+                    funds=f"{REGISTRATION_FEE}{denom}",
                 )
             )
 
         transaction = prepare_and_broadcast_basic_transaction(
             ledger, transaction, wallet
         )
-        await wait_for_tx_to_complete(transaction.tx_hash, ledger)
+        timeout = timedelta(seconds=DEFAULT_LEDGER_TX_WAIT_SECONDS)
+        await wait_for_tx_to_complete(transaction.tx_hash, ledger, timeout=timeout)
 
     def get_sequence(self, address: str) -> int:
         """
@@ -524,7 +530,7 @@ class NameServiceContract(LedgerContract):
             Any: The query response.
 
         Raises:
-            RuntimeError: If the contract address is not set or the query fails.
+            ValueError: If the response from contract is not a dict.
         """
         try:
             response = self.query(query_msg)
@@ -532,7 +538,8 @@ class NameServiceContract(LedgerContract):
                 raise ValueError("Invalid response format")
             return response
         except Exception as e:
-            logger.error(f"Query failed: {e}")
+            logger.error(f"Querying NameServiceContract failed for query {query_msg}.")
+            logger.debug(e)
             raise
 
     def is_name_available(self, name: str, domain: str) -> bool:

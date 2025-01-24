@@ -26,10 +26,10 @@ TESTNET_CONTRACT_NAME_SERVICE = (
     "fetch1mxz8kn3l5ksaftx8a9pj9a6prpzk2uhxnqdkwuqvuh37tw80xu6qges77l"
 )
 REGISTRATION_FEE = 500000000000000000
-REGISTRATION_DENOM = "atestfet"
 REGISTRATION_UPDATE_INTERVAL_SECONDS = 3600
 REGISTRATION_RETRY_INTERVAL_SECONDS = 60
 AVERAGE_BLOCK_INTERVAL = 6
+DEFAULT_LEDGER_TX_WAIT_SECONDS = 30
 ALMANAC_CONTRACT_VERSION = "2.0.0"
 
 AGENTVERSE_URL = "https://agentverse.ai"
@@ -89,8 +89,7 @@ def parse_endpoint_config(
             logger.warning("Endpoint configuration overrides proxy setting.")
     elif mailbox and proxy:
         logger.warning(
-            "Mailbox and proxy settings are mutually exclusive. "
-            "Defaulting to mailbox."
+            "Mailbox and proxy settings are mutually exclusive. Defaulting to mailbox."
         )
 
     if isinstance(endpoint, dict):
