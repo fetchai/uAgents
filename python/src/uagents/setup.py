@@ -22,7 +22,7 @@ def fund_agent_if_low(wallet_address: str, min_balance: int = REGISTRATION_FEE):
     Returns:
         None
     """
-    ledger = get_ledger(test=True)
+    ledger = get_ledger()
     faucet = get_faucet()
 
     agent_balance = ledger.query_bank_balance(Address(wallet_address))
