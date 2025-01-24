@@ -93,7 +93,8 @@ Parse an agent identifier string into prefix, name, and address.
 #### query`_`record
 
 ```python
-def query_record(agent_address: str, service: str, test: bool) -> dict
+def query_record(agent_address: str, service: str,
+                 network: AgentNetwork) -> dict
 ```
 
 Query a record from the Almanac contract.
@@ -102,6 +103,7 @@ Query a record from the Almanac contract.
 
 - `agent_address` _str_ - The address of the agent.
 - `service` _str_ - The type of service to query.
+- `network` _AgentNetwork_ - The network to query (mainnet or testnet).
   
 
 **Returns**:
@@ -113,7 +115,7 @@ Query a record from the Almanac contract.
 #### get`_`agent`_`address
 
 ```python
-def get_agent_address(name: str, test: bool) -> Optional[str]
+def get_agent_address(name: str, network: AgentNetwork) -> Optional[str]
 ```
 
 Get the agent address associated with the provided name from the name service contract.
@@ -121,7 +123,7 @@ Get the agent address associated with the provided name from the name service co
 **Arguments**:
 
 - `name` _str_ - The name to query.
-- `test` _bool_ - Whether to use the testnet or mainnet contract.
+- `network` _AgentNetwork_ - The network to query (mainnet or testnet).
   
 
 **Returns**:

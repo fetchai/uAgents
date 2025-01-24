@@ -28,3 +28,17 @@ Log a message with the given logger and level.
 - `level` _int_ - The logging level.
 - `message` _str_ - The message to log.
 
+<a id="src.uagents.utils.set_global_log_level"></a>
+
+#### set`_`global`_`log`_`level
+
+```python
+def set_global_log_level(level: Union[int, str])
+```
+
+Set the log level for all modules globally. Can still be overruled manually.
+
+**Arguments**:
+
+- `level` _Union[int, str]_ - The logging level as defined in _logging_.
+
