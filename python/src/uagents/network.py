@@ -33,7 +33,7 @@ from uagents.config import (
     TESTNET_CONTRACT_NAME_SERVICE,
 )
 from uagents.crypto import Identity
-from uagents.types import AgentEndpoint, AgentInfo
+from uagents.types import AgentEndpoint, AgentInfo, AgentNetwork
 from uagents.utils import get_logger
 
 logger = get_logger("network")
@@ -61,19 +61,19 @@ class AlmanacContractRecord(AgentInfo):
         )
 
 
-def get_ledger(test: bool = True) -> LedgerClient:
+def get_ledger(network: AgentNetwork = "testnet") -> LedgerClient:
     """
     Get the Ledger client.
 
     Args:
-        test (bool): Whether to use the testnet or mainnet. Defaults to True.
+        network (AgentNetwork, optional): The network to use. Defaults to "testnet".
 
     Returns:
         LedgerClient: The Ledger client instance.
     """
-    if test:
-        return _testnet_ledger
-    return _mainnet_ledger
+    if network == "mainnet":
+        return _mainnet_ledger
+    return _testnet_ledger
 
 
 def get_faucet() -> FaucetApi:
@@ -491,22 +491,22 @@ _testnet_almanac_contract = AlmanacContract(
 )
 
 
-def get_almanac_contract(test: bool = True) -> Optional[AlmanacContract]:
+def get_almanac_contract(
+    network: AgentNetwork = "testnet",
+) -> Optional[AlmanacContract]:
     """
     Get the AlmanacContract instance.
 
     Args:
-        test (bool): Whether to use the testnet or mainnet. Defaults to True.
+        network (AgentNetwork): The network to use. Defaults to "testnet".
 
     Returns:
         AlmanacContract: The AlmanacContract instance if version is supported.
     """
-    if test:
-        if _testnet_almanac_contract.check_version():
-            return _testnet_almanac_contract
-        return None
-    if _mainnet_almanac_contract.check_version():
+    if network == "mainnet" and _mainnet_almanac_contract.check_version():
         return _mainnet_almanac_contract
+    if _testnet_almanac_contract.check_version():
+        return _testnet_almanac_contract
     return None
 
 
@@ -618,7 +618,7 @@ class NameServiceContract(LedgerContract):
         wallet_address: Address,
         agent_records: Union[List[Dict[str, Any]], str],
         domain: str,
-        test: bool,
+        network: AgentNetwork,
     ):
         """
         Get the registration transaction for registering a name within a domain.
@@ -637,7 +637,9 @@ class NameServiceContract(LedgerContract):
         transaction = Transaction()
 
         contract = Address(
-            TESTNET_CONTRACT_NAME_SERVICE if test else MAINNET_CONTRACT_NAME_SERVICE
+            MAINNET_CONTRACT_NAME_SERVICE
+            if network == "mainnet"
+            else TESTNET_CONTRACT_NAME_SERVICE
         )
 
         if self.is_name_available(name, domain):
@@ -694,6 +696,11 @@ class NameServiceContract(LedgerContract):
         """
         logger.info("Registering name...")
         chain_id = ledger.query_chain_id()
+        network = (
+            "mainnet"
+            if chain_id == NetworkConfig.fetchai_mainnet().chain_id
+            else "testnet"
+        )
 
         records = parse_record_config(agent_records)
         if not records:
@@ -701,7 +708,7 @@ class NameServiceContract(LedgerContract):
         agent_addresses = [val.get("address") for val in records]
 
         for agent_address in agent_addresses:
-            if not get_almanac_contract(chain_id == "dorado-1").is_registered(
+            if not get_almanac_contract(network).is_registered(
                 agent_address  # type: ignore
             ):
                 logger.warning(
@@ -731,7 +738,7 @@ class NameServiceContract(LedgerContract):
             wallet.address(),
             records,
             domain,
-            chain_id == "dorado-1",
+            network=network,
         )
 
         if transaction is None:
@@ -783,7 +790,7 @@ _testnet_name_service_contract = NameServiceContract(
 )
 
 
-def get_name_service_contract(test: bool = True) -> NameServiceContract:
+def get_name_service_contract(network: AgentNetwork = "testnet") -> NameServiceContract:
     """
     Get the NameServiceContract instance.
 
@@ -793,6 +800,6 @@ def get_name_service_contract(test: bool = True) -> NameServiceContract:
     Returns:
         NameServiceContract: The NameServiceContract instance.
     """
-    if test:
-        return _testnet_name_service_contract
-    return _mainnet_name_service_contract
+    if network == "mainnet":
+        return _mainnet_name_service_contract
+    return _testnet_name_service_contract

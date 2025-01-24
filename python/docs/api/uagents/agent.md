@@ -158,7 +158,8 @@ An agent that interacts within a communication environment.
 - `protocols` _Dict[str, Protocol]_ - Dictionary mapping all supported protocol digests to their
   corresponding protocols.
 - `_ctx` _Context_ - The context for agent interactions.
-- `_test` _bool_ - True if the agent will register and transact on the testnet.
+- `_network` _str_ - The network to use for the agent ('mainnet' or 'testnet').
+- `_prefix` _str_ - The address prefix for the agent (determined by the network).
 - `_enable_agent_inspector` _bool_ - Enable the agent inspector REST endpoints.
 - `_metadata` _Dict[str, Any]_ - Metadata associated with the agent.
 - `_readme` _Optional[str]_ - The agent's README file.
@@ -194,7 +195,7 @@ def __init__(name: Optional[str] = None,
              wallet_key_derivation_index: Optional[int] = 0,
              max_resolver_endpoints: Optional[int] = None,
              version: Optional[str] = None,
-             test: bool = True,
+             network: AgentNetwork = "testnet",
              loop: Optional[asyncio.AbstractEventLoop] = None,
              log_level: Union[int, str] = logging.INFO,
              enable_agent_inspector: bool = True,
@@ -222,7 +223,7 @@ Initialize an Agent instance.
 - `wallet_key_derivation_index` _Optional[int]_ - The index used for deriving the wallet key.
 - `max_resolver_endpoints` _Optional[int]_ - The maximum number of endpoints to resolve.
 - `version` _Optional[str]_ - The version of the agent.
-- `test` _Optional[bool]_ - True if the agent will register and transact on the testnet.
+- `network` _Literal["mainnet", "testnet"]_ - The network to use for the agent.
 - `loop` _Optional[asyncio.AbstractEventLoop]_ - The asyncio event loop to use.
 - `log_level` _Union[int, str]_ - The logging level for the agent.
 - `enable_agent_inspector` _bool_ - Enable the agent inspector for debugging.
