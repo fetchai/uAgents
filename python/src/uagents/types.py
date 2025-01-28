@@ -66,7 +66,7 @@ class AgentGeolocation(BaseModel):
     model_config = ConfigDict(strict=True, allow_inf_nan=False)
     latitude: Annotated[float, Field(ge=-90, le=90)]
     longitude: Annotated[float, Field(ge=-180, le=180)]
-    radius: Annotated[float, Field(ge=0)] = 0
+    radius: Annotated[float, Field(gt=0)] = 0.5
 
     @field_validator("latitude", "longitude")
     @classmethod

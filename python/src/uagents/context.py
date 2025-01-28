@@ -479,7 +479,11 @@ class InternalContext(Context):
         destination_address, endpoints = await self._resolver.resolve(destination)
 
         if not endpoints or not destination_address:
-            log(self.logger, logging.ERROR, "Unable to resolve destination endpoint")
+            log(
+                self.logger,
+                logging.ERROR,
+                f"Unable to resolve destination endpoint for agent: {destination}",
+            )
             return MsgStatus(
                 status=DeliveryStatus.FAILED,
                 detail="Unable to resolve destination endpoint",
