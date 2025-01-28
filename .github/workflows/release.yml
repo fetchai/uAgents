@@ -42,7 +42,12 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GH_TOKEN: ${{ github.token }}
       run: |
-        pip install tomli packaging poetry
+        pip install tomli packaging poetry pydantic pydantic-settings
         git config --global user.email "ci-bot@fetch.ai"
         git config --global user.name "CI BOT"
+
+        if [[ "${{ github.event.pull_request.head.ref }}" == release/core@* ]]; then
+          export PACKAGE="core"
+        fi
+
         python3 ./scripts/do_release.py
