@@ -250,11 +250,7 @@ async def test_rest_post_fail_invalid_response():
 
 
 @pytest.mark.order(6)
-async def test_rest_wrong_client():
-    @agent.on_rest_get("/get-wrong-client", Response)
-    async def _(_ctx: Context):
-        return Response(text="Hi there!")
-
+async def test_inspector_rest_wrong_client():
     mock_send = AsyncMock()
     with patch("uagents.asgi._read_asgi_body") as mock_receive:
         mock_receive.return_value = b""
@@ -262,7 +258,7 @@ async def test_rest_wrong_client():
             scope={
                 "type": "http",
                 "method": "GET",
-                "path": "/get-wrong-client",
+                "path": "/agent_info",
                 "client": ("agentverse.ai",),
             },
             receive=None,

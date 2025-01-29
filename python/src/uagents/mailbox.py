@@ -12,7 +12,7 @@ from uagents.crypto import Identity, is_user_address
 from uagents.dispatch import dispatcher
 from uagents.envelope import Envelope
 from uagents.models import Model
-from uagents.types import AgentEndpoint
+from uagents.types import AddressPrefix, AgentEndpoint
 from uagents.utils import get_logger
 
 logger = get_logger("mailbox")
@@ -48,6 +48,7 @@ class ChallengeProofResponse(Model):
 
 class RegistrationRequest(BaseModel):
     address: str
+    prefix: Optional[AddressPrefix] = "test-agent"
     challenge: str
     challenge_response: str
     agent_type: AgentType
@@ -87,6 +88,7 @@ def is_mailbox_agent(
 async def register_in_agentverse(
     request: AgentverseConnectRequest,
     identity: Identity,
+    prefix: AddressPrefix,
     agentverse: AgentverseConfig,
     agent_details: Optional[AgentUpdates] = None,
 ) -> RegistrationResponse:
@@ -96,6 +98,8 @@ async def register_in_agentverse(
     Args:
         request (AgentverseConnectRequest): Request object
         identity (Identity): Agent identity object
+        prefix (AddressPrefix): Agent address prefix
+            can be "agent" (mainnet) or "test-agent" (testnet)
         agentverse (AgentverseConfig): Agentverse configuration
         agent_details (Optional[AgentUpdates]): Agent details (name, readme, avatar_url)
 
@@ -124,6 +128,7 @@ async def register_in_agentverse(
             prove_url,
             data=RegistrationRequest(
                 address=identity.address,
+                prefix=prefix,
                 challenge=challenge.challenge,
                 challenge_response=identity.sign(challenge.challenge.encode()),
                 endpoint=request.endpoint,
