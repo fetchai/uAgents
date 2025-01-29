@@ -37,7 +37,6 @@ def get_package_path(package: str) -> Path:
     return {"main": ROOT, "core": ROOT / "uagents-core"}[package]
 
 
-
 def get_the_latest_release_version(package: str) -> Version:
     """Get release version from gihtub tags."""
     text = subprocess.check_output("git ls-remote --tags origin", shell=True, text=True)
@@ -91,7 +90,9 @@ def make_release(current_version: Version, package: str) -> None:
 
 def build_packages(package: str):
     """Build packages."""
-    subprocess.check_call("poetry build", cwd=str(get_package_path(package)) , shell=True)
+    subprocess.check_call(
+        "poetry build", cwd=str(get_package_path(package)), shell=True
+    )
 
 
 class ReleaseTool:
@@ -160,5 +161,5 @@ class ReleaseTool:
 
 
 if __name__ == "__main__":
-    settings = Settings() # type: ignore
+    settings = Settings()  # type: ignore
     ReleaseTool(settings).main()
