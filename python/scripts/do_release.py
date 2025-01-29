@@ -6,9 +6,8 @@ from pathlib import Path
 from typing import Literal
 
 import tomli
-from pydantic_settings import BaseSettings
 from packaging.version import Version
-
+from pydantic_settings import BaseSettings
 
 ROOT = Path(__file__).parent.parent
 
