@@ -433,6 +433,7 @@ class Agent(Sink):
                     prefix=self._prefix,
                     endpoints=self._endpoints,
                     protocols=list(self.protocols.keys()),
+                    metadata=self.metadata,
                 )
 
             @self.on_rest_get("/messages", EnvelopeHistory)  # type: ignore
