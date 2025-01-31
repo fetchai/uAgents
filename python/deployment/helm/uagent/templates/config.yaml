@@ -9,3 +9,7 @@ data:
   {{- if .Values.agent.type }}
   UAGENT_TYPE: {{ .Values.agent.type | quote }}
   {{- end }}
+  {{- if .Values.agent.network }}
+  UAGENT_NETWORK: {{ .Values.agent.network | quote }}
+  {{- end }}
+
