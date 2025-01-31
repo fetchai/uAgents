@@ -40,10 +40,6 @@ docker push my-dockerhub-id/hello-agent:0.1
 
 ### Configuring the Helm Chart
 
-0. Edit the 'Chart.yaml' file in the `helm/uagent` directory to include the correct version and app name.
-
-```yaml
-apiVersion: v2
 
 1. Edit the `values.yaml` file in the `helm/uagent` directory to include the Dockerhub image you pushed in the previous step.
 
