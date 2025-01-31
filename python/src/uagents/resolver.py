@@ -138,7 +138,7 @@ def get_agent_address(name: str, network: AgentNetwork) -> Optional[str]:
     Returns:
         Optional[str]: The associated agent address if found.
     """
-    query_msg = {"domain_record": {"domain": f"{name}"}}
+    query_msg = {"query_domain_record": {"domain": f"{name}"}}
     result = get_name_service_contract(network).query(query_msg)
     if result["record"] is not None:
         registered_records = result["record"]["records"][0]["agent_address"]["records"]

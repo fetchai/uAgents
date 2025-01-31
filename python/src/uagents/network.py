@@ -553,7 +553,7 @@ class NameServiceContract(LedgerContract):
         Returns:
             bool: True if the name is available, False otherwise.
         """
-        query_msg = {"domain_record": {"domain": f"{name}.{domain}"}}
+        query_msg = {"query_domain_record": {"domain": f"{name}.{domain}"}}
         return self.query_contract(query_msg)["is_available"]
 
     def is_owner(self, name: str, domain: str, wallet_address: str) -> bool:
@@ -606,7 +606,7 @@ class NameServiceContract(LedgerContract):
             A list of dictionaries, where each dictionary contains
             details of a record associated with the given name.
         """
-        query_msg = {"domain_record": {"domain": f"{name}.{domain}"}}
+        query_msg = {"query_domain_record": {"domain": f"{name}.{domain}"}}
         result = self.query_contract(query_msg)
         if result["record"] is not None:
             return result["record"]["records"][0]["agent_address"]["records"]
@@ -643,7 +643,7 @@ class NameServiceContract(LedgerContract):
         )
 
         if self.is_name_available(name, domain):
-            price_per_second = self.query_contract({"contract_state": {}})[
+            price_per_second = self.query_contract({"query_contract_state": {}})[
                 "price_per_second"
             ]
             amount = int(price_per_second["amount"]) * 86400
