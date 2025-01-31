@@ -126,7 +126,7 @@ async def startup(ctx: Context):
     )
 
     await register_in_agentverse(
-        av_conn_req, vehicle_agent._identity, vehicle_agent.agentverse
+        av_conn_req, vehicle_agent._identity, "test-agent", vehicle_agent.agentverse
     )
 
 
