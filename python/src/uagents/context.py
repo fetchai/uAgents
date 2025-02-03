@@ -482,7 +482,7 @@ class InternalContext(Context):
             log(
                 self.logger,
                 logging.ERROR,
-                f"Unable to resolve destination endpoint for agent: {destination_address}",
+                f"Unable to resolve destination endpoint for agent: {destination}",
             )
             return MsgStatus(
                 status=DeliveryStatus.FAILED,

@@ -13,7 +13,7 @@ class Location(Model):
     longitude: confloat(strict=True, ge=-180, le=180, allow_inf_nan=False)
     radius: confloat(
         gt=0, allow_inf_nan=False
-    )  # TODO we might not need/want this in the base protocol
+    )  # This is used for compatibility with uagents message model
 
 
 MobilityType = Literal[

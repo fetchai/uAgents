@@ -38,16 +38,6 @@ class MobilityAgent(Agent):
         self._proximity_agents: list[SearchResultAgent] = []
         self._checkedin_agents: dict[str, dict[str, Any]] = {}
 
-        # @self.on_rest_post("/set_location", Location, Location)
-        # async def _handle_location_update(_ctx: Context, req: Location):
-        #     await self._update_geolocation(req)
-        #     return self.location
-
-        # @self.on_rest_get("/step", Location)
-        # async def _handle_step(_ctx: Context):
-        #     await self.step()
-        #     return self.location
-
     @property
     def location(self) -> dict:
         return self.metadata["geolocation"] or {}
@@ -62,12 +52,18 @@ class MobilityAgent(Agent):
 
     @property
     def proximity_agents(self) -> list[SearchResultAgent]:
-        # agents where this agent checked in
+        """
+        List of agents that this agent has checked in with.
+        (i.e. agents that are in proximity / within the radius of this agent)
+        """
         return self._proximity_agents
 
     @property
     def checkedin_agents(self) -> dict[str, dict[str, Any]]:
-        # agents that checked in with this agent
+        """
+        List of agents that have checked in with this agent.
+        (i.e. agents which radius this agent is within)
+        """
         return self._checkedin_agents
 
     def checkin_agent(self, addr: str, agent: CheckIn):
@@ -88,13 +84,14 @@ class MobilityAgent(Agent):
     def deactivate_agent(self, agent: SearchResultAgent):
         self._proximity_agents.remove(agent)
 
-    async def _update_geolocation(self, location: Location):
+    async def update_geolocation(self, location: Location):
+        """Call this method with new location data to update the agent's location"""
         self._metadata["geolocation"]["latitude"] = location.latitude
         self._metadata["geolocation"]["longitude"] = location.longitude
         self._metadata["geolocation"]["radius"] = location.radius
-        await self.invoke_location_update()
+        await self._invoke_location_update()
 
-    async def invoke_location_update(self):
+    async def _invoke_location_update(self):
         self._logger.info(
             f"Updating location {(self.location['latitude'], self.location['longitude'])}"
         )

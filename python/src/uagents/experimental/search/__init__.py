@@ -4,10 +4,9 @@ from typing import Annotated, List, Literal
 import requests
 from pydantic import BaseModel, Field
 
-# from uagents.config import SEARCH_API_URL
+from uagents.config import AGENTVERSE_URL
 
-SEARCH_API_URL = "https://engine-staging.sandbox-london-b.fetch-ai.com/v1/search/agents"
-# SEARCH_API_URL = "https://agentverse.ai/v1/search/agents"
+SEARCH_API_URL = AGENTVERSE_URL + "/v1/search/agents"
 
 StatusType = Literal["active", "inactive"]
 AgentType = Literal["hosted", "local", "mailbox", "proxy", "custom"]

@@ -19,14 +19,14 @@ Raised when an agent has insufficient funds for a transaction.
 #### get`_`ledger
 
 ```python
-def get_ledger(test: bool = True) -> LedgerClient
+def get_ledger(network: AgentNetwork = "testnet") -> LedgerClient
 ```
 
 Get the Ledger client.
 
 **Arguments**:
 
-- `test` _bool_ - Whether to use the testnet or mainnet. Defaults to True.
+- `network` _AgentNetwork, optional_ - The network to use. Defaults to "testnet".
   
 
 **Returns**:
@@ -356,14 +356,15 @@ Get the agent's sequence number for Almanac registration.
 #### get`_`almanac`_`contract
 
 ```python
-def get_almanac_contract(test: bool = True) -> Optional[AlmanacContract]
+def get_almanac_contract(
+        network: AgentNetwork = "testnet") -> Optional[AlmanacContract]
 ```
 
 Get the AlmanacContract instance.
 
 **Arguments**:
 
-- `test` _bool_ - Whether to use the testnet or mainnet. Defaults to True.
+- `network` _AgentNetwork_ - The network to use. Defaults to "testnet".
   
 
 **Returns**:
@@ -406,7 +407,7 @@ Execute a query with additional checks and error handling.
 
 **Raises**:
 
-- `RuntimeError` - If the contract address is not set or the query fails.
+- `ValueError` - If the response from contract is not a dict.
 
 <a id="src.uagents.network.NameServiceContract.is_name_available"></a>
 
@@ -495,8 +496,8 @@ Retrieve the previous records for a given name within a specified domain.
 
 ```python
 def get_registration_tx(name: str, wallet_address: Address,
-                        agent_records: Union[List[Dict[str, Any]],
-                                             str], domain: str, test: bool)
+                        agent_records: Union[List[Dict[str, Any]], str],
+                        domain: str, network: AgentNetwork)
 ```
 
 Get the registration transaction for registering a name within a domain.
@@ -563,7 +564,8 @@ Unregister a name within a domain using the NameService contract.
 #### get`_`name`_`service`_`contract
 
 ```python
-def get_name_service_contract(test: bool = True) -> NameServiceContract
+def get_name_service_contract(
+        network: AgentNetwork = "testnet") -> NameServiceContract
 ```
 
 Get the NameServiceContract instance.

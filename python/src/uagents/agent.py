@@ -69,9 +69,11 @@ from uagents.registration import (
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.types import (
+    AddressPrefix,
     AgentEndpoint,
     AgentInfo,
     AgentMetadata,
+    AgentNetwork,
     EventCallback,
     IntervalCallback,
     JsonStr,
@@ -249,7 +251,8 @@ class Agent(Sink):
         protocols (Dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
         corresponding protocols.
         _ctx (Context): The context for agent interactions.
-        _test (bool): True if the agent will register and transact on the testnet.
+        _network (str): The network to use for the agent ('mainnet' or 'testnet').
+        _prefix (str): The address prefix for the agent (determined by the network).
         _enable_agent_inspector (bool): Enable the agent inspector REST endpoints.
         _metadata (Dict[str, Any]): Metadata associated with the agent.
         _readme (Optional[str]): The agent's README file.
@@ -284,7 +287,7 @@ class Agent(Sink):
         wallet_key_derivation_index: Optional[int] = 0,
         max_resolver_endpoints: Optional[int] = None,
         version: Optional[str] = None,
-        test: bool = True,
+        network: AgentNetwork = "testnet",
         loop: Optional[asyncio.AbstractEventLoop] = None,
         log_level: Union[int, str] = logging.INFO,
         enable_agent_inspector: bool = True,
@@ -311,7 +314,7 @@ class Agent(Sink):
             wallet_key_derivation_index (Optional[int]): The index used for deriving the wallet key.
             max_resolver_endpoints (Optional[int]): The maximum number of endpoints to resolve.
             version (Optional[str]): The version of the agent.
-            test (Optional[bool]): True if the agent will register and transact on the testnet.
+            network (Literal["mainnet", "testnet"]): The network to use for the agent.
             loop (Optional[asyncio.AbstractEventLoop]): The asyncio event loop to use.
             log_level (Union[int, str]): The logging level for the agent.
             enable_agent_inspector (bool): Enable the agent inspector for debugging.
@@ -354,8 +357,8 @@ class Agent(Sink):
             almanac_api_url=self._almanac_api_url,
         )
 
-        self._ledger = get_ledger(test)
-        self._almanac_contract = get_almanac_contract(test)
+        self._ledger = get_ledger(network)
+        self._almanac_contract = get_almanac_contract(network)
         self._storage = KeyValueStore(self.address[0:16])
         self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
         self._interval_messages: Set[str] = set()
@@ -371,7 +374,10 @@ class Agent(Sink):
         self._message_queue = asyncio.Queue()
         self._on_startup = []
         self._on_shutdown = []
-        self._test = test
+        self._network = network
+        self._prefix: AddressPrefix = (
+            MAINNET_PREFIX if network == "mainnet" else TESTNET_PREFIX
+        )
         self._version = version or "0.1.0"
         self._registration_policy = registration_policy or None
 
@@ -380,7 +386,7 @@ class Agent(Sink):
                 self._ledger,
                 self._wallet,
                 self._almanac_contract,
-                self._test,
+                self._network == "testnet",
                 almanac_api=self._almanac_api_url,
             )
         self._metadata = self._initialize_metadata(metadata)
@@ -424,7 +430,7 @@ class Agent(Sink):
             async def _handle_get_info(_ctx: Context):
                 return AgentInfo(
                     address=self.address,
-                    prefix=TESTNET_PREFIX if self._test else MAINNET_PREFIX,
+                    prefix=self._prefix,
                     endpoints=self._endpoints,
                     protocols=list(self.protocols.keys()),
                     metadata=self.metadata,
@@ -451,7 +457,7 @@ class Agent(Sink):
                 return await register_in_agentverse(
                     request,
                     self._identity,
-                    TESTNET_PREFIX if self._test else MAINNET_PREFIX,
+                    self._prefix,
                     self._agentverse,
                     agent_details,
                 )
@@ -602,8 +608,7 @@ class Agent(Sink):
         Returns:
             str: The agent's identifier.
         """
-        prefix = TESTNET_PREFIX if self._test else MAINNET_PREFIX
-        return prefix + "://" + self._identity.address
+        return self._prefix + "://" + self._identity.address
 
     @property
     def wallet(self) -> LocalWallet:
@@ -676,7 +681,7 @@ class Agent(Sink):
         """
         return AgentInfo(
             address=self.address,
-            prefix=TESTNET_PREFIX if self._test else MAINNET_PREFIX,
+            prefix=self._prefix,
             endpoints=self._endpoints,
             protocols=list(self.protocols.keys()),
             metadata=self.metadata,
@@ -1509,7 +1514,7 @@ class Bureau:
                 agent._ledger,
                 agent._wallet,
                 agent._almanac_contract,
-                agent._test,
+                agent._network == "testnet",
                 logger=agent._logger,
             )
 

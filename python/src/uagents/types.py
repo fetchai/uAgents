@@ -39,6 +39,7 @@ RestHandlerMap = Dict[Tuple[RestMethod, str], RestHandler]
 
 
 AddressPrefix = Literal["agent", "test-agent"]
+AgentNetwork = Literal["mainnet", "testnet"]
 
 
 class AgentEndpoint(BaseModel):
