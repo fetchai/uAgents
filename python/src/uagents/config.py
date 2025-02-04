@@ -1,6 +1,10 @@
+import logging
 from typing import Dict, List, Optional, Union
 
+from pydantic import BaseModel
+
 from uagents.types import AgentEndpoint
+from uagents.utils import get_logger
 
 AGENT_PREFIX = "agent"
 LEDGER_PREFIX = "fetch"
@@ -22,10 +26,10 @@ TESTNET_CONTRACT_NAME_SERVICE = (
     "fetch1mxz8kn3l5ksaftx8a9pj9a6prpzk2uhxnqdkwuqvuh37tw80xu6qges77l"
 )
 REGISTRATION_FEE = 500000000000000000
-REGISTRATION_DENOM = "atestfet"
 REGISTRATION_UPDATE_INTERVAL_SECONDS = 3600
 REGISTRATION_RETRY_INTERVAL_SECONDS = 60
 AVERAGE_BLOCK_INTERVAL = 6
+DEFAULT_LEDGER_TX_WAIT_SECONDS = 30
 ALMANAC_CONTRACT_VERSION = "2.0.0"
 
 AGENTVERSE_URL = "https://agentverse.ai"
@@ -43,15 +47,49 @@ DEFAULT_MAX_ENDPOINTS = 10
 DEFAULT_SEARCH_LIMIT = 100
 
 
+class AgentverseConfig(BaseModel):
+    base_url: str = AGENTVERSE_URL
+    protocol: str = "https"
+    http_prefix: str = "https"
+
+    @property
+    def url(self) -> str:
+        return f"{self.http_prefix}://{self.base_url}"
+
+
 def parse_endpoint_config(
     endpoint: Optional[Union[str, List[str], Dict[str, dict]]],
+    agentverse: AgentverseConfig,
+    mailbox: bool = False,
+    proxy: bool = False,
+    logger: Optional[logging.Logger] = None,
 ) -> List[AgentEndpoint]:
     """
     Parse the user-provided endpoint configuration.
 
+    Args:
+        endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration.
+        agentverse (AgentverseConfig): The agentverse configuration.
+        mailbox (bool): Whether to use the mailbox endpoint.
+        proxy (bool): Whether to use the proxy endpoint.
+        logger (Optional[logging.Logger]): The logger to use.
+
     Returns:
-        Optional[List[Dict[str, Any]]]: The parsed endpoint configuration.
+        Optional[List[AgentEndpoint]: The parsed endpoint configuration.
     """
+
+    logger = logger or get_logger("config")
+
+    if endpoint:
+        if mailbox:
+            logger.warning("Endpoint configuration overrides mailbox setting.")
+        if proxy:
+            logger.warning("Endpoint configuration overrides proxy setting.")
+    elif mailbox and proxy:
+        logger.warning(
+            "Mailbox and proxy settings are mutually exclusive. Defaulting to mailbox."
+        )
+
     if isinstance(endpoint, dict):
         endpoints = [
             AgentEndpoint.model_validate(
@@ -65,6 +103,10 @@ def parse_endpoint_config(
         ]
     elif isinstance(endpoint, str):
         endpoints = [AgentEndpoint.model_validate({"url": endpoint, "weight": 1})]
+    elif mailbox:
+        endpoints = [AgentEndpoint(url=f"{agentverse.url}/v1/submit", weight=1)]
+    elif proxy:
+        endpoints = [AgentEndpoint(url=f"{agentverse.url}/v1/proxy/submit", weight=1)]
     else:
         endpoints = []
     return endpoints
@@ -72,36 +114,31 @@ def parse_endpoint_config(
 
 def parse_agentverse_config(
     config: Optional[Union[str, Dict[str, str]]] = None,
-) -> Dict[str, Union[str, bool, None]]:
+) -> AgentverseConfig:
     """
     Parse the user-provided agentverse configuration.
 
     Returns:
-        Dict[str, Union[str, bool, None]]: The parsed agentverse configuration.
+        AgentverseConfig: The parsed agentverse configuration.
     """
-    agent_mailbox_key = None
     base_url = AGENTVERSE_URL
     protocol = None
     protocol_override = None
     if isinstance(config, str):
         if config.count("@") == 1:
-            agent_mailbox_key, base_url = config.split("@")
+            _, base_url = config.split("@")
         elif "://" in config:
             base_url = config
-        else:
-            agent_mailbox_key = config
     elif isinstance(config, dict):
-        agent_mailbox_key = config.get("agent_mailbox_key")
         base_url = config.get("base_url") or base_url
         protocol_override = config.get("protocol")
     if "://" in base_url:
         protocol, base_url = base_url.split("://")
     protocol = protocol_override or protocol or "https"
     http_prefix = "https" if protocol in {"wss", "https"} else "http"
-    return {
-        "agent_mailbox_key": agent_mailbox_key,
-        "base_url": base_url,
-        "protocol": protocol,
-        "http_prefix": http_prefix,
-        "use_mailbox": agent_mailbox_key is not None,
-    }
+
+    return AgentverseConfig(
+        base_url=base_url,
+        protocol=protocol,
+        http_prefix=http_prefix,
+    )

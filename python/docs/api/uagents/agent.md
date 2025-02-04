@@ -130,7 +130,7 @@ An agent that interacts within a communication environment.
 - `_logger` - The logger instance for logging agent activities.
 - `_endpoints` _List[AgentEndpoint]_ - List of endpoints at which the agent is reachable.
 - `_use_mailbox` _bool_ - Indicates if the agent uses a mailbox for communication.
-- `_agentverse` _dict_ - Agentverse configuration settings.
+- `_agentverse` _AgentverseConfig_ - Agentverse configuration settings.
 - `_mailbox_client` _MailboxClient_ - The client for interacting with the agentverse mailbox.
 - `_ledger` - The client for interacting with the blockchain ledger.
 - `_almanac_contract` - The almanac contract for registering agent addresses to endpoints.
@@ -158,9 +158,12 @@ An agent that interacts within a communication environment.
 - `protocols` _Dict[str, Protocol]_ - Dictionary mapping all supported protocol digests to their
   corresponding protocols.
 - `_ctx` _Context_ - The context for agent interactions.
-- `_test` _bool_ - True if the agent will register and transact on the testnet.
+- `_network` _str_ - The network to use for the agent ('mainnet' or 'testnet').
+- `_prefix` _str_ - The address prefix for the agent (determined by the network).
 - `_enable_agent_inspector` _bool_ - Enable the agent inspector REST endpoints.
 - `_metadata` _Dict[str, Any]_ - Metadata associated with the agent.
+- `_readme` _Optional[str]_ - The agent's README file.
+- `_avatar_url` _Optional[str]_ - The URL for the agent's avatar image on Agentverse.
   
   Properties:
 - `name` _str_ - The name of the agent.
@@ -168,8 +171,7 @@ An agent that interacts within a communication environment.
 - `identifier` _str_ - The Agent Identifier, including network prefix and address.
 - `wallet` _LocalWallet_ - The agent's wallet for transacting on the ledger.
 - `storage` _KeyValueStore_ - The key-value store for storage operations.
-- `mailbox` _Dict[str, str]_ - The mailbox configuration for the agent.
-- `agentverse` _Dict[str, str]_ - The agentverse configuration for the agent.
+- `agentverse` _AgentverseConfig_ - The agentverse configuration for the agent.
 - `mailbox_client` _MailboxClient_ - The client for interacting with the agentverse mailbox.
 - `protocols` _Dict[str, Protocol]_ - Dictionary mapping all supported protocol digests to their
   corresponding protocols.
@@ -185,18 +187,22 @@ def __init__(name: Optional[str] = None,
              seed: Optional[str] = None,
              endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
              agentverse: Optional[Union[str, Dict[str, str]]] = None,
-             mailbox: Optional[Union[str, Dict[str, str]]] = None,
+             mailbox: bool = False,
+             proxy: bool = False,
              resolve: Optional[Resolver] = None,
              registration_policy: Optional[AgentRegistrationPolicy] = None,
              enable_wallet_messaging: Union[bool, Dict[str, str]] = False,
              wallet_key_derivation_index: Optional[int] = 0,
              max_resolver_endpoints: Optional[int] = None,
              version: Optional[str] = None,
-             test: bool = True,
+             network: AgentNetwork = "testnet",
              loop: Optional[asyncio.AbstractEventLoop] = None,
              log_level: Union[int, str] = logging.INFO,
              enable_agent_inspector: bool = True,
-             metadata: Optional[Dict[str, Any]] = None)
+             metadata: Optional[Dict[str, Any]] = None,
+             readme_path: Optional[str] = None,
+             avatar_url: Optional[str] = None,
+             publish_agent_details: bool = False)
 ```
 
 Initialize an Agent instance.
@@ -208,7 +214,8 @@ Initialize an Agent instance.
 - `seed` _Optional[str]_ - The seed for generating keys.
 - `endpoint` _Optional[Union[str, List[str], Dict[str, dict]]]_ - The endpoint configuration.
 - `agentverse` _Optional[Union[str, Dict[str, str]]]_ - The agentverse configuration.
-- `mailbox` _Optional[Union[str, Dict[str, str]]]_ - The mailbox configuration.
+- `mailbox` _bool_ - True if the agent will receive messages via an Agentverse mailbox.
+- `proxy` _bool_ - True if the agent will receive messages via an Agentverse proxy endpoint.
 - `resolve` _Optional[Resolver]_ - The resolver to use for agent communication.
 - `enable_wallet_messaging` _Optional[Union[bool, Dict[str, str]]]_ - Whether to enable
   wallet messaging. If '{"chain_id": CHAIN_ID}' is provided, this sets the chain ID for
@@ -216,11 +223,15 @@ Initialize an Agent instance.
 - `wallet_key_derivation_index` _Optional[int]_ - The index used for deriving the wallet key.
 - `max_resolver_endpoints` _Optional[int]_ - The maximum number of endpoints to resolve.
 - `version` _Optional[str]_ - The version of the agent.
-- `test` _Optional[bool]_ - True if the agent will register and transact on the testnet.
+- `network` _Literal["mainnet", "testnet"]_ - The network to use for the agent.
 - `loop` _Optional[asyncio.AbstractEventLoop]_ - The asyncio event loop to use.
 - `log_level` _Union[int, str]_ - The logging level for the agent.
 - `enable_agent_inspector` _bool_ - Enable the agent inspector for debugging.
 - `metadata` _Optional[Dict[str, Any]]_ - Optional metadata to include in the agent object.
+- `readme_path` _Optional[str]_ - The path to the agent's README file.
+- `avatar_url` _Optional[str]_ - The URL for the agent's avatar image on Agentverse.
+- `publish_agent_details` _bool_ - Publish agent details to Agentverse on connection via
+  local agent inspector.
 
 <a id="src.uagents.agent.Agent.initialize_wallet_messaging"></a>
 
@@ -328,29 +339,13 @@ Get the key-value store used by the agent for data storage.
 
 - `KeyValueStore` - The key-value store instance.
 
-<a id="src.uagents.agent.Agent.mailbox"></a>
-
-#### mailbox
-
-```python
-@property
-def mailbox() -> Dict[str, str]
-```
-
-Get the mailbox configuration of the agent.
-Agentverse overrides it but mailbox is kept for backwards compatibility.
-
-**Returns**:
-
-  Dict[str, str]: The mailbox configuration.
-
 <a id="src.uagents.agent.Agent.agentverse"></a>
 
 #### agentverse
 
 ```python
 @property
-def agentverse() -> Dict[str, str]
+def agentverse() -> AgentverseConfig
 ```
 
 Get the agentverse configuration of the agent.
@@ -389,6 +384,21 @@ Get the balance of the agent.
 
 - `int` - Bank balance.
 
+<a id="src.uagents.agent.Agent.info"></a>
+
+#### info
+
+```python
+@property
+def info() -> AgentInfo
+```
+
+Get basic information about the agent.
+
+**Returns**:
+
+- `AgentInfo` - The agent's address, endpoints, protocols, and metadata.
+
 <a id="src.uagents.agent.Agent.metadata"></a>
 
 #### metadata
@@ -403,22 +413,6 @@ Get the metadata associated with the agent.
 **Returns**:
 
   Dict[str, Any]: The metadata associated with the agent.
-
-<a id="src.uagents.agent.Agent.mailbox"></a>
-
-#### mailbox
-
-```python
-@mailbox.setter
-def mailbox(config: Union[str, Dict[str, str]])
-```
-
-Set the mailbox configuration for the agent.
-Agentverse overrides it but mailbox is kept for backwards compatibility.
-
-**Arguments**:
-
-- `config` _Union[str, Dict[str, str]]_ - The new mailbox configuration.
 
 <a id="src.uagents.agent.Agent.agentverse"></a>
 
@@ -478,18 +472,26 @@ Sign the provided digest.
 #### sign`_`registration
 
 ```python
-def sign_registration() -> str
+def sign_registration(timestamp: int,
+                      sender_wallet_address: Optional[str] = None) -> str
 ```
 
 Sign the registration data for Almanac contract.
 
+**Arguments**:
+
+- `timestamp` _int_ - The timestamp for the registration.
+- `sender_wallet_address` _Optional[str]_ - The wallet address of the transaction sender.
+  
+
 **Returns**:
 
 - `str` - The signature of the registration data.
+  
 
 **Raises**:
 
-- `AssertionError` - If the Almanac contract address is None.
+- `AssertionError` - If the Almanac contract is None.
 
 <a id="src.uagents.agent.Agent.update_endpoints"></a>
 
@@ -736,6 +738,16 @@ async def setup()
 
 Include the internal agent protocol, run startup tasks, and start background tasks.
 
+<a id="src.uagents.agent.Agent.start_registration_loop"></a>
+
+#### start`_`registration`_`loop
+
+```python
+def start_registration_loop()
+```
+
+Start the registration loop.
+
 <a id="src.uagents.agent.Agent.start_message_dispenser"></a>
 
 #### start`_`message`_`dispenser
@@ -794,7 +806,8 @@ Create all tasks for the agent.
 def run()
 ```
 
-Run the agent.
+Run the agent by itself.
+A fresh event loop is created for the agent and it is closed after the agent stops.
 
 <a id="src.uagents.agent.Agent.get_message_protocol"></a>
 
@@ -819,27 +832,20 @@ A class representing a Bureau of agents.
 
 This class manages a collection of agents and orchestrates their execution.
 
-**Arguments**:
-
-- `agents` _Optional[List[Agent]]_ - The list of agents to be managed by the bureau.
-- `port` _Optional[int]_ - The port number for the server.
-- `endpoint` _Optional[Union[str, List[str], Dict[str, dict]]]_ - Configuration
-  for agent endpoints.
-  
-
 **Attributes**:
 
 - `_loop` _asyncio.AbstractEventLoop_ - The event loop.
 - `_agents` _List[Agent]_ - The list of agents to be managed by the bureau.
-- `_registered_agents` _List[Agent]_ - The list of agents contained in the bureau.
 - `_endpoints` _List[Dict[str, Any]]_ - The endpoint configuration for the bureau.
 - `_port` _int_ - The port on which the bureau's server runs.
 - `_queries` _Dict[str, asyncio.Future]_ - Dictionary mapping query senders to their
   response Futures.
 - `_logger` _Logger_ - The logger instance.
 - `_server` _ASGIServer_ - The ASGI server instance for handling requests.
+- `_agentverse` _AgentverseConfig_ - The agentverse configuration for the bureau.
 - `_use_mailbox` _bool_ - A flag indicating whether mailbox functionality is enabled for any
   of the agents.
+- `_registration_policy` _AgentRegistrationPolicy_ - The registration policy for the bureau.
 
 <a id="src.uagents.agent.Bureau.__init__"></a>
 
@@ -849,6 +855,12 @@ This class manages a collection of agents and orchestrates their execution.
 def __init__(agents: Optional[List[Agent]] = None,
              port: Optional[int] = None,
              endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
+             agentverse: Optional[Union[str, Dict[str, str]]] = None,
+             registration_policy: Optional[BatchRegistrationPolicy] = None,
+             ledger: Optional[LedgerClient] = None,
+             wallet: Optional[LocalWallet] = None,
+             seed: Optional[str] = None,
+             test: bool = True,
              loop: Optional[asyncio.AbstractEventLoop] = None,
              log_level: Union[int, str] = logging.INFO)
 ```
@@ -857,9 +869,17 @@ Initialize a Bureau instance.
 
 **Arguments**:
 
-- `port` _Optional[int]_ - The port on which the bureau's server will run.
-- `endpoint` _Optional[Union[str, List[str], Dict[str, dict]]]_ - The endpoint configuration
-  for the bureau.
+- `agents` _Optional[List[Agent]]_ - The list of agents to be managed by the bureau.
+- `port` _Optional[int]_ - The port number for the server.
+- `endpoint` _Optional[Union[str, List[str], Dict[str, dict]]]_ - The endpoint configuration.
+- `agentverse` _Optional[Union[str, Dict[str, str]]]_ - The agentverse configuration.
+- `registration_policy` _Optional[BatchRegistrationPolicy]_ - The registration policy.
+- `ledger` _Optional[LedgerClient]_ - The ledger for the bureau.
+- `wallet` _Optional[LocalWallet]_ - The wallet for the bureau (overrides 'seed').
+- `seed` _Optional[str]_ - The seed phrase for the wallet (overridden by 'wallet').
+- `test` _Optional[bool]_ - True if the bureau will register and transact on the testnet.
+- `loop` _Optional[asyncio.AbstractEventLoop]_ - The event loop.
+- `log_level` _Union[int, str]_ - The logging level for the bureau.
 
 <a id="src.uagents.agent.Bureau.add"></a>
 

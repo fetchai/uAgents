@@ -24,3 +24,48 @@ def coerce_metadata_to_str(
 
 Step through the metadata and convert any non-string values to strings.
 
+<a id="src.uagents.registration.extract_geo_metadata"></a>
+
+#### extract`_`geo`_`metadata
+
+```python
+def extract_geo_metadata(
+        metadata: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]
+```
+
+Extract geo-location metadata from the metadata dictionary.
+
+<a id="src.uagents.registration.LedgerBasedRegistrationPolicy"></a>
+
+## LedgerBasedRegistrationPolicy Objects
+
+```python
+class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy)
+```
+
+<a id="src.uagents.registration.LedgerBasedRegistrationPolicy.check_contract_version"></a>
+
+#### check`_`contract`_`version
+
+```python
+def check_contract_version()
+```
+
+Check the version of the deployed Almanac contract and log a warning
+if it is different from the supported version.
+
+<a id="src.uagents.registration.LedgerBasedRegistrationPolicy.register"></a>
+
+#### register
+
+```python
+async def register(agent_identifier: str,
+                   identity: Identity,
+                   protocols: List[str],
+                   endpoints: List[AgentEndpoint],
+                   metadata: Optional[Dict[str, Any]] = None)
+```
+
+Register the agent on the Almanac contract if registration is about to expire or
+the registration data has changed.
+

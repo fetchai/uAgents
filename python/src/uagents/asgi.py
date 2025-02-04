@@ -29,7 +29,7 @@ from uagents.utils import get_logger
 
 HOST = "0.0.0.0"
 
-RESERVED_ENDPOINTS = ["/submit", "/messages", "/agent_info"]
+RESERVED_ENDPOINTS = ["/submit", "/messages", "/agent_info", "/connect"]
 
 
 async def _read_asgi_body(receive):
@@ -75,7 +75,7 @@ class ASGIServer:
             Tuple[str, RestMethod, str], RestHandlerDetails
         ] = {}
         self._logger = logger or get_logger("server")
-        self._server = None
+        self._server: Optional[uvicorn.Server] = None
 
     @property
     def server(self):
@@ -133,19 +133,27 @@ class ASGIServer:
         body: Optional[Union[Dict[str, Any], ErrorWrapper]] = None,
     ):
         header = (
-            [[k.encode(), v.encode()] for k, v in headers.items()] if headers else None
+            [[k.encode(), v.encode()] for k, v in headers.items()]
+            if headers is not None
+            else [[b"content-type", b"application/json"]]
         )
-        if body is None:
-            body = {}
 
         await send(
             {
                 "type": "http.response.start",
                 "status": status_code,
-                "headers": header or [[b"content-type", b"application/json"]],
+                "headers": header,
             }
         )
-        await send({"type": "http.response.body", "body": json.dumps(body).encode()})
+
+        if body is None:
+            encoded_body = (
+                b"{}" if [[b"content-type", b"application/json"]] in header else b""
+            )
+        else:
+            encoded_body = json.dumps(body).encode()
+
+        await send({"type": "http.response.body", "body": encoded_body})
 
     async def handle_readiness_probe(self, headers: CaseInsensitiveDict, send):
         """
@@ -154,7 +162,7 @@ class ASGIServer:
         if b"x-uagents-address" not in headers:
             await self._asgi_send(send, headers={"x-uagents-status": "indeterminate"})
         else:
-            address = headers[b"x-uagents-address"].decode()
+            address = headers[b"x-uagents-address"].decode()  # type: ignore
             if not dispatcher.contains(address):
                 await self._asgi_send(send, headers={"x-uagents-status": "not-ready"})
             else:
@@ -201,8 +209,8 @@ class ASGIServer:
         )
         try:
             await self._server.serve()
-        except KeyboardInterrupt:
-            self._logger.info("Shutting down server")
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            self._logger.info("Shutting down server...")
 
     async def _handle_rest(
         self,
@@ -224,7 +232,7 @@ class ASGIServer:
                     },
                 )
                 return
-            destination = headers[b"x-uagents-address"].decode()
+            destination = headers[b"x-uagents-address"].decode()  # type: ignore
             rest_handler = handlers.get(destination)
         else:
             destination, rest_handler = handlers.popitem()
@@ -294,10 +302,18 @@ class ASGIServer:
         request_method = scope["method"]
         request_path = scope["path"]
 
+        # Handle OPTIONS preflight request for CORS
+        if request_method == "OPTIONS":
+            await self._asgi_send(send, 204, headers={})
+            return
+
         # check if the request is for a REST endpoint
         handlers = self._get_rest_handler_details(request_method, request_path)
         if handlers:
-            if "127.0.0.1" not in scope["client"]:
+            if (
+                request_path in RESERVED_ENDPOINTS
+                and "127.0.0.1" not in scope["client"]
+            ):
                 await self._asgi_send(send, 403, body={"error": "forbidden"})
                 return
             await self._handle_rest(headers, handlers, send, receive)
@@ -316,7 +332,7 @@ class ASGIServer:
             await self.handle_missing_content_type(headers, send)
             return
 
-        if b"application/json" not in headers[b"content-type"]:
+        if b"application/json" not in headers[b"content-type"]:  # type: ignore
             await self._asgi_send(send, 400, body={"error": "invalid content-type"})
             return
 
@@ -337,7 +353,7 @@ class ASGIServer:
             )
             return
 
-        expects_response = headers.get(b"x-uagents-connection") == b"sync"
+        expects_response = headers.get(b"x-uagents-connection") == b"sync"  # type: ignore
 
         if expects_response:
             # Add a future that will be resolved once the query is answered

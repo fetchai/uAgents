@@ -19,6 +19,7 @@ from uagents.config import (
 )
 from uagents.crypto import is_user_address
 from uagents.network import get_almanac_contract, get_name_service_contract
+from uagents.types import AgentNetwork
 from uagents.utils import get_logger
 
 LOGGER = get_logger("resolver", logging.WARNING)
@@ -106,18 +107,19 @@ def parse_identifier(identifier: str) -> Tuple[str, str, str]:
     return prefix, name, address
 
 
-def query_record(agent_address: str, service: str, test: bool) -> dict:
+def query_record(agent_address: str, service: str, network: AgentNetwork) -> dict:
     """
     Query a record from the Almanac contract.
 
     Args:
         agent_address (str): The address of the agent.
         service (str): The type of service to query.
+        network (AgentNetwork): The network to query (mainnet or testnet).
 
     Returns:
         dict: The query result.
     """
-    contract = get_almanac_contract(test)
+    contract = get_almanac_contract(network)
     query_msg = {
         "query_record": {"agent_address": agent_address, "record_type": service}
     }
@@ -125,19 +127,19 @@ def query_record(agent_address: str, service: str, test: bool) -> dict:
     return result
 
 
-def get_agent_address(name: str, test: bool) -> Optional[str]:
+def get_agent_address(name: str, network: AgentNetwork) -> Optional[str]:
     """
     Get the agent address associated with the provided name from the name service contract.
 
     Args:
         name (str): The name to query.
-        test (bool): Whether to use the testnet or mainnet contract.
+        network (AgentNetwork): The network to query (mainnet or testnet).
 
     Returns:
         Optional[str]: The associated agent address if found.
     """
-    query_msg = {"domain_record": {"domain": f"{name}"}}
-    result = get_name_service_contract(test).query(query_msg)
+    query_msg = {"query_domain_record": {"domain": f"{name}"}}
+    result = get_name_service_contract(network).query(query_msg)
     if result["record"] is not None:
         registered_records = result["record"]["records"][0]["agent_address"]["records"]
         if len(registered_records) > 0:

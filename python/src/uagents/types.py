@@ -38,15 +38,21 @@ RestMethod = Literal["GET", "POST"]
 RestHandlerMap = Dict[Tuple[RestMethod, str], RestHandler]
 
 
+AddressPrefix = Literal["agent", "test-agent"]
+AgentNetwork = Literal["mainnet", "testnet"]
+
+
 class AgentEndpoint(BaseModel):
     url: str
     weight: int
 
 
 class AgentInfo(BaseModel):
-    agent_address: str
+    address: str
+    prefix: AddressPrefix
     endpoints: List[AgentEndpoint]
     protocols: List[str]
+    metadata: Optional[Dict[str, Any]] = None
 
 
 class RestHandlerDetails(BaseModel):
@@ -60,7 +66,7 @@ class AgentGeolocation(BaseModel):
     model_config = ConfigDict(strict=True, allow_inf_nan=False)
     latitude: Annotated[float, Field(ge=-90, le=90)]
     longitude: Annotated[float, Field(ge=-180, le=180)]
-    radius: Annotated[float, Field(ge=0)] = 0
+    radius: Annotated[float, Field(gt=0)] = 0.5
 
     @field_validator("latitude", "longitude")
     @classmethod

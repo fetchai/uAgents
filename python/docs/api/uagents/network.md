@@ -19,14 +19,14 @@ Raised when an agent has insufficient funds for a transaction.
 #### get`_`ledger
 
 ```python
-def get_ledger(test: bool = True) -> LedgerClient
+def get_ledger(network: AgentNetwork = "testnet") -> LedgerClient
 ```
 
 Get the Ledger client.
 
 **Arguments**:
 
-- `test` _bool_ - Whether to use the testnet or mainnet. Defaults to True.
+- `network` _AgentNetwork, optional_ - The network to use. Defaults to "testnet".
   
 
 **Returns**:
@@ -118,6 +118,21 @@ This class provides methods to interact with the Almanac contract, including
 checking if an agent is registered, retrieving the expiry height of an agent's
 registration, and getting the endpoints associated with an agent's registration.
 
+<a id="src.uagents.network.AlmanacContract.check_version"></a>
+
+#### check`_`version
+
+```python
+def check_version() -> bool
+```
+
+Check if the contract version supported by this version of uAgents matches the
+deployed version.
+
+**Returns**:
+
+- `bool` - True if the contract version is supported, False otherwise.
+
 <a id="src.uagents.network.AlmanacContract.query_contract"></a>
 
 #### query`_`contract
@@ -175,15 +190,41 @@ Check if an agent is registered in the Almanac contract.
 
 - `bool` - True if the agent is registered, False otherwise.
 
-<a id="src.uagents.network.AlmanacContract.get_expiry"></a>
+<a id="src.uagents.network.AlmanacContract.registration_needs_update"></a>
 
-#### get`_`expiry
+#### registration`_`needs`_`update
 
 ```python
-def get_expiry(address: str) -> int
+def registration_needs_update(address: str, endpoints: List[AgentEndpoint],
+                              protocols: List[str],
+                              min_seconds_left: int) -> bool
 ```
 
-Get the expiry height of an agent's registration.
+Check if an agent's registration needs to be updated.
+
+**Arguments**:
+
+- `address` _str_ - The agent's address.
+- `endpoints` _List[AgentEndpoint]_ - The agent's endpoints.
+- `protocols` _List[str]_ - The agent's protocols.
+- `min_time_left` _int_ - The minimum time left before the agent's registration expires
+  
+
+**Returns**:
+
+- `bool` - True if the agent's registration needs to be updated or will expire sooner
+  than the specified minimum time, False otherwise.
+
+<a id="src.uagents.network.AlmanacContract.query_agent_record"></a>
+
+#### query`_`agent`_`record
+
+```python
+def query_agent_record(
+        address: str) -> Tuple[int, List[AgentEndpoint], List[str]]
+```
+
+Get the records associated with an agent's registration.
 
 **Arguments**:
 
@@ -192,7 +233,27 @@ Get the expiry height of an agent's registration.
 
 **Returns**:
 
-- `int` - The expiry height of the agent's registration.
+  Tuple[int, List[AgentEndpoint], List[str]]: The expiry height of the agent's
+  registration, the agent's endpoints, and the agent's protocols.
+
+<a id="src.uagents.network.AlmanacContract.get_expiry"></a>
+
+#### get`_`expiry
+
+```python
+def get_expiry(address: str) -> int
+```
+
+Get the approximate seconds to expiry of an agent's registration.
+
+**Arguments**:
+
+- `address` _str_ - The agent's address.
+  
+
+**Returns**:
+
+- `int` - The approximate seconds to expiry of the agent's registration.
 
 <a id="src.uagents.network.AlmanacContract.get_endpoints"></a>
 
@@ -211,14 +272,14 @@ Get the endpoints associated with an agent's registration.
 
 **Returns**:
 
-- `List[AgentEndpoint]` - The endpoints associated with the agent's registration.
+- `List[AgentEndpoint]` - The agent's registered endpoints.
 
 <a id="src.uagents.network.AlmanacContract.get_protocols"></a>
 
 #### get`_`protocols
 
 ```python
-def get_protocols(address: str)
+def get_protocols(address: str) -> List[str]
 ```
 
 Get the protocols associated with an agent's registration.
@@ -230,7 +291,7 @@ Get the protocols associated with an agent's registration.
 
 **Returns**:
 
-- `Any` - The protocols associated with the agent's registration.
+- `List[str]` - The agent's registered protocols.
 
 <a id="src.uagents.network.AlmanacContract.register"></a>
 
@@ -239,7 +300,8 @@ Get the protocols associated with an agent's registration.
 ```python
 async def register(ledger: LedgerClient, wallet: LocalWallet,
                    agent_address: str, protocols: List[str],
-                   endpoints: List[AgentEndpoint], signature: str)
+                   endpoints: List[AgentEndpoint], signature: str,
+                   current_time: int)
 ```
 
 Register an agent with the Almanac contract.
@@ -252,6 +314,23 @@ Register an agent with the Almanac contract.
 - `protocols` _List[str]_ - List of protocols.
 - `endpoints` _List[Dict[str, Any]]_ - List of endpoint dictionaries.
 - `signature` _str_ - The agent's signature.
+
+<a id="src.uagents.network.AlmanacContract.register_batch"></a>
+
+#### register`_`batch
+
+```python
+async def register_batch(ledger: LedgerClient, wallet: LocalWallet,
+                         agent_records: List[AlmanacContractRecord])
+```
+
+Register multiple agents with the Almanac contract.
+
+**Arguments**:
+
+- `ledger` _LedgerClient_ - The Ledger client.
+- `wallet` _LocalWallet_ - The wallet of the registration sender.
+- `agents` _List[ALmanacContractRecord]_ - The list of signed agent records to register.
 
 <a id="src.uagents.network.AlmanacContract.get_sequence"></a>
 
@@ -277,19 +356,20 @@ Get the agent's sequence number for Almanac registration.
 #### get`_`almanac`_`contract
 
 ```python
-def get_almanac_contract(test: bool = True) -> AlmanacContract
+def get_almanac_contract(
+        network: AgentNetwork = "testnet") -> Optional[AlmanacContract]
 ```
 
 Get the AlmanacContract instance.
 
 **Arguments**:
 
-- `test` _bool_ - Whether to use the testnet or mainnet. Defaults to True.
+- `network` _AgentNetwork_ - The network to use. Defaults to "testnet".
   
 
 **Returns**:
 
-- `AlmanacContract` - The AlmanacContract instance.
+- `AlmanacContract` - The AlmanacContract instance if version is supported.
 
 <a id="src.uagents.network.NameServiceContract"></a>
 
@@ -327,7 +407,7 @@ Execute a query with additional checks and error handling.
 
 **Raises**:
 
-- `RuntimeError` - If the contract address is not set or the query fails.
+- `ValueError` - If the response from contract is not a dict.
 
 <a id="src.uagents.network.NameServiceContract.is_name_available"></a>
 
@@ -416,8 +496,8 @@ Retrieve the previous records for a given name within a specified domain.
 
 ```python
 def get_registration_tx(name: str, wallet_address: Address,
-                        agent_records: Union[List[Dict[str, Any]],
-                                             str], domain: str, test: bool)
+                        agent_records: Union[List[Dict[str, Any]], str],
+                        domain: str, network: AgentNetwork)
 ```
 
 Get the registration transaction for registering a name within a domain.
@@ -484,7 +564,8 @@ Unregister a name within a domain using the NameService contract.
 #### get`_`name`_`service`_`contract
 
 ```python
-def get_name_service_contract(test: bool = True) -> NameServiceContract
+def get_name_service_contract(
+        network: AgentNetwork = "testnet") -> NameServiceContract
 ```
 
 Get the NameServiceContract instance.

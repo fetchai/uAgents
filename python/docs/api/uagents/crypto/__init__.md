@@ -102,7 +102,8 @@ Sign the provided digest.
 #### sign`_`registration
 
 ```python
-def sign_registration(contract_address: str, sequence: int) -> str
+def sign_registration(contract_address: str, timestamp: int,
+                      wallet_address: str) -> str
 ```
 
 Sign the registration data for the Almanac contract.

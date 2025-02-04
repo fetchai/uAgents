@@ -1,13 +1,14 @@
 """Agent"""
 
 import asyncio
+import contextlib
 import functools
 import logging
+import os
 import uuid
 from typing import (
     Any,
     Callable,
-    Coroutine,
     Dict,
     List,
     Optional,
@@ -32,6 +33,7 @@ from uagents.config import (
     REGISTRATION_RETRY_INTERVAL_SECONDS,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     TESTNET_PREFIX,
+    AgentverseConfig,
     parse_agentverse_config,
     parse_endpoint_config,
 )
@@ -39,7 +41,14 @@ from uagents.context import Context, ContextFactory, ExternalContext, InternalCo
 from uagents.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents.dispatch import Sink, dispatcher
 from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
-from uagents.mailbox import MailboxClient
+from uagents.mailbox import (
+    AgentUpdates,
+    AgentverseConnectRequest,
+    MailboxClient,
+    RegistrationResponse,
+    is_mailbox_agent,
+    register_in_agentverse,
+)
 from uagents.models import ErrorMessage, Model
 from uagents.network import (
     InsufficientFundsError,
@@ -50,15 +59,21 @@ from uagents.protocol import Protocol
 from uagents.registration import (
     AgentRegistrationPolicy,
     AgentStatusUpdate,
+    BatchLedgerRegistrationPolicy,
+    BatchRegistrationPolicy,
+    DefaultBatchRegistrationPolicy,
     DefaultRegistrationPolicy,
+    LedgerBasedRegistrationPolicy,
     update_agent_status,
 )
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.types import (
+    AddressPrefix,
     AgentEndpoint,
     AgentInfo,
     AgentMetadata,
+    AgentNetwork,
     EventCallback,
     IntervalCallback,
     JsonStr,
@@ -70,7 +85,7 @@ from uagents.types import (
     RestMethod,
     RestPostHandler,
 )
-from uagents.utils import get_logger
+from uagents.utils import get_logger, set_global_log_level
 
 
 async def _run_interval(
@@ -100,18 +115,6 @@ async def _run_interval(
             logger.exception(f"Exception in interval handler: {ex}")
 
         await asyncio.sleep(period)
-
-
-async def _delay(coroutine: Coroutine, delay_seconds: float):
-    """
-    Delay the execution of the provided coroutine by the specified number of seconds.
-
-    Args:
-        coroutine (Coroutine): The coroutine to delay.
-        delay_seconds (float): The delay time in seconds.
-    """
-    await asyncio.sleep(delay_seconds)
-    await coroutine
 
 
 async def _send_error_message(ctx: Context, destination: str, msg: ErrorMessage):
@@ -220,7 +223,7 @@ class Agent(Sink):
         _logger: The logger instance for logging agent activities.
         _endpoints (List[AgentEndpoint]): List of endpoints at which the agent is reachable.
         _use_mailbox (bool): Indicates if the agent uses a mailbox for communication.
-        _agentverse (dict): Agentverse configuration settings.
+        _agentverse (AgentverseConfig): Agentverse configuration settings.
         _mailbox_client (MailboxClient): The client for interacting with the agentverse mailbox.
         _ledger: The client for interacting with the blockchain ledger.
         _almanac_contract: The almanac contract for registering agent addresses to endpoints.
@@ -248,9 +251,12 @@ class Agent(Sink):
         protocols (Dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
         corresponding protocols.
         _ctx (Context): The context for agent interactions.
-        _test (bool): True if the agent will register and transact on the testnet.
+        _network (str): The network to use for the agent ('mainnet' or 'testnet').
+        _prefix (str): The address prefix for the agent (determined by the network).
         _enable_agent_inspector (bool): Enable the agent inspector REST endpoints.
         _metadata (Dict[str, Any]): Metadata associated with the agent.
+        _readme (Optional[str]): The agent's README file.
+        _avatar_url (Optional[str]): The URL for the agent's avatar image on Agentverse.
 
     Properties:
         name (str): The name of the agent.
@@ -258,8 +264,7 @@ class Agent(Sink):
         identifier (str): The Agent Identifier, including network prefix and address.
         wallet (LocalWallet): The agent's wallet for transacting on the ledger.
         storage (KeyValueStore): The key-value store for storage operations.
-        mailbox (Dict[str, str]): The mailbox configuration for the agent.
-        agentverse (Dict[str, str]): The agentverse configuration for the agent.
+        agentverse (AgentverseConfig): The agentverse configuration for the agent.
         mailbox_client (MailboxClient): The client for interacting with the agentverse mailbox.
         protocols (Dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
         corresponding protocols.
@@ -274,18 +279,22 @@ class Agent(Sink):
         seed: Optional[str] = None,
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
         agentverse: Optional[Union[str, Dict[str, str]]] = None,
-        mailbox: Optional[Union[str, Dict[str, str]]] = None,
+        mailbox: bool = False,
+        proxy: bool = False,
         resolve: Optional[Resolver] = None,
         registration_policy: Optional[AgentRegistrationPolicy] = None,
         enable_wallet_messaging: Union[bool, Dict[str, str]] = False,
         wallet_key_derivation_index: Optional[int] = 0,
         max_resolver_endpoints: Optional[int] = None,
         version: Optional[str] = None,
-        test: bool = True,
+        network: AgentNetwork = "testnet",
         loop: Optional[asyncio.AbstractEventLoop] = None,
         log_level: Union[int, str] = logging.INFO,
         enable_agent_inspector: bool = True,
         metadata: Optional[Dict[str, Any]] = None,
+        readme_path: Optional[str] = None,
+        avatar_url: Optional[str] = None,
+        publish_agent_details: bool = False,
     ):
         """
         Initialize an Agent instance.
@@ -296,7 +305,8 @@ class Agent(Sink):
             seed (Optional[str]): The seed for generating keys.
             endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration.
             agentverse (Optional[Union[str, Dict[str, str]]]): The agentverse configuration.
-            mailbox (Optional[Union[str, Dict[str, str]]]): The mailbox configuration.
+            mailbox (bool): True if the agent will receive messages via an Agentverse mailbox.
+            proxy (bool): True if the agent will receive messages via an Agentverse proxy endpoint.
             resolve (Optional[Resolver]): The resolver to use for agent communication.
             enable_wallet_messaging (Optional[Union[bool, Dict[str, str]]]): Whether to enable
             wallet messaging. If '{"chain_id": CHAIN_ID}' is provided, this sets the chain ID for
@@ -304,11 +314,15 @@ class Agent(Sink):
             wallet_key_derivation_index (Optional[int]): The index used for deriving the wallet key.
             max_resolver_endpoints (Optional[int]): The maximum number of endpoints to resolve.
             version (Optional[str]): The version of the agent.
-            test (Optional[bool]): True if the agent will register and transact on the testnet.
+            network (Literal["mainnet", "testnet"]): The network to use for the agent.
             loop (Optional[asyncio.AbstractEventLoop]): The asyncio event loop to use.
             log_level (Union[int, str]): The logging level for the agent.
             enable_agent_inspector (bool): Enable the agent inspector for debugging.
             metadata (Optional[Dict[str, Any]]): Optional metadata to include in the agent object.
+            readme_path (Optional[str]): The path to the agent's README file.
+            avatar_url (Optional[str]): The URL for the agent's avatar image on Agentverse.
+            publish_agent_details (bool): Publish agent details to Agentverse on connection via
+            local agent inspector.
         """
         self._init_done = False
         self._name = name
@@ -318,43 +332,33 @@ class Agent(Sink):
 
         # initialize wallet and identity
         self._initialize_wallet_and_identity(seed, name, wallet_key_derivation_index)
+        if log_level != logging.INFO:
+            set_global_log_level(log_level)
         self._logger = get_logger(self.name, level=log_level)
 
-        # configure endpoints and mailbox
-        self._endpoints = parse_endpoint_config(endpoint)
-        self._use_mailbox = False
-
-        if mailbox:
-            # agentverse config overrides mailbox config
-            # but mailbox is kept for backwards compatibility
-            if agentverse:
-                self._logger.warning(
-                    "Ignoring the provided 'mailbox' configuration since 'agentverse' overrides it"
-                )
-            else:
-                agentverse = mailbox
         self._agentverse = parse_agentverse_config(agentverse)
-        self._use_mailbox = self._agentverse["use_mailbox"]
+
+        # configure endpoints and mailbox
+        self._endpoints = parse_endpoint_config(
+            endpoint, self._agentverse, mailbox, proxy, self._logger
+        )
+
+        self._use_mailbox = is_mailbox_agent(self._endpoints, self._agentverse)
         if self._use_mailbox:
-            self._mailbox_client = MailboxClient(self, self._logger)
-            # if mailbox is provided, override endpoints with mailbox endpoint
-            self._endpoints = [
-                AgentEndpoint(
-                    url=f"{self.mailbox['http_prefix']}://{self.mailbox['base_url']}/v1/submit",
-                    weight=1,
-                )
-            ]
+            self._mailbox_client = MailboxClient(
+                self._identity, self._agentverse, self._logger
+            )
         else:
             self._mailbox_client = None
 
-        self._almanac_api_url = f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}/v1/almanac"
+        self._almanac_api_url = f"{self._agentverse.url}/v1/almanac"
         self._resolver = resolve or GlobalResolver(
             max_endpoints=max_resolver_endpoints,
             almanac_api_url=self._almanac_api_url,
         )
 
-        self._ledger = get_ledger(test)
-        self._almanac_contract = get_almanac_contract(test)
+        self._ledger = get_ledger(network)
+        self._almanac_contract = get_almanac_contract(network)
         self._storage = KeyValueStore(self.address[0:16])
         self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
         self._interval_messages: Set[str] = set()
@@ -370,18 +374,31 @@ class Agent(Sink):
         self._message_queue = asyncio.Queue()
         self._on_startup = []
         self._on_shutdown = []
-        self._test = test
-        self._version = version or "0.1.0"
-        self._registration_policy = registration_policy or DefaultRegistrationPolicy(
-            self._identity,
-            self._ledger,
-            self._wallet,
-            self._almanac_contract,
-            self._test,
-            logger=self._logger,
-            almanac_api=self._almanac_api_url,
+        self._network = network
+        self._prefix: AddressPrefix = (
+            MAINNET_PREFIX if network == "mainnet" else TESTNET_PREFIX
         )
+        self._version = version or "0.1.0"
+        self._registration_policy = registration_policy or None
+
+        if self._registration_policy is None:
+            self._registration_policy = DefaultRegistrationPolicy(
+                self._ledger,
+                self._wallet,
+                self._almanac_contract,
+                self._network == "testnet",
+                almanac_api=self._almanac_api_url,
+            )
         self._metadata = self._initialize_metadata(metadata)
+        if readme_path:
+            path = os.path.join(os.getcwd(), readme_path)
+            if os.path.isdir(readme_path):
+                path = os.path.join(readme_path, "README.md")
+            with open(path) as f:
+                self._readme = f.read()
+        else:
+            self._readme = None
+        self._avatar_url = avatar_url
 
         self.initialize_wallet_messaging(enable_wallet_messaging)
 
@@ -412,14 +429,38 @@ class Agent(Sink):
             @self.on_rest_get("/agent_info", AgentInfo)  # type: ignore
             async def _handle_get_info(_ctx: Context):
                 return AgentInfo(
-                    agent_address=self.address,
+                    address=self.address,
+                    prefix=self._prefix,
                     endpoints=self._endpoints,
                     protocols=list(self.protocols.keys()),
+                    metadata=self.metadata,
                 )
 
             @self.on_rest_get("/messages", EnvelopeHistory)  # type: ignore
             async def _handle_get_messages(_ctx: Context):
                 return self._message_cache
+
+            @self.on_rest_post(
+                "/connect", AgentverseConnectRequest, RegistrationResponse
+            )
+            async def _handle_connect(_ctx: Context, request: AgentverseConnectRequest):
+                agent_details = (
+                    AgentUpdates(
+                        name=self.name,
+                        readme=self._readme,
+                        avatar_url=self._avatar_url,
+                        agent_type=request.agent_type,
+                    )
+                    if publish_agent_details
+                    else None
+                )
+                return await register_in_agentverse(
+                    request,
+                    self._identity,
+                    self._prefix,
+                    self._agentverse,
+                    agent_details,
+                )
 
         self._enable_agent_inspector = enable_agent_inspector
 
@@ -567,8 +608,7 @@ class Agent(Sink):
         Returns:
             str: The agent's identifier.
         """
-        prefix = TESTNET_PREFIX if self._test else MAINNET_PREFIX
-        return prefix + "://" + self._identity.address
+        return self._prefix + "://" + self._identity.address
 
     @property
     def wallet(self) -> LocalWallet:
@@ -601,18 +641,7 @@ class Agent(Sink):
         return self._storage
 
     @property
-    def mailbox(self) -> Dict[str, str]:
-        """
-        Get the mailbox configuration of the agent.
-        Agentverse overrides it but mailbox is kept for backwards compatibility.
-
-        Returns:
-            Dict[str, str]: The mailbox configuration.
-        """
-        return self._agentverse
-
-    @property
-    def agentverse(self) -> Dict[str, str]:
+    def agentverse(self) -> AgentverseConfig:
         """
         Get the agentverse configuration of the agent.
 
@@ -643,6 +672,22 @@ class Agent(Sink):
         return self.ledger.query_bank_balance(Address(self.wallet.address()))
 
     @property
+    def info(self) -> AgentInfo:
+        """
+        Get basic information about the agent.
+
+        Returns:
+            AgentInfo: The agent's address, endpoints, protocols, and metadata.
+        """
+        return AgentInfo(
+            address=self.address,
+            prefix=self._prefix,
+            endpoints=self._endpoints,
+            protocols=list(self.protocols.keys()),
+            metadata=self.metadata,
+        )
+
+    @property
     def metadata(self) -> Dict[str, Any]:
         """
         Get the metadata associated with the agent.
@@ -651,17 +696,6 @@ class Agent(Sink):
             Dict[str, Any]: The metadata associated with the agent.
         """
         return self._metadata
-
-    @mailbox.setter
-    def mailbox(self, config: Union[str, Dict[str, str]]):
-        """
-        Set the mailbox configuration for the agent.
-        Agentverse overrides it but mailbox is kept for backwards compatibility.
-
-        Args:
-            config (Union[str, Dict[str, str]]): The new mailbox configuration.
-        """
-        self._agentverse = parse_agentverse_config(config)
 
     @agentverse.setter
     def agentverse(self, config: Union[str, Dict[str, str]]):
@@ -699,19 +733,31 @@ class Agent(Sink):
         """
         return self._identity.sign_digest(digest)
 
-    def sign_registration(self, current_time: int) -> str:
+    # TODO this is not used anywhere in the framework
+    def sign_registration(
+        self, timestamp: int, sender_wallet_address: Optional[str] = None
+    ) -> str:
         """
         Sign the registration data for Almanac contract.
+
+        Args:
+            timestamp (int): The timestamp for the registration.
+            sender_wallet_address (Optional[str]): The wallet address of the transaction sender.
+
         Returns:
             str: The signature of the registration data.
+
         Raises:
-            AssertionError: If the Almanac contract address is None.
+            AssertionError: If the Almanac contract is None.
         """
-        assert self._almanac_contract.address is not None
+        sender_address = sender_wallet_address or str(self.wallet.address())
+
+        assert self._almanac_contract is not None
+
         return self._identity.sign_registration(
             str(self._almanac_contract.address),
-            current_time,
-            str(self.wallet.address()),
+            timestamp,
+            sender_address,
         )
 
     def update_endpoints(self, endpoints: List[AgentEndpoint]):
@@ -722,7 +768,6 @@ class Agent(Sink):
             endpoints (List[AgentEndpoint]): List of endpoint dictionaries.
 
         """
-
         self._endpoints = endpoints
 
     def update_loop(self, loop):
@@ -766,11 +811,17 @@ class Agent(Sink):
         if necessary.
 
         """
+        assert self._registration_policy is not None, "Agent has no registration policy"
+
         await self._registration_policy.register(
-            self.address, list(self.protocols.keys()), self._endpoints, self._metadata
+            self.identifier,
+            self._identity,
+            list(self.protocols.keys()),
+            self._endpoints,
+            self._metadata,
         )
 
-    async def _registration_loop(self):
+    async def _schedule_registration(self):
         """
         Execute the registration loop.
 
@@ -778,19 +829,17 @@ class Agent(Sink):
         registration.
 
         """
-        time_until_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
-        try:
-            await self.register()
-        except InsufficientFundsError:
-            time_until_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
-        except Exception as ex:
-            self._logger.exception(f"Failed to register on almanac contract: {ex}")
-            time_until_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
+        while True:
+            time_until_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
+            try:
+                await self.register()
+            except InsufficientFundsError:
+                time_until_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
+            except Exception as ex:
+                self._logger.exception(f"Failed to register: {ex}")
+                time_until_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
 
-        # schedule the next registration update
-        self._loop.create_task(
-            _delay(self._registration_loop(), time_until_next_registration)
-        )
+            await asyncio.sleep(time_until_next_registration)
 
     def on_interval(
         self,
@@ -899,7 +948,7 @@ class Agent(Sink):
             return lambda func: func
 
         def decorator_on_rest(func: RestHandler):
-            @functools.wraps(RestGetHandler if method == "GET" else RestPostHandler)
+            @functools.wraps(RestGetHandler if method == "GET" else RestPostHandler)  # type: ignore
             def handler(*args, **kwargs):
                 return func(*args, **kwargs)
 
@@ -1007,8 +1056,7 @@ class Agent(Sink):
         """
         try:
             resp = requests.post(
-                f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}"
-                + "/v1/almanac/manifests",
+                f"{self._agentverse.url}/v1/almanac/manifests",
                 json=manifest,
                 timeout=5,
             )
@@ -1064,13 +1112,14 @@ class Agent(Sink):
         Perform startup actions.
 
         """
-        if self._endpoints:
-            await self._registration_loop()
-
-        else:
-            self._logger.warning(
-                "No endpoints provided. Skipping registration: Agent won't be reachable."
-            )
+        self._logger.info(f"Starting agent with address: {self.address}")
+        if self._registration_policy:
+            if self._endpoints:
+                self.start_registration_loop()
+            else:
+                self._logger.warning(
+                    "No endpoints provided. Skipping registration: Agent won't be reachable."
+                )
         for handler in self._on_startup:
             try:
                 ctx = self._build_context()
@@ -1088,7 +1137,9 @@ class Agent(Sink):
 
         """
         try:
-            status = AgentStatusUpdate(agent_address=self.address, is_active=False)
+            status = AgentStatusUpdate(
+                agent_identifier=self.identifier, is_active=False
+            )
             status.sign(self._identity)
             await update_agent_status(status, self._almanac_api_url)
         except Exception as ex:
@@ -1114,6 +1165,13 @@ class Agent(Sink):
         await self._startup()
         self.start_message_receivers()
         self.start_interval_tasks()
+
+    def start_registration_loop(self):
+        """
+        Start the registration loop.
+
+        """
+        self._loop.create_task(self._schedule_registration())
 
     def start_message_dispenser(self):
         """
@@ -1156,10 +1214,7 @@ class Agent(Sink):
 
         """
         if self._enable_agent_inspector:
-            agentverse_url = (
-                f"{self._agentverse['http_prefix']}://{self._agentverse['base_url']}"
-            )
-            inspector_url = f"{agentverse_url}/inspect/"
+            inspector_url = f"{self._agentverse.url}/inspect/"
             escaped_uri = requests.utils.quote(f"http://127.0.0.1:{self._port}")
             self._logger.info(
                 f"Agent inspector available at {inspector_url}"
@@ -1183,16 +1238,25 @@ class Agent(Sink):
             tasks.append(self._mailbox_client.run())
 
         try:
-            await asyncio.gather(*tasks)
+            await asyncio.gather(*tasks, return_exceptions=True)
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            pass
         finally:
             await self._shutdown()
+            tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+            _ = [task.cancel() for task in tasks]
+            await asyncio.gather(*tasks)
 
     def run(self):
         """
-        Run the agent.
+        Run the agent by itself.
+        A fresh event loop is created for the agent and it is closed after the agent stops.
 
         """
-        self._loop.run_until_complete(self.run_async())
+        with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
+            self._loop.run_until_complete(self.run_async())
+        self._loop.stop()
+        self._loop.close()
 
     def get_message_protocol(
         self, message_schema_digest
@@ -1260,9 +1324,9 @@ class Agent(Sink):
             )
 
             # sanity check
-            assert (
-                context.session == session
-            ), "Context object should always have message session"
+            assert context.session == session, (
+                "Context object should always have message session"
+            )
 
             # parse the received message
             try:
@@ -1313,24 +1377,19 @@ class Bureau:
 
     This class manages a collection of agents and orchestrates their execution.
 
-    Args:
-        agents (Optional[List[Agent]]): The list of agents to be managed by the bureau.
-        port (Optional[int]): The port number for the server.
-        endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): Configuration
-        for agent endpoints.
-
     Attributes:
         _loop (asyncio.AbstractEventLoop): The event loop.
         _agents (List[Agent]): The list of agents to be managed by the bureau.
-        _registered_agents (List[Agent]): The list of agents contained in the bureau.
         _endpoints (List[Dict[str, Any]]): The endpoint configuration for the bureau.
         _port (int): The port on which the bureau's server runs.
         _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their
         response Futures.
         _logger (Logger): The logger instance.
         _server (ASGIServer): The ASGI server instance for handling requests.
+        _agentverse (AgentverseConfig): The agentverse configuration for the bureau.
         _use_mailbox (bool): A flag indicating whether mailbox functionality is enabled for any
         of the agents.
+        _registration_policy (AgentRegistrationPolicy): The registration policy for the bureau.
 
     """
 
@@ -1339,6 +1398,12 @@ class Bureau:
         agents: Optional[List[Agent]] = None,
         port: Optional[int] = None,
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
+        agentverse: Optional[Union[str, Dict[str, str]]] = None,
+        registration_policy: Optional[BatchRegistrationPolicy] = None,
+        ledger: Optional[LedgerClient] = None,
+        wallet: Optional[LocalWallet] = None,
+        seed: Optional[str] = None,
+        test: bool = True,
         loop: Optional[asyncio.AbstractEventLoop] = None,
         log_level: Union[int, str] = logging.INFO,
     ):
@@ -1346,13 +1411,20 @@ class Bureau:
         Initialize a Bureau instance.
 
         Args:
-            port (Optional[int]): The port on which the bureau's server will run.
-            endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration
-            for the bureau.
+            agents (Optional[List[Agent]]): The list of agents to be managed by the bureau.
+            port (Optional[int]): The port number for the server.
+            endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration.
+            agentverse (Optional[Union[str, Dict[str, str]]]): The agentverse configuration.
+            registration_policy (Optional[BatchRegistrationPolicy]): The registration policy.
+            ledger (Optional[LedgerClient]): The ledger for the bureau.
+            wallet (Optional[LocalWallet]): The wallet for the bureau (overrides 'seed').
+            seed (Optional[str]): The seed phrase for the wallet (overridden by 'wallet').
+            test (Optional[bool]): True if the bureau will register and transact on the testnet.
+            loop (Optional[asyncio.AbstractEventLoop]): The event loop.
+            log_level (Union[int, str]): The logging level for the bureau.
         """
         self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
         self._agents: List[Agent] = []
-        self._endpoints = parse_endpoint_config(endpoint)
         self._port = port or 8000
         self._queries: Dict[str, asyncio.Future] = {}
         self._logger = get_logger("bureau", log_level)
@@ -1362,11 +1434,92 @@ class Bureau:
             queries=self._queries,
             logger=self._logger,
         )
-        self._use_mailbox = False
+        self._agentverse = parse_agentverse_config(agentverse)
+        self._endpoints = parse_endpoint_config(
+            endpoint, self._agentverse, False, False, self._logger
+        )
+        self._use_mailbox = any(
+            [
+                is_mailbox_agent(agent._endpoints, self._agentverse)
+                for agent in self._agents
+            ]
+        )
+        almanac_contract = get_almanac_contract(test)
+
+        if wallet and seed:
+            self._logger.warning(
+                "Ignoring 'seed' argument because 'wallet' is provided."
+            )
+        elif seed:
+            wallet = LocalWallet(
+                PrivateKey(derive_key_from_seed(seed, LEDGER_PREFIX, 0)),
+                prefix=LEDGER_PREFIX,
+            )
+
+        if registration_policy is not None:
+            if (
+                isinstance(registration_policy, BatchLedgerRegistrationPolicy)
+                and wallet is None
+            ):
+                raise ValueError(
+                    "Argument 'wallet' must be provided when using "
+                    "the batch ledger registration policy."
+                )
+            self._registration_policy = registration_policy
+        else:
+            self._registration_policy = DefaultBatchRegistrationPolicy(
+                ledger or get_ledger(test),
+                wallet,
+                almanac_contract,
+                test,
+                logger=self._logger,
+                almanac_api=f"{self._agentverse.url}/v1/almanac",
+            )
 
         if agents is not None:
             for agent in agents:
                 self.add(agent)
+
+    def _update_agent(self, agent: Agent):
+        """
+        Update the agent to be taken over by the Bureau.
+
+        Args:
+            agent (Agent): The agent to be updated.
+
+        """
+        agent.update_loop(self._loop)
+        agent.update_queries(self._queries)
+        if is_mailbox_agent(agent._endpoints, self._agentverse):
+            self._use_mailbox = True
+        else:
+            if agent._endpoints:
+                self._logger.warning(
+                    f"Overwriting the agent's endpoints {agent._endpoints} "
+                    f"with the Bureau's endpoints {self._endpoints}."
+                )
+            agent.update_endpoints(self._endpoints)
+        self._server._rest_handler_map.update(agent._server._rest_handler_map)
+
+        # Run the batch Almanac API registration by default and only run the agent's
+        # ledger registration if the Bureau is not using a batch ledger registration
+        # policy because it has no wallet address.
+        agent._registration_policy = None
+        if (
+            isinstance(self._registration_policy, DefaultBatchRegistrationPolicy)
+            and self._registration_policy._ledger_policy is None
+            and agent._almanac_contract is not None
+        ):
+            agent._registration_policy = LedgerBasedRegistrationPolicy(
+                agent._ledger,
+                agent._wallet,
+                agent._almanac_contract,
+                agent._network == "testnet",
+                logger=agent._logger,
+            )
+
+        agent._agentverse = self._agentverse
+        agent._logger.setLevel(self._logger.level)
 
     def add(self, agent: Agent):
         """
@@ -1378,14 +1531,29 @@ class Bureau:
         """
         if agent in self._agents:
             return
-        agent.update_loop(self._loop)
-        agent.update_queries(self._queries)
-        if agent.agentverse["use_mailbox"]:
-            self._use_mailbox = True
-        else:
-            agent.update_endpoints(self._endpoints)
-        self._server._rest_handler_map.update(agent._server._rest_handler_map)
+        self._update_agent(agent)
+        self._registration_policy.add_agent(agent.info, agent._identity)
         self._agents.append(agent)
+
+    async def _schedule_registration(self):
+        """
+        Start the batch registration loop.
+
+        """
+        if not any(agent._endpoints for agent in self._agents):
+            return
+
+        while True:
+            time_to_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
+            try:
+                await self._registration_policy.register()
+            except InsufficientFundsError:
+                time_to_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
+            except Exception as ex:
+                self._logger.exception(f"Failed to register: {ex}")
+                time_to_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
+
+            await asyncio.sleep(time_to_next_registration)
 
     async def run_async(self):
         """
@@ -1393,19 +1561,35 @@ class Bureau:
 
         """
         tasks = [self._server.serve()]
+        if not self._agents:
+            self._logger.warning("No agents to run.")
+            return
         for agent in self._agents:
             await agent.setup()
-            if agent.agentverse["use_mailbox"] and agent.mailbox_client is not None:
+            if (
+                is_mailbox_agent(agent._endpoints, self._agentverse)
+                and agent.mailbox_client is not None
+            ):
                 tasks.append(agent.mailbox_client.run())
+        self._loop.create_task(self._schedule_registration())
 
         try:
-            await asyncio.gather(*tasks)
+            await asyncio.gather(*tasks, return_exceptions=True)
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            pass
         finally:
-            await asyncio.gather(*[agent._shutdown() for agent in self._agents])
+            for agent in self._agents:
+                await agent._shutdown()
+            tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+            _ = [task.cancel() for task in tasks]
+            await asyncio.gather(*tasks)
 
     def run(self):
         """
         Run the bureau.
 
         """
-        self._loop.run_until_complete(self.run_async())
+        with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
+            self._loop.run_until_complete(self.run_async())
+        self._loop.stop()
+        self._loop.close()
