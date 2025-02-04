@@ -1,6 +1,0 @@
-{
-    "title": "Car Parking from Geoapify integration",
-    "description": "Agent responsible for getting Car Parking from Geoapify API.",
-    "categories":   ["Mobility", "Car Parking"],
-    "deltav": true
-}

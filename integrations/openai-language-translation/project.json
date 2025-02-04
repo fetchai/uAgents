@@ -1,6 +1,0 @@
-{
-    "title": "AI Language Translator",
-    "description": "This integration helps user to translate a given message from one langugage to another of choice using GPT-3.5 turbo model",
-    "categories":    ["OpenAI", "GPT-3.5 turbo", "AI", "LLM", "Language Translator"],
-    "deltav": true
-}
