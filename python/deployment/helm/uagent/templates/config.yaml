@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "uagent.fullname" . }}-cfg
+data:
+  {{- if .Values.agent.name }}
+  UAGENT_NAME: {{ .Values.agent.name | quote }}
+  {{- end }}
+  {{- if .Values.agent.type }}
+  UAGENT_TYPE: {{ .Values.agent.type | quote }}
+  {{- end }}
+  {{- if .Values.agent.network }}
+  UAGENT_NETWORK: {{ .Values.agent.network | quote }}
+  {{- end }}
+
