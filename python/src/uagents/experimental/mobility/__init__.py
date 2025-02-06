@@ -84,12 +84,17 @@ class MobilityAgent(Agent):
     def deactivate_agent(self, agent: SearchResultAgent):
         self._proximity_agents.remove(agent)
 
-    async def update_geolocation(self, location: Location):
-        """Call this method with new location data to update the agent's location"""
+    async def update_geolocation(self, location: Location) -> dict:
+        """
+        Call this method with new location data to update the agent's location
+
+        returns: dict - updated location data
+        """
         self._metadata["geolocation"]["latitude"] = location.latitude
         self._metadata["geolocation"]["longitude"] = location.longitude
         self._metadata["geolocation"]["radius"] = location.radius
         await self._invoke_location_update()
+        return self.location
 
     async def _invoke_location_update(self):
         self._logger.info(
