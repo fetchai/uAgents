@@ -35,7 +35,7 @@ This service utilizes several key components:
 
 - **uagents**: For uagents framework and operations.
 - **langachain DallEAPIWrapper**: For interfacing with OpenAI's DALL-E image generation model.
-- **Agentverse**: Fetch.ai's agents, Mailroom and Services were used to make agent DeltaV accesible.
+- **Agentverse**: Fetch.ai's agents, Mailroom and Services were used to make agent DeltaV accessible.
 - **DeltaV**: DeltaV is used to interact with agent and produce image for given description.
 
 Please view `service.json` to get details about service created to make agent DeltaV discoverable.
