@@ -2,7 +2,7 @@
 
 We provide here an example of Dockerfile and Helm deployment charts for a simple uAgent.
 
-## Prequisites
+## Prerequisites
 - Install docker: https://docs.docker.com/get-docker/
 - Sign up for a Dockerhub account: https://hub.docker.com/
 - Install kubectl: https://kubernetes.io/docs/tasks/tools/install-kubectl/
