@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Any, Literal, Optional
 
 from pydantic.v1 import confloat
@@ -9,12 +8,11 @@ PROTOCOL_NAME = "basic-mobility-handshake"
 PROTOCOL_VERSION = "0.1.0"
 
 
+# This is used for compatibility with uagents message model
 class Location(Model):
     latitude: confloat(strict=True, ge=-90, le=90, allow_inf_nan=False)
     longitude: confloat(strict=True, ge=-180, le=180, allow_inf_nan=False)
-    radius: confloat(
-        gt=0, allow_inf_nan=False
-    )  # This is used for compatibility with uagents message model
+    radius: confloat(gt=0, allow_inf_nan=False)
 
 
 MobilityType = Literal[
@@ -85,7 +83,7 @@ class MobilityLogRequest(Model):
 class MobilityAgentLog(Model):
     """A log entry for a mobility agent"""
 
-    timestamp: datetime
+    timestamp: int
     active_address: str
     passive_address: str
     active_mobility_type: MobilityType
@@ -107,5 +105,10 @@ mobility_base_protocol = Protocol(name=PROTOCOL_NAME, version=PROTOCOL_VERSION)
 
 @mobility_base_protocol.on_message(MobilityLogRequest, replies=MobilityAgentLogs)
 async def handle_log_request(ctx: Context, sender: str, _msg: MobilityLogRequest):
-    logs = ctx.storage.get("mobility_logs") or []
-    await ctx.send(sender, MobilityAgentLogs(logs=logs))
+    cache = ctx.storage.get("mobility_logs") or []
+    await ctx.send(
+        sender,
+        MobilityAgentLogs(
+            logs=[MobilityAgentLog.model_validate_json(log) for log in cache]
+        ),
+    )

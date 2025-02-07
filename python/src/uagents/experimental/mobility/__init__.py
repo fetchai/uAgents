@@ -1,4 +1,4 @@
-from datetime import datetime
+from time import time
 from typing import Any
 
 from pydantic import BaseModel
@@ -47,7 +47,7 @@ class MobilityAgent(Agent):
 
             @self.on_rest_get("/mobility_logs", MobilityAgentLogs)  # type: ignore
             async def _handle_log_get(_ctx: Context):
-                return self.storage.get("mobility_logs") or []
+                return MobilityAgentLogs(logs=self._get_history())
 
     @property
     def location(self) -> dict:
@@ -82,8 +82,12 @@ class MobilityAgent(Agent):
         # - extrinsic information
 
     def checkin_agent(self, addr: str, agent: CheckIn):
-        timestamp = datetime.now()
-        self._checkedin_agents.update({addr: {"timestamp": timestamp, "agent": agent}})
+        timestamp = int(time())
+        self._checkedin_agents.update(
+            {
+                addr: {"timestamp": timestamp, "agent": agent},
+            }
+        )
         self._write_history(
             MobilityAgentLog(
                 timestamp=timestamp,
@@ -99,12 +103,12 @@ class MobilityAgent(Agent):
         removed = self._checkedin_agents.pop(addr)
         self._write_history(
             MobilityAgentLog(
-                timestamp=datetime.now(),
+                timestamp=int(time()),
                 active_address=addr,
                 passive_address=self.address,
-                active_mobility_type=removed["agent"]["mobility_type"],
+                active_mobility_type=removed["agent"].mobility_type,
                 passive_mobility_type=self.mobility_type,
-                interaction="checkin",
+                interaction="checkout",
             )
         )
 
@@ -175,3 +179,10 @@ class MobilityAgent(Agent):
         except Exception as e:
             self._logger.error(f"Error writing history: {e}")
             return False
+
+    def _get_history(self) -> list[MobilityAgentLog]:
+        """
+        Get the history of agent interactions
+        """
+        cache = self.storage.get("mobility_logs") or []
+        return [MobilityAgentLog.model_validate_json(log) for log in cache]
