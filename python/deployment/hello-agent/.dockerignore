@@ -1,0 +1,12 @@
+Dockerfile
+.dockerignore
+
+.git/
+.gitignore
+
+.venv/
+**/*.md
+**/*.lock
+**/*.toml
+**/*.json
+.python-version

@@ -55,10 +55,10 @@ def lookup_endpoint_for_agent(
     endpoints = r.json().get("endpoints", [])
 
     if len(endpoints) > 0:
-        endpoints = [val.get("url") for val in endpoints]
+        urls = [val.get("url") for val in endpoints]
         weights = [val.get("weight") for val in endpoints]
         return weighted_random_sample(
-            endpoints,
+            urls,
             weights=weights,
             k=min(max_endpoints, len(endpoints)),
         )
