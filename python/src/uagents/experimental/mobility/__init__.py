@@ -3,11 +3,13 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from uagents import Agent
+from uagents import Agent, Context
 from uagents.experimental.mobility.protocols.base_protocol import (
     CheckIn,
     CheckOut,
     Location,
+    MobilityAgentLog,
+    MobilityAgentLogs,
     MobilityType,
 )
 from uagents.experimental.search import Agent as SearchResultAgent
@@ -28,6 +30,7 @@ class MobilityAgent(Agent):
         location: AgentGeolocation,
         mobility_type: MobilityType,
         static_signal: str,
+        logging: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -37,6 +40,14 @@ class MobilityAgent(Agent):
         self._metadata["static_signal"] = static_signal
         self._proximity_agents: list[SearchResultAgent] = []
         self._checkedin_agents: dict[str, dict[str, Any]] = {}
+        self._logging = logging
+
+        # if logging is enabled, add a REST endpoint to get the logs
+        if self._logging:
+
+            @self.on_rest_get("/mobility_logs", MobilityAgentLogs)  # type: ignore
+            async def _handle_log_get(_ctx: Context):
+                return self.storage.get("mobility_logs") or []
 
     @property
     def location(self) -> dict:
@@ -57,6 +68,9 @@ class MobilityAgent(Agent):
         (i.e. agents that are in proximity / within the radius of this agent)
         """
         return self._proximity_agents
+        # only agents that were searched for appear here which is the main
+        # difference to checkedin_agents where less information is stored
+        # -> intrinsic information
 
     @property
     def checkedin_agents(self) -> dict[str, dict[str, Any]]:
@@ -65,24 +79,34 @@ class MobilityAgent(Agent):
         (i.e. agents which radius this agent is within)
         """
         return self._checkedin_agents
+        # - extrinsic information
 
     def checkin_agent(self, addr: str, agent: CheckIn):
-        self._checkedin_agents.update(
-            {addr: {"timestamp": datetime.now(), "agent": agent}}
+        timestamp = datetime.now()
+        self._checkedin_agents.update({addr: {"timestamp": timestamp, "agent": agent}})
+        self._write_history(
+            MobilityAgentLog(
+                timestamp=timestamp,
+                active_address=addr,
+                passive_address=self.address,
+                active_mobility_type=agent.mobility_type,
+                passive_mobility_type=self.mobility_type,
+                interaction="checkin",
+            )
         )
 
     def checkout_agent(self, addr: str):
-        return self._checkedin_agents.pop(addr)
-
-    def activate_agent(self, agent: SearchResultAgent):
-        for activated in self._proximity_agents:
-            if activated.address == agent.address:
-                return
-
-        self._proximity_agents.append(agent)
-
-    def deactivate_agent(self, agent: SearchResultAgent):
-        self._proximity_agents.remove(agent)
+        removed = self._checkedin_agents.pop(addr)
+        self._write_history(
+            MobilityAgentLog(
+                timestamp=datetime.now(),
+                active_address=addr,
+                passive_address=self.address,
+                active_mobility_type=removed["agent"]["mobility_type"],
+                passive_mobility_type=self.mobility_type,
+                interaction="checkin",
+            )
+        )
 
     async def update_geolocation(self, location: Location) -> dict:
         """
@@ -105,11 +129,9 @@ class MobilityAgent(Agent):
             self.location["longitude"],
             self.location["radius"],
             30,
-        )
+        )  # should return only active agents
         # send a check-in message to all agents that are in the current proximity
         for agent in proximity_agents:
-            if agent.status != "active":
-                continue
             await self._send_checkin(agent)
         # find out which agents left proximity and send them a check-out message
         addresses_that_left_proximity = {a.address for a in self._proximity_agents} - {
@@ -126,11 +148,10 @@ class MobilityAgent(Agent):
         self._proximity_agents = proximity_agents  # potential extra steps possible
 
     async def _send_checkin(self, agent: SearchResultAgent):
-        ctx = self._build_context()
-        # only send check-in to agents that are not already in the proximity list
+        """Send a check-in message to an agent (if not already in the proximity list)"""
         if agent in self._proximity_agents:
             return
-        await ctx.send(
+        await self._build_context().send(
             agent.address,
             CheckIn(
                 mobility_type=self.mobility_type,
@@ -139,6 +160,18 @@ class MobilityAgent(Agent):
         )
 
     async def _send_checkout(self, agent: SearchResultAgent):
-        ctx = self._build_context()
-        # send checkout message to all agents that left the proximity
-        await ctx.send(agent.address, CheckOut())
+        """Send a check-out message to an agent"""
+        await self._build_context().send(agent.address, CheckOut())
+
+    def _write_history(self, log: MobilityAgentLog) -> bool:
+        """
+        Write history of agent interactions to a file
+        """
+        try:
+            history = self.storage.get("mobility_logs") or []
+            history.append(log.model_dump_json())
+            self.storage.set("mobility_logs", history)
+            return True
+        except Exception as e:
+            self._logger.error(f"Error writing history: {e}")
+            return False

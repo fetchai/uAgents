@@ -1,8 +1,9 @@
+from datetime import datetime
 from typing import Any, Literal, Optional
 
 from pydantic.v1 import confloat
 
-from uagents import Model, Protocol
+from uagents import Context, Model, Protocol
 
 PROTOCOL_NAME = "basic-mobility-handshake"
 PROTOCOL_VERSION = "0.1.0"
@@ -76,4 +77,35 @@ class StatusUpdateResponse(Model):
     text: str = ""
 
 
+# pagination?
+class MobilityLogRequest(Model):
+    """Request the full agent log"""
+
+
+class MobilityAgentLog(Model):
+    """A log entry for a mobility agent"""
+
+    timestamp: datetime
+    active_address: str
+    passive_address: str
+    active_mobility_type: MobilityType
+    passive_mobility_type: MobilityType
+    interaction: Literal["checkin", "checkout"]
+
+    # optional additional information
+    additional_info: Optional[dict[str, Any]] = None
+
+
+class MobilityAgentLogs(Model):
+    """Response to a mobility log request"""
+
+    logs: list[MobilityAgentLog]
+
+
 mobility_base_protocol = Protocol(name=PROTOCOL_NAME, version=PROTOCOL_VERSION)
+
+
+@mobility_base_protocol.on_message(MobilityLogRequest, replies=MobilityAgentLogs)
+async def handle_log_request(ctx: Context, sender: str, _msg: MobilityLogRequest):
+    logs = ctx.storage.get("mobility_logs") or []
+    await ctx.send(sender, MobilityAgentLogs(logs=logs))

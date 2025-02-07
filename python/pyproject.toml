@@ -37,7 +37,7 @@ pytest-asyncio = "^0.23.8"
 pytest-order = "^1.2.1"
 mkdocs = "^1.4.2"
 mkdocs-material = "^9.1.13"
-ruff = "^0.9.1"
+ruff = "^0.9.5"
 pre-commit = "^3.6.2"
 pydoc-markdown = "^4.8.2"
 
