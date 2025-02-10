@@ -544,13 +544,11 @@ class NameServiceContract(LedgerContract):
             logger.debug(e)
             raise
 
-
     def get_oracle_agent_address(self):
-        query_msg = {"query_domain_record": {"domain": ORACLE_AGENT_DOMAIN} }
-        return self.query_contract(query_msg)["record"]["records"][0][
-            "agent_address"
-        ]["records"][0]["address"]
-
+        query_msg = {"query_domain_record": {"domain": ORACLE_AGENT_DOMAIN}}
+        return self.query_contract(query_msg)["record"]["records"][0]["agent_address"][
+            "records"
+        ][0]["address"]
 
     def is_name_available(self, name: str, domain: str) -> bool:
         """

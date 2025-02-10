@@ -42,6 +42,7 @@ logger.info(f"Adding testnet funds to {my_wallet.address()}...")
 faucet.get_wealth(my_wallet.address())
 logger.info(f"Adding testnet funds to {my_wallet.address()}...complete")
 
+
 @bob.on_event("startup")
 async def request_token(ctx: Context):
     ctx.logger.info(
@@ -53,7 +54,7 @@ async def request_token(ctx: Context):
     await ctx.send(
         oracle_address,
         VerificationRequest(
-            domain= bob.name + "." + DOMAIN,
+            domain=bob.name + "." + DOMAIN,
             address=str(my_wallet.address()),
             chain_id=ctx.ledger.query_chain_id(),
         ),
@@ -68,9 +69,7 @@ async def register_agent_name(ctx: Context, sender: str, msg: VerificationRespon
         ctx.logger.error(f"Domain {msg.domain} is not verified: {msg.info}")
         return
 
-    ctx.logger.info(
-        f"Received approval token from {sender} for domain {msg.domain}"
-    )
+    ctx.logger.info(f"Received approval token from {sender} for domain {msg.domain}")
     token = json.loads(msg.approval_token)
     await name_service_contract.register(
         bob.ledger, my_wallet, bob.address, bob.name, DOMAIN, approval_token=token

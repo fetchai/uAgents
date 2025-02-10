@@ -87,7 +87,10 @@ def validate_tx_msgs(
                 return False
 
             if "register_domain" in msg_dict:
-                if not msg_dict["register_domain"]["domain"] or msg.funds[0] != EXPECTED_FUNDS:
+                if (
+                    not msg_dict["register_domain"]["domain"]
+                    or msg.funds[0] != EXPECTED_FUNDS
+                ):
                     return False
             elif "update_domain_record" in msg_dict:
                 update_record = msg_dict["update_domain_record"]
@@ -142,7 +145,12 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
             self.fail("Name service contract address is invalid")
 
         tx = name_service_contract.get_registration_tx(
-            agent.name, agent.wallet.address(), agent.address, "example.agent", "testnet", "token"
+            agent.name,
+            agent.wallet.address(),
+            agent.address,
+            "example.agent",
+            "testnet",
+            "token",
         )
 
         if not tx:
