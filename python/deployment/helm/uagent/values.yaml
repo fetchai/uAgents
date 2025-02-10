@@ -1,0 +1,74 @@
+# This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+replicaCount: 1
+
+image:
+  repository: "fetchai/hello-agent"
+  pullPolicy: IfNotPresent
+  tag: "0.1"
+
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+agent:
+  name: "bryan"
+  seed: "bryan is a good agent"
+  type: "custom" # mailbox, proxy, custom (default)
+  portName: http
+  port: 8000
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+livenessProbe:
+  httpGet:
+    path: /submit
+    port: http
+
+readinessProbe:
+  httpGet:
+    path: /submit
+    port: http
+
+serviceAccount:
+  create: false
+  automount: true
+  annotations: {}
+  name: ""
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+volumes: []
+volumeMounts: []
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+podLabels: {}
+podSecurityContext: {}
+securityContext: {}
