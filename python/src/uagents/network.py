@@ -2,19 +2,20 @@
 
 import asyncio
 import time
-from typing import Any, Dict, List, Optional, Tuple, Union, Callable
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from cosmpy.aerial.client import (
+    DEFAULT_QUERY_INTERVAL_SECS,
     LedgerClient,
     NetworkConfig,
-    prepare_and_broadcast_basic_transaction, DEFAULT_QUERY_INTERVAL_SECS,
+    prepare_and_broadcast_basic_transaction,
 )
 from cosmpy.aerial.contract import LedgerContract
 from cosmpy.aerial.contract.cosmwasm import create_cosmwasm_execute_msg
 from cosmpy.aerial.exceptions import NotFoundError, QueryTimeoutError
 from cosmpy.aerial.faucet import FaucetApi
 from cosmpy.aerial.tx import Transaction
-from cosmpy.aerial.tx_helpers import TxResponse, SubmittedTx
+from cosmpy.aerial.tx_helpers import SubmittedTx, TxResponse
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
 
@@ -68,7 +69,7 @@ class BroadcastTimeoutError(RuntimeError):
     """Raised when a transaction broadcast fails due to a timeout."""
 
     def __init__(self):
-        super().__init__('Broadcast timeout error')
+        super().__init__("Broadcast timeout error")
 
 
 class AlmanacContractRecord(AgentInfo):
@@ -158,8 +159,8 @@ async def wait_for_tx_to_complete(
         tx_hash (str): The hash of the transaction to monitor.
         ledger (LedgerClient): The Ledger client to poll.
         poll_retries (Optional[int], optional): The maximum number of retry attempts.
-        poll_retry_delay (Optional[RetryDelayFunc], optional): The retry delay function, if not provided the default
-        exponential backoff will be used.
+        poll_retry_delay (Optional[RetryDelayFunc], optional): The retry delay function,
+        if not provided the default exponential backoff will be used.
 
     Returns:
         TxResponse: The response object containing the transaction details.
@@ -469,7 +470,7 @@ class AlmanacContract(LedgerContract):
             poll_retry_delay=poll_retry_delay,
         )
         if status.code != 0:
-            raise RuntimeError('Registration transaction failed')
+            raise RuntimeError("Registration transaction failed")
 
     async def register_batch(
         self,
@@ -544,10 +545,10 @@ class AlmanacContract(LedgerContract):
             tx.tx_hash,
             ledger,
             poll_retries=poll_retries,
-            poll_retry_delay=poll_retry_delay
+            poll_retry_delay=poll_retry_delay,
         )
         if status.code != 0:
-            raise RuntimeError('Registration transaction failed')
+            raise RuntimeError("Registration transaction failed")
 
     def get_sequence(self, address: str) -> int:
         """

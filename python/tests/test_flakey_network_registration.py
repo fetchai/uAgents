@@ -11,18 +11,28 @@ from cosmpy.aerial.tx import Transaction
 from cosmpy.aerial.tx_helpers import SubmittedTx, TxResponse
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
-from cosmpy.protos.cosmwasm.wasm.v1.query_pb2 import QuerySmartContractStateRequest, QuerySmartContractStateResponse
+from cosmpy.protos.cosmwasm.wasm.v1.query_pb2 import (
+    QuerySmartContractStateRequest,
+    QuerySmartContractStateResponse,
+)
 
-from uagents.config import ALMANAC_CONTRACT_VERSION, REGISTRATION_FEE, TESTNET_CONTRACT_ALMANAC
+from uagents.config import (
+    ALMANAC_CONTRACT_VERSION,
+    REGISTRATION_FEE,
+    TESTNET_CONTRACT_ALMANAC,
+)
 from uagents.crypto import Identity
 from uagents.network import AlmanacContract
-from uagents.registration import LedgerBasedRegistrationPolicy, BatchLedgerRegistrationPolicy
+from uagents.registration import (
+    BatchLedgerRegistrationPolicy,
+    LedgerBasedRegistrationPolicy,
+)
 from uagents.types import AgentInfo
 
 
 class FakeSubmittedTx:
     def __init__(self):
-        self.tx_hash = 'not-a-real-tx-hash'
+        self.tx_hash = "not-a-real-tx-hash"
 
 
 class FakeTxResponse:
@@ -35,18 +45,16 @@ def zero_retry_delay(index: int) -> float:
 
 
 class FakeWasmClient:
-    def SmartContractState(self, req: QuerySmartContractStateRequest):
+    def SmartContractState(self, req: QuerySmartContractStateRequest):  # noqa: N802
         data = json.loads(req.query_data)
         if data == {"query_contract_state": {}}:
             return QuerySmartContractStateResponse(
-                data=json.dumps({'contract_version': ALMANAC_CONTRACT_VERSION}).encode()
+                data=json.dumps({"contract_version": ALMANAC_CONTRACT_VERSION}).encode()
             )
-        elif 'query_records' in data:
-            return QuerySmartContractStateResponse(
-                data=json.dumps({}).encode()
-            )
-        print('Unknown request', req, data)
-        assert False, "Unknown request"
+        elif "query_records" in data:
+            return QuerySmartContractStateResponse(data=json.dumps({}).encode())
+        print("Unknown request", req, data)
+        raise AssertionError("Unknown request")
 
 
 class FakeLedgerClient:
@@ -93,25 +101,25 @@ class FakeLedgerClient:
         )
 
     def estimate_gas_and_fee_for_tx(self, tx: Transaction) -> Tuple[int, str]:
-        return 0, f'0{self.network_config.fee_denomination}'
+        return 0, f"0{self.network_config.fee_denomination}"
 
     def broadcast_tx(self, tx: Transaction) -> SubmittedTx:
         if self._broadcast_failure_count > 0:
             self._broadcast_failure_count -= 1
-            print('Broadcast failure', self._broadcast_failure_count)
-            raise BroadcastError('not-a-real-hash', 'not-a-real-tx-log')
+            print("Broadcast failure", self._broadcast_failure_count)
+            raise BroadcastError("not-a-real-hash", "not-a-real-tx-log")
         return FakeSubmittedTx()
 
     def query_tx(self, tx_hash: str) -> TxResponse:
         if self._query_failure_count > 0:
             self._query_failure_count -= 1
-            print('Query failure', self._query_failure_count)
-            raise RuntimeError('not-a-real-error')
+            print("Query failure", self._query_failure_count)
+            raise RuntimeError("not-a-real-error")
 
         if self._rpc_query_failure_count > 0:
             self._rpc_query_failure_count -= 1
-            print('RPC query failure', self._rpc_query_failure_count)
-            raise grpc.RpcError('not-a-real-rpc-error')
+            print("RPC query failure", self._rpc_query_failure_count)
+            raise grpc.RpcError("not-a-real-rpc-error")
 
         return FakeTxResponse()
 
@@ -122,10 +130,14 @@ class FlakeyNetworkRegistrationTests(unittest.IsolatedAsyncioTestCase):
         self.identity = Identity.from_seed("testing seeed", 1)
 
         self.ledger = FakeLedgerClient()
-        self.contract = AlmanacContract(None, self.ledger, Address(TESTNET_CONTRACT_ALMANAC))
+        self.contract = AlmanacContract(
+            None, self.ledger, Address(TESTNET_CONTRACT_ALMANAC)
+        )
 
-        self.logger = logging.getLogger('flakey')
-        self.policy = LedgerBasedRegistrationPolicy(self.ledger, self.wallet, self.contract, True, logger=self.logger)
+        self.logger = logging.getLogger("flakey")
+        self.policy = LedgerBasedRegistrationPolicy(
+            self.ledger, self.wallet, self.contract, True, logger=self.logger
+        )
 
     async def test_happy_registration_path(self):
         await self.policy.register(self.identity.address, self.identity, [], [])
@@ -202,7 +214,6 @@ class FlakeyNetworkRegistrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.ledger.rpc_query_failure_count, 1)
         self.assertIsNone(self.policy.last_successful_registration)
 
-
     async def test_retry_on_poll_failure_succeeds(self):
         # configure the ledger to fail the first broadcast
         self.ledger.query_failure_count = 4
@@ -246,14 +257,18 @@ class FlakeyBatchNetworkRegistrationTests(unittest.IsolatedAsyncioTestCase):
         self.identity = Identity.from_seed("testing seeed", 1)
 
         self.ledger = FakeLedgerClient()
-        self.contract = AlmanacContract(None, self.ledger, Address(TESTNET_CONTRACT_ALMANAC))
+        self.contract = AlmanacContract(
+            None, self.ledger, Address(TESTNET_CONTRACT_ALMANAC)
+        )
 
-        self.logger = logging.getLogger('flakey')
-        self.policy = BatchLedgerRegistrationPolicy(self.ledger, self.wallet, self.contract, True, logger=self.logger)
+        self.logger = logging.getLogger("flakey")
+        self.policy = BatchLedgerRegistrationPolicy(
+            self.ledger, self.wallet, self.contract, True, logger=self.logger
+        )
 
         info = AgentInfo(
             address=self.identity.address,
-            prefix='test-agent',
+            prefix="test-agent",
             endpoints=[],
             protocols=[],
             metadata={},

@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import hashlib
 import json
 import logging
@@ -28,7 +29,9 @@ from uagents.network import (
     AlmanacContract,
     AlmanacContractRecord,
     InsufficientFundsError,
-    add_testnet_funds, default_exp_backoff, RetryDelayFunc,
+    RetryDelayFunc,
+    add_testnet_funds,
+    default_exp_backoff,
 )
 from uagents.resolver import parse_identifier
 from uagents.types import AgentEndpoint, AgentInfo
@@ -76,9 +79,6 @@ class AgentRegistrationAttestationBatch(BaseModel):
 
 class AgentStatusUpdate(VerifiableModel):
     is_active: bool
-
-
-
 
 
 def coerce_metadata_to_str(
@@ -389,10 +389,14 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
                 self._last_successful_registration = datetime.now()
 
             except RuntimeError as e:
-                self._logger.warning('Registering on almanac contract...failed (will retry later)')
+                self._logger.warning(
+                    "Registering on almanac contract...failed (will retry later)"
+                )
                 self._logger.debug(e)
             except grpc.RpcError as e:
-                self._logger.warning('Registering on almanac contract...failed (will retry later)')
+                self._logger.warning(
+                    "Registering on almanac contract...failed (will retry later)"
+                )
                 self._logger.debug(e)
 
         else:
@@ -531,10 +535,14 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
             self._last_successful_registration = datetime.now()
 
         except RuntimeError as e:
-            self._logger.warning('Registering on almanac contract...failed (will retry later)')
+            self._logger.warning(
+                "Registering on almanac contract...failed (will retry later)"
+            )
             self._logger.debug(e)
         except grpc.RpcError as e:
-            self._logger.warning('Registering on almanac contract...failed (will retry later)')
+            self._logger.warning(
+                "Registering on almanac contract...failed (will retry later)"
+            )
             self._logger.debug(e)
 
 
@@ -606,14 +614,11 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
 async def update_agent_status(status: AgentStatusUpdate, almanac_api: str):
     _, _, agent_address = parse_identifier(status.agent_identifier)
 
-    try:
+    with contextlib.suppress(Exception):
         await almanac_api_post(
             f"{almanac_api}/agents/{agent_address}/status",
             status,
         )
-    except Exception:
-        pass
-
 
 
 class DefaultBatchRegistrationPolicy(BatchRegistrationPolicy):
