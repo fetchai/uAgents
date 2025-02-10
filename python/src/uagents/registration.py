@@ -176,6 +176,11 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         self._max_retries = max_retries
         self._logger = logger or logging.getLogger(__name__)
         self._retry_delay = retry_delay or default_exp_backoff
+        self._last_successful_registration: Optional[datetime] = None
+
+    @property
+    def last_successful_registration(self) -> Optional[datetime]:
+        return self._last_successful_registration
 
     async def register(
         self,
@@ -205,6 +210,7 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
             )
             if success:
                 self._logger.info("Registration on Almanac API successful")
+                self._last_successful_registration = datetime.now()
             else:
                 self._logger.warning("Registration on Almanac API failed")
         except Exception:
@@ -224,6 +230,11 @@ class BatchAlmanacApiRegistrationPolicy(BatchRegistrationPolicy):
         self._logger = logger or logging.getLogger(__name__)
         self._max_retries = max_retries
         self._retry_delay = retry_delay or default_exp_backoff
+        self._last_successful_registration: Optional[datetime] = None
+
+    @property
+    def last_successful_registration(self) -> Optional[datetime]:
+        return self._last_successful_registration
 
     def add_agent(self, agent_info: AgentInfo, identity: Identity):
         attestation = AgentRegistrationAttestation(
@@ -251,6 +262,7 @@ class BatchAlmanacApiRegistrationPolicy(BatchRegistrationPolicy):
             )
             if success:
                 self._logger.info("Batch registration on Almanac API successful")
+                self._last_successful_registration = datetime.now()
             else:
                 self._logger.warning("Batch registration on Almanac API failed")
         except Exception:
