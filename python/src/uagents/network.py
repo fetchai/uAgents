@@ -639,7 +639,8 @@ class NameServiceContract(LedgerContract):
             wallet_address (str): The wallet address initiating the registration.
             agent_address (str): The address of the agent.
             domain (str): The domain in which the name is registered.
-            test (bool): The agent type
+            network (AgentNetwork): The network in which the transaction is executed.
+            approval_token (str): The approval token required for registration.
 
         Returns:
             Optional[Transaction]: The registration transaction, or None if the name is not
@@ -651,7 +652,7 @@ class NameServiceContract(LedgerContract):
             MAINNET_CONTRACT_NAME_SERVICE
             if network == "mainnet"
             else TESTNET_CONTRACT_NAME_SERVICE
-        )    
+        )
 
         if self.is_name_available(name, domain):
             price_per_second = self.query_contract({"query_contract_state": {}})[
@@ -660,7 +661,12 @@ class NameServiceContract(LedgerContract):
             amount = int(price_per_second["amount"]) * ANAME_REGISTRATION_SECONDS
             denom = price_per_second["denom"]
 
-            registration_msg = {"register_domain": {"domain": f"{name}.{domain}", "approval_token": approval_token}}
+            registration_msg = {
+                "register_domain": {
+                    "domain": f"{name}.{domain}",
+                    "approval_token": approval_token,
+                }
+            }
 
             transaction.add_message(
                 create_cosmwasm_execute_msg(
@@ -702,6 +708,7 @@ class NameServiceContract(LedgerContract):
             agent_address (str): The address of the agent.
             name (str): The name to be registered.
             domain (str): The domain in which the name is registered.
+            approval_token (str): The approval token required for registration.
             overwrite (bool, optional): Specifies whether to overwrite any existing
                 addresses registered to the domain. If False, the address will be
                 appended to the previous records. Defaults to True.

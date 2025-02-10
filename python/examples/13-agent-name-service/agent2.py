@@ -12,7 +12,7 @@ alice = Agent(
     endpoint=["http://localhost:8000/submit"],
 )
 
-DOMAIN = "world"
+DOMAIN = "agent"
 
 
 @alice.on_interval(period=5)

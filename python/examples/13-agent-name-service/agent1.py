@@ -1,5 +1,6 @@
 import json
 from typing import Optional
+
 from cosmpy.aerial.wallet import LocalWallet
 
 from uagents import Agent, Context, Model
@@ -35,7 +36,7 @@ bob = Agent(
 my_wallet = LocalWallet.from_unsafe_seed("registration test wallet")
 name_service_contract = get_name_service_contract()
 faucet = get_faucet()
-DOMAIN = "world"
+DOMAIN = "agent"
 
 logger.info(f"Adding testnet funds to {my_wallet.address()}...")
 faucet.get_wealth(my_wallet.address())
@@ -70,9 +71,9 @@ async def register_agent_name(ctx: Context, sender: str, msg: VerificationRespon
     ctx.logger.info(
         f"Received approval token from {sender} for domain {msg.domain}"
     )
-
+    token = json.loads(msg.approval_token)
     await name_service_contract.register(
-        bob.ledger, my_wallet, bob.address, bob.name, DOMAIN, approval_token=json.loads(msg.approval_token)
+        bob.ledger, my_wallet, bob.address, bob.name, DOMAIN, approval_token=token
     )
 
 
