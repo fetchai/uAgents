@@ -142,7 +142,7 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
             self.fail("Name service contract address is invalid")
 
         tx = name_service_contract.get_registration_tx(
-            agent.name, agent.wallet.address(), agent.address, "example.agent", True
+            agent.name, agent.wallet.address(), agent.address, "example.agent", "testnet", "token"
         )
 
         if not tx:
