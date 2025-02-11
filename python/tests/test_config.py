@@ -36,52 +36,42 @@ expected_endpoints = [
 expected_configs = [
     {
         "base_url": "agentverse.ai",
-        "protocol": "https",
         "http_prefix": "https",
     },
     {
         "base_url": "agentverse.ai",
-        "protocol": "https",
         "http_prefix": "https",
     },
     {
         "base_url": "some_url",
-        "protocol": "http",
         "http_prefix": "http",
     },
     {
         "base_url": "staging.agentverse.ai",
-        "protocol": "https",
         "http_prefix": "https",
     },
     {
         "base_url": "staging.agentverse.ai",
-        "protocol": "https",
         "http_prefix": "https",
     },
     {
         "base_url": "agentverse.ai",
-        "protocol": "https",
         "http_prefix": "https",
     },
     {
         "base_url": "agentverse.ai",
-        "protocol": "https",
         "http_prefix": "https",
     },
     {
         "base_url": "agentverse.ai",
-        "protocol": "https",
         "http_prefix": "https",
     },
     {
         "base_url": "agentverse.ai",
-        "protocol": "https",
         "http_prefix": "https",
     },
     {
         "base_url": "agentverse.ai",
-        "protocol": "https",
         "http_prefix": "https",
     },
 ]

@@ -139,7 +139,7 @@ def parse_agentverse_config(
 
     if "://" in base_url:
         protocol, base_url = base_url.split("://")
-    http_prefix = protocol_override or protocol or "http"
+    http_prefix = protocol_override or protocol or "https"
 
     return AgentverseConfig(
         base_url=base_url,
