@@ -965,9 +965,11 @@ class Agent(Sink):
         return decorator_on_rest
 
     def on_rest_get(self, endpoint: str, response: Type[Model]):
+        """Add a handler for a GET REST endpoint."""
         return self._on_rest("GET", endpoint, None, response)
 
     def on_rest_post(self, endpoint: str, request: Type[Model], response: Type[Model]):
+        """Add a handler for a POST REST endpoint."""
         return self._on_rest("POST", endpoint, request, response)
 
     def _add_event_handler(
@@ -1057,17 +1059,17 @@ class Agent(Sink):
 
         """
         try:
-            resp = requests.post(
+            response = requests.post(
                 f"{self._agentverse.url}/v1/almanac/manifests",
                 json=manifest,
                 timeout=5,
             )
-            if resp.status_code == 200:
+            if response.status_code == 200:
                 self._logger.info(
                     f"Manifest published successfully: {manifest['metadata']['name']}"
                 )
             else:
-                self._logger.warning(f"Unable to publish manifest: {resp.text}")
+                self._logger.warning(f"Unable to publish manifest: {response.text}")
         except requests.exceptions.RequestException as ex:
             self._logger.warning(f"Unable to publish manifest: {ex}")
 
@@ -1406,7 +1408,7 @@ class Bureau:
         ledger: Optional[LedgerClient] = None,
         wallet: Optional[LocalWallet] = None,
         seed: Optional[str] = None,
-        test: bool = True,
+        network: AgentNetwork = "testnet",
         loop: Optional[asyncio.AbstractEventLoop] = None,
         log_level: Union[int, str] = logging.INFO,
     ):
@@ -1422,7 +1424,7 @@ class Bureau:
             ledger (Optional[LedgerClient]): The ledger for the bureau.
             wallet (Optional[LocalWallet]): The wallet for the bureau (overrides 'seed').
             seed (Optional[str]): The seed phrase for the wallet (overridden by 'wallet').
-            test (Optional[bool]): True if the bureau will register and transact on the testnet.
+            network (Literal["mainnet", "testnet"]): The network to use for the agent.
             loop (Optional[asyncio.AbstractEventLoop]): The event loop.
             log_level (Union[int, str]): The logging level for the bureau.
         """
@@ -1442,12 +1444,10 @@ class Bureau:
             endpoint, self._agentverse, False, False, self._logger
         )
         self._use_mailbox = any(
-            [
-                is_mailbox_agent(agent._endpoints, self._agentverse)
-                for agent in self._agents
-            ]
+            is_mailbox_agent(agent._endpoints, self._agentverse)
+            for agent in self._agents
         )
-        almanac_contract = get_almanac_contract(test)
+        almanac_contract = get_almanac_contract(network)
 
         if wallet and seed:
             self._logger.warning(
@@ -1471,10 +1471,10 @@ class Bureau:
             self._registration_policy = registration_policy
         else:
             self._registration_policy = DefaultBatchRegistrationPolicy(
-                ledger or get_ledger(test),
-                wallet,
-                almanac_contract,
-                test,
+                ledger=ledger or get_ledger(network),
+                wallet=wallet,
+                almanac_contract=almanac_contract,
+                testnet=network == "testnet",
                 logger=self._logger,
                 almanac_api=f"{self._agentverse.url}/v1/almanac",
             )
