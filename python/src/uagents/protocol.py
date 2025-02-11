@@ -6,12 +6,8 @@ import hashlib
 import json
 from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
 
-from apispec import APISpec
-
 from uagents.models import Model
 from uagents.types import IntervalCallback, MessageCallback
-
-OPENAPI_VERSION = "3.0.2"
 
 
 class Protocol:
@@ -41,12 +37,6 @@ class Protocol:
         self._version = version or "0.1.0"
         self._canonical_name = f"{self._name}:{self._version}"
         self._digest = ""
-
-        self.spec = APISpec(
-            title=self._name,
-            version=self._version,
-            openapi_version=OPENAPI_VERSION,
-        )
 
     @property
     def intervals(self):
