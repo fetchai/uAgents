@@ -364,12 +364,14 @@ class Agent(Sink):
         self._interval_messages: Set[str] = set()
         self._signed_message_handlers: Dict[str, MessageCallback] = {}
         self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
-        self._message_cache: EnvelopeHistory = EnvelopeHistory(envelopes=[])
         self._rest_handlers: RestHandlerMap = {}
         self._models: Dict[str, Type[Model]] = {}
         self._replies: Dict[str, Dict[str, Type[Model]]] = {}
         self._queries: Dict[str, asyncio.Future] = {}
         self._dispatcher = dispatcher
+        self._message_cache: Optional[EnvelopeHistory] = (
+            EnvelopeHistory(envelopes=[]) if enable_agent_inspector else None
+        )
         self._dispenser = Dispenser(msg_cache_ref=self._message_cache)
         self._message_queue = asyncio.Queue()
         self._on_startup = []
@@ -1290,17 +1292,18 @@ class Agent(Sink):
             protocol_info = self.get_message_protocol(schema_digest)
             protocol_digest = protocol_info[0] if protocol_info else None
 
-            self._message_cache.add_entry(
-                EnvelopeHistoryEntry(
-                    version=1,
-                    sender=sender,
-                    target=self.address,
-                    session=session,
-                    schema_digest=schema_digest,
-                    protocol_digest=protocol_digest,
-                    payload=message,
+            if self._message_cache:
+                self._message_cache.add_entry(
+                    EnvelopeHistoryEntry(
+                        version=1,
+                        sender=sender,
+                        target=self.address,
+                        session=session,
+                        schema_digest=schema_digest,
+                        protocol_digest=protocol_digest,
+                        payload=message,
+                    )
                 )
-            )
 
             context = ExternalContext(
                 agent=AgentRepresentation(
