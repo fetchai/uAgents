@@ -2,7 +2,8 @@
 
 We provide here an example of Dockerfile and Helm deployment charts for a simple uAgent.
 
-## Prequisites
+## Prerequisites
+
 - Install docker: https://docs.docker.com/get-docker/
 - Sign up for a Dockerhub account: https://hub.docker.com/
 - Install kubectl: https://kubernetes.io/docs/tasks/tools/install-kubectl/
@@ -39,7 +40,6 @@ docker push my-dockerhub-id/hello-agent:0.1
 ## Helm
 
 ### Configuring the Helm Chart
-
 
 1. Edit the `values.yaml` file in the `helm/uagent` directory to include the Dockerhub image you pushed in the previous step.
 
