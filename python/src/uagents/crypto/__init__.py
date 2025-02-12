@@ -16,12 +16,18 @@ SHA_LENGTH = 256
 
 def _decode_bech32(value: str) -> Tuple[str, bytes]:
     prefix, data_base5 = bech32.bech32_decode(value)
-    data = bytes(bech32.convertbits(data_base5, 5, 8, False))
-    return prefix, data
+    if not data_base5 or not prefix:
+        raise ValueError("Unable to decode value")
+    converted = bech32.convertbits(data_base5, 5, 8, False)
+    if not converted:
+        raise ValueError("Unable to convert value")
+    return prefix, bytes(converted)
 
 
 def _encode_bech32(prefix: str, value: bytes) -> str:
     value_base5 = bech32.convertbits(value, 8, 5)
+    if not value_base5:
+        raise ValueError("Unable to convert value")
     return bech32.bech32_encode(prefix, value_base5)
 
 
@@ -78,7 +84,7 @@ class Identity:
         self._sk = signing_key
 
         # build the address
-        pub_key_bytes = self._sk.get_verifying_key().to_string(encoding="compressed")
+        pub_key_bytes = self._sk.get_verifying_key().to_string("compressed")  # type: ignore
         self._address = _encode_bech32("agent", pub_key_bytes)
         self._pub_key = pub_key_bytes.hex()
 

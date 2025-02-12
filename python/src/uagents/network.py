@@ -2,12 +2,10 @@
 
 import asyncio
 import time
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from cosmpy.aerial.client import (
     DEFAULT_QUERY_INTERVAL_SECS,
-    DEFAULT_QUERY_TIMEOUT_SECS,
     LedgerClient,
     NetworkConfig,
     prepare_and_broadcast_basic_transaction,
@@ -17,7 +15,7 @@ from cosmpy.aerial.contract.cosmwasm import create_cosmwasm_execute_msg
 from cosmpy.aerial.exceptions import NotFoundError, QueryTimeoutError
 from cosmpy.aerial.faucet import FaucetApi
 from cosmpy.aerial.tx import Transaction
-from cosmpy.aerial.tx_helpers import TxResponse
+from cosmpy.aerial.tx_helpers import SubmittedTx, TxResponse
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
 
@@ -25,7 +23,6 @@ from uagents.config import (
     ALMANAC_CONTRACT_VERSION,
     ALMANAC_REGISTRATION_WAIT,
     AVERAGE_BLOCK_INTERVAL,
-    DEFAULT_LEDGER_TX_WAIT_SECONDS,
     MAINNET_CONTRACT_ALMANAC,
     MAINNET_CONTRACT_NAME_SERVICE,
     REGISTRATION_FEE,
@@ -43,9 +40,36 @@ _faucet_api = FaucetApi(NetworkConfig.fetchai_stable_testnet())
 _testnet_ledger = LedgerClient(NetworkConfig.fetchai_stable_testnet())
 _mainnet_ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
 
+RetryDelayFunc = Callable[[int], float]
+DEFAULT_BROADCAST_RETRIES = 5
+DEFAULT_POLL_RETRIES = 10
+
+
+def default_exp_backoff(retry: int) -> float:
+    """
+    Generate a backoff time starting from 0.64 seconds and limited to ~32 seconds
+    """
+    return (2 ** (min(retry, 9) + 6)) / 1000
+
+
+def block_polling_exp_backoff(retry: int) -> float:
+    """
+    Generate an exponential backoff that is designed for block polling. We keep the
+    same default exponential backoff, but it is clamped to the default query interval.
+    """
+    back_off = default_exp_backoff(retry)
+    return max(back_off, DEFAULT_QUERY_INTERVAL_SECS)
+
 
 class InsufficientFundsError(Exception):
     """Raised when an agent has insufficient funds for a transaction."""
+
+
+class BroadcastTimeoutError(RuntimeError):
+    """Raised when a transaction broadcast fails due to a timeout."""
+
+    def __init__(self):
+        super().__init__("Broadcast timeout error")
 
 
 class AlmanacContractRecord(AgentInfo):
@@ -124,8 +148,9 @@ def parse_record_config(
 async def wait_for_tx_to_complete(
     tx_hash: str,
     ledger: LedgerClient,
-    timeout: Optional[timedelta] = None,
-    poll_period: Optional[timedelta] = None,
+    *,
+    poll_retries: Optional[int] = None,
+    poll_retry_delay: Optional[RetryDelayFunc] = None,
 ) -> TxResponse:
     """
     Wait for a transaction to complete on the Ledger.
@@ -133,29 +158,31 @@ async def wait_for_tx_to_complete(
     Args:
         tx_hash (str): The hash of the transaction to monitor.
         ledger (LedgerClient): The Ledger client to poll.
-        timeout (Optional[timedelta], optional): The maximum time to wait.
-        the transaction to complete. Defaults to None.
-        poll_period (Optional[timedelta], optional): The time interval to poll
+        poll_retries (Optional[int], optional): The maximum number of retry attempts.
+        poll_retry_delay (Optional[RetryDelayFunc], optional): The retry delay function,
+        if not provided the default exponential backoff will be used.
 
     Returns:
         TxResponse: The response object containing the transaction details.
     """
-    if timeout is None:
-        timeout = timedelta(seconds=DEFAULT_QUERY_TIMEOUT_SECS)
-    if poll_period is None:
-        poll_period = timedelta(seconds=DEFAULT_QUERY_INTERVAL_SECS)
-    start = datetime.now()
-    while True:
+
+    delay_func = poll_retry_delay or block_polling_exp_backoff
+    response: Optional[TxResponse] = None
+    for n in range(poll_retries or DEFAULT_POLL_RETRIES):
         try:
-            return ledger.query_tx(tx_hash)
+            response = ledger.query_tx(tx_hash)
+            break
         except NotFoundError:
             pass
+        except Exception:
+            pass
 
-        delta = datetime.now() - start
-        if delta >= timeout:
-            raise QueryTimeoutError()
+        await asyncio.sleep(delay_func(n))
 
-        await asyncio.sleep(poll_period.total_seconds())
+    if response is None:
+        raise QueryTimeoutError()
+
+    return response
 
 
 class AlmanacContract(LedgerContract):
@@ -376,6 +403,11 @@ class AlmanacContract(LedgerContract):
         endpoints: List[AgentEndpoint],
         signature: str,
         current_time: int,
+        *,
+        broadcast_retries: Optional[int] = None,
+        broadcast_retry_delay: Optional[RetryDelayFunc] = None,
+        poll_retries: Optional[int] = None,
+        poll_retry_delay: Optional[RetryDelayFunc] = None,
     ):
         """
         Register an agent with the Almanac contract.
@@ -411,17 +443,45 @@ class AlmanacContract(LedgerContract):
             )
         )
 
-        transaction = prepare_and_broadcast_basic_transaction(
-            ledger, transaction, wallet
+        # cache the account details
+        account = ledger.query_account(wallet.address())
+
+        # attempt to broadcast the transaction to the network
+        broadcast_delay_func = broadcast_retry_delay or default_exp_backoff
+        num_broadcast_retries = broadcast_retries or DEFAULT_BROADCAST_RETRIES
+
+        tx: Optional[SubmittedTx] = None
+        for n in range(num_broadcast_retries):
+            try:
+                tx = prepare_and_broadcast_basic_transaction(
+                    ledger, transaction, wallet, account=account
+                )
+                break
+            except RuntimeError:
+                await asyncio.sleep(broadcast_delay_func(n))
+
+        if tx is None:
+            raise BroadcastTimeoutError()
+
+        status = await wait_for_tx_to_complete(
+            tx.tx_hash,
+            ledger,
+            poll_retries=poll_retries,
+            poll_retry_delay=poll_retry_delay,
         )
-        timeout = timedelta(seconds=DEFAULT_LEDGER_TX_WAIT_SECONDS)
-        await wait_for_tx_to_complete(transaction.tx_hash, ledger, timeout=timeout)
+        if status.code != 0:
+            raise RuntimeError("Registration transaction failed")
 
     async def register_batch(
         self,
         ledger: LedgerClient,
         wallet: LocalWallet,
         agent_records: List[AlmanacContractRecord],
+        *,
+        broadcast_retries: Optional[int] = None,
+        broadcast_retry_delay: Optional[RetryDelayFunc] = None,
+        poll_retries: Optional[int] = None,
+        poll_retry_delay: Optional[RetryDelayFunc] = None,
     ):
         """
         Register multiple agents with the Almanac contract.
@@ -461,11 +521,34 @@ class AlmanacContract(LedgerContract):
                 )
             )
 
-        transaction = prepare_and_broadcast_basic_transaction(
-            ledger, transaction, wallet
+        # cache the account details
+        account = ledger.query_account(wallet.address())
+
+        # attempt to broadcast the transaction to the network
+        broadcast_delay_func = broadcast_retry_delay or default_exp_backoff
+        num_broadcast_retries = broadcast_retries or DEFAULT_BROADCAST_RETRIES
+
+        tx: Optional[SubmittedTx] = None
+        for n in range(num_broadcast_retries):
+            try:
+                tx = prepare_and_broadcast_basic_transaction(
+                    ledger, transaction, wallet, account=account
+                )
+                break
+            except RuntimeError:
+                await asyncio.sleep(broadcast_delay_func(n))
+
+        if tx is None:
+            raise BroadcastTimeoutError()
+
+        status = await wait_for_tx_to_complete(
+            tx.tx_hash,
+            ledger,
+            poll_retries=poll_retries,
+            poll_retry_delay=poll_retry_delay,
         )
-        timeout = timedelta(seconds=DEFAULT_LEDGER_TX_WAIT_SECONDS)
-        await wait_for_tx_to_complete(transaction.tx_hash, ledger, timeout=timeout)
+        if status.code != 0:
+            raise RuntimeError("Registration transaction failed")
 
     def get_sequence(self, address: str) -> int:
         """

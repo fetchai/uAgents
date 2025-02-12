@@ -1,12 +1,15 @@
 import asyncio
+import contextlib
 import hashlib
 import json
 import logging
 import time
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
 import aiohttp
+import grpc
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
@@ -26,7 +29,9 @@ from uagents.network import (
     AlmanacContract,
     AlmanacContractRecord,
     InsufficientFundsError,
+    RetryDelayFunc,
     add_testnet_funds,
+    default_exp_backoff,
 )
 from uagents.resolver import parse_identifier
 from uagents.types import AgentEndpoint, AgentInfo
@@ -76,13 +81,6 @@ class AgentStatusUpdate(VerifiableModel):
     is_active: bool
 
 
-def generate_backoff_time(retry: int) -> float:
-    """
-    Generate a backoff time starting from 0.128 seconds and limited to ~131 seconds
-    """
-    return (2 ** (min(retry, 11) + 6)) / 1000
-
-
 def coerce_metadata_to_str(
     metadata: Optional[Dict[str, Any]],
 ) -> Optional[Dict[str, Union[str, Dict[str, str]]]]:
@@ -116,27 +114,29 @@ def extract_geo_metadata(
 async def almanac_api_post(
     url: str,
     data: BaseModel,
-    raise_from: bool = True,
-    retries: int = 3,
-    timeout: float = ALMANAC_API_TIMEOUT_SECONDS,
+    *,
+    max_retries: Optional[int] = None,
+    retry_delay: Optional[RetryDelayFunc] = None,
 ) -> bool:
+    num_retries = max_retries or ALMANAC_API_MAX_RETRIES
+    retry_delay_func = retry_delay or default_exp_backoff
+
     async with aiohttp.ClientSession() as session:
-        for retry in range(retries):
+        for retry in range(num_retries):
             try:
                 async with session.post(
                     url,
                     headers={"content-type": "application/json"},
                     data=data.model_dump_json(),
-                    timeout=aiohttp.ClientTimeout(total=timeout),
+                    timeout=aiohttp.ClientTimeout(total=ALMANAC_API_TIMEOUT_SECONDS),
                 ) as resp:
                     resp.raise_for_status()
                     return True
             except (aiohttp.ClientError, asyncio.exceptions.TimeoutError) as e:
-                if retry == retries - 1:
-                    if raise_from:
-                        raise e
-                    return False
-                await asyncio.sleep(generate_backoff_time(retry))
+                if retry + 1 >= num_retries:
+                    raise e
+
+                await asyncio.sleep(retry_delay_func(retry))
     return False
 
 
@@ -169,11 +169,18 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         *,
         almanac_api: Optional[str] = None,
         max_retries: int = ALMANAC_API_MAX_RETRIES,
+        retry_delay: Optional[RetryDelayFunc] = None,
         logger: Optional[logging.Logger] = None,
     ):
         self._almanac_api = almanac_api or ALMANAC_API_URL
         self._max_retries = max_retries
         self._logger = logger or logging.getLogger(__name__)
+        self._retry_delay = retry_delay or default_exp_backoff
+        self._last_successful_registration: Optional[datetime] = None
+
+    @property
+    def last_successful_registration(self) -> Optional[datetime]:
+        return self._last_successful_registration
 
     async def register(
         self,
@@ -194,22 +201,40 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         # sign the attestation
         attestation.sign(identity)
 
-        success = await almanac_api_post(
-            f"{self._almanac_api}/agents", attestation, retries=self._max_retries
-        )
-        if success:
-            self._logger.info("Registration on Almanac API successful")
-        else:
+        try:
+            success = await almanac_api_post(
+                f"{self._almanac_api}/agents",
+                attestation,
+                max_retries=self._max_retries,
+                retry_delay=self._retry_delay,
+            )
+            if success:
+                self._logger.info("Registration on Almanac API successful")
+                self._last_successful_registration = datetime.now()
+            else:
+                self._logger.warning("Registration on Almanac API failed")
+        except Exception:
             self._logger.warning("Registration on Almanac API failed")
 
 
 class BatchAlmanacApiRegistrationPolicy(BatchRegistrationPolicy):
     def __init__(
-        self, almanac_api: Optional[str] = None, logger: Optional[logging.Logger] = None
+        self,
+        almanac_api: Optional[str] = None,
+        logger: Optional[logging.Logger] = None,
+        max_retries: int = ALMANAC_API_MAX_RETRIES,
+        retry_delay: Optional[RetryDelayFunc] = None,
     ):
         self._almanac_api = almanac_api or ALMANAC_API_URL
         self._attestations: List[AgentRegistrationAttestation] = []
         self._logger = logger or logging.getLogger(__name__)
+        self._max_retries = max_retries
+        self._retry_delay = retry_delay or default_exp_backoff
+        self._last_successful_registration: Optional[datetime] = None
+
+    @property
+    def last_successful_registration(self) -> Optional[datetime]:
+        return self._last_successful_registration
 
     def add_agent(self, agent_info: AgentInfo, identity: Identity):
         attestation = AgentRegistrationAttestation(
@@ -227,14 +252,20 @@ class BatchAlmanacApiRegistrationPolicy(BatchRegistrationPolicy):
         attestations = AgentRegistrationAttestationBatch(
             attestations=self._attestations
         )
-        success = await almanac_api_post(
-            f"{self._almanac_api}/agents/batch",
-            attestations,
-            timeout=10 * ALMANAC_API_TIMEOUT_SECONDS,
-        )
-        if success:
-            self._logger.info("Batch registration on Almanac API successful")
-        else:
+
+        try:
+            success = await almanac_api_post(
+                f"{self._almanac_api}/agents/batch",
+                attestations,
+                max_retries=self._max_retries,
+                retry_delay=self._retry_delay,
+            )
+            if success:
+                self._logger.info("Batch registration on Almanac API successful")
+                self._last_successful_registration = datetime.now()
+            else:
+                self._logger.warning("Batch registration on Almanac API failed")
+        except Exception:
             self._logger.warning("Batch registration on Almanac API failed")
 
 
@@ -253,6 +284,47 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         self._testnet = testnet
         self._almanac_contract = almanac_contract
         self._logger = logger or logging.getLogger(__name__)
+        self._broadcast_retries: Optional[int] = None
+        self._broadcast_retry_delay: Optional[RetryDelayFunc] = None
+        self._poll_retries: Optional[int] = None
+        self._poll_retry_delay: Optional[RetryDelayFunc] = None
+        self._last_successful_registration: Optional[datetime] = None
+
+    @property
+    def last_successful_registration(self) -> Optional[datetime]:
+        return self._last_successful_registration
+
+    @property
+    def broadcast_retries(self) -> Optional[int]:
+        return self._broadcast_retries
+
+    @broadcast_retries.setter
+    def broadcast_retries(self, value: Optional[int]):
+        self._broadcast_retries = value
+
+    @property
+    def broadcast_retry_delay(self) -> Optional[RetryDelayFunc]:
+        return self._broadcast_retry_delay
+
+    @broadcast_retry_delay.setter
+    def broadcast_retry_delay(self, value: Optional[RetryDelayFunc]):
+        self._broadcast_retry_delay = value
+
+    @property
+    def poll_retries(self) -> Optional[int]:
+        return self._poll_retries
+
+    @poll_retries.setter
+    def poll_retries(self, value: Optional[int]):
+        self._poll_retries = value
+
+    @property
+    def poll_retry_delay(self) -> Optional[RetryDelayFunc]:
+        return self._poll_retry_delay
+
+    @poll_retry_delay.setter
+    def poll_retry_delay(self, value: Optional[RetryDelayFunc]):
+        self._poll_retry_delay = value
 
     def check_contract_version(self):
         """
@@ -311,16 +383,34 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
             current_time = int(time.time()) - ALMANAC_REGISTRATION_WAIT
 
             signature = self._sign_registration(identity, current_time)
-            await self._almanac_contract.register(
-                self._ledger,
-                self._wallet,
-                agent_address,
-                protocols,
-                endpoints,
-                signature,
-                current_time,
-            )
-            self._logger.info("Registering on almanac contract...complete")
+            try:
+                await self._almanac_contract.register(
+                    self._ledger,
+                    self._wallet,
+                    agent_address,
+                    protocols,
+                    endpoints,
+                    signature,
+                    current_time,
+                    broadcast_retries=self._broadcast_retries,
+                    broadcast_retry_delay=self._broadcast_retry_delay,
+                    poll_retries=self._poll_retries,
+                    poll_retry_delay=self._poll_retry_delay,
+                )
+                self._logger.info("Registering on almanac contract...complete")
+                self._last_successful_registration = datetime.now()
+
+            except RuntimeError as e:
+                self._logger.warning(
+                    "Registering on almanac contract...failed (will retry later)"
+                )
+                self._logger.debug(e)
+            except grpc.RpcError as e:
+                self._logger.warning(
+                    "Registering on almanac contract...failed (will retry later)"
+                )
+                self._logger.debug(e)
+
         else:
             self._logger.info("Almanac contract registration is up to date!")
 
@@ -366,6 +456,48 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
         self._records: List[AlmanacContractRecord] = []
         self._identities: Dict[str, Identity] = {}
 
+        self._broadcast_retries: Optional[int] = None
+        self._broadcast_retry_delay: Optional[RetryDelayFunc] = None
+        self._poll_retries: Optional[int] = None
+        self._poll_retry_delay: Optional[RetryDelayFunc] = None
+        self._last_successful_registration: Optional[datetime] = None
+
+    @property
+    def last_successful_registration(self) -> Optional[datetime]:
+        return self._last_successful_registration
+
+    @property
+    def broadcast_retries(self) -> Optional[int]:
+        return self._broadcast_retries
+
+    @broadcast_retries.setter
+    def broadcast_retries(self, value: Optional[int]):
+        self._broadcast_retries = value
+
+    @property
+    def broadcast_retry_delay(self) -> Optional[RetryDelayFunc]:
+        return self._broadcast_retry_delay
+
+    @broadcast_retry_delay.setter
+    def broadcast_retry_delay(self, value: Optional[RetryDelayFunc]):
+        self._broadcast_retry_delay = value
+
+    @property
+    def poll_retries(self) -> Optional[int]:
+        return self._poll_retries
+
+    @poll_retries.setter
+    def poll_retries(self, value: Optional[int]):
+        self._poll_retries = value
+
+    @property
+    def poll_retry_delay(self) -> Optional[RetryDelayFunc]:
+        return self._poll_retry_delay
+
+    @poll_retry_delay.setter
+    def poll_retry_delay(self, value: Optional[RetryDelayFunc]):
+        self._poll_retry_delay = value
+
     def add_agent(self, agent_info: AgentInfo, identity: Identity):
         agent_record = AlmanacContractRecord(
             address=agent_info.address,
@@ -400,11 +532,30 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
                 )
             raise InsufficientFundsError()
 
-        await self._almanac_contract.register_batch(
-            self._ledger, self._wallet, self._records
-        )
+        try:
+            await self._almanac_contract.register_batch(
+                self._ledger,
+                self._wallet,
+                self._records,
+                broadcast_retries=self._broadcast_retries,
+                broadcast_retry_delay=self._broadcast_retry_delay,
+                poll_retries=self._poll_retries,
+                poll_retry_delay=self._poll_retry_delay,
+            )
 
-        self._logger.info("Registering agents on Almanac contract...complete")
+            self._logger.info("Registering agents on Almanac contract...complete")
+            self._last_successful_registration = datetime.now()
+
+        except RuntimeError as e:
+            self._logger.warning(
+                "Registering on almanac contract...failed (will retry later)"
+            )
+            self._logger.debug(e)
+        except grpc.RpcError as e:
+            self._logger.warning(
+                "Registering on almanac contract...failed (will retry later)"
+            )
+            self._logger.debug(e)
 
 
 class DefaultRegistrationPolicy(AgentRegistrationPolicy):
@@ -474,11 +625,12 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
 
 async def update_agent_status(status: AgentStatusUpdate, almanac_api: str):
     _, _, agent_address = parse_identifier(status.agent_identifier)
-    await almanac_api_post(
-        f"{almanac_api}/agents/{agent_address}/status",
-        status,
-        raise_from=False,
-    )
+
+    with contextlib.suppress(Exception):
+        await almanac_api_post(
+            f"{almanac_api}/agents/{agent_address}/status",
+            status,
+        )
 
 
 class DefaultBatchRegistrationPolicy(BatchRegistrationPolicy):

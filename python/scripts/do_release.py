@@ -161,5 +161,5 @@ class ReleaseTool:
 
 
 if __name__ == "__main__":
-    settings = Settings()  # type: ignore
-    ReleaseTool(settings).main()
+    release_settings = Settings()  # type: ignore
+    ReleaseTool(release_settings).main()

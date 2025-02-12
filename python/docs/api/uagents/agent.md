@@ -647,6 +647,26 @@ Decorator to register an event handler for a specific event type.
 
 - `Callable` - The decorator function for registering event handlers.
 
+<a id="src.uagents.agent.Agent.on_rest_get"></a>
+
+#### on`_`rest`_`get
+
+```python
+def on_rest_get(endpoint: str, response: Type[Model])
+```
+
+Add a handler for a GET REST endpoint.
+
+<a id="src.uagents.agent.Agent.on_rest_post"></a>
+
+#### on`_`rest`_`post
+
+```python
+def on_rest_post(endpoint: str, request: Type[Model], response: Type[Model])
+```
+
+Add a handler for a POST REST endpoint.
+
 <a id="src.uagents.agent.Agent.on_wallet_message"></a>
 
 #### on`_`wallet`_`message
@@ -860,7 +880,7 @@ def __init__(agents: Optional[List[Agent]] = None,
              ledger: Optional[LedgerClient] = None,
              wallet: Optional[LocalWallet] = None,
              seed: Optional[str] = None,
-             test: bool = True,
+             network: AgentNetwork = "testnet",
              loop: Optional[asyncio.AbstractEventLoop] = None,
              log_level: Union[int, str] = logging.INFO)
 ```
@@ -877,7 +897,7 @@ Initialize a Bureau instance.
 - `ledger` _Optional[LedgerClient]_ - The ledger for the bureau.
 - `wallet` _Optional[LocalWallet]_ - The wallet for the bureau (overrides 'seed').
 - `seed` _Optional[str]_ - The seed phrase for the wallet (overridden by 'wallet').
-- `test` _Optional[bool]_ - True if the bureau will register and transact on the testnet.
+- `network` _Literal["mainnet", "testnet"]_ - The network to use for the agent.
 - `loop` _Optional[asyncio.AbstractEventLoop]_ - The event loop.
 - `log_level` _Union[int, str]_ - The logging level for the bureau.
 

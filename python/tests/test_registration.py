@@ -1,7 +1,5 @@
 import unittest
 
-import pytest
-from aiohttp import ClientResponseError
 from aioresponses import aioresponses
 
 from uagents.crypto import Identity
@@ -101,29 +99,30 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             protocols=TEST_PROTOCOLS,
             endpoints=TEST_ENDPOINTS,
         )
+        self.assertIsNotNone(self.policy.last_successful_registration)
 
     @aioresponses()
     async def test_registration_failure(self, mocked_responses):
         # Mock the HTTP POST request with a status code and response content
         mocked_responses.post(f"{self.MOCKED_ALMANAC_API}/agents", status=400)
 
-        with pytest.raises(ClientResponseError):
-            await self.policy.register(
-                agent_identifier=self.identity.address,
-                identity=self.identity,
-                protocols=TEST_PROTOCOLS,
-                endpoints=TEST_ENDPOINTS,
-            )
+        await self.policy.register(
+            agent_identifier=self.identity.address,
+            identity=self.identity,
+            protocols=TEST_PROTOCOLS,
+            endpoints=TEST_ENDPOINTS,
+        )
+        self.assertIsNone(self.policy.last_successful_registration)
 
     @aioresponses()
     async def test_registration_server_failure(self, mocked_responses):
         # Mock the HTTP POST request with a status code and response content
         mocked_responses.post(f"{self.MOCKED_ALMANAC_API}/agents", status=500)
 
-        with pytest.raises(ClientResponseError):
-            await self.policy.register(
-                agent_identifier=self.identity.address,
-                identity=self.identity,
-                protocols=TEST_PROTOCOLS,
-                endpoints=TEST_ENDPOINTS,
-            )
+        await self.policy.register(
+            agent_identifier=self.identity.address,
+            identity=self.identity,
+            protocols=TEST_PROTOCOLS,
+            endpoints=TEST_ENDPOINTS,
+        )
+        self.assertIsNone(self.policy.last_successful_registration)

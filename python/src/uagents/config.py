@@ -32,8 +32,11 @@ AVERAGE_BLOCK_INTERVAL = 6
 DEFAULT_LEDGER_TX_WAIT_SECONDS = 30
 ALMANAC_CONTRACT_VERSION = "2.0.0"
 
-AGENTVERSE_URL = "https://agentverse.ai"
+AGENTVERSE_BASE_URL = "agentverse.ai"
+AGENTVERSE_HTTP_PREFIX = "https"
+AGENTVERSE_URL = AGENTVERSE_HTTP_PREFIX + "://" + AGENTVERSE_BASE_URL
 ALMANAC_API_URL = AGENTVERSE_URL + "/v1/almanac"
+
 ALMANAC_API_TIMEOUT_SECONDS = 1.0
 ALMANAC_API_MAX_RETRIES = 10
 ALMANAC_REGISTRATION_WAIT = 100
@@ -48,8 +51,7 @@ DEFAULT_SEARCH_LIMIT = 100
 
 
 class AgentverseConfig(BaseModel):
-    base_url: str = AGENTVERSE_URL
-    protocol: str = "https"
+    base_url: str = AGENTVERSE_BASE_URL
     http_prefix: str = "https"
 
     @property
@@ -121,9 +123,10 @@ def parse_agentverse_config(
     Returns:
         AgentverseConfig: The parsed agentverse configuration.
     """
-    base_url = AGENTVERSE_URL
+    base_url = AGENTVERSE_BASE_URL
     protocol = None
     protocol_override = None
+
     if isinstance(config, str):
         if config.count("@") == 1:
             _, base_url = config.split("@")
@@ -131,14 +134,14 @@ def parse_agentverse_config(
             base_url = config
     elif isinstance(config, dict):
         base_url = config.get("base_url") or base_url
-        protocol_override = config.get("protocol")
+        proto = config.get("protocol")
+        protocol_override = proto if proto in {"http", "https"} else None
+
     if "://" in base_url:
         protocol, base_url = base_url.split("://")
-    protocol = protocol_override or protocol or "https"
-    http_prefix = "https" if protocol in {"wss", "https"} else "http"
+    http_prefix = protocol_override or protocol or "https"
 
     return AgentverseConfig(
         base_url=base_url,
-        protocol=protocol,
         http_prefix=http_prefix,
     )
