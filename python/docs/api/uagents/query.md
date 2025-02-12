@@ -1,13 +1,12 @@
-<a id="src.uagents.query"></a>
+
 
 # src.uagents.query
 
 Query Envelopes.
 
-<a id="src.uagents.query.query"></a>
 
-#### query
 
+#### query[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/query.py#L12)
 ```python
 async def query(destination: str,
                 message: Model,

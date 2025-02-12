@@ -1,10 +1,10 @@
-<a id="src.uagents.experimental.search.__init__"></a>
 
-# src.uagents.experimental.search.`__`init`__`
 
-<a id="src.uagents.experimental.search.__init__.AgentFilters"></a>
+# src.uagents.experimental.search.__init__
 
-## AgentFilters Objects
+
+
+## AgentFilters Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/search/__init__.py#L85)
 
 ```python
 class AgentFilters(BaseModel)
@@ -12,9 +12,9 @@ class AgentFilters(BaseModel)
 
 The set of filters that should be applied to the agent search entries
 
-<a id="src.uagents.experimental.search.__init__.AgentSearchCriteria"></a>
 
-## AgentSearchCriteria Objects
+
+## AgentSearchCriteria Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/search/__init__.py#L104)
 
 ```python
 class AgentSearchCriteria(BaseModel)
@@ -22,9 +22,9 @@ class AgentSearchCriteria(BaseModel)
 
 The search criteria that can be set for the agent search
 
-<a id="src.uagents.experimental.search.__init__.AgentGeoFilter"></a>
 
-## AgentGeoFilter Objects
+
+## AgentGeoFilter Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/search/__init__.py#L129)
 
 ```python
 class AgentGeoFilter(BaseModel)
@@ -32,9 +32,9 @@ class AgentGeoFilter(BaseModel)
 
 The geo filter that can be applied to the agent search
 
-<a id="src.uagents.experimental.search.__init__.AgentGeoSearchCriteria"></a>
 
-## AgentGeoSearchCriteria Objects
+
+## AgentGeoSearchCriteria Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/search/__init__.py#L144)
 
 ```python
 class AgentGeoSearchCriteria(AgentSearchCriteria)
@@ -42,10 +42,9 @@ class AgentGeoSearchCriteria(AgentSearchCriteria)
 
 The search criteria that can be set for the agent search
 
-<a id="src.uagents.experimental.search.__init__.geosearch_agents_by_proximity"></a>
 
-#### geosearch`_`agents`_`by`_`proximity
 
+#### geosearch_agents_by_proximity[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/search/__init__.py#L184)
 ```python
 def geosearch_agents_by_proximity(latitude: float,
                                   longitude: float,
@@ -55,10 +54,9 @@ def geosearch_agents_by_proximity(latitude: float,
 
 Return all agents in a circle around the given coordinates that match the given search criteria
 
-<a id="src.uagents.experimental.search.__init__.geosearch_agents_by_protocol"></a>
 
-#### geosearch`_`agents`_`by`_`protocol
 
+#### geosearch_agents_by_protocol[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/search/__init__.py#L202)
 ```python
 def geosearch_agents_by_protocol(latitude: float,
                                  longitude: float,
@@ -69,10 +67,9 @@ def geosearch_agents_by_protocol(latitude: float,
 
 Return all agents in a circle around the given coordinates that match the given search criteria
 
-<a id="src.uagents.experimental.search.__init__.geosearch_agents_by_text"></a>
 
-#### geosearch`_`agents`_`by`_`text
 
+#### geosearch_agents_by_text[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/search/__init__.py#L227)
 ```python
 def geosearch_agents_by_text(latitude: float,
                              longitude: float,
@@ -83,20 +80,18 @@ def geosearch_agents_by_text(latitude: float,
 
 Return all agents in a circle around the given coordinates that match the given search_text
 
-<a id="src.uagents.experimental.search.__init__.search_agents_by_protocol"></a>
 
-#### search`_`agents`_`by`_`protocol
 
+#### search_agents_by_protocol[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/search/__init__.py#L243)
 ```python
 def search_agents_by_protocol(protocol_digest: str, limit: int = 30)
 ```
 
 Return all agents that match the given search criteria
 
-<a id="src.uagents.experimental.search.__init__.search_agents_by_text"></a>
 
-#### search`_`agents`_`by`_`text
 
+#### search_agents_by_text[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/search/__init__.py#L261)
 ```python
 def search_agents_by_text(search_text: str, limit: int = 30)
 ```

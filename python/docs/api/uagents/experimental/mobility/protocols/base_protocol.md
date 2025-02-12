@@ -1,22 +1,22 @@
-<a id="src.uagents.experimental.mobility.protocols.base_protocol"></a>
 
-# src.uagents.experimental.mobility.protocols.base`_`protocol
 
-<a id="src.uagents.experimental.mobility.protocols.base_protocol.Location"></a>
+# src.uagents.experimental.mobility.protocols.base_protocol
 
-## Location Objects
+
+
+## Location Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocols/base_protocol.py#L11)
 
 ```python
 class Location(Model)
 ```
 
-<a id="src.uagents.experimental.mobility.protocols.base_protocol.Location.radius"></a>
+
 
 #### radius
 
 This is used for compatibility with uagents message model
 
-<a id="src.uagents.experimental.mobility.protocols.base_protocol.CheckIn"></a>
+
 
 ## CheckIn Objects
 
@@ -26,19 +26,20 @@ class CheckIn(Model)
 
 Signal message to send to an agent once entering its area of service
 
-<a id="src.uagents.experimental.mobility.protocols.base_protocol.CheckInResponse"></a>
 
-## CheckInResponse Objects
+
+## CheckInResponse Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocols/base_protocol.py#L39)
 
 ```python
 class CheckInResponse(Model)
 ```
 
-Information to return after receiving a check-in message
+Information to re[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocols/base_protocol.py#L30)
+turn after receiving a check-in message
 
-<a id="src.uagents.experimental.mobility.protocols.base_protocol.CheckOut"></a>
 
-## CheckOut Objects
+
+## CheckOut Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocols/base_protocol.py#L52)
 
 ```python
 class CheckOut(Model)
@@ -46,9 +47,9 @@ class CheckOut(Model)
 
 Signal message to optionally send when leaving the service area of an agent
 
-<a id="src.uagents.experimental.mobility.protocols.base_protocol.CheckOutResponse"></a>
 
-## CheckOutResponse Objects
+
+## CheckOutResponse Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocols/base_protocol.py#L56)
 
 ```python
 class CheckOutResponse(Model)
@@ -56,9 +57,9 @@ class CheckOutResponse(Model)
 
 Checkout response to optionally include a summary regarding the "stay" in the service area
 
-<a id="src.uagents.experimental.mobility.protocols.base_protocol.StatusUpdate"></a>
 
-## StatusUpdate Objects
+
+## StatusUpdate Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocols/base_protocol.py#L64)
 
 ```python
 class StatusUpdate(Model)
@@ -66,9 +67,9 @@ class StatusUpdate(Model)
 
 Message to signal an update to all checked in mobility agents
 
-<a id="src.uagents.experimental.mobility.protocols.base_protocol.StatusUpdateResponse"></a>
 
-## StatusUpdateResponse Objects
+
+## StatusUpdateResponse Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocols/base_protocol.py#L73)
 
 ```python
 class StatusUpdateResponse(Model)
