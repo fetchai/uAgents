@@ -115,17 +115,6 @@ def generate_api_docs() -> None:
     _generate_apidocs_uagents_modules()
 
 
-def install(package: str) -> int:
-    """
-    Install a PyPI package by calling pip.
-    :param package: the package name and version specifier.
-    :return: the return code.
-    """
-    return subprocess.check_call(  # nosec
-        [sys.executable, "-m", "pip", "install", package]
-    )
-
-
 def check_working_tree_is_dirty() -> None:
     """Check if the current Git working tree is dirty."""
     print("Checking whether the Git working tree is dirty...")
@@ -144,11 +133,6 @@ if __name__ == "__main__":
         "--check-clean", action="store_true", help="Check if the working tree is clean."
     )
     arguments = parser.parse_args()
-
-    res = shutil.which("pydoc-markdown")
-    if res is None:
-        install("pydoc-markdown")
-        sys.exit(1)
 
     generate_api_docs()
 

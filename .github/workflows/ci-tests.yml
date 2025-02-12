@@ -82,50 +82,11 @@ jobs:
 
   linting:
     name: Lint & Formatting
-    needs: check-if-files-changed
-
-    defaults:
-      run:
-        shell: bash
-        working-directory: ./python
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.10"]
-
     steps:
-      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
-        uses: actions/checkout@v4
-
-      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
-        name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v1
         with:
-          python-version: ${{ matrix.python-version }}
-
-      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
-        uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
-        name: Load cached venv
-        id: cached-poetry-dependencies
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
-      - if: ${{
-          needs.check-if-files-changed.outputs.uagents == 'true' &&
-          steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-          }}
-        name: Install dependencies
-        run: poetry install -E all --no-interaction --no-root
-
-      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
-        run: poetry install -E all --no-interaction
-      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
-        run: poetry run ruff check .
-      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
-        run: poetry run ruff format --check .
+          src: "python"
+          args: "format --check"
+          changed-files: "true"
