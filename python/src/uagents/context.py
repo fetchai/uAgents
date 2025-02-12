@@ -6,7 +6,7 @@ import asyncio
 import logging
 import uuid
 from abc import ABC, abstractmethod
-from time import time
+from datetime import datetime, timezone
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -27,7 +27,6 @@ from typing_extensions import deprecated
 from uagents.communication import (
     Dispenser,
     dispatch_local_message,
-    dispatch_sync_response_envelope,
 )
 from uagents.config import (
     ALMANAC_API_URL,
@@ -262,6 +261,7 @@ class InternalContext(Context):
         interval_messages: Optional[Set[str]] = None,
         wallet_messaging_client: Optional[Any] = None,
         logger: Optional[logging.Logger] = None,
+        models: Optional[Dict[str, Type[Model]]] = None,
     ):
         self._agent = agent
         self._storage = storage
@@ -273,6 +273,7 @@ class InternalContext(Context):
         self._interval_messages = interval_messages
         self._wallet_messaging_client = wallet_messaging_client
         self._outbound_messages: Dict[str, Tuple[JsonStr, str]] = {}
+        self._models = models
 
     @property
     def agent(self) -> AgentRepresentation:
@@ -382,7 +383,8 @@ class InternalContext(Context):
             ]
         )
         log(self.logger, logging.DEBUG, f"Sent {len(futures)} messages")
-        return futures
+
+        return futures  # type: ignore
 
     def _is_valid_interval_message(self, schema_digest: str) -> bool:
         """
@@ -404,7 +406,7 @@ class InternalContext(Context):
         message: Model,
         sync: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
-    ) -> MsgStatus:
+    ) -> Union[MsgStatus, Model]:
         """
         This is the pro-active send method which is used in on_event and
         on_interval methods. In these methods, interval messages are set but
@@ -441,7 +443,7 @@ class InternalContext(Context):
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
         protocol_digest: Optional[str] = None,
         queries: Optional[Dict[str, asyncio.Future]] = None,
-    ) -> MsgStatus:
+    ) -> Union[MsgStatus, Model]:
         # Extract address from destination agent identifier if present
         _, parsed_name, parsed_address = parse_identifier(destination)
 
@@ -493,7 +495,7 @@ class InternalContext(Context):
             )
 
         # Calculate when the envelope expires
-        expires = int(time()) + timeout
+        expires = int(datetime.now(timezone.utc).timestamp()) + timeout
 
         # Handle external dispatch of messages
         env = Envelope(
@@ -526,7 +528,14 @@ class InternalContext(Context):
             )
 
         if isinstance(result, Envelope):
-            return await dispatch_sync_response_envelope(result)
+            model_class: Optional[Type[Model]] = self._models.get(result.schema_digest)
+            if model_class is None:
+                log(self.logger, logging.DEBUG, "unexpected sync reply")
+            else:
+                try:
+                    result = model_class.parse_raw(result.decode_payload())
+                except Exception as ex:
+                    log(self.logger, logging.ERROR, f"Unable to parse message: {ex}")
 
         return result
 
@@ -630,7 +639,7 @@ class ExternalContext(InternalContext):
         message: Model,
         sync: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
-    ) -> MsgStatus:
+    ) -> Union[MsgStatus, Model]:
         """
         Send a message to the specified destination.
 
