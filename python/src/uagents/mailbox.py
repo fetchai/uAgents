@@ -82,7 +82,7 @@ def is_mailbox_agent(
     Returns:
         bool: True if the agent is a mailbox agent, False otherwise.
     """
-    return any([f"{agentverse.url}/v1/submit" in ep.url for ep in endpoints])
+    return any(f"{agentverse.url}/v1/submit" in ep.url for ep in endpoints)
 
 
 async def register_in_agentverse(
