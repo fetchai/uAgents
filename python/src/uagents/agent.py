@@ -44,10 +44,13 @@ from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
 from uagents.mailbox import (
     AgentUpdates,
     AgentverseConnectRequest,
+    AgentverseDisconnectRequest,
     MailboxClient,
     RegistrationResponse,
+    UnregistrationResponse,
     is_mailbox_agent,
     register_in_agentverse,
+    unregister_in_agentverse,
 )
 from uagents.models import ErrorMessage, Model
 from uagents.network import (
@@ -460,6 +463,18 @@ class Agent(Sink):
                     self._prefix,
                     self._agentverse,
                     agent_details,
+                )
+
+            @self.on_rest_post(
+                "/disconnect", AgentverseDisconnectRequest, UnregistrationResponse
+            )
+            async def _handle_disconnect(
+                _ctx: Context, request: AgentverseDisconnectRequest
+            ):
+                return await unregister_in_agentverse(
+                    request,
+                    self.address,
+                    self._agentverse,
                 )
 
         self._enable_agent_inspector = enable_agent_inspector
