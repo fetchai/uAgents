@@ -404,11 +404,12 @@ class Agent(Sink):
 
         self.initialize_wallet_messaging(enable_wallet_messaging)
 
-        # initialize the internal agent protocol
-        self._protocol = Protocol(name=self._name, version=self._version)
-
         # keep track of supported protocols
         self.protocols: Dict[str, Protocol] = {}
+
+        # initialize the internal agent protocol
+        self._protocol = Protocol(name=self._name, version=self._version)
+        self.include(self._protocol)
 
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
@@ -1162,9 +1163,8 @@ class Agent(Sink):
 
     async def setup(self):
         """
-        Include the internal agent protocol, run startup tasks, and start background tasks.
+        Run startup tasks and start background tasks.
         """
-        self.include(self._protocol)
         self.start_message_dispenser()
         await self._startup()
         self.start_message_receivers()
