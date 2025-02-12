@@ -1,11 +1,10 @@
-<a id="src.uagents.registration"></a>
+
 
 # src.uagents.registration
 
-<a id="src.uagents.registration.coerce_metadata_to_str"></a>
 
-#### coerce`_`metadata`_`to`_`str
 
+#### coerce_metadata_to_str[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L84)
 ```python
 def coerce_metadata_to_str(
     metadata: Optional[Dict[str, Any]]
@@ -14,10 +13,9 @@ def coerce_metadata_to_str(
 
 Step through the metadata and convert any non-string values to strings.
 
-<a id="src.uagents.registration.extract_geo_metadata"></a>
 
-#### extract`_`geo`_`metadata
 
+#### extract_geo_metadata[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L103)
 ```python
 def extract_geo_metadata(
         metadata: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]
@@ -25,18 +23,17 @@ def extract_geo_metadata(
 
 Extract geo-location metadata from the metadata dictionary.
 
-<a id="src.uagents.registration.LedgerBasedRegistrationPolicy"></a>
 
-## LedgerBasedRegistrationPolicy Objects
+
+## LedgerBasedRegistrationPolicy Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L272)
 
 ```python
 class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy)
 ```
 
-<a id="src.uagents.registration.LedgerBasedRegistrationPolicy.check_contract_version"></a>
 
-#### check`_`contract`_`version
 
+#### check_contract_version[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L329)
 ```python
 def check_contract_version()
 ```
@@ -44,10 +41,9 @@ def check_contract_version()
 Check the version of the deployed Almanac contract and log a warning
 if it is different from the supported version.
 
-<a id="src.uagents.registration.LedgerBasedRegistrationPolicy.register"></a>
 
-#### register
 
+#### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L343)
 ```python
 async def register(agent_identifier: str,
                    identity: Identity,

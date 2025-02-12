@@ -1,4 +1,4 @@
-<a id="src.uagents.experimental.mobility.protocols.__init__"></a>
 
-# src.uagents.experimental.mobility.protocols.`__`init`__`
+
+# src.uagents.experimental.mobility.protocols.__init__
 

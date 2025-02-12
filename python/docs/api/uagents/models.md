@@ -1,10 +1,10 @@
-<a id="src.uagents.models"></a>
+
 
 # src.uagents.models
 
-<a id="src.uagents.models.ErrorMessage"></a>
 
-## ErrorMessage Objects
+
+## ErrorMessage Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/models.py#L35)
 
 ```python
 class ErrorMessage(Model)

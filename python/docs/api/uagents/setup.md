@@ -1,13 +1,12 @@
-<a id="src.uagents.setup"></a>
+
 
 # src.uagents.setup
 
 Agent's Setup.
 
-<a id="src.uagents.setup.fund_agent_if_low"></a>
 
-#### fund`_`agent`_`if`_`low
 
+#### fund_agent_if_low[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/setup.py#L14)
 ```python
 def fund_agent_if_low(wallet_address: str,
                       min_balance: int = REGISTRATION_FEE)
@@ -25,10 +24,9 @@ Checks the agent's wallet balance and adds testnet funds if it's below min_balan
 
   None
 
-<a id="src.uagents.setup.register_agent_with_mailbox"></a>
 
-#### register`_`agent`_`with`_`mailbox
 
+#### register_agent_with_mailbox[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/setup.py#L39)
 ```python
 def register_agent_with_mailbox(agent: Agent, email: str)
 ```

@@ -1,11 +1,10 @@
-<a id="src.uagents.config"></a>
+
 
 # src.uagents.config
 
-<a id="src.uagents.config.parse_endpoint_config"></a>
 
-#### parse`_`endpoint`_`config
 
+#### parse_endpoint_config[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/config.py#L62)
 ```python
 def parse_endpoint_config(
         endpoint: Optional[Union[str, List[str], Dict[str, dict]]],
@@ -30,10 +29,9 @@ Parse the user-provided endpoint configuration.
 
 - `Optional[List[AgentEndpoint]` - The parsed endpoint configuration.
 
-<a id="src.uagents.config.parse_agentverse_config"></a>
 
-#### parse`_`agentverse`_`config
 
+#### parse_agentverse_config[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/config.py#L117)
 ```python
 def parse_agentverse_config(
         config: Optional[Union[str, Dict[str,

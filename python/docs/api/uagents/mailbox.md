@@ -1,11 +1,10 @@
-<a id="src.uagents.mailbox"></a>
+
 
 # src.uagents.mailbox
 
-<a id="src.uagents.mailbox.is_mailbox_agent"></a>
 
-#### is`_`mailbox`_`agent
 
+#### is_mailbox_agent[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L76)
 ```python
 def is_mailbox_agent(endpoints: list[AgentEndpoint],
                      agentverse: AgentverseConfig) -> bool
@@ -17,10 +16,9 @@ Check if the agent is a mailbox agent.
 
 - `bool` - True if the agent is a mailbox agent, False otherwise.
 
-<a id="src.uagents.mailbox.register_in_agentverse"></a>
 
-#### register`_`in`_`agentverse
 
+#### register_in_agentverse[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L88)
 ```python
 async def register_in_agentverse(
         request: AgentverseConnectRequest,
@@ -69,10 +67,9 @@ Unregisters agent in Agentverse
 
 - `UnregistrationResponse` - Unregistration response object
 
-<a id="src.uagents.mailbox.update_agent_details"></a>
 
-#### update`_`agent`_`details
 
+#### update_agent_details[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L163)
 ```python
 async def update_agent_details(user_token: str,
                                agent_address: str,
@@ -89,9 +86,9 @@ Updates agent details in Agentverse.
 - `agent_details` _AgentUpdates_ - Agent details
 - `agentverse` _Optional[AgentverseConfig]_ - Agentverse configuration
 
-<a id="src.uagents.mailbox.MailboxClient"></a>
 
-## MailboxClient Objects
+
+## MailboxClient Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L196)
 
 ```python
 class MailboxClient()
@@ -99,10 +96,9 @@ class MailboxClient()
 
 Client for interacting with the Agentverse mailbox server.
 
-<a id="src.uagents.mailbox.MailboxClient.run"></a>
 
-#### run
 
+#### run[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L211)
 ```python
 async def run()
 ```
