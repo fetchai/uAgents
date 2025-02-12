@@ -1,6 +1,6 @@
-<a id="src.uagents.experimental.quota.__init__"></a>
 
-# src.uagents.experimental.quota.`__`init`__`
+
+# src.uagents.experimental.quota.__init__
 
 This Protocol class can be used to rate limit `on_message` message handlers.
 
@@ -69,18 +69,17 @@ async def message_handler(ctx: Context, sender: str, msg: Message):
     ctx.logger.info(f"Received message from {sender}: {msg.text}")
 ```
 
-<a id="src.uagents.experimental.quota.__init__.QuotaProtocol"></a>
 
-## QuotaProtocol Objects
+
+## QuotaProtocol Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L105)
 
 ```python
 class QuotaProtocol(Protocol)
 ```
 
-<a id="src.uagents.experimental.quota.__init__.QuotaProtocol.__init__"></a>
 
-#### `__`init`__`
 
+#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L106)
 ```python
 def __init__(storage_reference: StorageAPI,
              name: Optional[str] = None,
@@ -101,10 +100,9 @@ Initialize a QuotaProtocol instance.
 - `default_acl` _Optional[AccessControlList], optional_ - The access control list.
   Defaults to None.
 
-<a id="src.uagents.experimental.quota.__init__.QuotaProtocol.on_message"></a>
 
-#### on`_`message
 
+#### on_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L131)
 ```python
 def on_message(model: Type[Model],
                replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
@@ -132,10 +130,9 @@ including rate limiting.
 
 - `Callable` - The decorator to register the message handler.
 
-<a id="src.uagents.experimental.quota.__init__.QuotaProtocol.wrap"></a>
 
-#### wrap
 
+#### wrap[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L164)
 ```python
 def wrap(func: MessageCallback,
          rate_limit: Optional[RateLimit] = None,
@@ -155,10 +152,9 @@ Decorator to wrap a function with rate limiting.
 
 - `Callable` - The decorated
 
-<a id="src.uagents.experimental.quota.__init__.QuotaProtocol.add_request"></a>
 
-#### add`_`request
 
+#### add_request[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L232)
 ```python
 def add_request(agent_address: str, function_name: str,
                 window_size_minutes: int, max_requests: int) -> bool

@@ -1,18 +1,18 @@
-<a id="src.uagents.types"></a>
+
 
 # src.uagents.types
 
-<a id="src.uagents.types.AgentGeolocation"></a>
 
-## AgentGeolocation Objects
+
+## AgentGeolocation Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L65)
 
 ```python
 class AgentGeolocation(BaseModel)
 ```
 
-<a id="src.uagents.types.AgentGeolocation.serialize_precision"></a>
 
-#### serialize`_`precision
+
+#### serialize_precision
 
 ```python
 @field_validator("latitude", "longitude")
@@ -23,9 +23,9 @@ def serialize_precision(cls, val: float) -> float
 Round the latitude and longitude to 6 decimal places.
 Equivalent to 0.11m precision.
 
-<a id="src.uagents.types.AgentMetadata"></a>
 
-## AgentMetadata Objects
+
+## AgentMetadata Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L81)
 
 ```python
 class AgentMetadata(BaseModel)
@@ -36,9 +36,9 @@ Model used to validate metadata for an agent.
 Framework specific fields will be added here to ensure valid serialization.
 Additional fields will simply be passed through.
 
-<a id="src.uagents.types.DeliveryStatus"></a>
 
-## DeliveryStatus Objects
+
+## DeliveryStatus Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L97)
 
 ```python
 class DeliveryStatus(str, Enum)
@@ -46,9 +46,9 @@ class DeliveryStatus(str, Enum)
 
 Delivery status of a message.
 
-<a id="src.uagents.types.MsgDigest"></a>
 
-## MsgDigest Objects
+
+## MsgDigest Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L105)
 
 ```python
 @dataclass
@@ -62,9 +62,9 @@ Represents a message digest containing a message and its schema digest.
 - `message` _Any_ - The message content.
 - `schema_digest` _str_ - The schema digest of the message.
 
-<a id="src.uagents.types.MsgStatus"></a>
 
-## MsgStatus Objects
+
+## MsgStatus Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L119)
 
 ```python
 @dataclass

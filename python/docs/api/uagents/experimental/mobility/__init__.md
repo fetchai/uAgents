@@ -1,19 +1,18 @@
-<a id="src.uagents.experimental.mobility.__init__"></a>
 
-# src.uagents.experimental.mobility.`__`init`__`
 
-<a id="src.uagents.experimental.mobility.__init__.MobilityAgent"></a>
+# src.uagents.experimental.mobility.__init__
 
-## MobilityAgent Objects
+
+
+## MobilityAgent Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mobility/__init__.py#L25)
 
 ```python
 class MobilityAgent(Agent)
 ```
 
-<a id="src.uagents.experimental.mobility.__init__.MobilityAgent.proximity_agents"></a>
 
-#### proximity`_`agents
 
+#### proximity_agents[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mobility/__init__.py#L53)
 ```python
 @property
 def proximity_agents() -> list[SearchResultAgent]
@@ -22,10 +21,9 @@ def proximity_agents() -> list[SearchResultAgent]
 List of agents that this agent has checked in with.
 (i.e. agents that are in proximity / within the radius of this agent)
 
-<a id="src.uagents.experimental.mobility.__init__.MobilityAgent.checkedin_agents"></a>
 
-#### checkedin`_`agents
 
+#### checkedin_agents[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mobility/__init__.py#L61)
 ```python
 @property
 def checkedin_agents() -> dict[str, dict[str, Any]]
@@ -34,10 +32,9 @@ def checkedin_agents() -> dict[str, dict[str, Any]]
 List of agents that have checked in with this agent.
 (i.e. agents which radius this agent is within)
 
-<a id="src.uagents.experimental.mobility.__init__.MobilityAgent.update_geolocation"></a>
 
-#### update`_`geolocation
 
+#### update_geolocation[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mobility/__init__.py#L87)
 ```python
 async def update_geolocation(location: Location)
 ```

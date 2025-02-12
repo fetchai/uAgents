@@ -1,10 +1,10 @@
-<a id="src.uagents.agent"></a>
+
 
 # src.uagents.agent
 
 Agent
 
-<a id="src.uagents.agent.AgentRepresentation"></a>
+
 
 ## AgentRepresentation Objects
 
@@ -30,10 +30,9 @@ Represents an agent in the context of a message.
 
 - `sign_digest(data` - bytes) -> str: Sign the provided data with the agent's identity.
 
-<a id="src.uagents.agent.AgentRepresentation.__init__"></a>
 
-#### `__`init`__`
 
+#### __init__
 ```python
 def __init__(address: str, name: Optional[str], signing_callback: Callable)
 ```
@@ -46,10 +45,9 @@ Initialize the AgentRepresentation instance.
 - `name` _Optional[str]_ - The optional name associated with the context.
 - `signing_callback` _Callable_ - The callback for signing messages.
 
-<a id="src.uagents.agent.AgentRepresentation.name"></a>
+
 
 #### name
-
 ```python
 @property
 def name() -> str
@@ -61,10 +59,9 @@ Get the name associated with the context or a truncated address if name is None.
 
 - `str` - The name or truncated address.
 
-<a id="src.uagents.agent.AgentRepresentation.address"></a>
+
 
 #### address
-
 ```python
 @property
 def address() -> str
@@ -76,10 +73,9 @@ Get the address of the context.
 
 - `str` - The address of the context.
 
-<a id="src.uagents.agent.AgentRepresentation.identifier"></a>
+
 
 #### identifier
-
 ```python
 @property
 def identifier() -> str
@@ -91,10 +87,9 @@ Get the address of the agent used for communication including the network prefix
 
 - `str` - The agent's address and network prefix.
 
-<a id="src.uagents.agent.AgentRepresentation.sign_digest"></a>
 
-#### sign`_`digest
 
+#### sign_digest
 ```python
 def sign_digest(data: bytes) -> str
 ```
@@ -110,7 +105,7 @@ Sign the provided data with the callback of the agent's identity.
 
 - `str` - The signature of the data.
 
-<a id="src.uagents.agent.Agent"></a>
+
 
 ## Agent Objects
 
@@ -128,7 +123,8 @@ An agent that interacts within a communication environment.
 - `_resolver` _Resolver_ - The resolver for agent communication.
 - `_loop` _asyncio.AbstractEventLoop_ - The asyncio event loop used by the agent.
 - `_logger` - The logger instance for logging agent activities.
-- `_endpoints` _List[AgentEndpoint]_ - List of endpoints at which the agent is reachable.
+- `_endpoints` _List[AgentEndpoint]_ - List of endpoin[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/agent.py#L38)
+ts at which the agent is reachable.
 - `_use_mailbox` _bool_ - Indicates if the agent uses a mailbox for communication.
 - `_agentverse` _AgentverseConfig_ - Agentverse configuration settings.
 - `_mailbox_client` _MailboxClient_ - The client for interacting with the agentverse mailbox.
@@ -177,11 +173,10 @@ An agent that interacts within a communication environment.
   corresponding protocols.
 - `metadata` _Optional[Dict[str, Any]]_ - Metadata associated with the agent.
 
-<a id="src.uagents.agent.Agent.__init__"></a>
 
-#### `__`init`__`
 
-```python
+#### __init__
+```python[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/agent.py#L183)
 def __init__(name: Optional[str] = None,
              port: Optional[int] = None,
              seed: Optional[str] = None,
@@ -233,10 +228,9 @@ Initialize an Agent instance.
 - `publish_agent_details` _bool_ - Publish agent details to Agentverse on connection via
   local agent inspector.
 
-<a id="src.uagents.agent.Agent.initialize_wallet_messaging"></a>
 
-#### initialize`_`wallet`_`messaging
 
+#### initialize_wallet_messaging
 ```python
 def initialize_wallet_messaging(enable_wallet_messaging: Union[bool,
                                                                Dict[str,
@@ -249,10 +243,9 @@ Initialize wallet messaging for the agent.
 
 - `enable_wallet_messaging` _Union[bool, Dict[str, str]]_ - Wallet messaging configuration.
 
-<a id="src.uagents.agent.Agent.name"></a>
+
 
 #### name
-
 ```python
 @property
 def name() -> str
@@ -264,10 +257,9 @@ Get the name of the agent.
 
 - `str` - The name of the agent.
 
-<a id="src.uagents.agent.Agent.address"></a>
+
 
 #### address
-
 ```python
 @property
 def address() -> str
@@ -279,10 +271,9 @@ Get the address of the agent used for communication.
 
 - `str` - The agent's address.
 
-<a id="src.uagents.agent.Agent.identifier"></a>
+
 
 #### identifier
-
 ```python
 @property
 def identifier() -> str
@@ -294,10 +285,9 @@ Get the Agent Identifier, including network prefix and address.
 
 - `str` - The agent's identifier.
 
-<a id="src.uagents.agent.Agent.wallet"></a>
+
 
 #### wallet
-
 ```python
 @property
 def wallet() -> LocalWallet
@@ -309,10 +299,9 @@ Get the wallet of the agent.
 
 - `LocalWallet` - The agent's wallet.
 
-<a id="src.uagents.agent.Agent.ledger"></a>
+
 
 #### ledger
-
 ```python
 @property
 def ledger() -> LedgerClient
@@ -324,10 +313,9 @@ Get the ledger of the agent.
 
 - `LedgerClient` - The agent's ledger
 
-<a id="src.uagents.agent.Agent.storage"></a>
+
 
 #### storage
-
 ```python
 @property
 def storage() -> KeyValueStore
@@ -339,10 +327,9 @@ Get the key-value store used by the agent for data storage.
 
 - `KeyValueStore` - The key-value store instance.
 
-<a id="src.uagents.agent.Agent.agentverse"></a>
+
 
 #### agentverse
-
 ```python
 @property
 def agentverse() -> AgentverseConfig
@@ -354,10 +341,9 @@ Get the agentverse configuration of the agent.
 
   Dict[str, str]: The agentverse configuration.
 
-<a id="src.uagents.agent.Agent.mailbox_client"></a>
 
-#### mailbox`_`client
 
+#### mailbox_client
 ```python
 @property
 def mailbox_client() -> Optional[MailboxClient]
@@ -369,10 +355,9 @@ Get the mailbox client used by the agent for mailbox communication.
 
 - `Optional[MailboxClient]` - The mailbox client instance.
 
-<a id="src.uagents.agent.Agent.balance"></a>
+
 
 #### balance
-
 ```python
 @property
 def balance() -> int
@@ -384,10 +369,9 @@ Get the balance of the agent.
 
 - `int` - Bank balance.
 
-<a id="src.uagents.agent.Agent.info"></a>
+
 
 #### info
-
 ```python
 @property
 def info() -> AgentInfo
@@ -399,10 +383,9 @@ Get basic information about the agent.
 
 - `AgentInfo` - The agent's address, endpoints, protocols, and metadata.
 
-<a id="src.uagents.agent.Agent.metadata"></a>
+
 
 #### metadata
-
 ```python
 @property
 def metadata() -> Dict[str, Any]
@@ -414,7 +397,7 @@ Get the metadata associated with the agent.
 
   Dict[str, Any]: The metadata associated with the agent.
 
-<a id="src.uagents.agent.Agent.agentverse"></a>
+
 
 #### agentverse
 
@@ -429,10 +412,9 @@ Set the agentverse configuration for the agent.
 
 - `config` _Union[str, Dict[str, str]]_ - The new agentverse configuration.
 
-<a id="src.uagents.agent.Agent.sign"></a>
+
 
 #### sign
-
 ```python
 def sign(data: bytes) -> str
 ```
@@ -448,10 +430,9 @@ Sign the provided data.
 
 - `str` - The signature of the data.
 
-<a id="src.uagents.agent.Agent.sign_digest"></a>
 
-#### sign`_`digest
 
+#### sign_digest
 ```python
 def sign_digest(digest: bytes) -> str
 ```
@@ -467,10 +448,9 @@ Sign the provided digest.
 
 - `str` - The signature of the digest.
 
-<a id="src.uagents.agent.Agent.sign_registration"></a>
 
-#### sign`_`registration
 
+#### sign_registration
 ```python
 def sign_registration(timestamp: int,
                       sender_wallet_address: Optional[str] = None) -> str
@@ -493,10 +473,9 @@ Sign the registration data for Almanac contract.
 
 - `AssertionError` - If the Almanac contract is None.
 
-<a id="src.uagents.agent.Agent.update_endpoints"></a>
 
-#### update`_`endpoints
 
+#### update_endpoints
 ```python
 def update_endpoints(endpoints: List[AgentEndpoint])
 ```
@@ -507,10 +486,9 @@ Update the list of endpoints.
 
 - `endpoints` _List[AgentEndpoint]_ - List of endpoint dictionaries.
 
-<a id="src.uagents.agent.Agent.update_loop"></a>
 
-#### update`_`loop
 
+#### update_loop
 ```python
 def update_loop(loop)
 ```
@@ -521,10 +499,9 @@ Update the event loop.
 
 - `loop` - The event loop.
 
-<a id="src.uagents.agent.Agent.update_queries"></a>
 
-#### update`_`queries
 
+#### update_queries
 ```python
 def update_queries(queries)
 ```
@@ -535,10 +512,9 @@ Update the queries attribute.
 
 - `queries` - The queries attribute.
 
-<a id="src.uagents.agent.Agent.update_registration_policy"></a>
 
-#### update`_`registration`_`policy
 
+#### update_registration_policy
 ```python
 def update_registration_policy(policy: AgentRegistrationPolicy)
 ```
@@ -549,10 +525,9 @@ Update the registration policy.
 
 - `policy` - The registration policy.
 
-<a id="src.uagents.agent.Agent.register"></a>
+
 
 #### register
-
 ```python
 async def register()
 ```
@@ -562,10 +537,9 @@ Register with the Almanac contract.
 This method checks for registration conditions and performs registration
 if necessary.
 
-<a id="src.uagents.agent.Agent.on_interval"></a>
 
-#### on`_`interval
 
+#### on_interval
 ```python
 def on_interval(period: float,
                 messages: Optional[Union[Type[Model],
@@ -584,10 +558,9 @@ Decorator to register an interval handler for the provided period.
 
 - `Callable` - The decorator function for registering interval handlers.
 
-<a id="src.uagents.agent.Agent.on_query"></a>
 
-#### on`_`query
 
+#### on_query
 ```python
 def on_query(model: Type[Model],
              replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None)
@@ -605,10 +578,9 @@ Set up a query event with a callback.
 
 - `Callable` - The decorator function for registering query handlers.
 
-<a id="src.uagents.agent.Agent.on_message"></a>
 
-#### on`_`message
 
+#### on_message
 ```python
 def on_message(model: Type[Model],
                replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
@@ -628,10 +600,9 @@ Decorator to register an message handler for the provided message model.
 
 - `Callable` - The decorator function for registering message handlers.
 
-<a id="src.uagents.agent.Agent.on_event"></a>
 
-#### on`_`event
 
+#### on_event
 ```python
 def on_event(event_type: str)
 ```
@@ -647,40 +618,36 @@ Decorator to register an event handler for a specific event type.
 
 - `Callable` - The decorator function for registering event handlers.
 
-<a id="src.uagents.agent.Agent.on_rest_get"></a>
 
-#### on`_`rest`_`get
 
+#### on_rest_get
 ```python
 def on_rest_get(endpoint: str, response: Type[Model])
 ```
 
 Add a handler for a GET REST endpoint.
 
-<a id="src.uagents.agent.Agent.on_rest_post"></a>
 
-#### on`_`rest`_`post
 
+#### on_rest_post
 ```python
 def on_rest_post(endpoint: str, request: Type[Model], response: Type[Model])
 ```
 
 Add a handler for a POST REST endpoint.
 
-<a id="src.uagents.agent.Agent.on_wallet_message"></a>
 
-#### on`_`wallet`_`message
 
+#### on_wallet_message
 ```python
 def on_wallet_message()
 ```
 
 Add a handler for wallet messages.
 
-<a id="src.uagents.agent.Agent.include"></a>
+
 
 #### include
-
 ```python
 def include(protocol: Protocol, publish_manifest: Optional[bool] = False)
 ```
@@ -698,10 +665,9 @@ Include a protocol into the agent's capabilities.
 - `RuntimeError` - If a duplicate model, signed message handler, or message handler
   is encountered.
 
-<a id="src.uagents.agent.Agent.publish_manifest"></a>
 
-#### publish`_`manifest
 
+#### publish_manifest
 ```python
 def publish_manifest(manifest: Dict[str, Any])
 ```
@@ -712,10 +678,9 @@ Publish a protocol manifest to the Almanac service.
 
 - `manifest` _Dict[str, Any]_ - The protocol manifest.
 
-<a id="src.uagents.agent.Agent.handle_message"></a>
 
-#### handle`_`message
 
+#### handle_message
 ```python
 async def handle_message(sender, schema_digest: str, message: JsonStr,
                          session: uuid.UUID)
@@ -730,10 +695,9 @@ Handle an incoming message.
 - `message` _JsonStr_ - The message content in JSON format.
 - `session` _uuid.UUID_ - The session UUID.
 
-<a id="src.uagents.agent.Agent.handle_rest"></a>
 
-#### handle`_`rest
 
+#### handle_rest
 ```python
 async def handle_rest(
         method: RestMethod, endpoint: str,
@@ -748,80 +712,72 @@ Handle a REST request.
 - `endpoint` _str_ - The REST endpoint.
 - `message` _Model_ - The message content.
 
-<a id="src.uagents.agent.Agent.setup"></a>
+
 
 #### setup
-
 ```python
 async def setup()
 ```
 
 Include the internal agent protocol, run startup tasks, and start background tasks.
 
-<a id="src.uagents.agent.Agent.start_registration_loop"></a>
 
-#### start`_`registration`_`loop
 
+#### start_registration_loop
 ```python
 def start_registration_loop()
 ```
 
 Start the registration loop.
 
-<a id="src.uagents.agent.Agent.start_message_dispenser"></a>
 
-#### start`_`message`_`dispenser
 
+#### start_message_dispenser
 ```python
 def start_message_dispenser()
 ```
 
 Start the message dispenser.
 
-<a id="src.uagents.agent.Agent.start_interval_tasks"></a>
 
-#### start`_`interval`_`tasks
 
+#### start_interval_tasks
 ```python
 def start_interval_tasks()
 ```
 
 Start interval tasks for the agent.
 
-<a id="src.uagents.agent.Agent.start_message_receivers"></a>
 
-#### start`_`message`_`receivers
 
+#### start_message_receivers
 ```python
 def start_message_receivers()
 ```
 
 Start message receiving tasks for the agent.
 
-<a id="src.uagents.agent.Agent.start_server"></a>
 
-#### start`_`server
 
+#### start_server
 ```python
 async def start_server()
 ```
 
 Start the agent's server.
 
-<a id="src.uagents.agent.Agent.run_async"></a>
 
-#### run`_`async
 
+#### run_async
 ```python
 async def run_async()
 ```
 
 Create all tasks for the agent.
 
-<a id="src.uagents.agent.Agent.run"></a>
+
 
 #### run
-
 ```python
 def run()
 ```
@@ -829,10 +785,9 @@ def run()
 Run the agent by itself.
 A fresh event loop is created for the agent and it is closed after the agent stops.
 
-<a id="src.uagents.agent.Agent.get_message_protocol"></a>
 
-#### get`_`message`_`protocol
 
+#### get_message_protocol
 ```python
 def get_message_protocol(
         message_schema_digest) -> Optional[Tuple[str, Protocol]]
@@ -840,7 +795,7 @@ def get_message_protocol(
 
 Get the protocol for a given message schema digest.
 
-<a id="src.uagents.agent.Bureau"></a>
+
 
 ## Bureau Objects
 
@@ -867,10 +822,9 @@ This class manages a collection of agents and orchestrates their execution.
   of the agents.
 - `_registration_policy` _AgentRegistrationPolicy_ - The registration policy for the bureau.
 
-<a id="src.uagents.agent.Bureau.__init__"></a>
 
-#### `__`init`__`
 
+#### __init__
 ```python
 def __init__(agents: Optional[List[Agent]] = None,
              port: Optional[int] = None,
@@ -901,10 +855,9 @@ Initialize a Bureau instance.
 - `loop` _Optional[asyncio.AbstractEventLoop]_ - The event loop.
 - `log_level` _Union[int, str]_ - The logging level for the bureau.
 
-<a id="src.uagents.agent.Bureau.add"></a>
+
 
 #### add
-
 ```python
 def add(agent: Agent)
 ```
@@ -915,20 +868,18 @@ Add an agent to the bureau.
 
 - `agent` _Agent_ - The agent to be added.
 
-<a id="src.uagents.agent.Bureau.run_async"></a>
 
-#### run`_`async
 
+#### run_async
 ```python
 async def run_async()
 ```
 
 Run the agents managed by the bureau.
 
-<a id="src.uagents.agent.Bureau.run"></a>
+
 
 #### run
-
 ```python
 def run()
 ```

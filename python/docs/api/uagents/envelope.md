@@ -1,12 +1,12 @@
-<a id="src.uagents.envelope"></a>
+
 
 # src.uagents.envelope
 
 Agent Envelope.
 
-<a id="src.uagents.envelope.Envelope"></a>
 
-## Envelope Objects
+
+## Envelope Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L20)
 
 ```python
 class Envelope(BaseModel)
@@ -29,10 +29,9 @@ Represents an envelope for message communication between agents.
 - `nonce` _Optional[int]_ - The nonce value (optional).
 - `signature` _Optional[str]_ - The envelope signature (optional).
 
-<a id="src.uagents.envelope.Envelope.encode_payload"></a>
 
-#### encode`_`payload
 
+#### encode_payload[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L50)
 ```python
 def encode_payload(value: JsonStr)
 ```
@@ -43,10 +42,9 @@ Encode the payload value and store it in the envelope.
 
 - `value` _JsonStr_ - The payload value to be encoded.
 
-<a id="src.uagents.envelope.Envelope.decode_payload"></a>
 
-#### decode`_`payload
 
+#### decode_payload[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L59)
 ```python
 def decode_payload() -> str
 ```
@@ -57,10 +55,9 @@ Decode and retrieve the payload value from the envelope.
 
 - `str` - The decoded payload value, or '' if payload is not present.
 
-<a id="src.uagents.envelope.Envelope.sign"></a>
 
-#### sign
 
+#### sign[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L71)
 ```python
 def sign(signing_fn: Callable)
 ```
@@ -71,10 +68,9 @@ Sign the envelope using the provided signing function.
 
 - `signing_fn` _callback_ - The callback used for signing.
 
-<a id="src.uagents.envelope.Envelope.verify"></a>
 
-#### verify
 
+#### verify[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L83)
 ```python
 def verify() -> bool
 ```
@@ -91,18 +87,17 @@ Verify the envelope's signature.
 - `ValueError` - If the signature is missing.
 - `ecdsa.BadSignatureError` - If the signature is invalid.
 
-<a id="src.uagents.envelope.EnvelopeHistory"></a>
 
-## EnvelopeHistory Objects
+
+## EnvelopeHistory Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L146)
 
 ```python
 class EnvelopeHistory(BaseModel)
 ```
 
-<a id="src.uagents.envelope.EnvelopeHistory.apply_retention_policy"></a>
 
-#### apply`_`retention`_`policy
 
+#### apply_retention_policy[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L153)
 ```python
 def apply_retention_policy()
 ```
