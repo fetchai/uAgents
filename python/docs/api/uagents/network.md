@@ -4,6 +4,27 @@
 
 Network and Contracts.
 
+<a id="src.uagents.network.default_exp_backoff"></a>
+
+#### default`_`exp`_`backoff
+
+```python
+def default_exp_backoff(retry: int) -> float
+```
+
+Generate a backoff time starting from 0.64 seconds and limited to ~32 seconds
+
+<a id="src.uagents.network.block_polling_exp_backoff"></a>
+
+#### block`_`polling`_`exp`_`backoff
+
+```python
+def block_polling_exp_backoff(retry: int) -> float
+```
+
+Generate an exponential backoff that is designed for block polling. We keep the
+same default exponential backoff, but it is clamped to the default query interval.
+
 <a id="src.uagents.network.InsufficientFundsError"></a>
 
 ## InsufficientFundsError Objects
@@ -13,6 +34,16 @@ class InsufficientFundsError(Exception)
 ```
 
 Raised when an agent has insufficient funds for a transaction.
+
+<a id="src.uagents.network.BroadcastTimeoutError"></a>
+
+## BroadcastTimeoutError Objects
+
+```python
+class BroadcastTimeoutError(RuntimeError)
+```
+
+Raised when a transaction broadcast fails due to a timeout.
 
 <a id="src.uagents.network.get_ledger"></a>
 
@@ -85,8 +116,9 @@ Parse the user-provided record configuration.
 async def wait_for_tx_to_complete(
         tx_hash: str,
         ledger: LedgerClient,
-        timeout: Optional[timedelta] = None,
-        poll_period: Optional[timedelta] = None) -> TxResponse
+        *,
+        poll_retries: Optional[int] = None,
+        poll_retry_delay: Optional[RetryDelayFunc] = None) -> TxResponse
 ```
 
 Wait for a transaction to complete on the Ledger.
@@ -95,9 +127,9 @@ Wait for a transaction to complete on the Ledger.
 
 - `tx_hash` _str_ - The hash of the transaction to monitor.
 - `ledger` _LedgerClient_ - The Ledger client to poll.
-- `timeout` _Optional[timedelta], optional_ - The maximum time to wait.
-  the transaction to complete. Defaults to None.
-- `poll_period` _Optional[timedelta], optional_ - The time interval to poll
+- `poll_retries` _Optional[int], optional_ - The maximum number of retry attempts.
+- `poll_retry_delay` _Optional[RetryDelayFunc], optional_ - The retry delay function,
+  if not provided the default exponential backoff will be used.
   
 
 **Returns**:
@@ -298,10 +330,18 @@ Get the protocols associated with an agent's registration.
 #### register
 
 ```python
-async def register(ledger: LedgerClient, wallet: LocalWallet,
-                   agent_address: str, protocols: List[str],
-                   endpoints: List[AgentEndpoint], signature: str,
-                   current_time: int)
+async def register(ledger: LedgerClient,
+                   wallet: LocalWallet,
+                   agent_address: str,
+                   protocols: List[str],
+                   endpoints: List[AgentEndpoint],
+                   signature: str,
+                   current_time: int,
+                   *,
+                   broadcast_retries: Optional[int] = None,
+                   broadcast_retry_delay: Optional[RetryDelayFunc] = None,
+                   poll_retries: Optional[int] = None,
+                   poll_retry_delay: Optional[RetryDelayFunc] = None)
 ```
 
 Register an agent with the Almanac contract.
@@ -320,8 +360,15 @@ Register an agent with the Almanac contract.
 #### register`_`batch
 
 ```python
-async def register_batch(ledger: LedgerClient, wallet: LocalWallet,
-                         agent_records: List[AlmanacContractRecord])
+async def register_batch(
+        ledger: LedgerClient,
+        wallet: LocalWallet,
+        agent_records: List[AlmanacContractRecord],
+        *,
+        broadcast_retries: Optional[int] = None,
+        broadcast_retry_delay: Optional[RetryDelayFunc] = None,
+        poll_retries: Optional[int] = None,
+        poll_retry_delay: Optional[RetryDelayFunc] = None)
 ```
 
 Register multiple agents with the Almanac contract.

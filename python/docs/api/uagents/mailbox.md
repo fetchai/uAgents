@@ -44,7 +44,30 @@ Registers agent in Agentverse
 
 **Returns**:
 
-- `RegistrationResponse` - Registration
+- `RegistrationResponse` - Registration response object
+
+<a id="src.uagents.mailbox.unregister_in_agentverse"></a>
+
+#### unregister`_`in`_`agentverse
+
+```python
+async def unregister_in_agentverse(
+        request: AgentverseDisconnectRequest, agent_address: str,
+        agentverse: AgentverseConfig) -> UnregistrationResponse
+```
+
+Unregisters agent in Agentverse
+
+**Arguments**:
+
+- `request` _AgentverseDisconnectRequest_ - Request object
+- `agent_address` _str_ - The agent's address
+- `agentverse` _AgentverseConfig_ - Agentverse configuration
+  
+
+**Returns**:
+
+- `UnregistrationResponse` - Unregistration response object
 
 <a id="src.uagents.mailbox.update_agent_details"></a>
 
