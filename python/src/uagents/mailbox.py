@@ -57,6 +57,7 @@ class RegistrationRequest(BaseModel):
 
 class RegistrationResponse(Model):
     success: bool
+    detail: Optional[str] = None
 
 
 class AgentUpdates(BaseModel):
@@ -72,6 +73,7 @@ class AgentverseDisconnectRequest(Model):
 
 class UnregistrationResponse(Model):
     success: bool
+    detail: Optional[str] = None
 
 
 class StoredEnvelope(BaseModel):
@@ -147,19 +149,18 @@ async def register_in_agentverse(
                 "Authorization": f"Bearer {request.user_token}",
             },
         ) as resp:
-            resp.raise_for_status()
-            registration_response = RegistrationResponse.parse_raw(await resp.text())
-            if registration_response.success:
+            if resp.status == 200:
                 logger.info(
                     f"Successfully registered as {request.agent_type} agent in Agentverse"
                 )
-
-    if agent_details:
-        await update_agent_details(
-            request.user_token, identity.address, agent_details, agentverse
-        )
-
-    return registration_response
+                if agent_details:
+                    await update_agent_details(
+                        request.user_token, identity.address, agent_details, agentverse
+                    )
+                return RegistrationResponse(success=True)
+            else:
+                detail = (await resp.json())["detail"]
+                return RegistrationResponse(success=False, detail=detail)
 
 
 async def unregister_in_agentverse(
@@ -188,9 +189,12 @@ async def unregister_in_agentverse(
                 "Authorization": f"Bearer {request.user_token}",
             },
         ) as resp:
-            resp.raise_for_status()
-            logger.info("Successfully unregistered from Agentverse")
-            return UnregistrationResponse(success=True)
+            if resp.status == 200:
+                logger.info("Successfully unregistered from Agentverse")
+                return UnregistrationResponse(success=True)
+            else:
+                detail = (await resp.json())["detail"]
+                return UnregistrationResponse(success=False, detail=detail)
 
 
 async def update_agent_details(
