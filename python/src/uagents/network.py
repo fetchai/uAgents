@@ -25,10 +25,8 @@ from uagents.config import (
     AVERAGE_BLOCK_INTERVAL,
     MAINNET_CONTRACT_ALMANAC,
     MAINNET_CONTRACT_NAME_SERVICE,
-    MAINNET_REGISTRATION_FEE,
     TESTNET_CONTRACT_ALMANAC,
     TESTNET_CONTRACT_NAME_SERVICE,
-    TESTNET_REGISTRATION_FEE,
 )
 from uagents.crypto import Identity
 from uagents.types import AgentEndpoint, AgentInfo, AgentNetwork
@@ -255,6 +253,18 @@ class AlmanacContract(LedgerContract):
 
         return response["contract_version"]
 
+    def get_registration_fee(self) -> int:
+        """
+        Get the registration fee for the contract.
+
+        Returns:
+            int: The registration fee.
+        """
+        query_msg = {"query_contract_state": {}}
+        response = self.query_contract(query_msg)
+
+        return int(response["state"]["register_stake_amount"])
+
     def is_registered(self, address: str) -> bool:
         """
         Check if an agent is registered in the Almanac contract.
@@ -317,7 +327,7 @@ class AlmanacContract(LedgerContract):
         response = self.query_contract(query_msg)
 
         if not response.get("record"):
-            return []
+            return 0, [], []
 
         if not response.get("record"):
             contract_state = self.query_contract({"query_contract_state": {}})
@@ -435,7 +445,7 @@ class AlmanacContract(LedgerContract):
         )
 
         denom = self._client.network_config.fee_denomination
-        fee = MAINNET_REGISTRATION_FEE if denom == "afet" else TESTNET_REGISTRATION_FEE
+        fee = self.get_registration_fee()
         transaction.add_message(
             create_cosmwasm_execute_msg(
                 wallet.address(),
@@ -514,11 +524,7 @@ class AlmanacContract(LedgerContract):
             )
 
             denom = self._client.network_config.fee_denomination
-            fee = (
-                MAINNET_REGISTRATION_FEE
-                if denom == "afet"
-                else TESTNET_REGISTRATION_FEE
-            )
+            fee = self.get_registration_fee()
             transaction.add_message(
                 create_cosmwasm_execute_msg(
                     wallet.address(),

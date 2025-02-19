@@ -21,9 +21,7 @@ from uagents.config import (
     ALMANAC_API_URL,
     ALMANAC_CONTRACT_VERSION,
     ALMANAC_REGISTRATION_WAIT,
-    MAINNET_REGISTRATION_FEE,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
-    TESTNET_REGISTRATION_FEE,
 )
 from uagents.crypto import Identity
 from uagents.network import (
@@ -284,11 +282,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         self._ledger = ledger
         self._testnet = testnet
         self._almanac_contract = almanac_contract
-        self._registration_fee = (
-            MAINNET_REGISTRATION_FEE
-            if ledger.network_config.fee_denomination == "afet"
-            else TESTNET_REGISTRATION_FEE
-        )
+        self._registration_fee = almanac_contract.get_registration_fee()
         self._logger = logger or logging.getLogger(__name__)
         self._broadcast_retries: Optional[int] = None
         self._broadcast_retry_delay: Optional[RetryDelayFunc] = None
@@ -458,11 +452,7 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
         self._wallet = wallet
         self._almanac_contract = almanac_contract
         self._testnet = testnet
-        self._registration_fee = (
-            MAINNET_REGISTRATION_FEE
-            if ledger.network_config.fee_denomination == "afet"
-            else TESTNET_REGISTRATION_FEE
-        )
+        self._registration_fee = almanac_contract.get_registration_fee()
         self._logger = logger or logging.getLogger(__name__)
         self._records: List[AlmanacContractRecord] = []
         self._identities: Dict[str, Identity] = {}
