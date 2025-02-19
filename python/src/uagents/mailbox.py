@@ -57,6 +57,7 @@ class RegistrationRequest(BaseModel):
 
 class RegistrationResponse(Model):
     success: bool
+    detail: Optional[str] = None
 
 
 class AgentUpdates(BaseModel):
@@ -64,6 +65,15 @@ class AgentUpdates(BaseModel):
     readme: Optional[Annotated[str, StringConstraints(max_length=80000)]] = None
     avatar_url: Optional[Annotated[str, StringConstraints(max_length=4000)]] = None
     agent_type: Optional[AgentType] = "mailbox"
+
+
+class AgentverseDisconnectRequest(Model):
+    user_token: str
+
+
+class UnregistrationResponse(Model):
+    success: bool
+    detail: Optional[str] = None
 
 
 class StoredEnvelope(BaseModel):
@@ -104,7 +114,7 @@ async def register_in_agentverse(
         agent_details (Optional[AgentUpdates]): Agent details (name, readme, avatar_url)
 
     Returns:
-        RegistrationResponse: Registration
+        RegistrationResponse: Registration response object
     """
     async with aiohttp.ClientSession() as session:
         # get challenge
@@ -139,25 +149,52 @@ async def register_in_agentverse(
                 "Authorization": f"Bearer {request.user_token}",
             },
         ) as resp:
-            if resp.status == 409:
-                logger.info("Agent is already registered in Agentverse.")
-                registration_response = RegistrationResponse(success=False)
-            else:
-                resp.raise_for_status()
-                registration_response = RegistrationResponse.parse_raw(
-                    await resp.text()
+            if resp.status == 200:
+                logger.info(
+                    f"Successfully registered as {request.agent_type} agent in Agentverse"
                 )
-                if registration_response.success:
-                    logger.info(
-                        f"Successfully registered as {request.agent_type} agent in Agentverse"
+                if agent_details:
+                    await update_agent_details(
+                        request.user_token, identity.address, agent_details, agentverse
                     )
+                return RegistrationResponse(success=True)
+            else:
+                detail = (await resp.json())["detail"]
+                return RegistrationResponse(success=False, detail=detail)
 
-    if agent_details:
-        await update_agent_details(
-            request.user_token, identity.address, agent_details, agentverse
-        )
 
-    return registration_response
+async def unregister_in_agentverse(
+    request: AgentverseDisconnectRequest,
+    agent_address: str,
+    agentverse: AgentverseConfig,
+) -> UnregistrationResponse:
+    """
+    Unregisters agent in Agentverse
+
+    Args:
+        request (AgentverseDisconnectRequest): Request object
+        agent_address (str): The agent's address
+        agentverse (AgentverseConfig): Agentverse configuration
+
+    Returns:
+        UnregistrationResponse: Unregistration response object
+    """
+    async with aiohttp.ClientSession() as session:
+        # response to challenge with signature to get token
+        prove_url = f"{agentverse.url}/v1/agents/{agent_address}"
+        async with session.delete(
+            prove_url,
+            headers={
+                "content-type": "application/json",
+                "Authorization": f"Bearer {request.user_token}",
+            },
+        ) as resp:
+            if resp.status == 200:
+                logger.info("Successfully unregistered from Agentverse")
+                return UnregistrationResponse(success=True)
+            else:
+                detail = (await resp.json())["detail"]
+                return UnregistrationResponse(success=False, detail=detail)
 
 
 async def update_agent_details(
