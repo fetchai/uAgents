@@ -22,9 +22,11 @@ from cosmpy.crypto.address import Address
 from uagents.config import (
     ALMANAC_CONTRACT_VERSION,
     ALMANAC_REGISTRATION_WAIT,
+    ANAME_REGISTRATION_SECONDS,
     AVERAGE_BLOCK_INTERVAL,
     MAINNET_CONTRACT_ALMANAC,
     MAINNET_CONTRACT_NAME_SERVICE,
+    ORACLE_AGENT_DOMAIN,
     REGISTRATION_FEE,
     TESTNET_CONTRACT_ALMANAC,
     TESTNET_CONTRACT_NAME_SERVICE,
@@ -625,6 +627,12 @@ class NameServiceContract(LedgerContract):
             logger.debug(e)
             raise
 
+    def get_oracle_agent_address(self):
+        query_msg = {"query_domain_record": {"domain": ORACLE_AGENT_DOMAIN}}
+        return self.query_contract(query_msg)["record"]["records"][0]["agent_address"][
+            "records"
+        ][0]["address"]
+
     def is_name_available(self, name: str, domain: str) -> bool:
         """
         Check if a name is available within a domain.
@@ -652,7 +660,7 @@ class NameServiceContract(LedgerContract):
             bool: True if the wallet address is the owner, False otherwise.
         """
         query_msg = {
-            "permissions": {
+            "query_domain_permissions": {
                 "domain": f"{name}.{domain}",
                 "owner": wallet_address,
             }
@@ -702,6 +710,7 @@ class NameServiceContract(LedgerContract):
         agent_records: Union[List[Dict[str, Any]], str],
         domain: str,
         network: AgentNetwork,
+        approval_token: str,
     ):
         """
         Get the registration transaction for registering a name within a domain.
@@ -711,7 +720,8 @@ class NameServiceContract(LedgerContract):
             wallet_address (str): The wallet address initiating the registration.
             agent_address (str): The address of the agent.
             domain (str): The domain in which the name is registered.
-            test (bool): The agent type
+            network (AgentNetwork): The network in which the transaction is executed.
+            approval_token (str): The approval token required for registration.
 
         Returns:
             Optional[Transaction]: The registration transaction, or None if the name is not
@@ -729,10 +739,15 @@ class NameServiceContract(LedgerContract):
             price_per_second = self.query_contract({"query_contract_state": {}})[
                 "price_per_second"
             ]
-            amount = int(price_per_second["amount"]) * 86400
+            amount = int(price_per_second["amount"]) * ANAME_REGISTRATION_SECONDS
             denom = price_per_second["denom"]
 
-            registration_msg = {"register": {"domain": f"{name}.{domain}"}}
+            registration_msg = {
+                "register_domain": {
+                    "domain": f"{name}.{domain}",
+                    "approval_token": approval_token,
+                }
+            }
 
             transaction.add_message(
                 create_cosmwasm_execute_msg(
@@ -743,7 +758,7 @@ class NameServiceContract(LedgerContract):
             return None
 
         record_msg = {
-            "update_record": {
+            "update_domain_record": {
                 "domain": f"{name}.{domain}",
                 "agent_records": agent_records,
             }
@@ -762,6 +777,7 @@ class NameServiceContract(LedgerContract):
         agent_records: Optional[Union[str, List[str], Dict[str, dict]]],
         name: str,
         domain: str,
+        approval_token: str,
         overwrite: bool = True,
     ):
         """
@@ -773,6 +789,7 @@ class NameServiceContract(LedgerContract):
             agent_address (str): The address of the agent.
             name (str): The name to be registered.
             domain (str): The domain in which the name is registered.
+            approval_token (str): The approval token required for registration.
             overwrite (bool, optional): Specifies whether to overwrite any existing
                 addresses registered to the domain. If False, the address will be
                 appended to the previous records. Defaults to True.
@@ -822,6 +839,7 @@ class NameServiceContract(LedgerContract):
             records,
             domain,
             network=network,
+            approval_token=approval_token,
         )
 
         if transaction is None:
