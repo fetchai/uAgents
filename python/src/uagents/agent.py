@@ -407,11 +407,11 @@ class Agent(Sink):
 
         self.initialize_wallet_messaging(enable_wallet_messaging)
 
-        # initialize the internal agent protocol
-        self._protocol = Protocol(name=self._name, version=self._version)
-
         # keep track of supported protocols
         self.protocols: Dict[str, Protocol] = {}
+
+        # initialize the internal agent protocol
+        self._protocol = Protocol(name=self._name, version=self._version)
 
         # register with the dispatcher
         self._dispatcher.register(self.address, self)
@@ -1550,7 +1550,6 @@ class Bureau:
         if agent in self._agents:
             return
         self._update_agent(agent)
-        self._registration_policy.add_agent(agent.info, agent._identity)
         self._agents.append(agent)
 
     async def _schedule_registration(self):
@@ -1584,6 +1583,7 @@ class Bureau:
             return
         for agent in self._agents:
             await agent.setup()
+            self._registration_policy.add_agent(agent.info, agent._identity)
             if (
                 is_mailbox_agent(agent._endpoints, self._agentverse)
                 and agent.mailbox_client is not None
