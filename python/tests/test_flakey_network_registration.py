@@ -18,8 +18,8 @@ from cosmpy.protos.cosmwasm.wasm.v1.query_pb2 import (
 
 from uagents.config import (
     ALMANAC_CONTRACT_VERSION,
-    REGISTRATION_FEE,
     TESTNET_CONTRACT_ALMANAC,
+    TESTNET_REGISTRATION_FEE,
 )
 from uagents.crypto import Identity
 from uagents.network import AlmanacContract
@@ -49,7 +49,14 @@ class FakeWasmClient:
         data = json.loads(req.query_data)
         if data == {"query_contract_state": {}}:
             return QuerySmartContractStateResponse(
-                data=json.dumps({"contract_version": ALMANAC_CONTRACT_VERSION}).encode()
+                data=json.dumps(
+                    {
+                        "contract_version": ALMANAC_CONTRACT_VERSION,
+                        "state": {
+                            "register_stake_amount": str(TESTNET_REGISTRATION_FEE)
+                        },
+                    }
+                ).encode()
             )
         elif "query_records" in data:
             return QuerySmartContractStateResponse(data=json.dumps({}).encode())
@@ -91,7 +98,7 @@ class FakeLedgerClient:
         self._query_failure_count = value
 
     def query_bank_balance(self, address: Address, denom: Optional[str] = None) -> int:
-        return REGISTRATION_FEE + 1
+        return TESTNET_REGISTRATION_FEE + 1
 
     def query_account(self, address: Address) -> Account:
         return Account(

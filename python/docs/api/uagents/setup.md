@@ -9,7 +9,7 @@ Agent's Setup.
 #### fund_agent_if_low[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/setup.py#L14)
 ```python
 def fund_agent_if_low(wallet_address: str,
-                      min_balance: int = REGISTRATION_FEE)
+                      min_balance: int = TESTNET_REGISTRATION_FEE)
 ```
 
 Checks the agent's wallet balance and adds testnet funds if it's below min_balance.
