@@ -18,7 +18,7 @@ from cosmpy.protos.cosmwasm.wasm.v1.query_pb2 import (
 
 from uagents.config import (
     ALMANAC_CONTRACT_VERSION,
-    REGISTRATION_FEE,
+    TESTNET_REGISTRATION_FEE,
     TESTNET_CONTRACT_ALMANAC,
 )
 from uagents.crypto import Identity
@@ -91,7 +91,7 @@ class FakeLedgerClient:
         self._query_failure_count = value
 
     def query_bank_balance(self, address: Address, denom: Optional[str] = None) -> int:
-        return REGISTRATION_FEE + 1
+        return TESTNET_REGISTRATION_FEE + 1
 
     def query_account(self, address: Address) -> Account:
         return Account(

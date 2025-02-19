@@ -21,8 +21,9 @@ from uagents.config import (
     ALMANAC_API_URL,
     ALMANAC_CONTRACT_VERSION,
     ALMANAC_REGISTRATION_WAIT,
-    REGISTRATION_FEE,
+    MAINNET_REGISTRATION_FEE,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
+    TESTNET_REGISTRATION_FEE,
 )
 from uagents.crypto import Identity
 from uagents.network import (
@@ -283,6 +284,11 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         self._ledger = ledger
         self._testnet = testnet
         self._almanac_contract = almanac_contract
+        self._registration_fee = (
+            MAINNET_REGISTRATION_FEE
+            if ledger.network_config.fee_denomination == "afet"
+            else TESTNET_REGISTRATION_FEE
+        )
         self._logger = logger or logging.getLogger(__name__)
         self._broadcast_retries: Optional[int] = None
         self._broadcast_retry_delay: Optional[RetryDelayFunc] = None
@@ -363,7 +369,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
             or endpoints != self._almanac_contract.get_endpoints(agent_address)
             or protocols != self._almanac_contract.get_protocols(agent_address)
         ):
-            if self._get_balance() < REGISTRATION_FEE:
+            if self._get_balance() < self._registration_fee:
                 self._logger.warning(
                     "I do not have enough funds to register on Almanac contract"
                 )
@@ -452,6 +458,11 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
         self._wallet = wallet
         self._almanac_contract = almanac_contract
         self._testnet = testnet
+        self._registration_fee = (
+            MAINNET_REGISTRATION_FEE
+            if ledger.network_config.fee_denomination == "afet"
+            else TESTNET_REGISTRATION_FEE
+        )
         self._logger = logger or logging.getLogger(__name__)
         self._records: List[AlmanacContractRecord] = []
         self._identities: Dict[str, Identity] = {}
@@ -518,7 +529,7 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
         for record in self._records:
             record.sign(self._identities[record.address])
 
-        if self._get_balance() < REGISTRATION_FEE * len(self._records):
+        if self._get_balance() < self._registration_fee * len(self._records):
             self._logger.warning(
                 f"I do not have enough funds to register {len(self._records)} "
                 "agents on Almanac contract"

@@ -4,14 +4,14 @@ import requests
 from cosmpy.crypto.address import Address
 
 from uagents import Agent
-from uagents.config import REGISTRATION_FEE
+from uagents.config import TESTNET_REGISTRATION_FEE
 from uagents.network import get_faucet, get_ledger
 from uagents.utils import get_logger
 
 LOGGER = get_logger("setup")
 
 
-def fund_agent_if_low(wallet_address: str, min_balance: int = REGISTRATION_FEE):
+def fund_agent_if_low(wallet_address: str, min_balance: int = TESTNET_REGISTRATION_FEE):
     """
     Checks the agent's wallet balance and adds testnet funds if it's below min_balance.
 

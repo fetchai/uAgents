@@ -25,9 +25,10 @@ from uagents.config import (
     AVERAGE_BLOCK_INTERVAL,
     MAINNET_CONTRACT_ALMANAC,
     MAINNET_CONTRACT_NAME_SERVICE,
-    REGISTRATION_FEE,
+    MAINNET_REGISTRATION_FEE,
     TESTNET_CONTRACT_ALMANAC,
     TESTNET_CONTRACT_NAME_SERVICE,
+    TESTNET_REGISTRATION_FEE,
 )
 from uagents.crypto import Identity
 from uagents.types import AgentEndpoint, AgentInfo, AgentNetwork
@@ -434,12 +435,13 @@ class AlmanacContract(LedgerContract):
         )
 
         denom = self._client.network_config.fee_denomination
+        fee = MAINNET_REGISTRATION_FEE if denom == "afet" else TESTNET_REGISTRATION_FEE
         transaction.add_message(
             create_cosmwasm_execute_msg(
                 wallet.address(),
                 self.address,
                 almanac_msg,
-                funds=f"{REGISTRATION_FEE}{denom}",
+                funds=f"{fee}{denom}",
             )
         )
 
@@ -512,12 +514,17 @@ class AlmanacContract(LedgerContract):
             )
 
             denom = self._client.network_config.fee_denomination
+            fee = (
+                MAINNET_REGISTRATION_FEE
+                if denom == "afet"
+                else TESTNET_REGISTRATION_FEE
+            )
             transaction.add_message(
                 create_cosmwasm_execute_msg(
                     wallet.address(),
                     self.address,
                     almanac_msg,
-                    funds=f"{REGISTRATION_FEE}{denom}",
+                    funds=f"{fee}{denom}",
                 )
             )
 
