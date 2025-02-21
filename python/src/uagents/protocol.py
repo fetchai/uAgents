@@ -321,7 +321,7 @@ class Protocol:
                     if request in self._unsigned_message_handlers
                     else "normal",
                     "request": request,
-                    "responses": list(responses.keys()),
+                    "responses": sorted(list(responses.keys())),
                 }
             )
 
