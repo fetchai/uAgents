@@ -617,9 +617,10 @@ class InternalContext(Context):
         )
 
         if response_msg is None:
+            log(self.logger, logging.ERROR, "Timeout waiting for response")
             return None, MsgStatus(
                 status=DeliveryStatus.FAILED,
-                detail="Timed out waiting for response",
+                detail="Timeout waiting for response",
                 destination=destination,
                 endpoint="",
                 session=self._session,
