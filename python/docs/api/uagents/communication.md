@@ -81,14 +81,14 @@ Method to send an exchange envelope.
 #### dispatch_sync_response_envelope[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L168)
 ```python
 async def dispatch_sync_response_envelope(
-        env: Envelope) -> Union[MsgStatus, Envelope]
+        env: Envelope, endpoint: str) -> Union[MsgStatus, Envelope]
 ```
 
 Dispatch a synchronous response envelope locally.
 
 
 
-#### send_message_raw[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L189)
+#### send_message_raw[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L187)
 ```python
 async def send_message_raw(
         destination: str,
@@ -124,7 +124,7 @@ Standalone function to send a message to an agent.
 
 
 
-#### send_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L267)
+#### send_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L265)
 ```python
 async def send_message(
         destination: str,
@@ -158,7 +158,7 @@ Standalone function to send a message to an agent.
 
 
 
-#### send_sync_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L306)
+#### send_sync_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L304)
 ```python
 async def send_sync_message(
     destination: str,
@@ -192,7 +192,7 @@ Standalone function to send a synchronous message to an agent.
 
 
 
-#### enclose_response[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L337)
+#### enclose_response[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L335)
 ```python
 def enclose_response(message: Model,
                      sender: str,
@@ -216,7 +216,7 @@ Enclose a response message within an envelope.
 
 
 
-#### enclose_response_raw[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L358)
+#### enclose_response_raw[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L356)
 ```python
 def enclose_response_raw(json_message: JsonStr,
                          schema_digest: str,

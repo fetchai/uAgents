@@ -179,7 +179,6 @@ class Context(ABC):
         self,
         destination: str,
         message: Model,
-        sync: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
         """
@@ -188,7 +187,6 @@ class Context(ABC):
         Args:
             destination (str): The destination address to send the message to.
             message (Model): The message to be sent.
-            sync (bool): Whether to send the message synchronously or asynchronously.
             timeout (Optional[int]): The optional timeout for sending the message, in seconds.
 
         Returns:
@@ -426,7 +424,6 @@ class InternalContext(Context):
         self,
         destination: str,
         message: Model,
-        wait_for_response: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
         """
@@ -452,7 +449,6 @@ class InternalContext(Context):
             destination,
             schema_digest,
             message_body,
-            wait_for_response=wait_for_response,
             timeout=timeout,
         )
 
@@ -721,7 +717,6 @@ class ExternalContext(InternalContext):
         self,
         destination: str,
         message: Model,
-        wait_for_response: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
         """
@@ -761,7 +756,6 @@ class ExternalContext(InternalContext):
             destination,
             schema_digest,
             message.model_dump_json(),
-            wait_for_response=wait_for_response,
             timeout=timeout,
             protocol_digest=self._protocol[0],
             queries=self._queries,
