@@ -22,13 +22,12 @@ from typing import (
 
 import requests
 from cosmpy.aerial.client import LedgerClient
-from pydantic import ValidationError
+from pydantic.v1 import ValidationError
 from typing_extensions import deprecated
 
 from uagents.communication import (
     Dispenser,
     dispatch_local_message,
-    dispatch_sync_response_envelope,
 )
 from uagents.config import (
     ALMANAC_API_URL,
@@ -555,9 +554,6 @@ class InternalContext(Context):
                 session=self._session,
             )
 
-        if isinstance(result, Envelope):
-            return await dispatch_sync_response_envelope(result)
-
         return result
 
     def _queue_envelope(
@@ -634,7 +630,13 @@ class InternalContext(Context):
                 logging.ERROR,
                 f"Received unexpected response: {response_msg}",
             )
-            return (None, msg_status)
+            return None, MsgStatus(
+                status=DeliveryStatus.FAILED,
+                detail="Received unexpected response type",
+                destination=destination,
+                endpoint="",
+                session=self._session,
+            )
 
     async def send_wallet_message(
         self,

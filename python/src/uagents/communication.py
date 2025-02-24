@@ -138,7 +138,7 @@ async def send_exchange_envelope(
                                     )
                                 if not verified:
                                     continue
-                            return await dispatch_sync_response_envelope(env)
+                            return await dispatch_sync_response_envelope(env, endpoint)
                         return MsgStatus(
                             status=DeliveryStatus.DELIVERED,
                             detail="Message successfully delivered via HTTP",
@@ -165,7 +165,9 @@ async def send_exchange_envelope(
     )
 
 
-async def dispatch_sync_response_envelope(env: Envelope) -> Union[MsgStatus, Envelope]:
+async def dispatch_sync_response_envelope(
+    env: Envelope, endpoint: str
+) -> Union[MsgStatus, Envelope]:
     """Dispatch a synchronous response envelope locally."""
     # if the sender is awaiting a response, dispatch the message back to the sending function
     if dispatcher.dispatch_pending_response(
@@ -174,8 +176,8 @@ async def dispatch_sync_response_envelope(env: Envelope) -> Union[MsgStatus, Env
         return MsgStatus(
             status=DeliveryStatus.DELIVERED,
             detail="Sync message successfully delivered via HTTP",
-            destination=env.target,
-            endpoint="",
+            destination=env.sender,
+            endpoint=endpoint,
             session=env.session,
         )
     # Otherwise return the envelope (most likely the response to a standalone sending function)
