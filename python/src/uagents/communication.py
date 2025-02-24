@@ -167,23 +167,19 @@ async def send_exchange_envelope(
 
 async def dispatch_sync_response_envelope(env: Envelope) -> Union[MsgStatus, Envelope]:
     """Dispatch a synchronous response envelope locally."""
-    # If there are no sinks registered, return the envelope back to the caller
-    if len(dispatcher.sinks) == 0:
-        return env
-    await dispatcher.dispatch_msg(
-        env.sender,
-        env.target,
-        env.schema_digest,
-        env.decode_payload(),
-        env.session,
-    )
-    return MsgStatus(
-        status=DeliveryStatus.DELIVERED,
-        detail="Sync message successfully delivered via HTTP",
-        destination=env.target,
-        endpoint="",
-        session=env.session,
-    )
+    # if the sender is awaiting a response, dispatch the message back to the sending function
+    if dispatcher.dispatch_pending_response(
+        env.sender, env.target, env.session, env.decode_payload()
+    ):
+        return MsgStatus(
+            status=DeliveryStatus.DELIVERED,
+            detail="Sync message successfully delivered via HTTP",
+            destination=env.target,
+            endpoint="",
+            session=env.session,
+        )
+    # Otherwise return the envelope (most likely the response to a standalone sending function)
+    return env
 
 
 async def send_message_raw(

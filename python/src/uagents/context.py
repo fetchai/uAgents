@@ -22,6 +22,7 @@ from typing import (
 
 import requests
 from cosmpy.aerial.client import LedgerClient
+from pydantic import ValidationError
 from typing_extensions import deprecated
 
 from uagents.communication import (
@@ -226,6 +227,30 @@ class Context(ABC):
         pass
 
     @abstractmethod
+    async def send_and_receive(
+        self,
+        destination: str,
+        message: Model,
+        response_type: Type[Model],
+        sync: bool = False,
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+    ) -> Tuple[Optional[Model], MsgStatus]:
+        """
+        Send a message to the specified destination and receive a response.
+
+        Args:
+            destination (str): The destination address to send the message to.
+            message (Model): The message to be sent.
+            response_type (Optional[Type[Model]]): The type of the response message.
+            sync (bool): Whether to send the message synchronously or asynchronously.
+            timeout (int): The timeout for sending the message, in seconds.
+
+        Returns:
+            Tuple[Optional[Model], MsgStatus]: The response message if received and delivery status
+        """
+        pass
+
+    @abstractmethod
     async def send_wallet_message(
         self,
         destination: str,
@@ -402,7 +427,7 @@ class InternalContext(Context):
         self,
         destination: str,
         message: Model,
-        sync: bool = False,
+        wait_for_response: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
         """
@@ -428,7 +453,7 @@ class InternalContext(Context):
             destination,
             schema_digest,
             message_body,
-            sync=sync,
+            wait_for_response=wait_for_response,
             timeout=timeout,
         )
 
@@ -438,6 +463,7 @@ class InternalContext(Context):
         message_schema_digest: str,
         message_body: JsonStr,
         sync: bool = False,
+        wait_for_response: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
         protocol_digest: Optional[str] = None,
         queries: Optional[Dict[str, asyncio.Future]] = None,
@@ -446,6 +472,10 @@ class InternalContext(Context):
         _, parsed_name, parsed_address = parse_identifier(destination)
 
         if parsed_address:
+            if sync or wait_for_response:
+                dispatcher.register_pending_response(
+                    self.agent.address, parsed_address, self._session
+                )
             # Handle local dispatch of messages
             if dispatcher.contains(parsed_address):
                 return await dispatch_local_message(
@@ -545,6 +575,60 @@ class InternalContext(Context):
         """
         self._dispenser.add_envelope(envelope, endpoints, response_future, sync)
 
+    async def send_and_receive(
+        self,
+        destination: str,
+        message: Model,
+        response_type: Type[Model],
+        sync: bool = False,
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+    ) -> Tuple[Optional[Model], MsgStatus]:
+        """
+        Send a message to the specified destination and receive a response.
+
+        Args:
+            destination (str): The destination address to send the message to.
+            message (Model): The message to be sent.
+            response_type (Optional[Type[Model]]): The type of the response message.
+            sync (bool): Whether to send the message synchronously or asynchronously.
+            timeout (int): The timeout for sending the message, in seconds.
+
+        Returns:
+            Tuple[Optional[Model], MsgStatus]: The response message if received and delivery status
+        """
+        schema_digest = Model.build_schema_digest(message)
+
+        msg_status = await self.send_raw(
+            destination,
+            schema_digest,
+            message.model_dump_json(),
+            sync=sync,
+            wait_for_response=True,
+            timeout=timeout,
+        )
+
+        if msg_status.status != DeliveryStatus.DELIVERED:
+            return None, msg_status
+
+        _, _, parsed_address = parse_identifier(destination)
+
+        response_msg = await dispatcher.get_pending_response(
+            self.agent.address, parsed_address, self._session, timeout
+        )
+
+        try:
+            return response_type.parse_raw(response_msg), msg_status
+        except ValidationError:
+            log(
+                self.logger,
+                logging.ERROR,
+                f"Received unexpected response: {response_msg}",
+            )
+            return (
+                ErrorMessage(error="Failed to parse response message"),
+                msg_status,
+            )
+
     async def send_wallet_message(
         self,
         destination: str,
@@ -628,7 +712,7 @@ class ExternalContext(InternalContext):
         self,
         destination: str,
         message: Model,
-        sync: bool = False,
+        wait_for_response: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
         """
@@ -637,7 +721,6 @@ class ExternalContext(InternalContext):
         Args:
             destination (str): The destination address to send the message to.
             message (Model): The message to be sent.
-            sync (bool): Whether to send the message synchronously or asynchronously.
             timeout (Optional[int]): The optional timeout for sending the message, in seconds.
 
         Returns:
@@ -669,7 +752,7 @@ class ExternalContext(InternalContext):
             destination,
             schema_digest,
             message.model_dump_json(),
-            sync=sync,
+            wait_for_response=wait_for_response,
             timeout=timeout,
             protocol_digest=self._protocol[0],
             queries=self._queries,
