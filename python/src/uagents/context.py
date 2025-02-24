@@ -589,7 +589,7 @@ class InternalContext(Context):
         Args:
             destination (str): The destination address to send the message to.
             message (Model): The message to be sent.
-            response_type (Optional[Type[Model]]): The type of the response message.
+            response_type (Type[Model]): The type of the response message.
             sync (bool): Whether to send the message synchronously or asynchronously.
             timeout (int): The timeout for sending the message, in seconds.
 
