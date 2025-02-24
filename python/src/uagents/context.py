@@ -599,10 +599,13 @@ class InternalContext(Context):
             timeout=timeout,
         )
 
-        if msg_status.status != DeliveryStatus.DELIVERED:
-            return None, msg_status
-
         _, _, parsed_address = parse_identifier(destination)
+
+        if msg_status.status != DeliveryStatus.DELIVERED:
+            dispatcher.cancel_pending_response(
+                self.agent.address, parsed_address, self._session
+            )
+            return None, msg_status
 
         response_msg = await dispatcher.wait_for_response(
             self.agent.address, parsed_address, self._session, timeout

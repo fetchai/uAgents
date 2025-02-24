@@ -52,6 +52,13 @@ class Dispatcher:
             asyncio.get_event_loop().create_future()
         )
 
+    def cancel_pending_response(
+        self, sender: str, destination: str, session: uuid.UUID
+    ):
+        key = (sender, destination, session)
+        if key in self._pending_responses:
+            del self._pending_responses[key]
+
     async def wait_for_response(
         self, sender: str, destination: str, session: uuid.UUID, timeout: float
     ) -> Optional[JsonStr]:
