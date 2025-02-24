@@ -54,9 +54,12 @@ class Dispatcher:
 
     async def get_pending_response(
         self, sender: str, destination: str, session: uuid.UUID, timeout: float
-    ) -> JsonStr:
+    ) -> Optional[JsonStr]:
         key = (sender, destination, session)
-        response = await asyncio.wait_for(self._pending_responses[key], timeout)
+        try:
+            response = await asyncio.wait_for(self._pending_responses[key], timeout)
+        except asyncio.TimeoutError:
+            response = None
         del self._pending_responses[key]
         return response
 

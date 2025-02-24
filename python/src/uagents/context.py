@@ -616,6 +616,15 @@ class InternalContext(Context):
             self.agent.address, parsed_address, self._session, timeout
         )
 
+        if response_msg is None:
+            return None, MsgStatus(
+                status=DeliveryStatus.FAILED,
+                detail="Timed out waiting for response",
+                destination=destination,
+                endpoint="",
+                session=self._session,
+            )
+
         try:
             return response_type.parse_raw(response_msg), msg_status
         except ValidationError:
