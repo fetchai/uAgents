@@ -368,7 +368,7 @@ Send a message to the specified destination and receive a response.
 
 
 
-## ExternalContext Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L653)
+## ExternalContext Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L656)
 
 ```python
 class ExternalContext(InternalContext)
@@ -388,7 +388,7 @@ Represents the reactive context in which messages are handled and processed.
 
 
 
-#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L667)
+#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L670)
 ```python
 def __init__(message_received: MsgDigest,
              queries: Optional[Dict[str, asyncio.Future]] = None,
@@ -410,7 +410,7 @@ Initialize the ExternalContext instance and attributes needed from the InternalC
 
 
 
-#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L716)
+#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L719)
 ```python
 async def send(destination: str,
                message: Model,
