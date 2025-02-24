@@ -147,27 +147,6 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(result, exp_msg_status)
 
-    async def test_send_resolve_sync_query(self):
-        future = asyncio.Future()
-        context = self.get_external_context(
-            incoming,
-            incoming_digest,
-            replies=test_replies,
-            queries={self.clyde.address: future},
-        )
-        result = await context.send(self.clyde.address, msg, sync=True)
-        exp_msg_status = MsgStatus(
-            status=DeliveryStatus.DELIVERED,
-            detail="Sync message resolved",
-            destination=self.clyde.address,
-            endpoint="",
-            session=context.session,
-        )
-
-        self.assertEqual(future.result(), (msg.model_dump_json(), msg_digest))
-        self.assertEqual(result, exp_msg_status)
-        self.assertEqual(len(context._queries), 0, "Query not removed from context")
-
     async def test_send_external_dispatch_resolve_failure(self):
         destination = Identity.generate().address
         context = self.alice._build_context()

@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional, Set, Tuple, Union
 from uagents.models import Model
 from uagents.types import JsonStr, RestMethod
 
-AsyncResponseKey = Tuple[str, str, uuid.UUID]
+PendingResponseKey = Tuple[str, str, uuid.UUID]
 
 
 class Sink(ABC):
@@ -35,14 +35,14 @@ class Dispatcher:
 
     def __init__(self):
         self._sinks: Dict[str, Set[Sink]] = {}
-        self._pending_responses: Dict[AsyncResponseKey, Future[JsonStr]] = {}
+        self._pending_responses: Dict[PendingResponseKey, Future[JsonStr]] = {}
 
     @property
     def sinks(self) -> Dict[str, Set[Sink]]:
         return self._sinks
 
     @property
-    def pending_responses(self) -> Dict[AsyncResponseKey, Future[JsonStr]]:
+    def pending_responses(self) -> Dict[PendingResponseKey, Future[JsonStr]]:
         return self._pending_responses
 
     def register_pending_response(
