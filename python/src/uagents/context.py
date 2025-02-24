@@ -612,7 +612,7 @@ class InternalContext(Context):
 
         _, _, parsed_address = parse_identifier(destination)
 
-        response_msg = await dispatcher.get_pending_response(
+        response_msg = await dispatcher.wait_for_response(
             self.agent.address, parsed_address, self._session, timeout
         )
 

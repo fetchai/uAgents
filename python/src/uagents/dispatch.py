@@ -52,7 +52,7 @@ class Dispatcher:
             asyncio.get_event_loop().create_future()
         )
 
-    async def get_pending_response(
+    async def wait_for_response(
         self, sender: str, destination: str, session: uuid.UUID, timeout: float
     ) -> Optional[JsonStr]:
         key = (sender, destination, session)
