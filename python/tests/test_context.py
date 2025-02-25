@@ -56,7 +56,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         @self.bob.on_message(model=Message)
         async def _(ctx, sender, msg):
             await asyncio.sleep(1.1)
-            await ctx.send(sender, Message(message="hey hey"))
+            await ctx.send(sender, incoming)
 
         self.loop = asyncio.get_event_loop()
         self.loop.create_task(self.alice._dispenser.run())
@@ -316,7 +316,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             session=context.session,
             schema_digest=msg_digest,
         )
-        env.encode_payload(msg.model_dump_json())
+        env.encode_payload(incoming.model_dump_json())
         env.sign(self.clyde._identity.sign_digest)
         payload = env.model_dump()
         payload["session"] = str(env.session)
@@ -324,7 +324,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
         # Perform the actual operation
         response, status = await context.send_and_receive(
-            self.clyde.address, msg, response_type=Message, sync=True, timeout=5
+            self.clyde.address, msg, response_type=Incoming, sync=True, timeout=5
         )
 
         # Define the expected message status
@@ -338,11 +338,11 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
         # Assertions
         self.assertEqual(status, exp_msg_status)
-        self.assertEqual(response, msg)
+        self.assertEqual(response, incoming)
         self.assertEqual(len(dispatcher.pending_responses), 0)
 
     @aioresponses()
-    async def test_send_and_receive_sync_timeout(self, mocked_responses):
+    async def test_send_and_receive_sync_delivery_failure(self, mocked_responses):
         context = self.alice._build_context()
 
         # Mock the HTTP POST request with a status code and response content
@@ -353,7 +353,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             session=context.session,
             schema_digest=msg_digest,
         )
-        env.encode_payload(msg.model_dump_json())
+        env.encode_payload(incoming.model_dump_json())
         env.sign(self.clyde._identity.sign_digest)
         payload = env.model_dump()
         payload["session"] = str(env.session)
@@ -361,7 +361,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
         # Perform the actual operation
         _, status = await context.send_and_receive(
-            self.clyde.address, msg, response_type=Message, sync=True, timeout=0
+            self.clyde.address, msg, response_type=Incoming, sync=True, timeout=0
         )
 
         # Define the expected message status
@@ -382,7 +382,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
         # Perform the actual operation
         response, status = await context.send_and_receive(
-            self.bob.address, msg, response_type=Message, timeout=5
+            self.bob.address, msg, response_type=Incoming, timeout=5
         )
 
         # Define the expected message status
@@ -396,7 +396,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
         # Assertions
         self.assertEqual(status, exp_msg_status)
-        self.assertEqual(response, Message(message="hey hey"))
+        self.assertEqual(response, incoming)
         self.assertEqual(len(dispatcher.pending_responses), 0)
 
     async def test_send_and_receive_async_timeout(self):
@@ -404,7 +404,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
         # Perform the actual operation
         _, status = await context.send_and_receive(
-            self.bob.address, msg, response_type=Message, timeout=1
+            self.bob.address, msg, response_type=Incoming, timeout=1
         )
 
         # Define the expected message status
@@ -424,7 +424,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         context = self.alice._build_context()
 
         class WrongMessage(Model):
-            text: str
+            wrong: str
 
         # Perform the actual operation
         response, status = await context.send_and_receive(
