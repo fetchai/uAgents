@@ -4,10 +4,14 @@ import copy
 import functools
 import hashlib
 import json
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
 
+from pydantic import UUID4
+
 from uagents.models import Model
-from uagents.types import IntervalCallback, MessageCallback
+from uagents.storage import StorageAPI
+from uagents.types import IntervalCallback, JsonStr, MessageCallback
 
 
 class Protocol:
@@ -19,7 +23,13 @@ class Protocol:
 
     """
 
-    def __init__(self, name: Optional[str] = None, version: Optional[str] = None):
+    def __init__(
+        self,
+        name: Optional[str] = None,
+        version: Optional[str] = None,
+        use_storage: bool = False,
+        store_message_history: bool = False,
+    ):
         """
         Initialize a Protocol instance.
 
@@ -37,6 +47,9 @@ class Protocol:
         self._version = version or "0.1.0"
         self._canonical_name = f"{self._name}:{self._version}"
         self._digest = ""
+        self._use_storage = use_storage or store_message_history
+        self._store_message_history = store_message_history
+        self._storage: Optional[StorageAPI] = None
 
     @property
     def intervals(self):
@@ -107,7 +120,7 @@ class Protocol:
         Returns:
             str: The protocol name.
         """
-        return self._name
+        return self._name or self.digest[:10]
 
     @property
     def version(self):
@@ -138,6 +151,45 @@ class Protocol:
             str: The digest of the protocol's manifest.
         """
         return self.manifest()["metadata"]["digest"]
+
+    @property
+    def use_storage(self):
+        """
+        Property to access the use_storage flag.
+
+        Returns:
+            bool: Whether the protocol uses storage.
+        """
+        return self._use_storage
+
+    @property
+    def store_message_history(self):
+        """
+        Property to access the store_message_history flag.
+
+        Returns:
+            bool: Whether the protocol stores message history.
+        """
+        return self._store_message_history
+
+    @property
+    def storage(self):
+        """
+        Property to access the storage reference.
+
+        Returns:
+            StorageAPI: The storage reference.
+        """
+        return self._storage
+
+    @storage.setter
+    def storage(self, storage: StorageAPI):
+        """
+        Setter for the storage reference.
+
+        Args:
+            storage (StorageAPI): The storage reference to set.
+        """
 
     def on_interval(
         self,
@@ -272,6 +324,36 @@ class Protocol:
             self._replies[model_digest] = {
                 Model.build_schema_digest(reply): reply for reply in replies
             }
+
+    def store_message(
+        self,
+        session_id: UUID4,
+        message_type: str,
+        schema_digest: str,
+        sender: str,
+        receiver: str,
+        content: JsonStr,
+        **kwargs,
+    ) -> None:
+        """Add a message to the conversation of the given session within the dialogue instance."""
+        if self.storage is None:
+            raise ValueError("Storage must be set before storing messages!")
+        if session_id is None:
+            raise ValueError("Session ID must not be None!")
+
+        storage_key = f"{self.name}:{session_id}"
+        session_history = self.storage.get(storage_key) or []
+        session_history.append(
+            {
+                "message_type": message_type,
+                "schema_digest": schema_digest,
+                "sender": sender,
+                "receiver": receiver,
+                "message_content": content,
+                "timestamp": datetime.timestamp(datetime.now()),
+                **kwargs,
+            }
+        )
 
     def manifest(self) -> Dict[str, Any]:
         """

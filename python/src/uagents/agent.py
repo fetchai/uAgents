@@ -1065,6 +1065,9 @@ class Agent(Sink):
         if publish_manifest:
             self.publish_manifest(protocol.manifest())
 
+        if protocol.use_storage:
+            protocol.storage = self._storage
+
     def publish_manifest(self, manifest: Dict[str, Any]):
         """
         Publish a protocol manifest to the Almanac service.
@@ -1361,6 +1364,9 @@ class Agent(Sink):
                     ),
                 )
                 continue
+
+            if protocol_info and protocol_info[1].store_message_history:
+                pass
 
             # attempt to find the handler
             handler: Optional[MessageCallback] = self._unsigned_message_handlers.get(
