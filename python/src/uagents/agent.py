@@ -1065,6 +1065,9 @@ class Agent(Sink):
         if publish_manifest:
             self.publish_manifest(protocol.manifest())
 
+        if protocol.use_storage:
+            protocol.storage = self._storage
+
     def publish_manifest(self, manifest: Dict[str, Any]):
         """
         Publish a protocol manifest to the Almanac service.
@@ -1307,7 +1310,8 @@ class Agent(Sink):
                 continue
 
             protocol_info = self.get_message_protocol(schema_digest)
-            protocol_digest = protocol_info[0] if protocol_info else None
+            if protocol_info:
+                protocol_digest, protocol = protocol_info
 
             if self._message_cache:
                 self._message_cache.add_entry(
@@ -1361,6 +1365,11 @@ class Agent(Sink):
                     ),
                 )
                 continue
+
+            if protocol_info and protocol.store_message_history:
+                protocol.store_message(
+                    session, schema_digest, sender, self.address, message
+                )
 
             # attempt to find the handler
             handler: Optional[MessageCallback] = self._unsigned_message_handlers.get(
