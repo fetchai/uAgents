@@ -548,8 +548,8 @@ class InternalContext(Context):
                 session=self._session,
             )
 
-        if self._protocol[1] is not None and self._protocol[1].store_message_history:
-            self._protocol[1].store_message(
+        if self.protocol is not None and self.protocol.store_message_history:
+            self.protocol.store_message(
                 self._session,
                 message_schema_digest,
                 self.agent.address,
