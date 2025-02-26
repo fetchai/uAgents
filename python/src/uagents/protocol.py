@@ -190,6 +190,7 @@ class Protocol:
         Args:
             storage (StorageAPI): The storage reference to set.
         """
+        self._storage = storage
 
     def on_interval(
         self,
@@ -328,7 +329,6 @@ class Protocol:
     def store_message(
         self,
         session_id: UUID4,
-        message_type: str,
         schema_digest: str,
         sender: str,
         receiver: str,
@@ -345,7 +345,6 @@ class Protocol:
         session_history = self.storage.get(storage_key) or []
         session_history.append(
             {
-                "message_type": message_type,
                 "schema_digest": schema_digest,
                 "sender": sender,
                 "receiver": receiver,
@@ -354,6 +353,22 @@ class Protocol:
                 **kwargs,
             }
         )
+        self.storage.set(storage_key, session_history)
+
+    def get_conversation(self, session_id: UUID4) -> List[Any]:
+        """
+        Return the message history for the given session.
+
+        Args:
+            session_id (UUID4): The ID of the session to get the conversation for.
+
+        Returns:
+
+        """
+        if self._storage is None:
+            raise ValueError("Protocol does not have storage set!")
+        storage_key = f"{self.name}:{session_id}"
+        return self._storage.get(storage_key) or []
 
     def manifest(self) -> Dict[str, Any]:
         """

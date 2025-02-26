@@ -127,6 +127,17 @@ class Context(ABC):
         """
         pass
 
+    @property
+    @abstractmethod
+    def protocol(self) -> Optional[Protocol]:
+        """
+        Get the protocol associated with the context if available.
+
+        Returns:
+            Optional[Protocol]: The protocol associated with the context.
+        """
+        pass
+
     @abstractmethod
     def get_agents_by_protocol(
         self,
@@ -259,6 +270,7 @@ class InternalContext(Context):
         resolver: Resolver,
         dispenser: Dispenser,
         session: Optional[uuid.UUID] = None,
+        protocol: Optional[Tuple[str, Protocol]] = None,
         interval_messages: Optional[Set[str]] = None,
         wallet_messaging_client: Optional[Any] = None,
         logger: Optional[logging.Logger] = None,
@@ -270,6 +282,7 @@ class InternalContext(Context):
         self._dispenser = dispenser
         self._logger = logger
         self._session = session or uuid.uuid4()
+        self._protocol = protocol or ("", None)
         self._interval_messages = interval_messages
         self._wallet_messaging_client = wallet_messaging_client
         self._outbound_messages: Dict[str, Tuple[JsonStr, str]] = {}
@@ -299,6 +312,16 @@ class InternalContext(Context):
             uuid.UUID: The session UUID.
         """
         return self._session
+
+    @property
+    def protocol(self) -> Optional[Protocol]:
+        """
+        Get the protocol associated with the context if available.
+
+        Returns:
+            Optional[Protocol]: The protocol associated with the context.
+        """
+        return self._protocol[1]
 
     @property
     def outbound_messages(self) -> Dict[str, Tuple[JsonStr, str]]:
@@ -525,6 +548,15 @@ class InternalContext(Context):
                 session=self._session,
             )
 
+        if self._protocol[1] is not None and self._protocol[1].store_message_history:
+            self._protocol[1].store_message(
+                self._session,
+                message_schema_digest,
+                self.agent.address,
+                destination_address,
+                message_body,
+            )
+
         if isinstance(result, Envelope):
             return await dispatch_sync_response_envelope(result)
 
@@ -580,7 +612,6 @@ class ExternalContext(InternalContext):
         message_received: MsgDigest,
         queries: Optional[Dict[str, asyncio.Future]] = None,
         replies: Optional[Dict[str, Dict[str, Type[Model]]]] = None,
-        protocol: Optional[Tuple[str, Protocol]] = None,
         **kwargs,
     ):
         """
@@ -598,7 +629,6 @@ class ExternalContext(InternalContext):
         self._queries = queries or {}
         self._replies = replies
         self._message_received = message_received
-        self._protocol = protocol or ("", None)
 
     def _is_valid_reply(self, message_schema_digest: str) -> bool:
         """
