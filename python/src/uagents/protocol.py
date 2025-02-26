@@ -335,7 +335,17 @@ class Protocol:
         content: JsonStr,
         **kwargs,
     ) -> None:
-        """Add a message to the conversation of the given session within the dialogue instance."""
+        """
+        Add a message to the conversation of the given session.
+
+        Args:
+            session_id (UUID4): The ID of the session to store the message for.
+            schema_digest (str): The schema digest of the message.
+            sender (str): The sender of the message.
+            receiver (str): The receiver of the message.
+            content (JsonStr): The content of the message.
+            **kwargs: Additional message metadata.
+        """
         if self.storage is None:
             raise ValueError("Storage must be set before storing messages!")
         if session_id is None:
@@ -355,7 +365,7 @@ class Protocol:
         )
         self.storage.set(storage_key, session_history)
 
-    def get_conversation(self, session_id: UUID4) -> List[Any]:
+    def get_conversation(self, session_id: UUID4) -> List[Dict[str, Any]]:
         """
         Return the message history for the given session.
 
@@ -363,7 +373,7 @@ class Protocol:
             session_id (UUID4): The ID of the session to get the conversation for.
 
         Returns:
-
+            List[Dict[str, Any]]: The list of messages in the conversation
         """
         if self._storage is None:
             raise ValueError("Protocol does not have storage set!")
