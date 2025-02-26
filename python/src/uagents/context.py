@@ -201,6 +201,7 @@ class Context(ABC):
         message_schema_digest: str,
         message_body: JsonStr,
         sync: bool = False,
+        wait_for_response: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
         protocol_digest: Optional[str] = None,
         queries: Optional[Dict[str, asyncio.Future]] = None,
@@ -214,6 +215,7 @@ class Context(ABC):
             message_schema_digest (str): The schema digest of the message to be sent.
             message_body (JsonStr): The JSON-encoded message body to be sent.
             sync (bool): Whether to send the message synchronously or asynchronously.
+            wait_for_response (bool): Whether to wait for a response to the message.
             timeout (Optional[int]): The optional timeout for sending the message, in seconds.
             protocol_digest (Optional[str]): The protocol digest of the message to be sent.
             queries (Optional[Dict[str, asyncio.Future]]): The dictionary of queries to resolve.
@@ -397,7 +399,6 @@ class InternalContext(Context):
                 self.send(
                     address,
                     message,
-                    sync=False,
                     timeout=timeout,
                 )
                 for address in agents
