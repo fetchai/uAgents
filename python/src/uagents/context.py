@@ -22,12 +22,12 @@ from typing import (
 
 import requests
 from cosmpy.aerial.client import LedgerClient
+from pydantic.v1 import ValidationError
 from typing_extensions import deprecated
 
 from uagents.communication import (
     Dispenser,
     dispatch_local_message,
-    dispatch_sync_response_envelope,
 )
 from uagents.config import (
     ALMANAC_API_URL,
@@ -179,7 +179,6 @@ class Context(ABC):
         self,
         destination: str,
         message: Model,
-        sync: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
         """
@@ -188,7 +187,6 @@ class Context(ABC):
         Args:
             destination (str): The destination address to send the message to.
             message (Model): The message to be sent.
-            sync (bool): Whether to send the message synchronously or asynchronously.
             timeout (Optional[int]): The optional timeout for sending the message, in seconds.
 
         Returns:
@@ -203,6 +201,7 @@ class Context(ABC):
         message_schema_digest: str,
         message_body: JsonStr,
         sync: bool = False,
+        wait_for_response: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
         protocol_digest: Optional[str] = None,
         queries: Optional[Dict[str, asyncio.Future]] = None,
@@ -216,12 +215,37 @@ class Context(ABC):
             message_schema_digest (str): The schema digest of the message to be sent.
             message_body (JsonStr): The JSON-encoded message body to be sent.
             sync (bool): Whether to send the message synchronously or asynchronously.
+            wait_for_response (bool): Whether to wait for a response to the message.
             timeout (Optional[int]): The optional timeout for sending the message, in seconds.
             protocol_digest (Optional[str]): The protocol digest of the message to be sent.
             queries (Optional[Dict[str, asyncio.Future]]): The dictionary of queries to resolve.
 
         Returns:
             MsgStatus: The delivery status of the message.
+        """
+        pass
+
+    @abstractmethod
+    async def send_and_receive(
+        self,
+        destination: str,
+        message: Model,
+        response_type: Type[Model],
+        sync: bool = False,
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+    ) -> Tuple[Optional[Model], MsgStatus]:
+        """
+        Send a message to the specified destination and receive a response.
+
+        Args:
+            destination (str): The destination address to send the message to.
+            message (Model): The message to be sent.
+            response_type (Type[Model]): The type of the response message.
+            sync (bool): Whether to send the message synchronously or asynchronously.
+            timeout (int): The timeout for sending the message, in seconds.
+
+        Returns:
+            Tuple[Optional[Model], MsgStatus]: The response message if received and delivery status
         """
         pass
 
@@ -375,7 +399,6 @@ class InternalContext(Context):
                 self.send(
                     address,
                     message,
-                    sync=False,
                     timeout=timeout,
                 )
                 for address in agents
@@ -402,7 +425,6 @@ class InternalContext(Context):
         self,
         destination: str,
         message: Model,
-        sync: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
         """
@@ -428,7 +450,6 @@ class InternalContext(Context):
             destination,
             schema_digest,
             message_body,
-            sync=sync,
             timeout=timeout,
         )
 
@@ -438,6 +459,7 @@ class InternalContext(Context):
         message_schema_digest: str,
         message_body: JsonStr,
         sync: bool = False,
+        wait_for_response: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
         protocol_digest: Optional[str] = None,
         queries: Optional[Dict[str, asyncio.Future]] = None,
@@ -446,6 +468,10 @@ class InternalContext(Context):
         _, parsed_name, parsed_address = parse_identifier(destination)
 
         if parsed_address:
+            if sync or wait_for_response:
+                dispatcher.register_pending_response(
+                    self.agent.address, parsed_address, self._session
+                )
             # Handle local dispatch of messages
             if dispatcher.contains(parsed_address):
                 return await dispatch_local_message(
@@ -525,9 +551,6 @@ class InternalContext(Context):
                 session=self._session,
             )
 
-        if isinstance(result, Envelope):
-            return await dispatch_sync_response_envelope(result)
-
         return result
 
     def _queue_envelope(
@@ -544,6 +567,76 @@ class InternalContext(Context):
             envelope (Envelope): The envelope to queue.
         """
         self._dispenser.add_envelope(envelope, endpoints, response_future, sync)
+
+    async def send_and_receive(
+        self,
+        destination: str,
+        message: Model,
+        response_type: Type[Model],
+        sync: bool = False,
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+    ) -> Tuple[Optional[Model], MsgStatus]:
+        """
+        Send a message to the specified destination and receive a response.
+
+        Args:
+            destination (str): The destination address to send the message to.
+            message (Model): The message to be sent.
+            response_type (Type[Model]): The type of the response message.
+            sync (bool): Whether to send the message synchronously or asynchronously.
+            timeout (int): The timeout for sending the message, in seconds.
+
+        Returns:
+            Tuple[Optional[Model], MsgStatus]: The response message if received and delivery status
+        """
+        schema_digest = Model.build_schema_digest(message)
+
+        msg_status = await self.send_raw(
+            destination,
+            schema_digest,
+            message.model_dump_json(),
+            sync=sync,
+            wait_for_response=True,
+            timeout=timeout,
+        )
+
+        _, _, parsed_address = parse_identifier(destination)
+
+        if msg_status.status != DeliveryStatus.DELIVERED:
+            dispatcher.cancel_pending_response(
+                self.agent.address, parsed_address, self._session
+            )
+            return None, msg_status
+
+        response_msg = await dispatcher.wait_for_response(
+            self.agent.address, parsed_address, self._session, timeout
+        )
+
+        if response_msg is None:
+            log(self.logger, logging.ERROR, "Timeout waiting for response")
+            return None, MsgStatus(
+                status=DeliveryStatus.FAILED,
+                detail="Timeout waiting for response",
+                destination=destination,
+                endpoint="",
+                session=self._session,
+            )
+
+        try:
+            return response_type.parse_raw(response_msg), msg_status
+        except ValidationError:
+            log(
+                self.logger,
+                logging.ERROR,
+                f"Received unexpected response: {response_msg}",
+            )
+            return None, MsgStatus(
+                status=DeliveryStatus.FAILED,
+                detail="Received unexpected response type",
+                destination=destination,
+                endpoint="",
+                session=self._session,
+            )
 
     async def send_wallet_message(
         self,
@@ -628,7 +721,6 @@ class ExternalContext(InternalContext):
         self,
         destination: str,
         message: Model,
-        sync: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> MsgStatus:
         """
@@ -637,7 +729,6 @@ class ExternalContext(InternalContext):
         Args:
             destination (str): The destination address to send the message to.
             message (Model): The message to be sent.
-            sync (bool): Whether to send the message synchronously or asynchronously.
             timeout (Optional[int]): The optional timeout for sending the message, in seconds.
 
         Returns:
@@ -669,7 +760,6 @@ class ExternalContext(InternalContext):
             destination,
             schema_digest,
             message.model_dump_json(),
-            sync=sync,
             timeout=timeout,
             protocol_digest=self._protocol[0],
             queries=self._queries,
