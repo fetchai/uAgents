@@ -6,8 +6,11 @@ import hashlib
 import json
 from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
 
+from uagents.config import get_logger
 from uagents.models import Model
 from uagents.types import IntervalCallback, MessageCallback
+
+logger = get_logger("protocol")
 
 
 class Protocol:
@@ -19,7 +22,13 @@ class Protocol:
 
     """
 
-    def __init__(self, name: Optional[str] = None, version: Optional[str] = None):
+    def __init__(
+        self,
+        name: Optional[str] = None,
+        version: Optional[str] = None,
+        interactions: Optional[Dict[Type[Model], Set[Type[Model]]]] = None,
+        roles: Optional[Dict[str, Set[Type[Model]]]] = None,
+    ):
         """
         Initialize a Protocol instance.
 
@@ -37,6 +46,15 @@ class Protocol:
         self._version = version or "0.1.0"
         self._canonical_name = f"{self._name}:{self._version}"
         self._digest = ""
+        self._interactions = interactions
+        self._roles = roles
+        self._locked = False
+
+        # if interactions are provided, populate the models and replies and lock the protocol
+        if interactions:
+            for model, replies in interactions.items():
+                self.add_interaction(model, replies)
+            self._locked = True
 
     @property
     def intervals(self):
@@ -139,6 +157,25 @@ class Protocol:
         """
         return self.manifest()["metadata"]["digest"]
 
+    def add_interaction(
+        self, model: Type[Model], replies: Optional[Set[Type[Model]]] = None
+    ):
+        """
+        Add a message model to the protocol along with replies if specified.
+
+        Args:
+            model (Type[Model]): The message model type.
+            replies (Optional[Union[Type[Model], Set[Type[Model]]], optional): The associated
+            reply types. Defaults to None.
+        """
+        model_digest = Model.build_schema_digest(model)
+        self._models[model_digest] = model
+
+        if replies is not None:
+            self.replies[model_digest] = {
+                Model.build_schema_digest(reply): reply for reply in replies
+            }
+
     def on_interval(
         self,
         period: float,
@@ -229,6 +266,10 @@ class Protocol:
         Returns:
             Callable: The decorator to register the message handler.
         """
+        if self._locked and model not in self._models.values():
+            raise ValueError(
+                f"Cannot add interaction {model} to locked protocol {self.canonical_name}"
+            )
 
         def decorator_on_message(func: MessageCallback):
             @functools.wraps(func)
@@ -310,11 +351,6 @@ class Protocol:
             )
 
         for request, responses in self._replies.items():
-            assert (
-                request in self._unsigned_message_handlers
-                or request in self._signed_message_handlers
-            )
-
             manifest["interactions"].append(
                 {
                     "type": "query"
@@ -332,6 +368,46 @@ class Protocol:
         final_manifest["metadata"] = metadata
 
         return final_manifest
+
+    def verify_implementation(self, role: Optional[str] = None) -> bool:
+        """
+        Check if the protocol implements a given role by providing handlers for all the required
+        interactions. If no role is provided or no roles are defined, check if the protocol
+        implements all interactions.
+
+        Args:
+            role (str): The role to check.
+
+        Returns:
+            bool: True if the protocol implements the role, False otherwise.
+        """
+        if self._roles is None or role is None:
+            role_models = self._models
+        else:
+            if role not in self._roles:
+                raise ValueError(
+                    f"Role {role} not defined in protocol {self.canonical_name}"
+                )
+            role_models = {
+                digest: model
+                for digest, model in self._models.items()
+                if model in self._roles[role]
+            }
+
+        implemented_model_digests = set(self._signed_message_handlers.keys()).union(
+            set(self._unsigned_message_handlers.keys())
+        )
+
+        result = True
+        for digest, model in role_models:
+            if digest not in implemented_model_digests:
+                logger.error(
+                    f"Protocol {self.canonical_name} does not implement "
+                    f"a handler for the model {model}"
+                )
+                result = False
+
+        return result
 
     @staticmethod
     def compute_digest(manifest: Dict[str, Any]) -> str:
