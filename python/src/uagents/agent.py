@@ -1232,7 +1232,7 @@ class Agent(Sink):
                 ]
             )
 
-        _ = asyncio.wait(asyncio.gather(*tasks, return_exceptions=True))
+        asyncio.ensure_future(asyncio.gather(*tasks, return_exceptions=True))
 
     async def start_server(self):
         """
