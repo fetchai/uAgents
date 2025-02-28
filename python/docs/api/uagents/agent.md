@@ -732,6 +732,15 @@ Start the registration loop.
 
 
 
+#### start_message_dispenser
+```python
+def start_message_dispenser()
+```
+
+Start the message dispenser.
+
+
+
 #### start_interval_tasks
 ```python
 def start_interval_tasks()
@@ -741,16 +750,12 @@ Start interval tasks for the agent.
 
 
 
-#### startup_routine
+#### start_message_receivers
 ```python
-def startup_routine()
+def start_message_receivers()
 ```
 
-Start the following tasks for the agent:
-    - Run the dispenser
-    - Run the startup tasks
-    - Process the message queue
-    (- Poll the wallet messaging server)
+Start message receiving tasks for the agent.
 
 
 
