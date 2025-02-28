@@ -6,11 +6,44 @@ import hashlib
 import json
 from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
 
+from pydantic import BaseModel, ValidationInfo, field_validator
+
 from uagents.config import get_logger
 from uagents.models import Model
 from uagents.types import IntervalCallback, MessageCallback
 
 logger = get_logger("protocol")
+
+
+class ProtocolSpecification(BaseModel):
+    """
+    Specification for the interactions and roles of a protocol.
+    """
+
+    interactions: Dict[Type[Model], Set[Type[Model]]]
+    roles: Optional[Dict[str, Set[Type[Model]]]] = None
+
+    @field_validator("roles")
+    @classmethod
+    def validate_roles(cls, roles, info: ValidationInfo):
+        """
+        Ensure that all models included in roles are also included in the interactions.
+        """
+        if roles is None:
+            return roles
+
+        interactions: Dict[Type[Model], Set[Type[Model]]] = info.data["interactions"]
+        interaction_models = set(interactions.keys())
+
+        for role, models in roles.items():
+            invalid_models = models - interaction_models
+            if invalid_models:
+                model_names = [model.__name__ for model in invalid_models]
+                raise ValueError(
+                    f"Role '{role}' contains models that don't "
+                    f"exist in interactions: {model_names}"
+                )
+        return roles
 
 
 class Protocol:
@@ -26,8 +59,8 @@ class Protocol:
         self,
         name: Optional[str] = None,
         version: Optional[str] = None,
-        interactions: Optional[Dict[Type[Model], Set[Type[Model]]]] = None,
-        roles: Optional[Dict[str, Set[Type[Model]]]] = None,
+        spec: Optional[ProtocolSpecification] = None,
+        role: Optional[str] = None,
     ):
         """
         Initialize a Protocol instance.
@@ -46,15 +79,12 @@ class Protocol:
         self._version = version or "0.1.0"
         self._canonical_name = f"{self._name}:{self._version}"
         self._digest = ""
-        self._interactions = interactions
-        self._roles = roles
+        self._interactions: Optional[Dict[Type[Model], Set[Type[Model]]]] = None
+        self._role: Optional[str] = None
         self._locked = False
 
-        # if interactions are provided, populate the models and replies and lock the protocol
-        if interactions:
-            for model, replies in interactions.items():
-                self.add_interaction(model, replies)
-            self._locked = True
+        if spec:
+            self._init_from_spec(spec, role)
 
     @property
     def intervals(self):
@@ -156,6 +186,33 @@ class Protocol:
             str: The digest of the protocol's manifest.
         """
         return self.manifest()["metadata"]["digest"]
+
+    def _init_from_spec(self, spec: ProtocolSpecification, role: Optional[str] = None):
+        """
+        Initialize the protocol interactions from a specification.
+
+        Args:
+            spec (ProtocolSpecification): The protocol specification.
+            role (Optional[str], optional): The role that the protocol will implement.
+        """
+        if spec.roles:
+            if role is None:
+                raise ValueError("Role must be specified for a protocol with roles")
+            if role not in spec.roles:
+                raise ValueError(f"Role '{role}' not found in protocol roles")
+            self._role = role
+            self._interactions = {
+                model: replies
+                for model, replies in spec.interactions.items()
+                if model in spec.roles[role]
+            }
+        else:
+            self._interactions = spec.interactions
+
+        for model, replies in self._interactions.items():
+            self.add_interaction(model, replies)
+
+        self._locked = True
 
     def add_interaction(
         self, model: Type[Model], replies: Optional[Set[Type[Model]]] = None
@@ -268,7 +325,8 @@ class Protocol:
         """
         if self._locked and model not in self._models.values():
             raise ValueError(
-                f"Cannot add interaction {model} to locked protocol {self.canonical_name}"
+                f"Cannot add interaction '{model.__name__}' "
+                f"to locked protocol {self.canonical_name}"
             )
 
         def decorator_on_message(func: MessageCallback):
@@ -369,41 +427,31 @@ class Protocol:
 
         return final_manifest
 
-    def verify_implementation(self, role: Optional[str] = None) -> bool:
+    def verify(self) -> bool:
         """
-        Check if the protocol implements a given role by providing handlers for all the required
-        interactions. If no role is provided or no roles are defined, check if the protocol
-        implements all interactions.
-
-        Args:
-            role (str): The role to check.
+        Check if the protocol implements all interactions of its specification.
 
         Returns:
             bool: True if the protocol implements the role, False otherwise.
         """
-        if self._roles is None or role is None:
-            role_models = self._models
-        else:
-            if role not in self._roles:
-                raise ValueError(
-                    f"Role {role} not defined in protocol {self.canonical_name}"
-                )
-            role_models = {
-                digest: model
-                for digest, model in self._models.items()
-                if model in self._roles[role]
-            }
+        if self._interactions is None:
+            # No specification to verify against
+            return True
 
-        implemented_model_digests = set(self._signed_message_handlers.keys()).union(
-            set(self._unsigned_message_handlers.keys())
+        message_handlers = (
+            self._signed_message_handlers | self._unsigned_message_handlers
         )
 
         result = True
-        for digest, model in role_models:
-            if digest not in implemented_model_digests:
+        # verify that all models required by the role are implemented
+        for digest, model in self._models.items():
+            if digest not in message_handlers:
                 logger.error(
                     f"Protocol {self.canonical_name} does not implement "
-                    f"a handler for the model {model}"
+                    f"a handler for the model '{model.__name__}'"
+                    + f" required for the role '{self._role}'"
+                    if self._role
+                    else ""
                 )
                 result = False
 
