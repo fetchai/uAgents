@@ -83,7 +83,9 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             queries=queries,
             session=None,
             replies=replies,
-            message_received=MsgInfo(message=message, sender=sender, schema_digest=schema_digest),
+            message_received=MsgInfo(
+                message=message, sender=sender, schema_digest=schema_digest
+            ),
         )
 
     async def test_send_local_dispatch(self):
