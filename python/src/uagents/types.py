@@ -103,16 +103,18 @@ class DeliveryStatus(str, Enum):
 
 
 @dataclass
-class MsgDigest:
+class MsgInfo:
     """
-    Represents a message digest containing a message and its schema digest.
+    Represents a message digest containing a message and its schema digest and sender.
 
     Attributes:
         message (Any): The message content.
+        sender (str): The address of the sender of the message.
         schema_digest (str): The schema digest of the message.
     """
 
     message: Any
+    sender: str
     schema_digest: str
 
 

@@ -48,23 +48,24 @@ Delivery status of a message.
 
 
 
-## MsgDigest Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L105)
+## MsgInfo Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L105)
 
 ```python
 @dataclass
-class MsgDigest()
+class MsgInfo()
 ```
 
-Represents a message digest containing a message and its schema digest.
+Represents a message digest containing a message and its schema digest and sender.
 
 **Attributes**:
 
 - `message` _Any_ - The message content.
+- `sender` _str_ - The address of the sender of the message.
 - `schema_digest` _str_ - The schema digest of the message.
 
 
 
-## MsgStatus Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L119)
+## MsgStatus Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L121)
 
 ```python
 @dataclass

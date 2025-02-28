@@ -81,7 +81,7 @@ from uagents.types import (
     IntervalCallback,
     JsonStr,
     MessageCallback,
-    MsgDigest,
+    MsgInfo,
     RestGetHandler,
     RestHandler,
     RestHandlerMap,
@@ -1337,8 +1337,8 @@ class Agent(Sink):
                 queries=self._queries,
                 session=session,
                 replies=self._replies,
-                message_received=MsgDigest(
-                    message=message, schema_digest=schema_digest
+                message_received=MsgInfo(
+                    message=message, sender=sender, schema_digest=schema_digest
                 ),
                 protocol=protocol_info,
             )
