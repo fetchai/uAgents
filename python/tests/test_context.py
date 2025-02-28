@@ -131,6 +131,21 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(result, exp_msg_status)
 
+    async def test_send_local_dispatch_not_a_reply(self):
+        context = self.get_external_context(
+            incoming, incoming_digest, replies=test_replies, sender=self.clyde.address
+        )
+        result = await context.send(self.bob.address, incoming)
+        exp_msg_status = MsgStatus(
+            status=DeliveryStatus.DELIVERED,
+            detail="Message dispatched locally",
+            destination=self.bob.address,
+            endpoint="",
+            session=context.session,
+        )
+
+        self.assertEqual(result, exp_msg_status)
+
     async def test_send_local_dispatch_valid_interval_msg(self):
         context = self.alice._build_context()
         context._interval_messages = {msg_digest}
