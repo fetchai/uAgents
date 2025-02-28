@@ -1,9 +1,13 @@
+import asyncio
 import uuid
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Set, Union
+from asyncio import Future
+from typing import Any, Dict, Optional, Set, Tuple, Union
 
 from uagents.models import Model
 from uagents.types import JsonStr, RestMethod
+
+PendingResponseKey = Tuple[str, str, uuid.UUID]
 
 
 class Sink(ABC):
@@ -31,10 +35,49 @@ class Dispatcher:
 
     def __init__(self):
         self._sinks: Dict[str, Set[Sink]] = {}
+        self._pending_responses: Dict[PendingResponseKey, Future[JsonStr]] = {}
 
     @property
     def sinks(self) -> Dict[str, Set[Sink]]:
         return self._sinks
+
+    @property
+    def pending_responses(self) -> Dict[PendingResponseKey, Future[JsonStr]]:
+        return self._pending_responses
+
+    def register_pending_response(
+        self, sender: str, destination: str, session: uuid.UUID
+    ):
+        self._pending_responses[(sender, destination, session)] = (
+            asyncio.get_event_loop().create_future()
+        )
+
+    def cancel_pending_response(
+        self, sender: str, destination: str, session: uuid.UUID
+    ):
+        key = (sender, destination, session)
+        if key in self._pending_responses:
+            del self._pending_responses[key]
+
+    async def wait_for_response(
+        self, sender: str, destination: str, session: uuid.UUID, timeout: float
+    ) -> Optional[JsonStr]:
+        key = (sender, destination, session)
+        try:
+            response = await asyncio.wait_for(self._pending_responses[key], timeout)
+        except asyncio.TimeoutError:
+            response = None
+        del self._pending_responses[key]
+        return response
+
+    def dispatch_pending_response(
+        self, sender: str, destination: str, session: uuid.UUID, message: JsonStr
+    ) -> bool:
+        key = (destination, sender, session)
+        if key in self._pending_responses:
+            self._pending_responses[key].set_result(message)
+            return True
+        return False
 
     def register(self, address: str, sink: Sink):
         destinations = self._sinks.get(address, set())
@@ -60,6 +103,8 @@ class Dispatcher:
         message: JsonStr,
         session: uuid.UUID,
     ) -> None:
+        if self.dispatch_pending_response(sender, destination, session, message):
+            return
         for handler in self._sinks.get(destination, set()):
             await handler.handle_message(sender, schema_digest, message, session)
 

@@ -15,6 +15,7 @@ from uagents.context import (
 )
 from uagents.crypto import Identity
 from uagents.dispatch import dispatcher
+from uagents.envelope import Envelope
 from uagents.resolver import RulesBasedResolver
 
 
@@ -52,8 +53,16 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         self.alice = Agent(name="alice", seed="alice recovery phrase", resolve=resolver)
         self.bob = Agent(name="bob", seed="bob recovery phrase")
 
+        @self.bob.on_message(model=Message)
+        async def _(ctx, sender, msg):
+            await asyncio.sleep(1.1)
+            await ctx.send(sender, incoming)
+
         self.loop = asyncio.get_event_loop()
         self.loop.create_task(self.alice._dispenser.run())
+        self.bob.include(self.bob._protocol)
+        self.loop.create_task(self.bob._process_message_queue())
+        self.loop.create_task(self.bob._dispenser.run())
 
     def get_external_context(
         self,
@@ -146,27 +155,6 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertEqual(result, exp_msg_status)
-
-    async def test_send_resolve_sync_query(self):
-        future = asyncio.Future()
-        context = self.get_external_context(
-            incoming,
-            incoming_digest,
-            replies=test_replies,
-            queries={self.clyde.address: future},
-        )
-        result = await context.send(self.clyde.address, msg, sync=True)
-        exp_msg_status = MsgStatus(
-            status=DeliveryStatus.DELIVERED,
-            detail="Sync message resolved",
-            destination=self.clyde.address,
-            endpoint="",
-            session=context.session,
-        )
-
-        self.assertEqual(future.result(), (msg.model_dump_json(), msg_digest))
-        self.assertEqual(result, exp_msg_status)
-        self.assertEqual(len(context._queries), 0, "Query not removed from context")
 
     async def test_send_external_dispatch_resolve_failure(self):
         destination = Identity.generate().address
@@ -315,3 +303,143 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result, exp_msg_status)
 
         endpoints.pop()
+
+    @aioresponses()
+    async def test_send_and_receive_sync_success(self, mocked_responses):
+        context = self.alice._build_context()
+
+        # Mock the HTTP POST request with a status code and response content
+        env = Envelope(
+            version=1,
+            sender=self.clyde.address,
+            target=self.alice.address,
+            session=context.session,
+            schema_digest=msg_digest,
+        )
+        env.encode_payload(incoming.model_dump_json())
+        env.sign(self.clyde._identity.sign_digest)
+        payload = env.model_dump()
+        payload["session"] = str(env.session)
+        mocked_responses.post(endpoints[0], status=200, payload=payload)
+
+        # Perform the actual operation
+        response, status = await context.send_and_receive(
+            self.clyde.address, msg, response_type=Incoming, sync=True, timeout=5
+        )
+
+        # Define the expected message status
+        exp_msg_status = MsgStatus(
+            status=DeliveryStatus.DELIVERED,
+            detail="Sync message successfully delivered via HTTP",
+            destination=self.clyde.address,
+            endpoint=endpoints[0],
+            session=context.session,
+        )
+
+        # Assertions
+        self.assertEqual(status, exp_msg_status)
+        self.assertEqual(response, incoming)
+        self.assertEqual(len(dispatcher.pending_responses), 0)
+
+    @aioresponses()
+    async def test_send_and_receive_sync_delivery_failure(self, mocked_responses):
+        context = self.alice._build_context()
+
+        # Mock the HTTP POST request with a status code and response content
+        env = Envelope(
+            version=1,
+            sender=self.clyde.address,
+            target=self.alice.address,
+            session=context.session,
+            schema_digest=msg_digest,
+        )
+        env.encode_payload(incoming.model_dump_json())
+        env.sign(self.clyde._identity.sign_digest)
+        payload = env.model_dump()
+        payload["session"] = str(env.session)
+        mocked_responses.post(endpoints[0], status=200, payload=payload)
+
+        # Perform the actual operation
+        _, status = await context.send_and_receive(
+            self.clyde.address, msg, response_type=Incoming, sync=True, timeout=0
+        )
+
+        # Define the expected message status
+        exp_msg_status = MsgStatus(
+            status=DeliveryStatus.FAILED,
+            detail="Timeout waiting for response",
+            destination=self.clyde.address,
+            endpoint="",
+            session=context.session,
+        )
+
+        # Assertions
+        self.assertEqual(status, exp_msg_status)
+        self.assertEqual(len(dispatcher.pending_responses), 0)
+
+    async def test_send_and_receive_async_success(self):
+        context = self.alice._build_context()
+
+        # Perform the actual operation
+        response, status = await context.send_and_receive(
+            self.bob.address, msg, response_type=Incoming, timeout=5
+        )
+
+        # Define the expected message status
+        exp_msg_status = MsgStatus(
+            status=DeliveryStatus.DELIVERED,
+            detail="Message dispatched locally",
+            destination=self.bob.address,
+            endpoint="",
+            session=context.session,
+        )
+
+        # Assertions
+        self.assertEqual(status, exp_msg_status)
+        self.assertEqual(response, incoming)
+        self.assertEqual(len(dispatcher.pending_responses), 0)
+
+    async def test_send_and_receive_async_timeout(self):
+        context = self.alice._build_context()
+
+        # Perform the actual operation
+        _, status = await context.send_and_receive(
+            self.bob.address, msg, response_type=Incoming, timeout=1
+        )
+
+        # Define the expected message status
+        exp_msg_status = MsgStatus(
+            status=DeliveryStatus.FAILED,
+            detail="Timeout waiting for response",
+            destination=self.bob.address,
+            endpoint="",
+            session=context.session,
+        )
+
+        # Assertions
+        self.assertEqual(status, exp_msg_status)
+        self.assertEqual(len(dispatcher.pending_responses), 0)
+
+    async def test_send_and_receive_async_wrong_response_type(self):
+        context = self.alice._build_context()
+
+        class WrongMessage(Model):
+            wrong: str
+
+        # Perform the actual operation
+        response, status = await context.send_and_receive(
+            self.bob.address, msg, response_type=WrongMessage, timeout=5
+        )
+
+        # Define the expected message status
+        exp_msg_status = MsgStatus(
+            status=DeliveryStatus.FAILED,
+            detail="Received unexpected response type",
+            destination=self.bob.address,
+            endpoint="",
+            session=context.session,
+        )
+
+        # Assertions
+        self.assertEqual(status, exp_msg_status)
+        self.assertEqual(len(dispatcher.pending_responses), 0)
