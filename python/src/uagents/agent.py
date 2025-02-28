@@ -9,7 +9,6 @@ import uuid
 from typing import (
     Any,
     Callable,
-    Coroutine,
     Dict,
     List,
     Optional,
@@ -1181,8 +1180,10 @@ class Agent(Sink):
         Include the internal agent protocol, run startup tasks, and start background tasks.
         """
         self.include(self._protocol)
-        self.startup_routine()
-        self.start_interval_tasks()
+        self.start_message_dispenser()
+        startup_task = self._loop.create_task(self._startup())
+        self.start_message_receivers()
+        startup_task.add_done_callback(lambda t: self.start_interval_tasks())
 
     def start_registration_loop(self):
         """
@@ -1190,6 +1191,13 @@ class Agent(Sink):
 
         """
         self._loop.create_task(self._schedule_registration())
+
+    def start_message_dispenser(self):
+        """
+        Start the message dispenser.
+
+        """
+        self._loop.create_task(self._dispenser.run())
 
     def start_interval_tasks(self):
         """
@@ -1201,38 +1209,23 @@ class Agent(Sink):
                 _run_interval(func, self._logger, self._build_context, period)
             )
 
-    def startup_routine(self):
+    def start_message_receivers(self):
         """
-        Start the following tasks for the agent:
-            - Run the dispenser
-            - Run the startup tasks
-            - Process the message queue
-            (- Poll the wallet messaging server)
+        Start message receiving tasks for the agent.
 
         """
-        tasks: list[Coroutine] = []
-
-        # start the dispenser
-        tasks.append(self._dispenser.run())
-
-        # run the startup tasks
-        tasks.append(self._startup())
-
         # start the background message queue processor
-        tasks.append(self._process_message_queue())
+        self._loop.create_task(self._process_message_queue())
 
         # start the wallet messaging client if enabled
         if self._wallet_messaging_client is not None:
-            tasks.extend(
-                [
-                    self._wallet_messaging_client.poll_server(),
-                    self._wallet_messaging_client.process_message_queue(
-                        self._build_context
-                    ),
-                ]
-            )
-
-        asyncio.ensure_future(asyncio.gather(*tasks, return_exceptions=True))
+            for task in [
+                self._wallet_messaging_client.poll_server(),
+                self._wallet_messaging_client.process_message_queue(
+                    self._build_context
+                ),
+            ]:
+                self._loop.create_task(task)
 
     async def start_server(self):
         """
