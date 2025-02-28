@@ -1181,7 +1181,7 @@ class Agent(Sink):
         """
         self.include(self._protocol)
         self.start_message_dispenser()
-        await self._startup()
+        self._loop.create_task(self._startup())
         self.start_message_receivers()
         self.start_interval_tasks()
 
