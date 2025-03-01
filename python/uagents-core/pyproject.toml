@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "uagents-core"
-version = "0.1.2"
+version = "0.1.3"
 description = "Core components for agent based systems"
 authors = [
     "Ed FitzGerald <edward.fitzgerald@fetch.ai>",
