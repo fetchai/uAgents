@@ -39,7 +39,7 @@ from uagents.envelope import Envelope
 from uagents.models import ErrorMessage, Model
 from uagents.resolver import Resolver, parse_identifier
 from uagents.storage import KeyValueStore
-from uagents.types import DeliveryStatus, JsonStr, MsgDigest, MsgStatus
+from uagents.types import DeliveryStatus, JsonStr, MsgInfo, MsgStatus
 from uagents.utils import log
 
 if TYPE_CHECKING:
@@ -670,7 +670,7 @@ class ExternalContext(InternalContext):
 
     def __init__(
         self,
-        message_received: MsgDigest,
+        message_received: MsgInfo,
         queries: Optional[Dict[str, asyncio.Future]] = None,
         replies: Optional[Dict[str, Dict[str, Type[Model]]]] = None,
         protocol: Optional[Tuple[str, Protocol]] = None,
@@ -693,12 +693,13 @@ class ExternalContext(InternalContext):
         self._message_received = message_received
         self._protocol = protocol or ("", None)
 
-    def _is_valid_reply(self, message_schema_digest: str) -> bool:
+    def _is_valid_reply(self, message_schema_digest: str, destination: str) -> bool:
         """
         Check if the message type is a valid reply to the message received.
 
         Args:
             message_type (Type[Model]): The type of the message to check.
+            destination (str): The destination address of the message.
 
         Returns:
             bool: Whether the message type is a valid reply.
@@ -710,6 +711,10 @@ class ExternalContext(InternalContext):
             raise ValueError("No message received")
 
         if not self._replies:
+            return True
+
+        # If the destination is not the sender of the message received, it is not a reply
+        if destination != self._message_received.sender:
             return True
 
         received = self._message_received
@@ -741,7 +746,7 @@ class ExternalContext(InternalContext):
         # at this point we have received a message and have built a context
         # replies, message_received, and protocol are set
 
-        if not self._is_valid_reply(schema_digest):
+        if not self._is_valid_reply(schema_digest, destination):
             log(
                 self.logger,
                 logging.ERROR,

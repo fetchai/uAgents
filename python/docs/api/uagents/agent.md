@@ -716,7 +716,7 @@ Handle a REST request.
 
 #### setup
 ```python
-async def setup()
+def setup()
 ```
 
 Include the internal agent protocol, run startup tasks, and start background tasks.
@@ -738,6 +738,15 @@ def start_message_dispenser()
 ```
 
 Start the message dispenser.
+
+
+
+#### run_startup_tasks
+```python
+async def run_startup_tasks()
+```
+
+Start startup tasks for the agent.
 
 
 
