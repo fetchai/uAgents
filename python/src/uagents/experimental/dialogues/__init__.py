@@ -344,7 +344,7 @@ class Dialogue(Protocol):
         if is_valid:
             if self.is_ender(schema_digest):
                 self.update_state(schema_digest, ctx.session)
-            self.add_interaction(
+            self.add_message(
                 session_id=ctx.session,
                 message_type=self.models[schema_digest].__name__,
                 schema_digest=schema_digest,
@@ -369,7 +369,7 @@ class Dialogue(Protocol):
         if not self.is_valid_reply(inbound_schema_digest, outbound_schema_digest):
             return False
 
-        self.add_interaction(
+        self.add_message(
             session_id=ctx.session,
             message_type=self.models[outbound_schema_digest].__name__,
             schema_digest=outbound_schema_digest,
@@ -447,7 +447,7 @@ class Dialogue(Protocol):
         self._sessions.pop(session_id)
         self._remove_session_from_storage(session_id)
 
-    def add_interaction(
+    def add_message(
         self,
         session_id: UUID,
         message_type: str,
@@ -673,7 +673,7 @@ class Dialogue(Protocol):
             if status.session is None:
                 raise ValueError("Session ID must not be None!")
 
-            self.add_interaction(
+            self.add_message(
                 session_id=status.session,
                 message_type=self.models[message_schema_digest].__name__,
                 schema_digest=message_schema_digest,
