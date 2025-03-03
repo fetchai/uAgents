@@ -1159,9 +1159,10 @@ class Agent(Sink):
         self.include(self._protocol)
         self.start_registration_loop()
         self.start_message_dispenser()
-        startup_tasks = self._loop.create_task(self.run_startup_tasks())
         self.start_message_receivers()
-        startup_tasks.add_done_callback(lambda t: self.start_interval_tasks())
+        self._loop.create_task(self.run_startup_tasks()).add_done_callback(
+            lambda t: self.start_interval_tasks()
+        )
 
     def start_registration_loop(self):
         """
