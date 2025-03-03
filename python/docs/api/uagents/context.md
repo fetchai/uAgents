@@ -392,7 +392,7 @@ Represents the reactive context in which messages are handled and processed.
 
 #### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L671)
 ```python
-def __init__(message_received: MsgDigest,
+def __init__(message_received: MsgInfo,
              queries: Optional[Dict[str, asyncio.Future]] = None,
              replies: Optional[Dict[str, Dict[str, Type[Model]]]] = None,
              protocol: Optional[Tuple[str, Protocol]] = None,
@@ -412,7 +412,7 @@ Initialize the ExternalContext instance and attributes needed from the InternalC
 
 
 
-#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L720)
+#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L725)
 ```python
 async def send(destination: str,
                message: Model,

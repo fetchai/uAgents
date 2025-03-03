@@ -10,7 +10,7 @@ from uagents.context import (
     DeliveryStatus,
     ExternalContext,
     Model,
-    MsgDigest,
+    MsgInfo,
     MsgStatus,
 )
 from uagents.crypto import Identity
@@ -68,6 +68,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         self,
         message: Model,
         schema_digest: str,
+        sender: str,
         replies: Optional[Dict[str, Dict[str, type[Model]]]] = None,
         queries: Optional[Dict[str, asyncio.Future]] = None,
     ):
@@ -82,7 +83,9 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             queries=queries,
             session=None,
             replies=replies,
-            message_received=MsgDigest(message=message, schema_digest=schema_digest),
+            message_received=MsgInfo(
+                message=message, sender=sender, schema_digest=schema_digest
+            ),
         )
 
     async def test_send_local_dispatch(self):
@@ -100,7 +103,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
     async def test_send_local_dispatch_valid_reply(self):
         context = self.get_external_context(
-            incoming, incoming_digest, replies=test_replies
+            incoming, incoming_digest, replies=test_replies, sender=self.bob.address
         )
         result = await context.send(self.bob.address, msg)
         exp_msg_status = MsgStatus(
@@ -115,12 +118,27 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
     async def test_send_local_dispatch_invalid_reply(self):
         context = self.get_external_context(
-            incoming, incoming_digest, replies=test_replies
+            incoming, incoming_digest, replies=test_replies, sender=self.bob.address
         )
         result = await context.send(self.bob.address, incoming)
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.FAILED,
             detail="Invalid reply",
+            destination=self.bob.address,
+            endpoint="",
+            session=context.session,
+        )
+
+        self.assertEqual(result, exp_msg_status)
+
+    async def test_send_local_dispatch_not_a_reply(self):
+        context = self.get_external_context(
+            incoming, incoming_digest, replies=test_replies, sender=self.clyde.address
+        )
+        result = await context.send(self.bob.address, incoming)
+        exp_msg_status = MsgStatus(
+            status=DeliveryStatus.DELIVERED,
+            detail="Message dispatched locally",
             destination=self.bob.address,
             endpoint="",
             session=context.session,
