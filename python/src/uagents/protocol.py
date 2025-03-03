@@ -210,11 +210,11 @@ class Protocol:
             self._interactions = spec.interactions
 
         for model, replies in self._interactions.items():
-            self.add_interaction(model, replies)
+            self._add_interaction(model, replies)
 
         self._locked = True
 
-    def add_interaction(
+    def _add_interaction(
         self, model: Type[Model], replies: Optional[Set[Type[Model]]] = None
     ):
         """
