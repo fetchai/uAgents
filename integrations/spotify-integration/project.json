@@ -1,9 +1,0 @@
-{
-    "title": "Spotify Integration",
-    "description": "This integration allows users to search for songs on Spotify using keywords through a conversational interface powered by UAgents.",
-    "categories": [
-        "Music",
-        "AI Engine"
-    ],
-    "deltav": true
-}

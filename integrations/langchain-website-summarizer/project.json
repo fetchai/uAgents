@@ -1,6 +1,0 @@
-{
-    "title": "Web Summarizer",
-    "description": "This integration helps the user get a summary of a provided website using langchain",
-    "categories":    ["langchain", "Summary", "OpenAI"], 
-    "deltav": true
-}
