@@ -1126,30 +1126,6 @@ class Agent(Sink):
 
         return await handler(*args)  # type: ignore
 
-    async def _startup(self):
-        """
-        Perform startup actions.
-
-        """
-        self._logger.info(f"Starting agent with address: {self.address}")
-        if self._registration_policy:
-            if self._endpoints:
-                self.start_registration_loop()
-            else:
-                self._logger.warning(
-                    "No endpoints provided. Skipping registration: Agent won't be reachable."
-                )
-        for handler in self._on_startup:
-            try:
-                ctx = self._build_context()
-                await handler(ctx)
-            except OSError as ex:
-                self._logger.exception(f"OS Error in startup handler: {ex}")
-            except RuntimeError as ex:
-                self._logger.exception(f"Runtime Error in startup handler: {ex}")
-            except Exception as ex:
-                self._logger.exception(f"Exception in startup handler: {ex}")
-
     async def _shutdown(self):
         """
         Perform shutdown actions.
@@ -1175,22 +1151,31 @@ class Agent(Sink):
             except Exception as ex:
                 self._logger.exception(f"Exception in shutdown handler: {ex}")
 
-    async def setup(self):
+    def setup(self):
         """
         Include the internal agent protocol, run startup tasks, and start background tasks.
         """
+        self._logger.info(f"Starting agent with address: {self.address}")
         self.include(self._protocol)
+        self.start_registration_loop()
         self.start_message_dispenser()
-        await self._startup()
         self.start_message_receivers()
-        self.start_interval_tasks()
+        self._loop.create_task(self.run_startup_tasks()).add_done_callback(
+            lambda t: self.start_interval_tasks()
+        )
 
     def start_registration_loop(self):
         """
         Start the registration loop.
 
         """
-        self._loop.create_task(self._schedule_registration())
+        if self._registration_policy:
+            if self._endpoints:
+                self._loop.create_task(self._schedule_registration())
+            else:
+                self._logger.warning(
+                    "No endpoints provided. Skipping registration: Agent won't be reachable."
+                )
 
     def start_message_dispenser(self):
         """
@@ -1198,6 +1183,22 @@ class Agent(Sink):
 
         """
         self._loop.create_task(self._dispenser.run())
+
+    async def run_startup_tasks(self):
+        """
+        Start startup tasks for the agent.
+
+        """
+        for handler in self._on_startup:
+            try:
+                ctx = self._build_context()
+                await handler(ctx)
+            except OSError as ex:
+                self._logger.exception(f"OS Error in startup handler: {ex}")
+            except RuntimeError as ex:
+                self._logger.exception(f"Runtime Error in startup handler: {ex}")
+            except Exception as ex:
+                self._logger.exception(f"Exception in startup handler: {ex}")
 
     def start_interval_tasks(self):
         """
@@ -1246,7 +1247,7 @@ class Agent(Sink):
         Create all tasks for the agent.
 
         """
-        await self.setup()
+        self.setup()
 
         tasks = [self.start_server()]
 
@@ -1582,7 +1583,7 @@ class Bureau:
             self._logger.warning("No agents to run.")
             return
         for agent in self._agents:
-            await agent.setup()
+            agent.setup()
             self._registration_policy.add_agent(agent.info, agent._identity)
             if (
                 is_mailbox_agent(agent._endpoints, self._agentverse)
