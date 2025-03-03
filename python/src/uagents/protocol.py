@@ -22,6 +22,7 @@ class ProtocolSpecification(BaseModel):
 
     interactions: Dict[Type[Model], Set[Type[Model]]]
     roles: Optional[Dict[str, Set[Type[Model]]]] = None
+    version: Optional[str] = "1.0"
 
     @field_validator("roles")
     @classmethod
