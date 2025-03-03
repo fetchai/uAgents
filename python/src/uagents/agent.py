@@ -298,6 +298,7 @@ class Agent(Sink):
         readme_path: Optional[str] = None,
         avatar_url: Optional[str] = None,
         publish_agent_details: bool = False,
+        store_message_history: bool = False,
     ):
         """
         Initialize an Agent instance.
@@ -372,8 +373,13 @@ class Agent(Sink):
         self._replies: Dict[str, Dict[str, Type[Model]]] = {}
         self._queries: Dict[str, asyncio.Future] = {}
         self._dispatcher = dispatcher
-        self._message_cache: Optional[EnvelopeHistory] = (
-            EnvelopeHistory(envelopes=[]) if enable_agent_inspector else None
+        self._message_history: Optional[EnvelopeHistory] = (
+            EnvelopeHistory(
+                cache=[] if enable_agent_inspector else None,
+                storage=self._storage if store_message_history else None,
+            )
+            if store_message_history or enable_agent_inspector
+            else None
         )
         self._dispenser = Dispenser(msg_cache_ref=self._message_cache)
         self._message_queue = asyncio.Queue()
@@ -443,7 +449,7 @@ class Agent(Sink):
 
             @self.on_rest_get("/messages", EnvelopeHistory)  # type: ignore
             async def _handle_get_messages(_ctx: Context):
-                return self._message_cache
+                return self._message_history
 
             @self.on_rest_post(
                 "/connect", AgentverseConnectRequest, RegistrationResponse
@@ -1310,8 +1316,8 @@ class Agent(Sink):
             protocol_info = self.get_message_protocol(schema_digest)
             protocol_digest = protocol_info[0] if protocol_info else None
 
-            if self._message_cache:
-                self._message_cache.add_entry(
+            if self._message_history:
+                self._message_history.add_entry(
                     EnvelopeHistoryEntry(
                         version=1,
                         sender=sender,

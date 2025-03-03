@@ -14,6 +14,7 @@ from pydantic import (
 )
 
 from uagents.crypto import Identity
+from uagents.storage import StorageAPI
 from uagents.types import JsonStr
 
 
@@ -144,17 +145,47 @@ class EnvelopeHistoryEntry(BaseModel):
 
 
 class EnvelopeHistory(BaseModel):
-    envelopes: List[EnvelopeHistoryEntry]
+    cache: Optional[List[EnvelopeHistoryEntry]] = None
+    storage: Optional[StorageAPI] = None
 
     def add_entry(self, entry: EnvelopeHistoryEntry):
-        self.envelopes.append(entry)
+        if self.cache is not None:
+            self.cache.append(entry)
+        if self.storage is not None:
+            key = f"message-history:session:{entry.session}"
+            session_msgs: List[EnvelopeHistoryEntry] = self.storage.get(key) or []
+            session_msgs.append(entry)
+            self.storage.set(key, session_msgs)
+
+            # keep index of all sessions for retention policy
+            all_sessions = self.storage.get("message-history:sessions") or []
+            all_sessions.append(entry.session)
+            self.storage.set("message-history:sessions", all_sessions)
         self.apply_retention_policy()
+
+    def get_session_messages(self, session: UUID4) -> List[EnvelopeHistoryEntry]:
+        if self.storage is None:
+            raise ValueError("EnvelopeHistory storage is not set")
+        key = f"message-history:session:{session}"
+        return self.storage.get(key) or []
 
     def apply_retention_policy(self):
         """Remove entries older than 24 hours"""
         cutoff_time = time.time() - 86400
-        for e in self.envelopes:
-            if e.timestamp < cutoff_time:
-                self.envelopes.remove(e)
-            else:
-                break
+
+        # apply retention policy to cache
+        if self.cache is not None:
+            for e in self.cache:
+                if e.timestamp < cutoff_time:
+                    self.cache.remove(e)
+                else:
+                    break
+
+        # apply retention policy to storage
+        if self.storage is not None:
+            all_sessions: List[str] = self.storage.get("message-history:sessions") or []
+            for session in all_sessions:
+                key = f"message-history:session:{session}"
+                session_msgs: List[EnvelopeHistoryEntry] = self.storage.get(key) or []
+                if session_msgs and session_msgs[-1].timestamp < cutoff_time:
+                    self.storage.remove(key)
