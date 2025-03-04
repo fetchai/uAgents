@@ -220,4 +220,4 @@ class EnvelopeHistory:
                     self._storage.remove(key)
                     all_sessions.remove(session)
 
-            self._storage.set("message-history:sessions", list(all_sessions))
+            self._storage.set("message-history:sessions", all_sessions)
