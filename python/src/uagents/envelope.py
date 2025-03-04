@@ -4,7 +4,7 @@ import base64
 import hashlib
 import struct
 import time
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Set
 
 from pydantic import (
     UUID4,
@@ -144,48 +144,80 @@ class EnvelopeHistoryEntry(BaseModel):
         )
 
 
-class EnvelopeHistory(BaseModel):
-    cache: Optional[List[EnvelopeHistoryEntry]] = None
-    storage: Optional[StorageAPI] = None
+class EnvelopeHistoryResponse(BaseModel):
+    envelopes: List[EnvelopeHistoryEntry]
+
+
+class EnvelopeHistory:
+    """
+    Stores message history for an agent optionally using cache and/or storage.
+    """
+
+    def __init__(
+        self,
+        storage: StorageAPI,
+        use_cache: bool = True,
+        use_storage: bool = False,
+    ):
+        self._cache: Optional[List[EnvelopeHistoryEntry]] = [] if use_cache else None
+        self._storage: Optional[StorageAPI] = storage if use_storage else None
 
     def add_entry(self, entry: EnvelopeHistoryEntry):
-        if self.cache is not None:
-            self.cache.append(entry)
-        if self.storage is not None:
-            key = f"message-history:session:{entry.session}"
-            session_msgs: List[EnvelopeHistoryEntry] = self.storage.get(key) or []
-            session_msgs.append(entry)
-            self.storage.set(key, session_msgs)
-
-            # keep index of all sessions for retention policy
-            all_sessions = self.storage.get("message-history:sessions") or []
-            all_sessions.append(entry.session)
-            self.storage.set("message-history:sessions", all_sessions)
+        if self._cache is not None:
+            self._cache.append(entry)
+        if self._storage is not None:
+            key = f"message-history:session:{str(entry.session)}"
+            session_msgs: List[JsonStr] = self._storage.get(key) or []
+            session_msgs.append(entry.model_dump_json())
+            self._storage.set(key, session_msgs)
+            self._add_session_to_index(entry.session)
         self.apply_retention_policy()
 
+    def _add_session_to_index(self, session: UUID4):
+        if self._storage is not None:
+            all_sessions: Set[str] = set(
+                self._storage.get("message-history:sessions") or []
+            )
+            all_sessions.add(str(session))
+            self._storage.set("message-history:sessions", list(all_sessions))
+
+    def get_cached_messages(self) -> EnvelopeHistoryResponse:
+        if self._cache is None:
+            raise ValueError("EnvelopeHistory cache is not set")
+        return EnvelopeHistoryResponse(envelopes=self._cache)
+
     def get_session_messages(self, session: UUID4) -> List[EnvelopeHistoryEntry]:
-        if self.storage is None:
+        if self._storage is None:
             raise ValueError("EnvelopeHistory storage is not set")
         key = f"message-history:session:{session}"
-        return self.storage.get(key) or []
+        session_msgs = self._storage.get(key) or []
+        return [EnvelopeHistoryEntry.model_validate_json(msg) for msg in session_msgs]
 
     def apply_retention_policy(self):
         """Remove entries older than 24 hours"""
-        cutoff_time = time.time() - 86400
+        cutoff_time = time.time() - 15
 
         # apply retention policy to cache
-        if self.cache is not None:
-            for e in self.cache:
+        if self._cache is not None:
+            for e in self._cache:
                 if e.timestamp < cutoff_time:
-                    self.cache.remove(e)
+                    self._cache.remove(e)
                 else:
                     break
 
         # apply retention policy to storage
-        if self.storage is not None:
-            all_sessions: List[str] = self.storage.get("message-history:sessions") or []
+        if self._storage is not None:
+            all_sessions: Set[str] = set(
+                self._storage.get("message-history:sessions") or []
+            )
             for session in all_sessions:
                 key = f"message-history:session:{session}"
-                session_msgs: List[EnvelopeHistoryEntry] = self.storage.get(key) or []
-                if session_msgs and session_msgs[-1].timestamp < cutoff_time:
-                    self.storage.remove(key)
+                session_msgs = self._storage.get(key) or []
+                if len(session_msgs) == 0:
+                    continue
+                latest_msg = EnvelopeHistoryEntry.model_validate_json(session_msgs[-1])
+                if session_msgs and latest_msg.timestamp < cutoff_time:
+                    self._storage.remove(key)
+                    all_sessions.remove(session)
+
+            self._storage.set("message-history:sessions", list(all_sessions))
