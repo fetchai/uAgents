@@ -195,7 +195,7 @@ class EnvelopeHistory:
 
     def apply_retention_policy(self):
         """Remove entries older than 24 hours"""
-        cutoff_time = time.time() - 15
+        cutoff_time = time.time() - 86400
 
         # apply retention policy to cache
         if self._cache is not None:
@@ -207,7 +207,7 @@ class EnvelopeHistory:
 
         # apply retention policy to storage
         if self._storage is not None:
-            all_sessions: Set[str] = set(
+            all_sessions: List[str] = (
                 self._storage.get("message-history:sessions") or []
             )
             for session in all_sessions:
