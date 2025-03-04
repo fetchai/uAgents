@@ -1,6 +1,0 @@
-{
-    "title": "DallE Image generator",
-    "description": "This integration helps user to generate image using dallE from openAI according to image description provided.",
-    "categories":    ["OpenAI", "DallE", "AI", "Image generator"],
-    "deltav": true
-}

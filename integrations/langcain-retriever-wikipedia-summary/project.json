@@ -1,8 +1,0 @@
-{
-    "title": "Wikipedia Summary V1",
-    "description": "Integration with WikipediaRetriever of langchains community retrieval tools. This is great if you want to get a summary on a topic without having to read the whole wiki. ",
-    "categories": [
-        "Wikipedia", "langchain"
-    ],
-    "deltav": false
-}

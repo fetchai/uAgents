@@ -1,5 +1,0 @@
-pydantic==2.8.2
-pydantic_core==2.20.1
-requests==2.32.3
-uagents==0.14.0
-uagents-ai-engine==0.4.0
