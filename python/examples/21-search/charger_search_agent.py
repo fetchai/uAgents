@@ -18,6 +18,7 @@ from uagents.experimental import search
 # find agents where attribute in range(min, max) / [val_1, ..., val_n]
 # find agent where attribute is highest/lowest limit num_of_choices
 
+MY_TIMEOUT = 10
 
 agent = Agent(
     name="Search Agent for EV Chargers",
@@ -39,7 +40,7 @@ async def handle_search_request(ctx: Context, sender: str, msg: SearchRequest):
     storage_dict = {
         str(search_session): {
             "searcher": sender,
-            "timeout": str(datetime.now() + timedelta(seconds=10)),
+            "timeout": str(datetime.now() + timedelta(seconds=MY_TIMEOUT)),
             "request": msg.model_dump_json(),
             "responses": {},
         }

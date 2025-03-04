@@ -17,6 +17,7 @@ from uagents.experimental import search
 # find agents where attribute in range(min, max) / [val_1, ..., val_n]
 # find agent where attribute is highest/lowest limit num_of_choices
 
+MY_TIMEOUT = 10
 
 agent = Agent(
     name="Search Agent for EV Chargers sync",
@@ -53,7 +54,10 @@ async def handle_search_request(ctx: Context, sender: str, msg: SearchRequest):
         ctx.logger.info(f"querying agent: {agent.address}")
         reply: AttributeResponse
         reply, status = await ctx.send_and_receive(
-            agent.address, query, response_type=AttributeResponse
+            agent.address,
+            query,
+            response_type=AttributeResponse,
+            timeout=MY_TIMEOUT,
         )
         if not isinstance(reply, AttributeResponse):
             ctx.logger.info(f"Received unexpected response from {agent.address[:8]}..")
