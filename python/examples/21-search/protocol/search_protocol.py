@@ -1,4 +1,5 @@
 from typing import Any, Dict, List
+from uuid import UUID
 
 from pydantic.v1 import confloat
 
@@ -16,9 +17,9 @@ class Location(Model):
 class SearchRequest(Model):
     """
     Request model to specify any combination of search attributes (at least 1 must be set).
-    In addition to the search engine attributes query, tags, geolocation and protocol_digest,
-    agent specific attributes can be given in attribute_filter, which will be considerd by the
-    search agent.
+    In addition to the search engine attributes `query`, `tags`, `geolocation` and
+    `protocol_digest`, agent specific attributes can be given in `attribute_filter`, which will
+    be considerd by the search agent.
     """
 
     query: str | None = None
@@ -41,10 +42,14 @@ class SearchResponse(Model):
 
 # this model should be supported by any "searchable" agent -> include in base protocol?
 class AttributeQuery(Model):
+    search_id: (
+        UUID  # id to let the search agent map individual responses to search requests
+    )
     attributes: List[str]  # attributes to be returned if available
 
 
 class AttributeResponse(Model):
+    search_id: UUID  # must be copied from the incoming AttributeQuery
     attributes: Dict[str, str]  # requested attributes and their value
 
 
