@@ -36,8 +36,8 @@ async def startup(ctx: Context):
             query="",  # no effect in the current example setup
             tags=["evct"],  # no effect in the current example setup
             geolocation=AgentGeolocation(latitude=48.765, longitude=9.123, radius=5000),
-            # attribute_filter={"charging": "yes"}, # should return only hit_agent
-            attribute_filter={"colour": "blue"},  # should return both agents
+            attribute_filter={"charging": "yes"},  # should return only hit_agent
+            # attribute_filter={"colour": "blue"},  # should return both agents
             # attribute_filter={"swag": "max"}, # should return no agent
         ),
     )
