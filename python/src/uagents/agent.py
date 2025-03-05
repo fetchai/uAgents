@@ -6,17 +6,8 @@ import functools
 import logging
 import os
 import uuid
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-    Union,
-)
+from collections.abc import Callable
+from typing import Any
 
 import requests
 from cosmpy.aerial.client import LedgerClient
@@ -138,7 +129,7 @@ class AgentRepresentation:
 
     Attributes:
         _address (str): The address of the agent.
-        _name (Optional[str]): The name of the agent.
+        _name (str | None): The name of the agent.
         _signing_callback (Callable): The callback for signing messages.
 
     Properties:
@@ -153,7 +144,7 @@ class AgentRepresentation:
     def __init__(
         self,
         address: str,
-        name: Optional[str],
+        name: str | None,
         signing_callback: Callable,
     ):
         """
@@ -161,7 +152,7 @@ class AgentRepresentation:
 
         Args:
             address (str): The address of the context.
-            name (Optional[str]): The optional name associated with the context.
+            name (str | None): The optional name associated with the context.
             signing_callback (Callable): The callback for signing messages.
         """
         self._address = address
@@ -220,46 +211,46 @@ class Agent(Sink):
     Attributes:
         _name (str): The name of the agent.
         _port (int): The port on which the agent's server runs.
-        _background_tasks (Set[asyncio.Task]): Set of background tasks associated with the agent.
+        _background_tasks (set[asyncio.Task]): Set of background tasks associated with the agent.
         _resolver (Resolver): The resolver for agent communication.
         _loop (asyncio.AbstractEventLoop): The asyncio event loop used by the agent.
         _logger: The logger instance for logging agent activities.
-        _endpoints (List[AgentEndpoint]): List of endpoints at which the agent is reachable.
+        _endpoints (list[AgentEndpoint]): List of endpoints at which the agent is reachable.
         _use_mailbox (bool): Indicates if the agent uses a mailbox for communication.
         _agentverse (AgentverseConfig): Agentverse configuration settings.
         _mailbox_client (MailboxClient): The client for interacting with the agentverse mailbox.
         _ledger: The client for interacting with the blockchain ledger.
         _almanac_contract: The almanac contract for registering agent addresses to endpoints.
         _storage: Key-value store for agent data storage.
-        _interval_handlers (List[Tuple[IntervalCallback, float]]): List of interval
+        _interval_handlers (list[tuple[IntervalCallback, float]]): List of interval
         handlers and their periods.
-        _interval_messages (Set[str]): Set of message digests that may be sent by interval tasks.
-        _signed_message_handlers (Dict[str, MessageCallback]): Handlers for signed messages.
-        _unsigned_message_handlers (Dict[str, MessageCallback]): Handlers for
+        _interval_messages (set[str]): Set of message digests that may be sent by interval tasks.
+        _signed_message_handlers (dict[str, MessageCallback]): Handlers for signed messages.
+        _unsigned_message_handlers (dict[str, MessageCallback]): Handlers for
         unsigned messages.
         _message_cache (EnvelopeHistory): History of messages received by the agent.
-        _models (Dict[str, Type[Model]]): Dictionary mapping supported message digests to messages.
-        _replies (Dict[str, Dict[str, Type[Model]]]): Dictionary of allowed replies for each type
+        _models (dict[str, type[Model]]): Dictionary mapping supported message digests to messages.
+        _replies (dict[str, dict[str, type[Model]]]): Dictionary of allowed replies for each type
         of incoming message.
-        _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their response
+        _queries (dict[str, asyncio.Future]): Dictionary mapping query senders to their response
         Futures.
         _dispatcher: The dispatcher for internal handling/sorting of messages.
         _dispenser: The dispatcher for external message handling.
         _message_queue: Asynchronous queue for incoming messages.
-        _on_startup (List[Callable]): List of functions to run on agent startup.
-        _on_shutdown (List[Callable]): List of functions to run on agent shutdown.
+        _on_startup (list[Callable]): List of functions to run on agent startup.
+        _on_shutdown (list[Callable]): List of functions to run on agent shutdown.
         _version (str): The version of the agent.
         _protocol (Protocol): The internal agent protocol consisting of all interval and message
         handlers assigned with agent decorators.
-        protocols (Dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
+        protocols (dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
         corresponding protocols.
         _ctx (Context): The context for agent interactions.
         _network (str): The network to use for the agent ('mainnet' or 'testnet').
         _prefix (str): The address prefix for the agent (determined by the network).
         _enable_agent_inspector (bool): Enable the agent inspector REST endpoints.
-        _metadata (Dict[str, Any]): Metadata associated with the agent.
-        _readme (Optional[str]): The agent's README file.
-        _avatar_url (Optional[str]): The URL for the agent's avatar image on Agentverse.
+        _metadata (dict[str, Any]): Metadata associated with the agent.
+        _readme (str | None): The agent's README file.
+        _avatar_url (str | None): The URL for the agent's avatar image on Agentverse.
 
     Properties:
         name (str): The name of the agent.
@@ -269,61 +260,62 @@ class Agent(Sink):
         storage (KeyValueStore): The key-value store for storage operations.
         agentverse (AgentverseConfig): The agentverse configuration for the agent.
         mailbox_client (MailboxClient): The client for interacting with the agentverse mailbox.
-        protocols (Dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
+        protocols (dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
         corresponding protocols.
-        metadata (Optional[Dict[str, Any]]): Metadata associated with the agent.
+        metadata (dict[str, Any] | None): Metadata associated with the agent.
 
     """
 
     def __init__(
         self,
-        name: Optional[str] = None,
-        port: Optional[int] = None,
-        seed: Optional[str] = None,
-        endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
-        agentverse: Optional[Union[str, Dict[str, str]]] = None,
+        name: str | None = None,
+        port: int | None = None,
+        seed: str | None = None,
+        endpoint: str | list[str] | dict[str, dict] | None = None,
+        agentverse: str | dict[str, str] | None = None,
         mailbox: bool = False,
         proxy: bool = False,
-        resolve: Optional[Resolver] = None,
-        registration_policy: Optional[AgentRegistrationPolicy] = None,
-        enable_wallet_messaging: Union[bool, Dict[str, str]] = False,
-        wallet_key_derivation_index: Optional[int] = 0,
-        max_resolver_endpoints: Optional[int] = None,
-        version: Optional[str] = None,
+        resolve: Resolver | None = None,
+        registration_policy: AgentRegistrationPolicy | None = None,
+        enable_wallet_messaging: bool | dict[str, str] = False,
+        wallet_key_derivation_index: int | None = 0,
+        max_resolver_endpoints: int | None = None,
+        version: str | None = None,
         network: AgentNetwork = "testnet",
-        loop: Optional[asyncio.AbstractEventLoop] = None,
-        log_level: Union[int, str] = logging.INFO,
+        loop: asyncio.AbstractEventLoop | None = None,
+        log_level: int | str = logging.INFO,
         enable_agent_inspector: bool = True,
-        metadata: Optional[Dict[str, Any]] = None,
-        readme_path: Optional[str] = None,
-        avatar_url: Optional[str] = None,
+        metadata: dict[str, Any] | None = None,
+        readme_path: str | None = None,
+        avatar_url: str | None = None,
         publish_agent_details: bool = False,
     ):
         """
         Initialize an Agent instance.
 
         Args:
-            name (Optional[str]): The name of the agent.
-            port (Optional[int]): The port on which the agent's server will run.
-            seed (Optional[str]): The seed for generating keys.
-            endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration.
-            agentverse (Optional[Union[str, Dict[str, str]]]): The agentverse configuration.
+            name (str | None): The name of the agent.
+            port (int | None): The port on which the agent's server will run.
+            seed (str | None): The seed for generating keys.
+            endpoint (str | list[str] | dict[str, dict] | None): The endpoint configuration.
+            agentverse (str | dict[str, str] | None): The agentverse configuration.
             mailbox (bool): True if the agent will receive messages via an Agentverse mailbox.
             proxy (bool): True if the agent will receive messages via an Agentverse proxy endpoint.
-            resolve (Optional[Resolver]): The resolver to use for agent communication.
-            enable_wallet_messaging (Optional[Union[bool, Dict[str, str]]]): Whether to enable
+            resolve (Resolver | None): The resolver to use for agent communication.
+            registration_policy (AgentRegistrationPolicy | None): The agent registration policy.
+            enable_wallet_messaging (bool | dict[str, str]): Whether to enable
             wallet messaging. If '{"chain_id": CHAIN_ID}' is provided, this sets the chain ID for
             the messaging server.
-            wallet_key_derivation_index (Optional[int]): The index used for deriving the wallet key.
-            max_resolver_endpoints (Optional[int]): The maximum number of endpoints to resolve.
-            version (Optional[str]): The version of the agent.
+            wallet_key_derivation_index (int | None): The index used for deriving the wallet key.
+            max_resolver_endpoints (int | None): The maximum number of endpoints to resolve.
+            version (str | None): The version of the agent.
             network (Literal["mainnet", "testnet"]): The network to use for the agent.
-            loop (Optional[asyncio.AbstractEventLoop]): The asyncio event loop to use.
+            loop (asyncio.AbstractEventLoop | None): The asyncio event loop to use.
             log_level (Union[int, str]): The logging level for the agent.
             enable_agent_inspector (bool): Enable the agent inspector for debugging.
-            metadata (Optional[Dict[str, Any]]): Optional metadata to include in the agent object.
-            readme_path (Optional[str]): The path to the agent's README file.
-            avatar_url (Optional[str]): The URL for the agent's avatar image on Agentverse.
+            metadata (dict[str, Any] | None): Optional metadata to include in the agent object.
+            readme_path (str | None): The path to the agent's README file.
+            avatar_url (str | None): The URL for the agent's avatar image on Agentverse.
             publish_agent_details (bool): Publish agent details to Agentverse on connection via
             local agent inspector.
         """
@@ -363,16 +355,16 @@ class Agent(Sink):
         self._ledger = get_ledger(network)
         self._almanac_contract = get_almanac_contract(network)
         self._storage = KeyValueStore(self.address[0:16])
-        self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
-        self._interval_messages: Set[str] = set()
-        self._signed_message_handlers: Dict[str, MessageCallback] = {}
-        self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
+        self._interval_handlers: list[tuple[IntervalCallback, float]] = []
+        self._interval_messages: set[str] = set()
+        self._signed_message_handlers: dict[str, MessageCallback] = {}
+        self._unsigned_message_handlers: dict[str, MessageCallback] = {}
         self._rest_handlers: RestHandlerMap = {}
-        self._models: Dict[str, Type[Model]] = {}
-        self._replies: Dict[str, Dict[str, Type[Model]]] = {}
-        self._queries: Dict[str, asyncio.Future] = {}
+        self._models: dict[str, type[Model]] = {}
+        self._replies: dict[str, dict[str, type[Model]]] = {}
+        self._queries: dict[str, asyncio.Future] = {}
         self._dispatcher = dispatcher
-        self._message_cache: Optional[EnvelopeHistory] = (
+        self._message_cache: EnvelopeHistory | None = (
             EnvelopeHistory(envelopes=[]) if enable_agent_inspector else None
         )
         self._dispenser = Dispenser(msg_cache_ref=self._message_cache)
@@ -408,7 +400,7 @@ class Agent(Sink):
         self.initialize_wallet_messaging(enable_wallet_messaging)
 
         # keep track of supported protocols
-        self.protocols: Dict[str, Protocol] = {}
+        self.protocols: dict[str, Protocol] = {}
 
         # initialize the internal agent protocol
         self._protocol = Protocol(name=self._name, version=self._version)
@@ -539,13 +531,13 @@ class Agent(Sink):
             self._name = self.address[0:16]
 
     def initialize_wallet_messaging(
-        self, enable_wallet_messaging: Union[bool, Dict[str, str]]
+        self, enable_wallet_messaging: bool | dict[str, str]
     ):
         """
         Initialize wallet messaging for the agent.
 
         Args:
-            enable_wallet_messaging (Union[bool, Dict[str, str]]): Wallet messaging configuration.
+            enable_wallet_messaging (bool | dict[str, str]): Wallet messaging configuration.
         """
         if enable_wallet_messaging:
             wallet_chain_id = self._ledger.network_config.chain_id
@@ -573,17 +565,15 @@ class Agent(Sink):
         else:
             self._wallet_messaging_client = None
 
-    def _initialize_metadata(
-        self, metadata: Optional[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    def _initialize_metadata(self, metadata: dict[str, Any] | None) -> dict[str, Any]:
         """
         Initialize the metadata for the agent.
 
         Args:
-            metadata (Optional[Dict[str, Any]]): The metadata to include in the agent object.
+            metadata (metadata: dict[str, Any] | None): The metadata to include in the agent object.
 
         Returns:
-            Dict[str, Any]: The filtered metadata.
+            dict[str, Any]: The filtered metadata.
         """
         if not metadata:
             return {}
@@ -663,17 +653,17 @@ class Agent(Sink):
         Get the agentverse configuration of the agent.
 
         Returns:
-            Dict[str, str]: The agentverse configuration.
+            dict[str, str]: The agentverse configuration.
         """
         return self._agentverse
 
     @property
-    def mailbox_client(self) -> Optional[MailboxClient]:
+    def mailbox_client(self) -> MailboxClient | None:
         """
         Get the mailbox client used by the agent for mailbox communication.
 
         Returns:
-            Optional[MailboxClient]: The mailbox client instance.
+            MailboxClient | None: The mailbox client instance.
         """
         return self._mailbox_client
 
@@ -705,22 +695,22 @@ class Agent(Sink):
         )
 
     @property
-    def metadata(self) -> Dict[str, Any]:
+    def metadata(self) -> dict[str, Any]:
         """
         Get the metadata associated with the agent.
 
         Returns:
-            Dict[str, Any]: The metadata associated with the agent.
+            dict[str, Any]: The metadata associated with the agent.
         """
         return self._metadata
 
     @agentverse.setter
-    def agentverse(self, config: Union[str, Dict[str, str]]):
+    def agentverse(self, config: str | dict[str, str]):
         """
-        Set the agentverse configuration for the agent.
+        set the agentverse configuration for the agent.
 
         Args:
-            config (Union[str, Dict[str, str]]): The new agentverse configuration.
+            config (Union[str, dict[str, str]]): The new agentverse configuration.
         """
         self._agentverse = parse_agentverse_config(config)
 
@@ -752,14 +742,14 @@ class Agent(Sink):
 
     # TODO this is not used anywhere in the framework
     def sign_registration(
-        self, timestamp: int, sender_wallet_address: Optional[str] = None
+        self, timestamp: int, sender_wallet_address: str | None = None
     ) -> str:
         """
         Sign the registration data for Almanac contract.
 
         Args:
             timestamp (int): The timestamp for the registration.
-            sender_wallet_address (Optional[str]): The wallet address of the transaction sender.
+            sender_wallet_address (str | None): The wallet address of the transaction sender.
 
         Returns:
             str: The signature of the registration data.
@@ -777,12 +767,12 @@ class Agent(Sink):
             sender_address,
         )
 
-    def update_endpoints(self, endpoints: List[AgentEndpoint]):
+    def update_endpoints(self, endpoints: list[AgentEndpoint]):
         """
         Update the list of endpoints.
 
         Args:
-            endpoints (List[AgentEndpoint]): List of endpoint dictionaries.
+            endpoints (list[AgentEndpoint]): list of endpoint dictionaries.
 
         """
         self._endpoints = endpoints
@@ -861,14 +851,14 @@ class Agent(Sink):
     def on_interval(
         self,
         period: float,
-        messages: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
+        messages: type[Model] | set[type[Model]] | None = None,
     ):
         """
         Decorator to register an interval handler for the provided period.
 
         Args:
             period (float): The interval period.
-            messages (Optional[Union[Type[Model], Set[Type[Model]]]]): Optional message types.
+            messages (type[Model] | set[type[Model]] | None): Optional message types.
 
         Returns:
             Callable: The decorator function for registering interval handlers.
@@ -879,15 +869,15 @@ class Agent(Sink):
 
     def on_query(
         self,
-        model: Type[Model],
-        replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
+        model: type[Model],
+        replies: type[Model] | set[type[Model]] | None = None,
     ):
         """
-        Set up a query event with a callback.
+        set up a query event with a callback.
 
         Args:
-            model (Type[Model]): The query model.
-            replies (Optional[Union[Model, Set[Model]]]): Optional reply models.
+            model (type[Model]): The query model.
+            replies (type[Model] | set[type[Model]] | None): Optional reply models.
 
         Returns:
             Callable: The decorator function for registering query handlers.
@@ -898,17 +888,17 @@ class Agent(Sink):
 
     def on_message(
         self,
-        model: Type[Model],
-        replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
-        allow_unverified: Optional[bool] = False,
+        model: type[Model],
+        replies: type[Model] | set[type[Model]] | None = None,
+        allow_unverified: bool = False,
     ):
         """
         Decorator to register an message handler for the provided message model.
 
         Args:
-            model (Type[Model]): The message model.
-            replies (Optional[Union[Type[Model], Set[Type[Model]]]]): Optional reply models.
-            allow_unverified (Optional[bool]): Allow unverified messages.
+            model (type[Model]): The message model.
+            replies (type[Model] | set[type[Model]] | None): Optional reply models.
+            allow_unverified (bool): Allow unverified messages.
 
         Returns:
             Callable: The decorator function for registering message handlers.
@@ -955,8 +945,8 @@ class Agent(Sink):
         self,
         method: RestMethod,
         endpoint: str,
-        request: Optional[Type[Model]],
-        response: Type[Model],
+        request: type[Model] | None,
+        response: type[Model],
     ):
         if self._init_done and self._server.has_rest_endpoint(method, endpoint):
             self._logger.warning(
@@ -979,11 +969,11 @@ class Agent(Sink):
 
         return decorator_on_rest
 
-    def on_rest_get(self, endpoint: str, response: Type[Model]):
+    def on_rest_get(self, endpoint: str, response: type[Model]):
         """Add a handler for a GET REST endpoint."""
         return self._on_rest("GET", endpoint, None, response)
 
-    def on_rest_post(self, endpoint: str, request: Type[Model], response: Type[Model]):
+    def on_rest_post(self, endpoint: str, request: type[Model], response: type[Model]):
         """Add a handler for a POST REST endpoint."""
         return self._on_rest("POST", endpoint, request, response)
 
@@ -1020,13 +1010,13 @@ class Agent(Sink):
             return lambda func: func
         return self._wallet_messaging_client.on_message()
 
-    def include(self, protocol: Protocol, publish_manifest: Optional[bool] = False):
+    def include(self, protocol: Protocol, publish_manifest: bool = False):
         """
         Include a protocol into the agent's capabilities.
 
         Args:
             protocol (Protocol): The protocol to include.
-            publish_manifest (Optional[bool]): Flag to publish the protocol's manifest.
+            publish_manifest (bool): Flag to publish the protocol's manifest.
 
         Raises:
             RuntimeError: If a duplicate model, signed message handler, or message handler
@@ -1065,12 +1055,12 @@ class Agent(Sink):
         if publish_manifest:
             self.publish_manifest(protocol.manifest())
 
-    def publish_manifest(self, manifest: Dict[str, Any]):
+    def publish_manifest(self, manifest: dict[str, Any]):
         """
         Publish a protocol manifest to the Almanac service.
 
         Args:
-            manifest (Dict[str, Any]): The protocol manifest.
+            manifest (dict[str, Any]): The protocol manifest.
 
         """
         try:
@@ -1104,8 +1094,8 @@ class Agent(Sink):
         await self._message_queue.put((schema_digest, sender, message, session))
 
     async def handle_rest(
-        self, method: RestMethod, endpoint: str, message: Optional[Model]
-    ) -> Optional[Union[Dict[str, Any], Model]]:
+        self, method: RestMethod, endpoint: str, message: Model | None
+    ) -> dict[str, Any] | Model | None:
         """
         Handle a REST request.
 
@@ -1235,7 +1225,7 @@ class Agent(Sink):
         """
         if self._enable_agent_inspector:
             inspector_url = f"{self._agentverse.url}/inspect/"
-            escaped_uri = requests.utils.quote(f"http://127.0.0.1:{self._port}")
+            escaped_uri = requests.utils.quote(f"http://127.0.0.1:{self._port}")  # type: ignore
             self._logger.info(
                 f"Agent inspector available at {inspector_url}"
                 f"?uri={escaped_uri}&address={self.address}"
@@ -1280,7 +1270,7 @@ class Agent(Sink):
 
     def get_message_protocol(
         self, message_schema_digest
-    ) -> Optional[Tuple[str, Protocol]]:
+    ) -> tuple[str, Protocol] | None:
         """
         Get the protocol for a given message schema digest.
 
@@ -1300,7 +1290,7 @@ class Agent(Sink):
             schema_digest, sender, message, session = await self._message_queue.get()
 
             # lookup the model definition
-            model_class: Optional[Type[Model]] = self._models.get(schema_digest)
+            model_class: type[Model] | None = self._models.get(schema_digest)
             if model_class is None:
                 self._logger.warning(
                     f"Received message with unrecognized schema digest: {schema_digest}"
@@ -1364,7 +1354,7 @@ class Agent(Sink):
                 continue
 
             # attempt to find the handler
-            handler: Optional[MessageCallback] = self._unsigned_message_handlers.get(
+            handler: MessageCallback | None = self._unsigned_message_handlers.get(
                 schema_digest
             )
             if handler is None:
@@ -1400,10 +1390,10 @@ class Bureau:
 
     Attributes:
         _loop (asyncio.AbstractEventLoop): The event loop.
-        _agents (List[Agent]): The list of agents to be managed by the bureau.
-        _endpoints (List[Dict[str, Any]]): The endpoint configuration for the bureau.
+        _agents (list[Agent]): The list of agents to be managed by the bureau.
+        _endpoints (list[dict[str, Any]]): The endpoint configuration for the bureau.
         _port (int): The port on which the bureau's server runs.
-        _queries (Dict[str, asyncio.Future]): Dictionary mapping query senders to their
+        _queries (dict[str, asyncio.Future]): dictionary mapping query senders to their
         response Futures.
         _logger (Logger): The logger instance.
         _server (ASGIServer): The ASGI server instance for handling requests.
@@ -1416,38 +1406,38 @@ class Bureau:
 
     def __init__(
         self,
-        agents: Optional[List[Agent]] = None,
-        port: Optional[int] = None,
-        endpoint: Optional[Union[str, List[str], Dict[str, dict]]] = None,
-        agentverse: Optional[Union[str, Dict[str, str]]] = None,
-        registration_policy: Optional[BatchRegistrationPolicy] = None,
-        ledger: Optional[LedgerClient] = None,
-        wallet: Optional[LocalWallet] = None,
-        seed: Optional[str] = None,
+        agents: list[Agent] | None = None,
+        port: int | None = None,
+        endpoint: str | list[str] | dict[str, dict] | None = None,
+        agentverse: str | dict[str, str] | None = None,
+        registration_policy: BatchRegistrationPolicy | None = None,
+        ledger: LedgerClient | None = None,
+        wallet: LocalWallet | None = None,
+        seed: str | None = None,
         network: AgentNetwork = "testnet",
-        loop: Optional[asyncio.AbstractEventLoop] = None,
-        log_level: Union[int, str] = logging.INFO,
+        loop: asyncio.AbstractEventLoop | None = None,
+        log_level: int | str = logging.INFO,
     ):
         """
         Initialize a Bureau instance.
 
         Args:
-            agents (Optional[List[Agent]]): The list of agents to be managed by the bureau.
-            port (Optional[int]): The port number for the server.
-            endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration.
-            agentverse (Optional[Union[str, Dict[str, str]]]): The agentverse configuration.
-            registration_policy (Optional[BatchRegistrationPolicy]): The registration policy.
-            ledger (Optional[LedgerClient]): The ledger for the bureau.
-            wallet (Optional[LocalWallet]): The wallet for the bureau (overrides 'seed').
-            seed (Optional[str]): The seed phrase for the wallet (overridden by 'wallet').
+            agents (list[Agent] | None): The list of agents to be managed by the bureau.
+            port (int | None): The port number for the server.
+            endpoint (str | list[str] | dict[str, dict] | None): The endpoint configuration.
+            agentverse (str | dict[str, str] | None): The agentverse configuration.
+            registration_policy (BatchRegistrationPolicy | None): The registration policy.
+            ledger (LedgerClient | None): The ledger for the bureau.
+            wallet (LocalWallet | None): The wallet for the bureau (overrides 'seed').
+            seed (str | None): The seed phrase for the wallet (overridden by 'wallet').
             network (Literal["mainnet", "testnet"]): The network to use for the agent.
-            loop (Optional[asyncio.AbstractEventLoop]): The event loop.
+            loop (asyncio.AbstractEventLoop | None): The event loop.
             log_level (Union[int, str]): The logging level for the bureau.
         """
         self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
-        self._agents: List[Agent] = []
+        self._agents: list[Agent] = []
         self._port = port or 8000
-        self._queries: Dict[str, asyncio.Future] = {}
+        self._queries: dict[str, asyncio.Future] = {}
         self._logger = get_logger("bureau", log_level)
         self._server = ASGIServer(
             port=self._port,
