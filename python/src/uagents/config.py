@@ -1,5 +1,4 @@
 import logging
-from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel
 
@@ -60,12 +59,12 @@ class AgentverseConfig(BaseModel):
 
 
 def parse_endpoint_config(
-    endpoint: Optional[Union[str, List[str], Dict[str, dict]]],
+    endpoint: str | list[str] | dict[str, dict] | None,
     agentverse: AgentverseConfig,
     mailbox: bool = False,
     proxy: bool = False,
-    logger: Optional[logging.Logger] = None,
-) -> List[AgentEndpoint]:
+    logger: logging.Logger | None = None,
+) -> list[AgentEndpoint]:
     """
     Parse the user-provided endpoint configuration.
 
@@ -115,7 +114,7 @@ def parse_endpoint_config(
 
 
 def parse_agentverse_config(
-    config: Optional[Union[str, Dict[str, str]]] = None,
+    config: str | dict[str, str] | None = None,
 ) -> AgentverseConfig:
     """
     Parse the user-provided agentverse configuration.

@@ -7,7 +7,7 @@ import logging
 import os
 import uuid
 from collections.abc import Callable
-from typing import Any
+from typing import Any, NoReturn
 
 import requests
 from cosmpy.aerial.client import LedgerClient
@@ -87,7 +87,7 @@ async def _run_interval(
     logger: logging.Logger,
     context_factory: ContextFactory,
     period: float,
-):
+) -> NoReturn:
     """
     Run the provided interval callback function at a specified period.
 
@@ -120,7 +120,7 @@ async def _send_error_message(ctx: Context, destination: str, msg: ErrorMessage)
         destination (str): The destination address to send the error message to.
         msg (ErrorMessage): The error message to send.
     """
-    await ctx.send(destination, msg)
+    await ctx.send(destination=destination, message=msg)
 
 
 class AgentRepresentation:
@@ -452,11 +452,11 @@ class Agent(Sink):
                     else None
                 )
                 return await register_in_agentverse(
-                    request,
-                    self._identity,
-                    self._prefix,
-                    self._agentverse,
-                    agent_details,
+                    request=request,
+                    identity=self._identity,
+                    prefix=self._prefix,
+                    agentverse=self._agentverse,
+                    agent_details=agent_details,
                 )
 
             @self.on_rest_post(
@@ -466,9 +466,9 @@ class Agent(Sink):
                 _ctx: Context, request: AgentverseDisconnectRequest
             ):
                 return await unregister_in_agentverse(
-                    request,
-                    self.address,
-                    self._agentverse,
+                    request=request,
+                    agent_address=self.address,
+                    agentverse=self._agentverse,
                 )
 
         self._enable_agent_inspector = enable_agent_inspector
@@ -551,10 +551,10 @@ class Agent(Sink):
                 from uagents.wallet_messaging import WalletMessagingClient
 
                 self._wallet_messaging_client = WalletMessagingClient(
-                    self._identity,
-                    self._wallet,
-                    wallet_chain_id,
-                    self._logger,
+                    identity=self._identity,
+                    wallet=self._wallet,
+                    chain_id=wallet_chain_id,
+                    logger=self._logger,
                 )
             except ModuleNotFoundError:
                 self._logger.exception(
@@ -675,7 +675,6 @@ class Agent(Sink):
         Returns:
             int: Bank balance.
         """
-
         return self.ledger.query_bank_balance(Address(self.wallet.address()))
 
     @property
@@ -723,7 +722,6 @@ class Agent(Sink):
 
         Returns:
             str: The signature of the data.
-
         """
         return self._identity.sign(data)
 
@@ -736,36 +734,8 @@ class Agent(Sink):
 
         Returns:
             str: The signature of the digest.
-
         """
         return self._identity.sign_digest(digest)
-
-    # TODO this is not used anywhere in the framework
-    def sign_registration(
-        self, timestamp: int, sender_wallet_address: str | None = None
-    ) -> str:
-        """
-        Sign the registration data for Almanac contract.
-
-        Args:
-            timestamp (int): The timestamp for the registration.
-            sender_wallet_address (str | None): The wallet address of the transaction sender.
-
-        Returns:
-            str: The signature of the registration data.
-
-        Raises:
-            AssertionError: If the Almanac contract is None.
-        """
-        sender_address = sender_wallet_address or str(self.wallet.address())
-
-        assert self._almanac_contract is not None
-
-        return self._identity.sign_registration(
-            str(self._almanac_contract.address),
-            timestamp,
-            sender_address,
-        )
 
     def update_endpoints(self, endpoints: list[AgentEndpoint]):
         """
@@ -773,7 +743,6 @@ class Agent(Sink):
 
         Args:
             endpoints (list[AgentEndpoint]): list of endpoint dictionaries.
-
         """
         self._endpoints = endpoints
 
@@ -783,9 +752,7 @@ class Agent(Sink):
 
         Args:
             loop: The event loop.
-
         """
-
         self._loop = loop
 
     def update_queries(self, queries):
@@ -794,9 +761,7 @@ class Agent(Sink):
 
         Args:
             queries: The queries attribute.
-
         """
-
         self._queries = queries
 
     def update_registration_policy(self, policy: AgentRegistrationPolicy):
@@ -805,9 +770,7 @@ class Agent(Sink):
 
         Args:
             policy: The registration policy.
-
         """
-
         self._registration_policy = policy
 
     async def register(self):
@@ -834,7 +797,6 @@ class Agent(Sink):
 
         This method registers with the Almanac contract and schedules the next
         registration.
-
         """
         while True:
             time_until_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
@@ -862,9 +824,7 @@ class Agent(Sink):
 
         Returns:
             Callable: The decorator function for registering interval handlers.
-
         """
-
         return self._protocol.on_interval(period, messages)
 
     def on_query(
@@ -881,9 +841,7 @@ class Agent(Sink):
 
         Returns:
             Callable: The decorator function for registering query handlers.
-
         """
-
         return self._protocol.on_query(model, replies)
 
     def on_message(
@@ -902,9 +860,7 @@ class Agent(Sink):
 
         Returns:
             Callable: The decorator function for registering message handlers.
-
         """
-
         return self._protocol.on_message(model, replies, allow_unverified)
 
     def on_event(self, event_type: str):
@@ -916,7 +872,6 @@ class Agent(Sink):
 
         Returns:
             Callable: The decorator function for registering event handlers.
-
         """
 
         def decorator_on_event(func: EventCallback) -> EventCallback:
@@ -928,7 +883,6 @@ class Agent(Sink):
 
             Returns:
                 EventCallback: The decorated event handler function.
-
             """
 
             @functools.wraps(func)
@@ -988,9 +942,7 @@ class Agent(Sink):
         Args:
             event_type (str): The type of event.
             func (EventCallback): The event handler function.
-
         """
-
         if event_type == "startup":
             self._on_startup.append(func)
         elif event_type == "shutdown":
@@ -999,10 +951,7 @@ class Agent(Sink):
     def on_wallet_message(
         self,
     ):
-        """
-        Add a handler for wallet messages.
-
-        """
+        """Add a handler for wallet messages."""
         if self._wallet_messaging_client is None:
             self._logger.warning(
                 "Discarding 'on_wallet_message' handler because wallet messaging is disabled"
@@ -1021,7 +970,6 @@ class Agent(Sink):
         Raises:
             RuntimeError: If a duplicate model, signed message handler, or message handler
             is encountered.
-
         """
         for func, period in protocol.intervals:
             self._interval_handlers.append((func, period))
@@ -1061,7 +1009,6 @@ class Agent(Sink):
 
         Args:
             manifest (dict[str, Any]): The protocol manifest.
-
         """
         try:
             response = requests.post(
@@ -1089,7 +1036,6 @@ class Agent(Sink):
             schema_digest (str): The digest of the message schema.
             message (JsonStr): The message content in JSON format.
             session (uuid.UUID): The session UUID.
-
         """
         await self._message_queue.put((schema_digest, sender, message, session))
 
@@ -1103,7 +1049,6 @@ class Agent(Sink):
             method (RestMethod): The REST method.
             endpoint (str): The REST endpoint.
             message (Model): The message content.
-
         """
         handler = self._rest_handlers.get((method, endpoint))
         if not handler:
@@ -1117,10 +1062,7 @@ class Agent(Sink):
         return await handler(*args)  # type: ignore
 
     async def _shutdown(self):
-        """
-        Perform shutdown actions.
-
-        """
+        """Perform shutdown actions."""
         try:
             status = AgentStatusUpdate(
                 agent_identifier=self.identifier, is_active=False
@@ -1155,10 +1097,7 @@ class Agent(Sink):
         )
 
     def start_registration_loop(self):
-        """
-        Start the registration loop.
-
-        """
+        """Start the registration loop."""
         if self._registration_policy:
             if self._endpoints:
                 self._loop.create_task(self._schedule_registration())
@@ -1168,17 +1107,11 @@ class Agent(Sink):
                 )
 
     def start_message_dispenser(self):
-        """
-        Start the message dispenser.
-
-        """
+        """Start the message dispenser."""
         self._loop.create_task(self._dispenser.run())
 
     async def run_startup_tasks(self):
-        """
-        Start startup tasks for the agent.
-
-        """
+        """Start startup tasks for the agent."""
         for handler in self._on_startup:
             try:
                 ctx = self._build_context()
@@ -1191,20 +1124,14 @@ class Agent(Sink):
                 self._logger.exception(f"Exception in startup handler: {ex}")
 
     def start_interval_tasks(self):
-        """
-        Start interval tasks for the agent.
-
-        """
+        """Start interval tasks for the agent."""
         for func, period in self._interval_handlers:
             self._loop.create_task(
                 _run_interval(func, self._logger, self._build_context, period)
             )
 
     def start_message_receivers(self):
-        """
-        Start message receiving tasks for the agent.
-
-        """
+        """Start message receiving tasks for the agent."""
         # start the background message queue processor
         self._loop.create_task(self._process_message_queue())
 
@@ -1219,10 +1146,7 @@ class Agent(Sink):
                 self._loop.create_task(task)
 
     async def start_server(self):
-        """
-        Start the agent's server.
-
-        """
+        """Start the agent's server."""
         if self._enable_agent_inspector:
             inspector_url = f"{self._agentverse.url}/inspect/"
             escaped_uri = requests.utils.quote(f"http://127.0.0.1:{self._port}")  # type: ignore
@@ -1233,10 +1157,7 @@ class Agent(Sink):
         await self._server.serve()
 
     async def run_async(self):
-        """
-        Create all tasks for the agent.
-
-        """
+        """Create all tasks for the agent."""
         self.setup()
 
         tasks = [self.start_server()]
@@ -1260,8 +1181,8 @@ class Agent(Sink):
     def run(self):
         """
         Run the agent by itself.
-        A fresh event loop is created for the agent and it is closed after the agent stops.
 
+        A fresh event loop is created for the agent and it is closed after the agent stops.
         """
         with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
             self._loop.run_until_complete(self.run_async())
@@ -1271,20 +1192,14 @@ class Agent(Sink):
     def get_message_protocol(
         self, message_schema_digest
     ) -> tuple[str, Protocol] | None:
-        """
-        Get the protocol for a given message schema digest.
-
-        """
+        """Get the protocol for a given message schema digest."""
         for protocol_digest, protocol in self.protocols.items():
             if message_schema_digest in protocol.models:
                 return (protocol_digest, protocol)
         return None
 
-    async def _process_message_queue(self):
-        """
-        Process the message queue.
-
-        """
+    async def _process_message_queue(self) -> NoReturn:
+        """Process the message queue."""
         while True:
             # get an element from the queue
             schema_digest, sender, message, session = await self._message_queue.get()
@@ -1401,7 +1316,6 @@ class Bureau:
         _use_mailbox (bool): A flag indicating whether mailbox functionality is enabled for any
         of the agents.
         _registration_policy (AgentRegistrationPolicy): The registration policy for the bureau.
-
     """
 
     def __init__(
@@ -1495,7 +1409,6 @@ class Bureau:
 
         Args:
             agent (Agent): The agent to be updated.
-
         """
         agent.update_loop(self._loop)
         agent.update_queries(self._queries)
@@ -1536,7 +1449,6 @@ class Bureau:
 
         Args:
             agent (Agent): The agent to be added.
-
         """
         if agent in self._agents:
             return
@@ -1544,10 +1456,7 @@ class Bureau:
         self._agents.append(agent)
 
     async def _schedule_registration(self):
-        """
-        Start the batch registration loop.
-
-        """
+        """Start the batch registration loop."""
         if not any(agent._endpoints for agent in self._agents):
             return
 
@@ -1564,10 +1473,7 @@ class Bureau:
             await asyncio.sleep(time_to_next_registration)
 
     async def run_async(self):
-        """
-        Run the agents managed by the bureau.
-
-        """
+        """Run the agents managed by the bureau."""
         tasks = [self._server.serve()]
         if not self._agents:
             self._logger.warning("No agents to run.")
@@ -1594,10 +1500,7 @@ class Bureau:
             await asyncio.gather(*tasks)
 
     def run(self):
-        """
-        Run the bureau.
-
-        """
+        """Run the bureau."""
         with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
             self._loop.run_until_complete(self.run_async())
         self._loop.stop()
