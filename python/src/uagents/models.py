@@ -1,5 +1,5 @@
 import hashlib
-from typing import Any, Dict, Type, Union
+from typing import Any
 
 from pydantic.v1 import BaseModel, Field  # noqa
 
@@ -13,7 +13,7 @@ class Model(BaseModel):
     def model_dump_json(self) -> str:
         return self.json()
 
-    def model_dump(self) -> Dict[str, Any]:
+    def model_dump(self) -> dict[str, Any]:
         return self.dict()
 
     @classmethod
@@ -21,11 +21,11 @@ class Model(BaseModel):
         return cls.parse_raw(obj)
 
     @classmethod
-    def model_validate(cls, obj: Union[Dict[str, Any], "Model"]) -> "Model":
+    def model_validate(cls, obj: dict[str, Any] | "Model") -> "Model":
         return cls.parse_obj(obj)
 
     @staticmethod
-    def build_schema_digest(model: Union["Model", Type["Model"]]) -> str:
+    def build_schema_digest(model: "Model" | type["Model"]) -> str:
         schema = model.schema_json(indent=None, sort_keys=True)
         digest = hashlib.sha256(schema.encode("utf8")).digest().hex()
 

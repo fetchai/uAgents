@@ -1,13 +1,13 @@
 import asyncio
-import uuid
 from abc import ABC, abstractmethod
 from asyncio import Future
-from typing import Any, Dict, Optional, Set, Tuple, Union
+from typing import Any
+from uuid import UUID
 
 from uagents.models import Model
 from uagents.types import JsonStr, RestMethod
 
-PendingResponseKey = Tuple[str, str, uuid.UUID]
+PendingResponseKey = tuple[str, str, UUID]
 
 
 class Sink(ABC):
@@ -17,15 +17,15 @@ class Sink(ABC):
 
     @abstractmethod
     async def handle_message(
-        self, sender: str, schema_digest: str, message: JsonStr, session: uuid.UUID
+        self, sender: str, schema_digest: str, message: JsonStr, session: UUID
     ):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     async def handle_rest(
-        self, method: RestMethod, endpoint: str, message: Optional[Model]
+        self, method: RestMethod, endpoint: str, message: Model | None
     ):
-        pass
+        raise NotImplementedError
 
 
 class Dispatcher:
@@ -34,35 +34,31 @@ class Dispatcher:
     """
 
     def __init__(self):
-        self._sinks: Dict[str, Set[Sink]] = {}
-        self._pending_responses: Dict[PendingResponseKey, Future[JsonStr]] = {}
+        self._sinks: dict[str, set[Sink]] = {}
+        self._pending_responses: dict[PendingResponseKey, Future[JsonStr]] = {}
 
     @property
-    def sinks(self) -> Dict[str, Set[Sink]]:
+    def sinks(self) -> dict[str, set[Sink]]:
         return self._sinks
 
     @property
-    def pending_responses(self) -> Dict[PendingResponseKey, Future[JsonStr]]:
+    def pending_responses(self) -> dict[PendingResponseKey, Future[JsonStr]]:
         return self._pending_responses
 
-    def register_pending_response(
-        self, sender: str, destination: str, session: uuid.UUID
-    ):
+    def register_pending_response(self, sender: str, destination: str, session: UUID):
         self._pending_responses[(sender, destination, session)] = (
             asyncio.get_event_loop().create_future()
         )
 
-    def cancel_pending_response(
-        self, sender: str, destination: str, session: uuid.UUID
-    ):
-        key = (sender, destination, session)
+    def cancel_pending_response(self, sender: str, destination: str, session: UUID):
+        key: tuple[str, str, UUID] = (sender, destination, session)
         if key in self._pending_responses:
             del self._pending_responses[key]
 
     async def wait_for_response(
-        self, sender: str, destination: str, session: uuid.UUID, timeout: float
-    ) -> Optional[JsonStr]:
-        key = (sender, destination, session)
+        self, sender: str, destination: str, session: UUID, timeout: float
+    ) -> JsonStr | None:
+        key: tuple[str, str, UUID] = (sender, destination, session)
         try:
             response = await asyncio.wait_for(self._pending_responses[key], timeout)
         except asyncio.TimeoutError:
@@ -71,7 +67,7 @@ class Dispatcher:
         return response
 
     def dispatch_pending_response(
-        self, sender: str, destination: str, session: uuid.UUID, message: JsonStr
+        self, sender: str, destination: str, session: UUID, message: JsonStr
     ) -> bool:
         key = (destination, sender, session)
         if key in self._pending_responses:
@@ -101,7 +97,7 @@ class Dispatcher:
         destination: str,
         schema_digest: str,
         message: JsonStr,
-        session: uuid.UUID,
+        session: UUID,
     ) -> None:
         if self.dispatch_pending_response(sender, destination, session, message):
             return
@@ -113,8 +109,8 @@ class Dispatcher:
         destination: str,
         method: RestMethod,
         endpoint: str,
-        message: Optional[Model],
-    ) -> Optional[Union[Dict[str, Any], Model]]:
+        message: Model | None,
+    ) -> dict[str, Any] | Model | None:
         for handler in self._sinks.get(destination, set()):
             return await handler.handle_rest(method, endpoint, message)
 
