@@ -35,7 +35,7 @@ from uagents.config import (
     DEFAULT_SEARCH_LIMIT,
 )
 from uagents.dispatch import dispatcher
-from uagents.envelope import Envelope
+from uagents.envelope import Envelope, EnvelopeHistory, EnvelopeHistoryEntry
 from uagents.models import ErrorMessage, Model
 from uagents.resolver import Resolver, parse_identifier
 from uagents.storage import KeyValueStore
@@ -67,6 +67,7 @@ class Context(ABC):
             using a specific protocol digest.
         broadcast(destination_protocol, message, limit, timeout): Broadcast a message
             to agents with a specific protocol.
+        session_history: Get the message history associated with the context session.
         send(destination, message, timeout): Send a message to a destination.
         send_raw(destination, json_message, schema_digest, message_type, timeout):
             Send a message with the provided schema digest to a destination.
@@ -171,6 +172,16 @@ class Context(ABC):
 
         Returns:
             List[MsgStatus]: A list of message delivery statuses.
+        """
+        pass
+
+    @abstractmethod
+    def session_history(self) -> Optional[List[EnvelopeHistoryEntry]]:
+        """
+        Get the message history associated with the context session.
+
+        Returns:
+            Optional[List[EnvelopeHistoryEntry]]: The message history.
         """
         pass
 
@@ -285,6 +296,7 @@ class InternalContext(Context):
         session: Optional[uuid.UUID] = None,
         interval_messages: Optional[Set[str]] = None,
         wallet_messaging_client: Optional[Any] = None,
+        message_history: Optional[EnvelopeHistory] = None,
         logger: Optional[logging.Logger] = None,
     ):
         self._agent = agent
@@ -297,6 +309,7 @@ class InternalContext(Context):
         self._interval_messages = interval_messages
         self._wallet_messaging_client = wallet_messaging_client
         self._outbound_messages: Dict[str, Tuple[JsonStr, str]] = {}
+        self._message_history = message_history
 
     @property
     def agent(self) -> AgentRepresentation:
@@ -346,6 +359,18 @@ class InternalContext(Context):
             str: The agent address.
         """
         return self.agent.address
+
+    def session_history(self) -> Optional[List[EnvelopeHistoryEntry]]:
+        """
+        Get the message history associated with the context session.
+
+        Returns:
+            Optional[List[EnvelopeHistoryEntry]]: The session history.
+        """
+        if self._message_history is None:
+            log(self.logger, logging.ERROR, "No session history available")
+            return None
+        return self._message_history.get_session_messages(self._session)
 
     def get_agents_by_protocol(
         self,
@@ -467,6 +492,7 @@ class InternalContext(Context):
         # Extract address from destination agent identifier if present
         _, parsed_name, parsed_address = parse_identifier(destination)
 
+        result = None
         if parsed_address:
             if sync or wait_for_response:
                 dispatcher.register_pending_response(
@@ -474,7 +500,7 @@ class InternalContext(Context):
                 )
             # Handle local dispatch of messages
             if dispatcher.contains(parsed_address):
-                return await dispatch_local_message(
+                result = await dispatch_local_message(
                     self.agent.address,
                     parsed_address,
                     message_schema_digest,
@@ -483,12 +509,12 @@ class InternalContext(Context):
                 )
 
             # Handle sync dispatch of messages
-            if queries and parsed_address in queries:
+            elif queries and parsed_address in queries:
                 queries[parsed_address].set_result(
                     (message_body, message_schema_digest)
                 )
                 del queries[parsed_address]
-                return MsgStatus(
+                result = MsgStatus(
                     status=DeliveryStatus.DELIVERED,
                     detail="Sync message resolved",
                     destination=parsed_address,
@@ -501,54 +527,72 @@ class InternalContext(Context):
                 message_schema_digest,
             )
 
-        # Resolve destination using the resolver
-        destination_address, endpoints = await self._resolver.resolve(destination)
+        if result is None:
+            # Resolve destination using the resolver
+            destination_address, endpoints = await self._resolver.resolve(destination)
 
-        if not endpoints or not destination_address:
-            log(
-                self.logger,
-                logging.ERROR,
-                f"Unable to resolve destination endpoint for agent: {destination}",
-            )
-            return MsgStatus(
-                status=DeliveryStatus.FAILED,
-                detail="Unable to resolve destination endpoint",
-                destination=destination,
-                endpoint="",
-                session=self._session,
-            )
+            if not endpoints or not destination_address:
+                log(
+                    self.logger,
+                    logging.ERROR,
+                    f"Unable to resolve destination endpoint for agent: {destination}",
+                )
+                result = MsgStatus(
+                    status=DeliveryStatus.FAILED,
+                    detail="Unable to resolve destination endpoint",
+                    destination=destination,
+                    endpoint="",
+                    session=self._session,
+                )
+            else:
+                # Calculate when the envelope expires
+                expires = int(time()) + timeout
 
-        # Calculate when the envelope expires
-        expires = int(time()) + timeout
+                # Handle external dispatch of messages
+                env = Envelope(
+                    version=1,
+                    sender=self.agent.address,
+                    target=destination_address,
+                    session=self._session,
+                    schema_digest=message_schema_digest,
+                    protocol_digest=protocol_digest,
+                    expires=expires,
+                )
+                env.encode_payload(message_body)
+                env.sign(self.agent.sign_digest)
 
-        # Handle external dispatch of messages
-        env = Envelope(
-            version=1,
-            sender=self.agent.address,
-            target=destination_address,
-            session=self._session,
-            schema_digest=message_schema_digest,
-            protocol_digest=protocol_digest,
-            expires=expires,
-        )
-        env.encode_payload(message_body)
-        env.sign(self.agent.sign_digest)
+                # Create awaitable future for MsgStatus and sync response
+                fut = asyncio.Future()
 
-        # Create awaitable future for MsgStatus and sync response
-        fut = asyncio.Future()
+                self._queue_envelope(env, endpoints, fut, sync)
 
-        self._queue_envelope(env, endpoints, fut, sync)
+                try:
+                    result = await asyncio.wait_for(fut, timeout)
+                except asyncio.TimeoutError:
+                    log(
+                        self.logger,
+                        logging.ERROR,
+                        "Timeout waiting for dispense response",
+                    )
+                    result = MsgStatus(
+                        status=DeliveryStatus.FAILED,
+                        detail="Timeout waiting for response",
+                        destination=destination,
+                        endpoint="",
+                        session=self._session,
+                    )
 
-        try:
-            result = await asyncio.wait_for(fut, timeout)
-        except asyncio.TimeoutError:
-            log(self.logger, logging.ERROR, "Timeout waiting for dispense response")
-            return MsgStatus(
-                status=DeliveryStatus.FAILED,
-                detail="Timeout waiting for response",
-                destination=destination,
-                endpoint="",
-                session=self._session,
+        if result.status == DeliveryStatus.DELIVERED and self._message_history:
+            self._message_history.add_entry(
+                EnvelopeHistoryEntry(
+                    version=1,
+                    sender=self.agent.address,
+                    target=destination,
+                    session=self._session,
+                    schema_digest=message_schema_digest,
+                    protocol_digest=protocol_digest,
+                    payload=message_body,
+                )
             )
 
         return result
