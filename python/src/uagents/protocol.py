@@ -80,7 +80,6 @@ class Protocol:
         self._version = version or "0.1.0"
         self._canonical_name = f"{self._name}:{self._version}"
         self._digest = ""
-        self._interactions: Optional[Dict[Type[Model], Set[Type[Model]]]] = None
         self._role: Optional[str] = None
         self._locked = False
 
@@ -202,15 +201,15 @@ class Protocol:
             if role not in spec.roles:
                 raise ValueError(f"Role '{role}' not found in protocol roles")
             self._role = role
-            self._interactions = {
+            interactions = {
                 model: replies
                 for model, replies in spec.interactions.items()
                 if model in spec.roles[role]
             }
         else:
-            self._interactions = spec.interactions
+            interactions = spec.interactions
 
-        for model, replies in self._interactions.items():
+        for model, replies in interactions.items():
             self._add_interaction(model, replies)
 
         self._locked = True
@@ -435,7 +434,7 @@ class Protocol:
         Returns:
             bool: True if the protocol implements the role, False otherwise.
         """
-        if self._interactions is None:
+        if not self._locked:
             # No specification to verify against
             return True
 
