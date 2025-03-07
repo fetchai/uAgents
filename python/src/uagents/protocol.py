@@ -4,7 +4,7 @@ import copy
 import functools
 import hashlib
 import json
-from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
+from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple, Type, Union
 
 from pydantic import BaseModel, ValidationInfo, field_validator
 
@@ -22,7 +22,10 @@ class ProtocolSpecification(BaseModel):
 
     interactions: Dict[Type[Model], Set[Type[Model]]]
     roles: Optional[Dict[str, Set[Type[Model]]]] = None
-    version: Optional[str] = "1.0"
+    name: Optional[str] = ""
+    version: Optional[str] = "0.1.0"
+
+    SPEC_VERSION: ClassVar = "1.0"
 
     @field_validator("roles")
     @classmethod
@@ -76,15 +79,16 @@ class Protocol:
         self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
         self._models: Dict[str, Type[Model]] = {}
         self._replies: Dict[str, Dict[str, Type[Model]]] = {}
-        self._name = name or ""
-        self._version = version or "0.1.0"
-        self._canonical_name = f"{self._name}:{self._version}"
         self._digest = ""
         self._role: Optional[str] = None
         self._locked = False
 
         if spec:
-            self._init_from_spec(spec, role)
+            self._init_from_spec(spec, role, name, version)
+        else:
+            self._spec = ProtocolSpecification(
+                name=name, version=version, interactions={}
+            )
 
     @property
     def intervals(self):
@@ -155,7 +159,7 @@ class Protocol:
         Returns:
             str: The protocol name.
         """
-        return self._name
+        return self._spec.name
 
     @property
     def version(self):
@@ -165,7 +169,7 @@ class Protocol:
         Returns:
             str: The protocol version.
         """
-        return self._version
+        return self._spec.version
 
     @property
     def canonical_name(self):
@@ -175,7 +179,7 @@ class Protocol:
         Returns:
             str: The canonical name of the protocol.
         """
-        return self._canonical_name
+        return f"{self.name}:{self.version}"
 
     @property
     def digest(self):
@@ -187,7 +191,23 @@ class Protocol:
         """
         return self.manifest()["metadata"]["digest"]
 
-    def _init_from_spec(self, spec: ProtocolSpecification, role: Optional[str] = None):
+    @property
+    def spec(self):
+        """
+        Property to access the protocol specification.
+
+        Returns:
+            ProtocolSpecification: The protocol specification.
+        """
+        return self._spec
+
+    def _init_from_spec(
+        self,
+        spec: ProtocolSpecification,
+        role: Optional[str],
+        name: Optional[str],
+        version: Optional[str],
+    ):
         """
         Initialize the protocol interactions from a specification.
 
@@ -195,6 +215,19 @@ class Protocol:
             spec (ProtocolSpecification): The protocol specification.
             role (Optional[str], optional): The role that the protocol will implement.
         """
+
+        if name and spec.name and name != spec.name:
+            logger.warning(
+                f"Protocol specification name '{spec.name}' overrides given protocol name '{name}'"
+            )
+        if version and spec.version and version != spec.version:
+            logger.warning(
+                f"Protocol specification version '{spec.version}' "
+                f"overrides given protocol version '{version}'"
+            )
+        spec.name = spec.name or name or ""
+        spec.version = spec.version or version or "0.1.0"
+
         if spec.roles:
             if role is None:
                 raise ValueError("Role must be specified for a protocol with roles")
@@ -212,6 +245,7 @@ class Protocol:
         for model, replies in interactions.items():
             self._add_interaction(model, replies)
 
+        self._spec = spec
         self._locked = True
 
     def _add_interaction(
@@ -323,11 +357,19 @@ class Protocol:
         Returns:
             Callable: The decorator to register the message handler.
         """
-        if self._locked and model not in self._models.values():
-            raise ValueError(
-                f"Cannot add interaction '{model.__name__}' "
-                f"to locked protocol {self.canonical_name}"
-            )
+        if self._locked:
+            if model not in self._models.values():
+                raise ValueError(
+                    f"Cannot add interaction '{model.__name__}' "
+                    f"to locked protocol {self.canonical_name}"
+                )
+            model_digest = Model.build_schema_digest(model)
+            if replies is not None and replies != self._replies.get(model_digest):
+                raise ValueError(
+                    f"Specified replies for '{model.__name__}' ({replies}) "
+                    f"do not match the replies defined in the protocol specification "
+                    f"for {self.canonical_name}: {self._replies.get(model_digest)}"
+                )
 
         def decorator_on_message(func: MessageCallback):
             @functools.wraps(func)
@@ -368,6 +410,8 @@ class Protocol:
         if replies is not None:
             if not isinstance(replies, set):
                 replies = {replies}
+            if not self._locked:
+                self._spec.interactions[model] = replies
             self._replies[model_digest] = {
                 Model.build_schema_digest(reply): reply for reply in replies
             }
@@ -381,8 +425,8 @@ class Protocol:
             Dict[str, Any]: The protocol's manifest.
         """
         metadata = {
-            "name": self._name,
-            "version": self._version,
+            "name": self.name,
+            "version": self.version,
         }
 
         manifest = {
