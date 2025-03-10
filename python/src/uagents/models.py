@@ -1,5 +1,5 @@
 import hashlib
-from typing import Any
+from typing import Any, Self
 
 from pydantic.v1 import BaseModel, Field  # noqa
 
@@ -17,15 +17,15 @@ class Model(BaseModel):
         return self.dict()
 
     @classmethod
-    def model_validate_json(cls, obj: Any) -> "Model":
+    def model_validate_json(cls, obj: Any) -> Self:
         return cls.parse_raw(obj)
 
     @classmethod
-    def model_validate(cls, obj: dict[str, Any] | "Model") -> "Model":
+    def model_validate(cls, obj: dict[str, Any] | Self) -> Self:
         return cls.parse_obj(obj)
 
     @staticmethod
-    def build_schema_digest(model: "Model" | type["Model"]) -> str:
+    def build_schema_digest(model: BaseModel | type[BaseModel]) -> str:
         schema = model.schema_json(indent=None, sort_keys=True)
         digest = hashlib.sha256(schema.encode("utf8")).digest().hex()
 
