@@ -1,7 +1,5 @@
 """Query Envelopes."""
 
-from typing import Optional, Union
-
 from uagents.communication import MsgStatus, send_sync_message
 from uagents.crypto import generate_user_address
 from uagents.envelope import Envelope
@@ -12,9 +10,9 @@ from uagents.resolver import Resolver
 async def query(
     destination: str,
     message: Model,
-    resolver: Optional[Resolver] = None,
+    resolver: Resolver | None = None,
     timeout: int = 30,
-) -> Union[MsgStatus, Envelope]:
+) -> MsgStatus | Envelope:
     """
     Query a remote agent with a message and retrieve the response envelope.
 
