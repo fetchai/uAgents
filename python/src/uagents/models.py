@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import hashlib
 from typing import Any
 
@@ -26,7 +28,7 @@ class Model(BaseModel):
         return cls.parse_obj(obj)
 
     @staticmethod
-    def build_schema_digest(model: BaseModel | type[BaseModel]) -> str:
+    def build_schema_digest(model) -> str:
         schema = model.schema_json(indent=None, sort_keys=True)
         digest = hashlib.sha256(schema.encode("utf8")).digest().hex()
 
