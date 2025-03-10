@@ -19,12 +19,12 @@ async def query(
     Args:
         destination (str): The destination address of the remote agent.
         message (Model): The message to send.
-        resolver (Optional[Resolver], optional): The resolver to use for endpoint resolution.
+        resolver (Resolver | None): The resolver to use for endpoint resolution.
         Defaults to GlobalResolver.
         timeout (int): The timeout for the query in seconds. Defaults to 30.
 
     Returns:
-        Union[MsgStatus, Envelope]: The response envelope if successful, otherwise MsgStatus.
+        MsgStatus | Envelope: The response envelope if successful, otherwise MsgStatus.
     """
     response = await send_sync_message(
         destination=destination,

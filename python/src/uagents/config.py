@@ -69,14 +69,14 @@ def parse_endpoint_config(
     Parse the user-provided endpoint configuration.
 
     Args:
-        endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration.
+        endpoint (str | list[str] | dict[str, dict] | None): The endpoint configuration.
         agentverse (AgentverseConfig): The agentverse configuration.
         mailbox (bool): Whether to use the mailbox endpoint.
         proxy (bool): Whether to use the proxy endpoint.
-        logger (Optional[logging.Logger]): The logger to use.
+        logger (logging.Logger | None): The logger to use.
 
     Returns:
-        Optional[List[AgentEndpoint]: The parsed endpoint configuration.
+        [List[AgentEndpoint]: The parsed endpoint configuration.
     """
 
     logger = logger or get_logger("config")

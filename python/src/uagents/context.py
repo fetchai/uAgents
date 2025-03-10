@@ -638,7 +638,7 @@ class ExternalContext(InternalContext):
     Represents the reactive context in which messages are handled and processed.
 
     Attributes:
-        _message_received (Optional[MsgDigest]): The message digest received.
+        _message_received (MsgDigest | None): The message digest received.
         _queries (dict[str, asyncio.Future] | None): dictionary mapping query senders to their
             response Futures.
         _replies (dict[str, dict[str, type[Model]]] | None): Dictionary of allowed reply digests
@@ -662,9 +662,9 @@ class ExternalContext(InternalContext):
             message_received (MsgDigest): The optional message digest received.
             queries (dict[str, asyncio.Future]): Dictionary mapping query senders to their
                 response Futures.
-            replies (Optional[dict[str, dict[str, type[Model]]]]): Dictionary of allowed replies
+            replies (dict[str, dict[str, type[Model]]] | None): Dictionary of allowed replies
                 for each type of incoming message.
-            protocol (Optional[tuple[str, Protocol]]): The optional tuple of protocols.
+            protocol (tuple[str, Protocol] | None): The optional tuple of protocols.
         """
         super().__init__(**kwargs)
         self._queries = queries or {}

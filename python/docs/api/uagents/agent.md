@@ -221,7 +221,7 @@ Initialize an Agent instance.
 - `version` _str | None_ - The version of the agent.
 - `network` _Literal["mainnet", "testnet"]_ - The network to use for the agent.
 - `loop` _asyncio.AbstractEventLoop | None_ - The asyncio event loop to use.
-- `log_level` _Union[int, str]_ - The logging level for the agent.
+- `log_level` _int | str_ - The logging level for the agent.
 - `enable_agent_inspector` _bool_ - Enable the agent inspector for debugging.
 - `metadata` _dict[str, Any] | None_ - Optional metadata to include in the agent object.
 - `readme_path` _str | None_ - The path to the agent's README file.
@@ -410,7 +410,7 @@ set the agentverse configuration for the agent.
 
 **Arguments**:
 
-- `config` _Union[str, dict[str, str]]_ - The new agentverse configuration.
+- `config` _str | dict[str, str]_ - The new agentverse configuration.
 
 
 
@@ -835,7 +835,7 @@ Initialize a Bureau instance.
 - `seed` _str | None_ - The seed phrase for the wallet (overridden by 'wallet').
 - `network` _Literal["mainnet", "testnet"]_ - The network to use for the agent.
 - `loop` _asyncio.AbstractEventLoop | None_ - The event loop.
-- `log_level` _Union[int, str]_ - The logging level for the bureau.
+- `log_level` _int | str_ - The logging level for the bureau.
 
 
 

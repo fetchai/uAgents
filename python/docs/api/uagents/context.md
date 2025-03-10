@@ -362,7 +362,7 @@ Represents the reactive context in which messages are handled and processed.
 
 **Attributes**:
 
-- `_message_received` _Optional[MsgDigest]_ - The message digest received.
+- `_message_received` _MsgDigest | None_ - The message digest received.
 - `_queries` _dict[str, asyncio.Future] | None_ - dictionary mapping query senders to their
   response Futures.
 - `_replies` _dict[str, dict[str, type[Model]]] | None_ - Dictionary of allowed reply digests
@@ -388,9 +388,9 @@ Initialize the ExternalContext instance and attributes needed from the InternalC
 - `message_received` _MsgDigest_ - The optional message digest received.
 - `queries` _dict[str, asyncio.Future]_ - Dictionary mapping query senders to their
   response Futures.
-- `replies` _Optional[dict[str, dict[str, type[Model]]]]_ - Dictionary of allowed replies
+- `replies` _dict[str, dict[str, type[Model]]] | None_ - Dictionary of allowed replies
   for each type of incoming message.
-- `protocol` _Optional[tuple[str, Protocol]]_ - The optional tuple of protocols.
+- `protocol` _tuple[str, Protocol] | None_ - The optional tuple of protocols.
 
 
 

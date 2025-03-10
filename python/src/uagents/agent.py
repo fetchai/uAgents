@@ -311,7 +311,7 @@ class Agent(Sink):
             version (str | None): The version of the agent.
             network (Literal["mainnet", "testnet"]): The network to use for the agent.
             loop (asyncio.AbstractEventLoop | None): The asyncio event loop to use.
-            log_level (Union[int, str]): The logging level for the agent.
+            log_level (int | str): The logging level for the agent.
             enable_agent_inspector (bool): Enable the agent inspector for debugging.
             metadata (dict[str, Any] | None): Optional metadata to include in the agent object.
             readme_path (str | None): The path to the agent's README file.
@@ -709,7 +709,7 @@ class Agent(Sink):
         set the agentverse configuration for the agent.
 
         Args:
-            config (Union[str, dict[str, str]]): The new agentverse configuration.
+            config (str | dict[str, str]): The new agentverse configuration.
         """
         self._agentverse = parse_agentverse_config(config)
 
@@ -1351,7 +1351,7 @@ class Bureau:
             seed (str | None): The seed phrase for the wallet (overridden by 'wallet').
             network (Literal["mainnet", "testnet"]): The network to use for the agent.
             loop (asyncio.AbstractEventLoop | None): The event loop.
-            log_level (Union[int, str]): The logging level for the bureau.
+            log_level (int | str): The logging level for the bureau.
         """
         self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
         self._agents: list[Agent] = []
