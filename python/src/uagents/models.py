@@ -1,7 +1,8 @@
 import hashlib
-from typing import Any, Self
+from typing import Any
 
 from pydantic.v1 import BaseModel, Field  # noqa
+from typing_extensions import Self
 
 
 # reverting back to pydantic v1 BaseModel for backwards compatibility
