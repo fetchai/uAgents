@@ -92,7 +92,7 @@ def parse_prefix(prefix: str) -> AgentNetwork:
     Returns:
         AgentNetwork: The corresponding network.
     """
-    if prefix == TESTNET_PREFIX:
+    if prefix in (TESTNET_PREFIX, ""):
         return "testnet"
     if prefix == MAINNET_PREFIX:
         return "mainnet"
