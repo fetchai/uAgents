@@ -8,7 +8,6 @@ import os
 import uuid
 from typing import (
     Any,
-    Callable,
     Dict,
     List,
     Optional,
@@ -23,6 +22,9 @@ from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
 from pydantic import ValidationError
+from uagents_core.crypto import Identity, derive_key_from_seed, is_user_address
+from uagents_core.envelope import EnvelopeHistory, EnvelopeHistoryEntry
+from uagents_core.models import ErrorMessage, Model
 
 from uagents.asgi import ASGIServer
 from uagents.communication import Dispenser
@@ -38,9 +40,10 @@ from uagents.config import (
     parse_endpoint_config,
 )
 from uagents.context import Context, ContextFactory, ExternalContext, InternalContext
-from uagents.crypto import Identity, derive_key_from_seed, is_user_address
+from uagents.crypto import (
+    sign_registration,
+)
 from uagents.dispatch import Sink, dispatcher
-from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
 from uagents.mailbox import (
     AgentUpdates,
     AgentverseConnectRequest,
@@ -52,7 +55,6 @@ from uagents.mailbox import (
     register_in_agentverse,
     unregister_in_agentverse,
 )
-from uagents.models import ErrorMessage, Model
 from uagents.network import (
     InsufficientFundsError,
     get_almanac_contract,
@@ -139,7 +141,7 @@ class AgentRepresentation:
     Attributes:
         _address (str): The address of the agent.
         _name (Optional[str]): The name of the agent.
-        _signing_callback (Callable): The callback for signing messages.
+        _identity (Identity): The identity of the agent.
 
     Properties:
         name (str): The name of the agent.
@@ -154,7 +156,7 @@ class AgentRepresentation:
         self,
         address: str,
         name: Optional[str],
-        signing_callback: Callable,
+        identity: Identity,
     ):
         """
         Initialize the AgentRepresentation instance.
@@ -162,11 +164,11 @@ class AgentRepresentation:
         Args:
             address (str): The address of the context.
             name (Optional[str]): The optional name associated with the context.
-            signing_callback (Callable): The callback for signing messages.
+            identity (Identity): The identity of the agent.
         """
         self._address = address
         self._name = name
-        self._signing_callback = signing_callback
+        self._identity = identity
 
     @property
     def name(self) -> str:
@@ -200,17 +202,15 @@ class AgentRepresentation:
         """
         return TESTNET_PREFIX + "://" + self._address
 
-    def sign_digest(self, data: bytes) -> str:
+    @property
+    def identity(self) -> Identity:
         """
-        Sign the provided data with the callback of the agent's identity.
-
-        Args:
-            data (bytes): The data to sign.
+        Get the identity of the agent.
 
         Returns:
-            str: The signature of the data.
+            Identity: The identity of the agent.
         """
-        return self._signing_callback(data)
+        return self._identity
 
 
 class Agent(Sink):
@@ -494,7 +494,7 @@ class Agent(Sink):
             agent=AgentRepresentation(
                 address=self.address,
                 name=self._name,
-                signing_callback=self._identity.sign_digest,
+                identity=self._identity,
             ),
             storage=self._storage,
             ledger=self._ledger,
@@ -771,7 +771,8 @@ class Agent(Sink):
 
         assert self._almanac_contract is not None
 
-        return self._identity.sign_registration(
+        return sign_registration(
+            self._identity,
             str(self._almanac_contract.address),
             timestamp,
             sender_address,
@@ -1332,7 +1333,7 @@ class Agent(Sink):
                 agent=AgentRepresentation(
                     address=self.address,
                     name=self._name,
-                    signing_callback=self._identity.sign_digest,
+                    identity=self._identity,
                 ),
                 storage=self._storage,
                 ledger=self._ledger,

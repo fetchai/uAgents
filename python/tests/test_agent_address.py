@@ -1,9 +1,11 @@
 import unittest
 
+from uagents_core.communication import is_valid_address
+
 from uagents import Agent
 from uagents.config import AGENT_ADDRESS_LENGTH
 from uagents.crypto import Identity
-from uagents.resolver import is_valid_address, is_valid_prefix, parse_identifier
+from uagents.resolver import is_valid_prefix, parse_identifier
 
 
 class TestAgentAdress(unittest.TestCase):

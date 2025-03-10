@@ -4,7 +4,8 @@ from abc import ABC, abstractmethod
 from asyncio import Future
 from typing import Any, Dict, Optional, Set, Tuple, Union
 
-from uagents.models import Model
+from uagents_core.models import Model
+
 from uagents.types import JsonStr, RestMethod
 
 PendingResponseKey = Tuple[str, str, uuid.UUID]

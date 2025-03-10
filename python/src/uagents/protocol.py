@@ -7,9 +7,9 @@ import json
 from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple, Type, Union
 
 from pydantic import BaseModel, ValidationInfo, field_validator
+from uagents_core.models import Model
 
 from uagents.config import get_logger
-from uagents.models import Model
 from uagents.types import IntervalCallback, MessageCallback
 
 logger = get_logger("protocol")

@@ -28,7 +28,7 @@ from uagents.config import (
     TESTNET_CONTRACT_ALMANAC,
     TESTNET_CONTRACT_NAME_SERVICE,
 )
-from uagents.crypto import Identity
+from uagents.crypto import Identity, sign_registration
 from uagents.types import AgentEndpoint, AgentInfo, AgentNetwork
 from uagents.utils import get_logger
 
@@ -79,8 +79,8 @@ class AlmanacContractRecord(AgentInfo):
 
     def sign(self, identity: Identity):
         self.timestamp = int(time.time()) - ALMANAC_REGISTRATION_WAIT
-        self.signature = identity.sign_registration(
-            self.contract_address, self.timestamp, self.sender_address
+        self.signature = sign_registration(
+            identity, self.contract_address, self.timestamp, self.sender_address
         )
 
 

@@ -1,9 +1,9 @@
 import logging
 from typing import Dict, List, Optional, Union
 
-from pydantic import BaseModel
+from uagents_core.config import AgentverseConfig
+from uagents_core.types import AgentEndpoint
 
-from uagents.types import AgentEndpoint
 from uagents.utils import get_logger
 
 AGENT_PREFIX = "agent"
@@ -48,15 +48,6 @@ RESPONSE_TIME_HINT_SECONDS = 5
 DEFAULT_ENVELOPE_TIMEOUT_SECONDS = 30
 DEFAULT_MAX_ENDPOINTS = 10
 DEFAULT_SEARCH_LIMIT = 100
-
-
-class AgentverseConfig(BaseModel):
-    base_url: str = AGENTVERSE_BASE_URL
-    http_prefix: str = "https"
-
-    @property
-    def url(self) -> str:
-        return f"{self.http_prefix}://{self.base_url}"
 
 
 def parse_endpoint_config(

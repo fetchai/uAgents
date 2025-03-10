@@ -5,11 +5,13 @@ import unittest
 import uuid
 from unittest.mock import AsyncMock, call, patch
 
+from uagents_core.crypto import generate_user_address
+from uagents_core.envelope import Envelope
+
 from uagents import Agent, Model
 from uagents.communication import enclose_response
 from uagents.config import RESPONSE_TIME_HINT_SECONDS
-from uagents.crypto import Identity, generate_user_address
-from uagents.envelope import Envelope
+from uagents.crypto import Identity
 
 
 class Message(Model):
@@ -40,7 +42,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             schema_digest=Model.build_schema_digest(message),
         )
         env.encode_payload(message.model_dump_json())
-        env.sign(self.bob._identity.sign_digest)
+        env.sign(self.bob._identity)
 
         mock_send = AsyncMock()
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
@@ -171,7 +173,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             schema_digest=Model.build_schema_digest(message),
         )
         env.encode_payload(message.model_dump_json())
-        env.sign(self.bob._identity.sign_digest)
+        env.sign(self.bob._identity)
         mock_send = AsyncMock()
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
             mock_receive.return_value = env.model_dump_json().encode()
@@ -227,7 +229,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             schema_digest=Model.build_schema_digest(message),
         )
         env.encode_payload(message.model_dump_json())
-        env.sign(self.bob._identity.sign_digest)
+        env.sign(self.bob._identity)
 
         mock_send = AsyncMock()
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
@@ -270,7 +272,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             schema_digest=Model.build_schema_digest(message),
         )
         env.encode_payload(message.model_dump_json())
-        env.sign(self.bob._identity.sign_digest)
+        env.sign(self.bob._identity)
 
         mock_send = AsyncMock()
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
@@ -388,7 +390,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             schema_digest=Model.build_schema_digest(message),
         )
         env.encode_payload(message.model_dump_json())
-        env.sign(self.agent._identity.sign_digest)
+        env.sign(self.agent._identity)
 
         mock_send = AsyncMock()
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
@@ -431,7 +433,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             schema_digest=Model.build_schema_digest(message),
         )
         env.encode_payload(message.model_dump_json())
-        env.sign(self.bob._identity.sign_digest)
+        env.sign(self.bob._identity)
 
         mock_send = AsyncMock()
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
