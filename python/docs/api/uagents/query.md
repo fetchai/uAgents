@@ -6,12 +6,12 @@ Query Envelopes.
 
 
 
-#### query[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/query.py#L12)
+#### query[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/query.py#L10)
 ```python
 async def query(destination: str,
                 message: Model,
-                resolver: Optional[Resolver] = None,
-                timeout: int = 30) -> Union[MsgStatus, Envelope]
+                resolver: Resolver | None = None,
+                timeout: int = 30) -> MsgStatus | Envelope
 ```
 
 Query a remote agent with a message and retrieve the response envelope.

@@ -25,7 +25,7 @@ async def register_in_agentverse(
         identity: Identity,
         prefix: AddressPrefix,
         agentverse: AgentverseConfig,
-        agent_details: Optional[AgentUpdates] = None) -> RegistrationResponse
+        agent_details: AgentUpdates | None = None) -> RegistrationResponse
 ```
 
 Registers agent in Agentverse
@@ -37,7 +37,7 @@ Registers agent in Agentverse
 - `prefix` _AddressPrefix_ - Agent address prefix
   can be "agent" (mainnet) or "test-agent" (testnet)
 - `agentverse` _AgentverseConfig_ - Agentverse configuration
-- `agent_details` _Optional[AgentUpdates]_ - Agent details (name, readme, avatar_url)
+- `agent_details` _AgentUpdates | None_ - Agent details (name, readme, avatar_url)
   
 
 **Returns**:
@@ -73,7 +73,7 @@ Unregisters agent in Agentverse
 async def update_agent_details(user_token: str,
                                agent_address: str,
                                agent_details: AgentUpdates,
-                               agentverse: Optional[AgentverseConfig] = None)
+                               agentverse: AgentverseConfig | None = None)
 ```
 
 Updates agent details in Agentverse.
@@ -83,7 +83,7 @@ Updates agent details in Agentverse.
 - `user_token` _str_ - User token
 - `agent_address` _str_ - Agent address
 - `agent_details` _AgentUpdates_ - Agent details
-- `agentverse` _Optional[AgentverseConfig]_ - Agentverse configuration
+- `agentverse` _AgentverseConfig | None_ - Agentverse configuration
 
 
 
