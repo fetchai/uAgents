@@ -86,11 +86,14 @@ def validate_tx_msgs(
             except (json.JSONDecodeError, AttributeError):
                 return False
 
-            if "register" in msg_dict:
-                if not msg_dict["register"]["domain"] or msg.funds[0] != EXPECTED_FUNDS:
+            if "register_domain" in msg_dict:
+                if (
+                    not msg_dict["register_domain"]["domain"]
+                    or msg.funds[0] != EXPECTED_FUNDS
+                ):
                     return False
-            elif "update_record" in msg_dict:
-                update_record = msg_dict["update_record"]
+            elif "update_domain_record" in msg_dict:
+                update_record = msg_dict["update_domain_record"]
                 if not update_record.get("domain") or not update_record.get(
                     "agent_records"
                 ):
@@ -142,7 +145,12 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
             self.fail("Name service contract address is invalid")
 
         tx = name_service_contract.get_registration_tx(
-            agent.name, agent.wallet.address(), agent.address, "example.agent", True
+            agent.name,
+            agent.wallet.address(),
+            agent.address,
+            "example.agent",
+            "testnet",
+            "token",
         )
 
         if not tx:
