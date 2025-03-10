@@ -4,7 +4,7 @@ import copy
 import functools
 import hashlib
 import json
-from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
+from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple, Type, Union
 
 from pydantic import BaseModel, ValidationInfo, field_validator
 
@@ -24,6 +24,8 @@ class ProtocolSpecification(BaseModel):
     roles: Optional[Dict[str, Set[Type[Model]]]] = None
     name: Optional[str] = ""
     version: Optional[str] = "0.1.0"
+
+    SPEC_VERSION: ClassVar = "1.0"
 
     @field_validator("roles")
     @classmethod
