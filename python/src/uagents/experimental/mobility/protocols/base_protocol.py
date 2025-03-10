@@ -1,4 +1,4 @@
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from pydantic.v1 import confloat
 
@@ -8,12 +8,11 @@ PROTOCOL_NAME = "basic-mobility-handshake"
 PROTOCOL_VERSION = "0.1.0"
 
 
+# This is used for compatibility with uagents message model
 class Location(Model):
     latitude: confloat(strict=True, ge=-90, le=90, allow_inf_nan=False)
     longitude: confloat(strict=True, ge=-180, le=180, allow_inf_nan=False)
-    radius: confloat(
-        gt=0, allow_inf_nan=False
-    )  # This is used for compatibility with uagents message model
+    radius: confloat(gt=0, allow_inf_nan=False)
 
 
 MobilityType = Literal[
@@ -33,7 +32,7 @@ class CheckIn(Model):
     # the type of the agent checking in (e.g., vehicle or pedestrian)
     mobility_type: MobilityType
     # the mobility related protocols this agent supports
-    supported_protocols: Optional[list[str]] = None
+    supported_protocols: list[str] | None = None
 
 
 class CheckInResponse(Model):
@@ -46,7 +45,7 @@ class CheckInResponse(Model):
     # a human readable description of the entity that could be displayed on a gui
     description: str = ""
     # the mobility related protocols this agent supports
-    supported_protocols: Optional[list[str]] = None
+    supported_protocols: list[str] | None = None
 
 
 class CheckOut(Model):
@@ -58,7 +57,7 @@ class CheckOutResponse(Model):
     Checkout response to optionally include a summary regarding the "stay" in the service area
     """
 
-    receipt: Optional[dict[str, Any]] = None
+    receipt: dict[str, Any] | None = None
 
 
 class StatusUpdate(Model):
