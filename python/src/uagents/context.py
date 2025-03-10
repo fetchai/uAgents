@@ -1,7 +1,5 @@
 """Agent Context and Message Handling"""
 
-from __future__ import annotations
-
 import asyncio
 import logging
 import uuid
@@ -62,7 +60,7 @@ class Context(ABC):
 
     @property
     @abstractmethod
-    def agent(self) -> AgentRepresentation:
+    def agent(self) -> "AgentRepresentation":
         """
         Get the agent representation associated with the context.
 
@@ -263,7 +261,7 @@ class InternalContext(Context):
 
     def __init__(
         self,
-        agent: AgentRepresentation,
+        agent: "AgentRepresentation",
         storage: KeyValueStore,
         ledger: LedgerClient,
         resolver: Resolver,
@@ -285,7 +283,7 @@ class InternalContext(Context):
         self._outbound_messages: dict[str, tuple[JsonStr, str]] = {}
 
     @property
-    def agent(self) -> AgentRepresentation:
+    def agent(self) -> "AgentRepresentation":
         return self._agent
 
     @property
@@ -652,7 +650,7 @@ class ExternalContext(InternalContext):
         message_received: MsgInfo,
         queries: dict[str, asyncio.Future] | None = None,
         replies: dict[str, dict[str, type[Model]]] | None = None,
-        protocol: tuple[str, Protocol] | None = None,
+        protocol: tuple[str, "Protocol"] | None = None,
         **kwargs,
     ):
         """

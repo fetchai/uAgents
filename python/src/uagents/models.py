@@ -1,10 +1,7 @@
-from __future__ import annotations
-
 import hashlib
-from typing import Any
+from typing import Any, Self
 
 from pydantic.v1 import BaseModel, Field  # noqa
-from typing_extensions import Self
 
 
 # reverting back to pydantic v1 BaseModel for backwards compatibility
@@ -28,7 +25,7 @@ class Model(BaseModel):
         return cls.parse_obj(obj)
 
     @staticmethod
-    def build_schema_digest(model) -> str:
+    def build_schema_digest(model: BaseModel | type[BaseModel]) -> str:
         schema = model.schema_json(indent=None, sort_keys=True)
         digest = hashlib.sha256(schema.encode("utf8")).digest().hex()
 
