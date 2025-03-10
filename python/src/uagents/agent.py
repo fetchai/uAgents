@@ -968,9 +968,14 @@ class Agent(Sink):
             publish_manifest (bool): Flag to publish the protocol's manifest.
 
         Raises:
-            RuntimeError: If a duplicate model, signed message handler, or message handler
-            is encountered.
+            RuntimeError: If a duplicate model, signed message handler, message handler
+            is encountered, or protocol fails verification.
         """
+        if not protocol.verify():
+            raise RuntimeError(
+                f"Protocol {protocol.canonical_name} failed verification"
+            )
+
         for func, period in protocol.intervals:
             self._interval_handlers.append((func, period))
 
