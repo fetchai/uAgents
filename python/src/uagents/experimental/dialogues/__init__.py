@@ -2,8 +2,9 @@
 
 import functools
 import warnings
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Type
+from typing import Any
 from uuid import UUID
 
 from uagents import Context, Model, Protocol
@@ -40,7 +41,7 @@ class Edge:
         self,
         name: str,
         description: str,
-        parent: Optional[Node],  # tail
+        parent: Node | None,  # tail
         child: Node,  # head
     ) -> None:
         self.name = name
@@ -49,22 +50,22 @@ class Edge:
         self.child = child
         self.starter: bool = False
         self.ender: bool = False
-        self._model: Optional[Type[Model]] = None
-        self._func: Optional[MessageCallback] = None
-        self._efunc: Optional[MessageCallback] = None
+        self._model: type[Model] | None = None
+        self._func: MessageCallback | None = None
+        self._efunc: MessageCallback | None = None
 
     @property
-    def model(self) -> Optional[Type[Model]]:
+    def model(self) -> type[Model] | None:
         """The message model type that is associated with the edge."""
         return self._model
 
     @model.setter
-    def model(self, model: Type[Model]) -> None:
+    def model(self, model: type[Model]) -> None:
         """Set the message model type for the edge."""
         self._model = model
 
     @property
-    def func(self) -> Optional[MessageCallback]:
+    def func(self) -> MessageCallback | None:
         """The message handler that is associated with the edge."""
         return self._func
 
@@ -74,11 +75,11 @@ class Edge:
         self._func = func
 
     @property
-    def efunc(self) -> Optional[MessageCallback]:
+    def efunc(self) -> MessageCallback | None:
         """The edge handler that is associated with the edge."""
         return self._efunc
 
-    def set_edge_handler(self, model: Type[Model], func: MessageCallback):
+    def set_edge_handler(self, model: type[Model], func: MessageCallback) -> None:
         """
         Set the edge handler that will be called when a message is received
         This handler can not be overwritten by a decorator.
@@ -88,7 +89,7 @@ class Edge:
         self._model = model
         self._efunc = func
 
-    def set_message_handler(self, model: Type[Model], func: MessageCallback):
+    def set_message_handler(self, model: type[Model], func: MessageCallback) -> None:
         """
         Set the default message handler for the edge that will be overwritten if
         a decorator defines a new function to be called.
@@ -125,7 +126,7 @@ class Dialogue(Protocol):
     to simplify the usage of the dialogue class. This can be done by creating
     creating additional decorators that call the _on_state_transition method.
     Ex.:
-        def on_init(model: Type[Model]):
+        def on_init(model: type[Model]):
             return super()._on_state_transition("edge_name", model)
 
     and then use it like this:
@@ -145,19 +146,19 @@ class Dialogue(Protocol):
     def __init__(
         self,
         name: str,
-        storage: Optional[StorageAPI] = None,
-        nodes: Optional[List[Node]] = None,
-        edges: Optional[List[Edge]] = None,
+        storage: StorageAPI | None = None,
+        nodes: list[Node] | None = None,
+        edges: list[Edge] | None = None,
         timeout: int = DEFAULT_SESSION_TIMEOUT_IN_SECONDS,
-        version: Optional[str] = None,
+        version: str | None = None,
         cleanup_interval: int = 1,
     ) -> None:
         self._name = name
         self._nodes = nodes or []
         self._edges = edges or []
-        self._graph: Dict[str, List[str]] = self._build_graph()  # by nodes
-        self._rules: Dict[str, List[str]] = self._build_rules()  # by edges
-        self._digest_by_edge: Dict[str, str] = {
+        self._graph: dict[str, list[str]] = self._build_graph()  # by nodes
+        self._rules: dict[str, list[str]] = self._build_rules()  # by edges
+        self._digest_by_edge: dict[str, str] = {
             edge.name: Model.build_schema_digest(edge.model) if edge.model else ""
             for edge in self._edges
         }  # store the message models that are associated with an edge
@@ -166,13 +167,13 @@ class Dialogue(Protocol):
         self._ender = self._build_ender()  # last message(s) of the dialogue
 
         self._timeout = timeout
-        self._storage = storage or KeyValueStore(
+        self._storage: StorageAPI = storage or KeyValueStore(
             f"{self._name}_dialogue_storage"
         )  # persistent session + message storage
-        self._sessions: Dict[UUID, List[Any]] = (
+        self._sessions: dict[UUID, list[Any]] = (
             self._load_storage()
         )  # volatile session + message storage
-        self._states: Dict[
+        self._states: dict[
             UUID, str
         ] = {}  # current state of the dialogue (as edge digest) per session
 
@@ -194,29 +195,29 @@ class Dialogue(Protocol):
         self.on_query = lambda *args, **kwargs: None  # type: ignore
 
     @property
-    def rules(self) -> Dict[str, List[str]]:
+    def rules(self) -> dict[str, list[str]]:
         """
         Property to access the rules of the dialogue.
 
         Returns:
-            Dict[str, List[str]]: Dictionary of rules represented by edges.
+            dict[str, list[str]]: Dictionary of rules represented by edges.
         """
         return self._rules
 
     @property
-    def nodes(self) -> List[Node]:
+    def nodes(self) -> list[Node]:
         return self._nodes
 
     @property
-    def edges(self) -> List[Edge]:
+    def edges(self) -> list[Edge]:
         return self._edges
 
-    def get_overview(self) -> Dict:
+    def get_overview(self) -> dict:
         """
         Get an overview of the dialogue structure.
 
         Returns:
-            Dict: Manifest like representation of the dialogue structure.
+            dict: Manifest like representation of the dialogue structure.
         """
         return (
             {
@@ -238,12 +239,12 @@ class Dialogue(Protocol):
             else {}
         )
 
-    def _build_graph(self) -> Dict[str, List[str]]:
+    def _build_graph(self) -> dict[str, list[str]]:
         """
         Build the graph of the dialogue while showing the state relations.
 
         Returns:
-            Dict[str, List[str]]: List of states and their relations.
+            dict[str, list[str]]: List of states and their relations.
         """
         graph = {}
         for node in self._nodes:
@@ -253,13 +254,13 @@ class Dialogue(Protocol):
                 graph.setdefault(edge.parent.name, []).append(edge.child.name)
         return graph
 
-    def _build_rules(self) -> Dict[str, List[str]]:
+    def _build_rules(self) -> dict[str, list[str]]:
         """
         Build the rules for the dialogue.
         Which replies are allowed after a certain message.
 
         Returns:
-            Dict[str, List[str]]: Rules for the dialogue.
+            dict[str, list[str]]: Rules for the dialogue.
         """
         out = {edge.name: [] for edge in self._edges}
         for edge in self._edges:
@@ -285,9 +286,9 @@ class Dialogue(Protocol):
                 return starters[0].name
         if starter_nodes and edges_without_entry:
             warnings.warn(
-                "There is a starter node and an edge without parent present. "
+                message="There is a starter node and an edge without parent present. "
                 "The edge without a parent takes precedence!",
-                SyntaxWarning,
+                category=SyntaxWarning,
                 stacklevel=2,
             )
         if len(edges_without_entry) > 1:
@@ -336,7 +337,7 @@ class Dialogue(Protocol):
         """
         return self.is_ender(self.get_current_state(session_id))
 
-    def _pre_handle_hook(self, ctx: Context, sender: str, message: Type[Model]) -> bool:
+    def _pre_handle_hook(self, ctx: Context, sender: str, message: type[Model]) -> bool:
         schema_digest = Model.build_schema_digest(message)
         if not ctx.session:
             raise ValueError("Session ID must not be None!")
@@ -354,7 +355,7 @@ class Dialogue(Protocol):
             )
         return is_valid
 
-    def _post_handle_hook(self, ctx: Context, sender: str, msg_in: Type[Model]) -> bool:
+    def _post_handle_hook(self, ctx: Context, sender: str, msg_in: type[Model]) -> bool:
         if not ctx.session:
             raise ValueError("Session ID must not be None!")
         try:
@@ -383,13 +384,11 @@ class Dialogue(Protocol):
         return True
 
     def _build_function_handler(self, edge: Edge) -> MessageCallback:
-        """Build the function handler for a message."""
-
         if not edge.func:
             raise ValueError("No function handler set for edge!")
 
         @functools.wraps(edge.func)
-        async def handler(ctx: Context, sender: str, message: Type[Model]):
+        async def handler(ctx: Context, sender: str, message: type[Model]):
             # validate message first then execute handlers, finally update state
             if not self._pre_handle_hook(ctx, sender, message):
                 return await ctx.send(
@@ -419,10 +418,10 @@ class Dialogue(Protocol):
         for edge in self._edges:
             if edge.model and edge.func:
                 self._add_message_handler(
-                    edge.model,
-                    self._build_function_handler(edge),
-                    None,  # no replies
-                    False,  # only verified
+                    model=edge.model,
+                    func=self._build_function_handler(edge),
+                    replies=None,  # no replies
+                    allow_unverified=False,  # only verified
                 )
 
     def update_state(self, digest: str, session_id: UUID) -> None:
@@ -477,8 +476,8 @@ class Dialogue(Protocol):
         self._update_session_in_storage(session_id)
 
     def get_conversation(
-        self, session_id: UUID, message_filter: Optional[str] = None
-    ) -> List[Any]:
+        self, session_id: UUID, message_filter: str | None = None
+    ) -> list[Any]:
         """
         Return the message history of the given session from the dialogue instance as
         list of DialogueMessage.
@@ -486,7 +485,7 @@ class Dialogue(Protocol):
 
         Args:
             session_id (UUID): The ID of the session to get the conversation for.
-            message_filter (str): The name of the message type to filter for
+            message_filter (str | None): The name of the message type to filter for
 
         Returns:
             list(DialogueMessage): A list of all messages exchanged during the given session
@@ -520,8 +519,7 @@ class Dialogue(Protocol):
             msg_digest (str): The digest of the message to check.
 
         Returns:
-            bool: True if the message is valid,
-            False otherwise.
+            bool: True if the message is valid, False otherwise.
         """
         if session_id not in self._sessions or len(self._sessions[session_id]) == 0:
             return self.is_starter(msg_digest)
@@ -559,9 +557,9 @@ class Dialogue(Protocol):
         """
         return msg_digest in self._digest_by_edge.values()
 
-    def _load_storage(self) -> Dict[UUID, List[Any]]:
+    def _load_storage(self) -> dict[UUID, list[Any]]:
         """Load the sessions from the storage."""
-        cache: Optional[Dict] = self._storage.get(self.name)
+        cache: dict | None = self._storage.get(self.name)
         return (
             {UUID(session_id): session for session_id, session in cache.items()}
             if cache
@@ -570,24 +568,24 @@ class Dialogue(Protocol):
 
     def _update_session_in_storage(self, session_id: UUID) -> None:
         """Update a session in the storage."""
-        cache: Dict = self._storage.get(self.name) or {}
+        cache: dict = self._storage.get(self.name) or {}
         cache[str(session_id)] = self._sessions[session_id]
         self._storage.set(self.name, cache)
 
     def _remove_session_from_storage(self, session_id: UUID) -> None:
         """Remove a session from the storage."""
-        cache: Dict = self._storage.get(self.name) or {}
+        cache: dict = self._storage.get(self.name) or {}
         session = str(session_id)
         if session in cache:
             cache.pop(session)
         self._storage.set(self.name, cache)
 
-    def _update_transition_model(self, edge: Edge, model: Type[Model]) -> None:
+    def _update_transition_model(self, edge: Edge, model: type[Model]) -> None:
         """Update the message model for a transition."""
         self._digest_by_edge[edge.name] = Model.build_schema_digest(model)
         self._edges[self._edges.index(edge)].model = model
 
-    def _on_state_transition(self, edge_name: str, model: Type[Model]):
+    def _on_state_transition(self, edge_name: str, model: type[Model]) -> Callable:
         """
         Main decorator to register a message handler for the dialogue.
         The Model in this case is the message model type but it refers to the
@@ -598,12 +596,12 @@ class Dialogue(Protocol):
 
         Args:
             edge (Edge): Edge object that represents the transition.
-            model (Type[Model]): Message model type.
+            model (type[Model]): Message model type.
         """
         if edge_name not in self._digest_by_edge:
             raise ValueError("Edge does not exist in the dialogue!")
 
-        def decorator_on_state_transition(func: MessageCallback):
+        def decorator_on_state_transition(func: MessageCallback) -> MessageCallback:
             edge = self.get_edge(edge_name)
             edge.func = func
             handler = self._build_function_handler(edge)
@@ -613,12 +611,11 @@ class Dialogue(Protocol):
 
         return decorator_on_state_transition
 
-    def manifest(self) -> Dict[str, Any]:
+    def manifest(self) -> dict[str, Any]:
         """
         This method will add the dialogue structure to the original manifest
         and recalculate the digest.
         """
-
         updated_manifest = super().manifest() | {
             "nodes": [node.__dict__ for node in self._nodes],
             "edges": [
@@ -640,7 +637,7 @@ class Dialogue(Protocol):
 
     async def start_dialogue(
         self, ctx: Context, destination: str, message: Model
-    ) -> List[MsgStatus]:
+    ) -> list[MsgStatus]:
         """
         Start a dialogue with a message.
 
@@ -658,7 +655,7 @@ class Dialogue(Protocol):
                 "A dialogue can only be started with the specified starting message"
             )
 
-        status_list: List[MsgStatus] = []
+        status_list: list[MsgStatus] = []
 
         if destination.startswith("proto:"):
             status_list = await ctx.broadcast(destination, message)

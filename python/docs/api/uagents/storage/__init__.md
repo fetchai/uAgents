@@ -42,9 +42,9 @@ A simple key-value store implementation for data storage.
 
 
 
-#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L56)
+#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L55)
 ```python
-def __init__(name: str, cwd: Optional[str] = None)
+def __init__(name: str, cwd: str | None = None)
 ```
 
 Initialize the KeyValueStore instance.
@@ -52,11 +52,11 @@ Initialize the KeyValueStore instance.
 **Arguments**:
 
 - `name` _str_ - The name associated with the store.
-- `cwd` _str, optional_ - The current working directory. Defaults to None.
+- `cwd` _str | None_ - The current working directory. Defaults to None.
 
 
 
-#### load_all_keys[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L102)
+#### load_all_keys[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L100)
 ```python
 def load_all_keys() -> dict
 ```
@@ -69,9 +69,9 @@ Load all private keys from the private keys file.
 
 
 
-#### save_private_keys[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L117)
+#### save_private_keys[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L114)
 ```python
-def save_private_keys(name: str, identity_key: str, wallet_key: str)
+def save_private_keys(name: str, identity_key: str, wallet_key: str) -> None
 ```
 
 Save private keys to the private keys file.
@@ -84,9 +84,9 @@ Save private keys to the private keys file.
 
 
 
-#### get_or_create_private_keys[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L135)
+#### get_or_create_private_keys[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L131)
 ```python
-def get_or_create_private_keys(name: str) -> Tuple[str, str]
+def get_or_create_private_keys(name: str) -> tuple[str, str]
 ```
 
 Get or create private keys associated with a name.
@@ -98,5 +98,5 @@ Get or create private keys associated with a name.
 
 **Returns**:
 
-  Tuple[str, str]: A tuple containing the identity key and wallet key.
+  tuple[str, str]: A tuple containing the identity key and wallet key.
 

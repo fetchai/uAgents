@@ -6,7 +6,7 @@ Agent Envelope.
 
 
 
-## Envelope Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L20)
+## Envelope Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L16)
 
 ```python
 class Envelope(BaseModel)
@@ -22,18 +22,18 @@ Represents an envelope for message communication between agents.
 - `session` _UUID4_ - The session UUID that persists for back-and-forth
   dialogues between agents.
 - `schema_digest` _str_ - The schema digest for the enclosed message.
-- `protocol_digest` _Optional[str]_ - The digest of the protocol associated with the message
+- `protocol_digest` _str | None_ - The digest of the protocol associated with the message
   (optional).
-- `payload` _Optional[str]_ - The encoded message payload of the envelope (optional).
-- `expires` _Optional[int]_ - The expiration timestamp (optional).
-- `nonce` _Optional[int]_ - The nonce value (optional).
-- `signature` _Optional[str]_ - The envelope signature (optional).
+- `payload` _str | None_ - The encoded message payload of the envelope (optional).
+- `expires` _int | None_ - The expiration timestamp (optional).
+- `nonce` _int | None_ - The nonce value (optional).
+- `signature` _str | None_ - The envelope signature (optional).
 
 
 
-#### encode_payload[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L50)
+#### encode_payload[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L46)
 ```python
-def encode_payload(value: JsonStr)
+def encode_payload(value: JsonStr) -> None
 ```
 
 Encode the payload value and store it in the envelope.
@@ -44,7 +44,7 @@ Encode the payload value and store it in the envelope.
 
 
 
-#### decode_payload[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L59)
+#### decode_payload[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L55)
 ```python
 def decode_payload() -> str
 ```
@@ -57,9 +57,9 @@ Decode and retrieve the payload value from the envelope.
 
 
 
-#### sign[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L71)
+#### sign[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L67)
 ```python
-def sign(signing_fn: Callable)
+def sign(signing_fn: Callable) -> None
 ```
 
 Sign the envelope using the provided signing function.
@@ -70,7 +70,7 @@ Sign the envelope using the provided signing function.
 
 
 
-#### verify[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L83)
+#### verify[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L79)
 ```python
 def verify() -> bool
 ```
@@ -89,7 +89,7 @@ Verify the envelope's signature.
 
 
 
-## EnvelopeHistory Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L146)
+## EnvelopeHistory Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L142)
 
 ```python
 class EnvelopeHistory(BaseModel)
@@ -97,9 +97,9 @@ class EnvelopeHistory(BaseModel)
 
 
 
-#### apply_retention_policy[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L153)
+#### apply_retention_policy[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L149)
 ```python
-def apply_retention_policy()
+def apply_retention_policy() -> None
 ```
 
 Remove entries older than 24 hours

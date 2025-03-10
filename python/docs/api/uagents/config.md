@@ -4,38 +4,37 @@
 
 
 
-#### parse_endpoint_config[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/config.py#L62)
+#### parse_endpoint_config[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/config.py#L61)
 ```python
 def parse_endpoint_config(
-        endpoint: Optional[Union[str, List[str], Dict[str, dict]]],
+        endpoint: str | list[str] | dict[str, dict] | None,
         agentverse: AgentverseConfig,
         mailbox: bool = False,
         proxy: bool = False,
-        logger: Optional[logging.Logger] = None) -> List[AgentEndpoint]
+        logger: logging.Logger | None = None) -> list[AgentEndpoint]
 ```
 
 Parse the user-provided endpoint configuration.
 
 **Arguments**:
 
-- `endpoint` _Optional[Union[str, List[str], Dict[str, dict]]]_ - The endpoint configuration.
+- `endpoint` _str | list[str] | dict[str, dict] | None_ - The endpoint configuration.
 - `agentverse` _AgentverseConfig_ - The agentverse configuration.
 - `mailbox` _bool_ - Whether to use the mailbox endpoint.
 - `proxy` _bool_ - Whether to use the proxy endpoint.
-- `logger` _Optional[logging.Logger]_ - The logger to use.
+- `logger` _logging.Logger | None_ - The logger to use.
   
 
 **Returns**:
 
-- `Optional[List[AgentEndpoint]` - The parsed endpoint configuration.
+- `[List[AgentEndpoint]` - The parsed endpoint configuration.
 
 
 
-#### parse_agentverse_config[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/config.py#L117)
+#### parse_agentverse_config[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/config.py#L116)
 ```python
 def parse_agentverse_config(
-        config: Optional[Union[str, Dict[str,
-                                         str]]] = None) -> AgentverseConfig
+        config: str | dict[str, str] | None = None) -> AgentverseConfig
 ```
 
 Parse the user-provided agentverse configuration.

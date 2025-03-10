@@ -4,14 +4,10 @@ import base64
 import hashlib
 import struct
 import time
-from typing import Callable, List, Optional
+from collections.abc import Callable
 
-from pydantic import (
-    UUID4,
-    BaseModel,
-    Field,
-    field_serializer,
-)
+from pydantic import UUID4, BaseModel, Field, field_serializer
+from typing_extensions import Self
 
 from uagents.crypto import Identity
 from uagents.types import JsonStr
@@ -28,12 +24,12 @@ class Envelope(BaseModel):
         session (UUID4): The session UUID that persists for back-and-forth
         dialogues between agents.
         schema_digest (str): The schema digest for the enclosed message.
-        protocol_digest (Optional[str]): The digest of the protocol associated with the message
+        protocol_digest (str | None): The digest of the protocol associated with the message
         (optional).
-        payload (Optional[str]): The encoded message payload of the envelope (optional).
-        expires (Optional[int]): The expiration timestamp (optional).
-        nonce (Optional[int]): The nonce value (optional).
-        signature (Optional[str]): The envelope signature (optional).
+        payload (str | None): The encoded message payload of the envelope (optional).
+        expires (int | None): The expiration timestamp (optional).
+        nonce (int | None): The nonce value (optional).
+        signature (str | None): The envelope signature (optional).
     """
 
     version: int
@@ -41,13 +37,13 @@ class Envelope(BaseModel):
     target: str
     session: UUID4
     schema_digest: str
-    protocol_digest: Optional[str] = None
-    payload: Optional[str] = None
-    expires: Optional[int] = None
-    nonce: Optional[int] = None
-    signature: Optional[str] = None
+    protocol_digest: str | None = None
+    payload: str | None = None
+    expires: int | None = None
+    nonce: int | None = None
+    signature: str | None = None
 
-    def encode_payload(self, value: JsonStr):
+    def encode_payload(self, value: JsonStr) -> None:
         """
         Encode the payload value and store it in the envelope.
 
@@ -68,7 +64,7 @@ class Envelope(BaseModel):
 
         return base64.b64decode(self.payload).decode()
 
-    def sign(self, signing_fn: Callable):
+    def sign(self, signing_fn: Callable) -> None:
         """
         Sign the envelope using the provided signing function.
 
@@ -123,15 +119,15 @@ class EnvelopeHistoryEntry(BaseModel):
     target: str
     session: UUID4
     schema_digest: str
-    protocol_digest: Optional[str] = None
-    payload: Optional[str] = None
+    protocol_digest: str | None = None
+    payload: str | None = None
 
     @field_serializer("session")
-    def serialize_session(self, session: UUID4, _info):
+    def serialize_session(self, session: UUID4, _info) -> JsonStr:
         return str(session)
 
     @classmethod
-    def from_envelope(cls, envelope: Envelope):
+    def from_envelope(cls, envelope: Envelope) -> Self:
         return cls(
             version=envelope.version,
             sender=envelope.sender,
@@ -144,13 +140,13 @@ class EnvelopeHistoryEntry(BaseModel):
 
 
 class EnvelopeHistory(BaseModel):
-    envelopes: List[EnvelopeHistoryEntry]
+    envelopes: list[EnvelopeHistoryEntry]
 
-    def add_entry(self, entry: EnvelopeHistoryEntry):
+    def add_entry(self, entry: EnvelopeHistoryEntry) -> None:
         self.envelopes.append(entry)
         self.apply_retention_policy()
 
-    def apply_retention_policy(self):
+    def apply_retention_policy(self) -> None:
         """Remove entries older than 24 hours"""
         cutoff_time = time.time() - 86400
         for e in self.envelopes:
