@@ -5,9 +5,9 @@ import hashlib
 import struct
 import time
 from collections.abc import Callable
-from typing import Self
 
 from pydantic import UUID4, BaseModel, Field, field_serializer
+from typing_extensions import Self
 
 from uagents.crypto import Identity
 from uagents.types import JsonStr
