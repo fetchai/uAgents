@@ -116,7 +116,7 @@ jobs:
         with:
           pattern: coverage-*
           merge-multiple: true
-          path: /python
+          path: ./python
 
       - name: Coverage comment
         id: coverage_comment
@@ -124,7 +124,7 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MERGE_COVERAGE_FILES: true
-          COVERAGE_PATH: /python/.coverage.*
+          COVERAGE_PATH: ./python
 
       - name: Store Pull Request comment to be posted
         uses: actions/upload-artifact@v4
