@@ -66,3 +66,20 @@ ignore = ["PLR0913", "PLR0912", "PLR0911", "PLR2004", "PLR0915"]
 
 [tool.ruff.lint.pycodestyle]
 max-line-length = 100
+
+[tool.coverage.run]
+relative_files = true
+
+[tool.coverage.report]
+exclude_also = [
+    'def __repr__',
+    'if self.debug:',
+    'if settings.DEBUG',
+    'raise AssertionError',
+    'raise NotImplementedError',
+    'if 0:',
+    'if __name__ == .__main__.:',
+    'if TYPE_CHECKING:',
+    'class .*\bProtocol\):',
+    '@(abc\.)?abstractmethod',
+]
