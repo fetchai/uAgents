@@ -78,7 +78,7 @@ jobs:
         name: Run tests
         run: |
           source $VENV
-          poetry run coverage run -m pytest
+          poetry run coverage run --debug=dataio -m pytest
         env:
           COVERAGE_FILE: ".coverage.${{ matrix.python-version }}"
       - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
@@ -87,6 +87,7 @@ jobs:
         with:
           name: coverage-${{ matrix.python-version }}
           path: .coverage.${{ matrix.python-version }}
+          if-no-files-found: error
           include-hidden-files: true
 
   linting:
