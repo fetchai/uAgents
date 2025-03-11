@@ -97,7 +97,7 @@ Go to the [`python`](https://github.com/fetchai/uAgents/tree/main/python) folder
 
 ## uAgents Core
 
-The [`uagents-core`](https://github.com/fetchai/uAgents/tree/main/python) folder contains core definitions and functionalities to build 'agent' like software which can interact and integrate with Fetch.ai ecosystem and agent marketplace.
+The [`uagents-core`](https://github.com/fetchai/uAgents/tree/main/python/uagents-core) folder contains core definitions and functionalities to build 'agent' like software which can interact and integrate with Fetch.ai ecosystem and agent marketplace.
 
 ## ✨ Contributing
 
