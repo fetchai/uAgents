@@ -28,7 +28,7 @@ aioresponses = "^0.7.8"
 pytest = "^8.3.5"
 pytest-asyncio = "^0.25.3"
 pytest-order = "^1.3.0"
-coverage = "^7.6.12"
+coverage = { version = "^7.6.12", extras = ["toml"] }
 ruff = "^0.9.10"
 pre-commit = "^4.1.0"
 pydoc-markdown = "^4.8.2"
@@ -68,6 +68,8 @@ ignore = ["PLR0913", "PLR0912", "PLR0911", "PLR2004", "PLR0915"]
 max-line-length = 100
 
 [tool.coverage.run]
+source = ["src/uagents", "src\\uagents"]
+omit = ["*/__init__.py", "*/experimental/*"]
 relative_files = true
 
 [tool.coverage.report]

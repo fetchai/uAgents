@@ -644,6 +644,9 @@ files = [
     {file = "coverage-7.6.12.tar.gz", hash = "sha256:48cfc4641d95d34766ad41d9573cc0f22a48aa88d22657a1fe01dca0dbae4de2"},
 ]
 
+[package.dependencies]
+tomli = {version = "*", optional = true, markers = "python_full_version <= \"3.11.0a6\" and extra == \"toml\""}
+
 [package.extras]
 toml = ["tomli ; python_full_version <= \"3.11.0a6\""]
 
@@ -2582,4 +2585,4 @@ wallet = ["fetchai-babble"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "903dbb1cb2af5491270b89a1483ec8a4322804bbdf9910bc7a4da6954b769697"
+content-hash = "df93e960e6ec801e00de5c95373aca5f167dc50ed9fb05c791cc0c1b05bf22ad"
