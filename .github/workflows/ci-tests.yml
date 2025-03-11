@@ -86,7 +86,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ matrix.python-version }}
-          path: /**/.coverage.${{ matrix.python-version }}
+          path: /home/runner/work/uAgents/uAgents/python/.coverage.${{ matrix.python-version }}
           if-no-files-found: error
           include-hidden-files: true
 
