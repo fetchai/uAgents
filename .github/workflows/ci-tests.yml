@@ -78,15 +78,15 @@ jobs:
         name: Run tests
         run: |
           source $VENV
-          poetry run coverage run --debug=dataio -m pytest
+          poetry run coverage run -m pytest
         env:
-          COVERAGE_FILE: "${{ runner.temp }}/.coverage.${{ matrix.python-version }}"
+          COVERAGE_FILE: "${{ runner.temp }}/.coverage.${{ runner.os }}.${{ matrix.python-version }}"
       - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
         name: Store coverage file
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-${{ matrix.python-version }}
-          path: ${{ runner.temp }}/.coverage.${{ matrix.python-version }}
+          name: coverage-${{ runner.os }}-${{ matrix.python-version }}
+          path: ${{ runner.temp }}/.coverage.${{ runner.os }}.${{ matrix.python-version }}
           if-no-files-found: error
           include-hidden-files: true
 
