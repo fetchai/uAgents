@@ -1,5 +1,4 @@
 import urllib.parse
-from typing import List, Optional
 
 import requests
 
@@ -29,8 +28,8 @@ def register_in_almanac(
     request: AgentverseConnectRequest,
     identity: Identity,
     *,
-    protocol_digests: List[str],
-    agentverse_config: Optional[AgentverseConfig] = None,
+    protocol_digests: list[str],
+    agentverse_config: AgentverseConfig | None = None,
 ):
     """
     Register the agent with the Almanac API.
@@ -91,6 +90,7 @@ def register_in_almanac(
         f"{almanac_api}/agents",
         headers={"content-type": "application/json"},
         data=attestation.model_dump_json(),
+        timeout=10,
     )
     r.raise_for_status()
     logger.debug(
@@ -102,9 +102,9 @@ def register_in_almanac(
 def register_in_agentverse(
     request: AgentverseConnectRequest,
     identity: Identity,
-    agent_details: Optional[AgentUpdates] = None,
+    agent_details: AgentUpdates | None = None,
     *,
-    agentverse_config: Optional[AgentverseConfig] = None,
+    agentverse_config: AgentverseConfig | None = None,
 ):
     """
     Register the agent with the Agentverse API.
@@ -114,10 +114,10 @@ def register_in_agentverse(
         identity (Identity): The identity of the agent.
         agent_details (Optional[AgentUpdates]): The agent details to update.
         agentverse_config (AgentverseConfig): The configuration for the agentverse API
+
     Returns:
         None
     """
-
     # API endpoints
     agentverse_config = agentverse_config or AgentverseConfig()
     registration_api = urllib.parse.urljoin(
@@ -144,6 +144,7 @@ def register_in_agentverse(
             "content-type": "application/json",
             "authorization": f"Bearer {request.user_token}",
         },
+        timeout=10,
     )
 
     # if it doesn't then create it
@@ -165,6 +166,7 @@ def register_in_agentverse(
                 "content-type": "application/json",
                 "Authorization": f"Bearer {request.user_token}",
             },
+            timeout=10,
         )
         r.raise_for_status()
         challenge = ChallengeResponse.model_validate_json(r.text)
@@ -182,6 +184,7 @@ def register_in_agentverse(
                 "authorization": f"Bearer {request.user_token}",
             },
             data=registration_payload,
+            timeout=10,
         )
         if r.status_code == 409:
             logger.info(
@@ -216,6 +219,7 @@ def register_in_agentverse(
             "authorization": f"Bearer {request.user_token}",
         },
         data=update.model_dump_json(),
+        timeout=10,
     )
     r.raise_for_status()
     logger.info(

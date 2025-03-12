@@ -1,16 +1,13 @@
 import random
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
-from uagents_core.config import (
-    AGENT_ADDRESS_LENGTH,
-    AGENT_PREFIX,
-)
+from uagents_core.config import AGENT_ADDRESS_LENGTH, AGENT_PREFIX
 from uagents_core.crypto import is_user_address
 
 
 def weighted_random_sample(
-    items: List[Any], weights: Optional[List[float]] = None, k: int = 1, rng=random
-) -> List[Any]:
+    items: list[Any], weights: list[float] | None = None, k: int = 1, rng=random
+) -> list[Any]:
     """
     Weighted random sample from a list of items without replacement.
 
@@ -47,7 +44,7 @@ def is_valid_address(address: str) -> bool:
     )
 
 
-def parse_identifier(identifier: str) -> Tuple[str, str, str]:
+def parse_identifier(identifier: str) -> tuple[str, str, str]:
     """
     Parse an agent identifier string into prefix, name, and address.
 
@@ -57,7 +54,6 @@ def parse_identifier(identifier: str) -> Tuple[str, str, str]:
     Returns:
         Tuple[str, str, str]: A Tuple containing the prefix, name, and address as strings.
     """
-
     prefix = ""
     name = ""
     address = ""

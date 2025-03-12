@@ -13,7 +13,6 @@ AGENT_PREFIX = "agent"
 
 class AgentverseConfig(BaseModel):
     base_url: str = DEFAULT_AGENTVERSE_URL
-    protocol: str = "https"
     http_prefix: str = "https"
 
     @property

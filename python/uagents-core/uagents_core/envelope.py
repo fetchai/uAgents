@@ -88,7 +88,9 @@ class Envelope(BaseModel):
         """
         if self.signature is None:
             raise ValueError("Envelope signature is missing")
-        return Identity.verify_digest(self.sender, self._digest(), self.signature)
+        return Identity.verify_digest(
+            address=self.sender, digest=self._digest(), signature=self.signature
+        )
 
     def _digest(self) -> bytes:
         """

@@ -5,7 +5,6 @@ from pydantic import BaseModel
 JsonStr = str
 
 AgentType = Literal["mailbox", "proxy", "custom"]
-
 AddressPrefix = Literal["agent", "test-agent"]
 
 

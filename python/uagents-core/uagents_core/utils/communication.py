@@ -1,6 +1,6 @@
 import json
 import urllib.parse
-from typing import Any, List, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 import requests
@@ -22,8 +22,8 @@ def lookup_endpoint_for_agent(
     agent_identifier: str,
     *,
     max_endpoints: int = DEFAULT_MAX_ENDPOINTS,
-    agentverse_config: Optional[AgentverseConfig] = None,
-) -> List[str]:
+    agentverse_config: AgentverseConfig | None = None,
+) -> list[str]:
     """
     Look up the endpoints for an agent using the Almanac API.
 
@@ -72,9 +72,9 @@ def send_message(
     message_body: Any,
     sender: Identity,
     *,
-    session_id: Optional[UUID] = None,
-    protocol_digest: Optional[str] = None,
-    agentverse_config: Optional[AgentverseConfig] = None,
+    session_id: UUID | None = None,
+    protocol_digest: str | None = None,
+    agentverse_config: AgentverseConfig | None = None,
 ):
     """
     Send a message (dict) to an agent.
@@ -87,6 +87,7 @@ def send_message(
         session (UUID): The unique identifier for the dialogue between two agents
         protocol_digest (str): The digest of the protocol that is being used
         agentverse_config (AgentverseConfig): The configuration for the agentverse API
+
     Returns:
         None
     """
@@ -125,6 +126,7 @@ def send_message(
         endpoints[0],
         headers={"content-type": "application/json"},
         data=env.model_dump_json(),
+        timeout=5,
     )
     r.raise_for_status()
     logger.info("Sent message to agent", extra=request_meta)

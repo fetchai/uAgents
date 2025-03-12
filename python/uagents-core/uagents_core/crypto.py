@@ -2,7 +2,6 @@ import base64
 import hashlib
 import struct
 from secrets import token_bytes
-from typing import Tuple, Union
 
 import bech32
 import ecdsa
@@ -12,7 +11,7 @@ USER_PREFIX = "user"
 SHA_LENGTH = 256
 
 
-def _decode_bech32(value: str) -> Tuple[str, bytes]:
+def _decode_bech32(value: str) -> tuple[str, bytes]:
     prefix, data_base5 = bech32.bech32_decode(value)
     data = bytes(bech32.convertbits(data_base5, 5, 8, False))
     return prefix, data
@@ -28,7 +27,7 @@ def is_user_address(address: str) -> bool:
 
 
 def generate_user_address() -> str:
-    return _encode_bech32(USER_PREFIX, token_bytes(32))
+    return _encode_bech32(prefix=USER_PREFIX, value=token_bytes(32))
 
 
 def _key_derivation_hash(prefix: str, index: int) -> bytes:
@@ -52,7 +51,7 @@ def derive_key_from_seed(seed, prefix, index) -> bytes:
     return hasher.digest()
 
 
-def encode_length_prefixed(value: Union[str, int, bytes]) -> bytes:
+def encode_length_prefixed(value: str | int | bytes) -> bytes:
     if isinstance(value, str):
         encoded = value.encode()
     elif isinstance(value, int):

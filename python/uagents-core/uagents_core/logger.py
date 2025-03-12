@@ -12,7 +12,7 @@ _log_level_map = {
     "CRITICAL": logging.CRITICAL,
 }
 
-_log_level = os.getenv("LOG_LEVEL", "INFO")
+_log_level: str = os.getenv("LOG_LEVEL", "INFO")
 
 
 structlog.configure(
