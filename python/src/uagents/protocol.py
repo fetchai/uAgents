@@ -9,9 +9,9 @@ from logging import Logger
 from typing import Any, ClassVar
 
 from pydantic import BaseModel, ValidationInfo, field_validator
+from uagents_core.models import Model
 
 from uagents.config import get_logger
-from uagents.models import Model
 from uagents.types import IntervalCallback, MessageCallback
 
 logger: Logger = get_logger("protocol")

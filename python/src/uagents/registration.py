@@ -23,7 +23,7 @@ from uagents.config import (
     ALMANAC_REGISTRATION_WAIT,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
 )
-from uagents.crypto import Identity
+from uagents.crypto import Identity, sign_registration
 from uagents.network import (
     AlmanacContract,
     AlmanacContractRecord,
@@ -428,7 +428,9 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
             AssertionError: If the Almanac contract address is None.
         """
         assert self._almanac_contract.address is not None
-        return identity.sign_registration(
+
+        return sign_registration(
+            identity=identity,
             contract_address=str(self._almanac_contract.address),
             timestamp=timestamp,
             wallet_address=str(self._wallet.address()),

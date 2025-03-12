@@ -8,6 +8,7 @@ from typing import Any
 
 import requests
 from dateutil import parser
+from uagents_core.crypto import is_user_address
 
 from uagents.config import (
     AGENT_ADDRESS_LENGTH,
@@ -17,7 +18,6 @@ from uagents.config import (
     MAINNET_PREFIX,
     TESTNET_PREFIX,
 )
-from uagents.crypto import is_user_address
 from uagents.network import (
     AlmanacContract,
     get_almanac_contract,

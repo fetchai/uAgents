@@ -5,8 +5,8 @@ from enum import Enum
 from typing import TYPE_CHECKING, Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-
-from uagents.models import Model
+from uagents_core.models import Model
+from uagents_core.types import AgentEndpoint
 
 if TYPE_CHECKING:
     from uagents.context import Context
@@ -28,11 +28,6 @@ RestHandlerMap = dict[tuple[RestMethod, str], RestHandler]
 
 AddressPrefix = Literal["agent", "test-agent"]
 AgentNetwork = Literal["mainnet", "testnet"]
-
-
-class AgentEndpoint(BaseModel):
-    url: str
-    weight: int
 
 
 class AgentInfo(BaseModel):

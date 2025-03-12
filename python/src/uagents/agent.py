@@ -6,14 +6,16 @@ import functools
 import logging
 import os
 import uuid
-from collections.abc import Callable
-from typing import Any, NoReturn
+from typing import Any, NoReturn, Optional
 
 import requests
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
 from pydantic import ValidationError
+from uagents_core.crypto import Identity, derive_key_from_seed, is_user_address
+from uagents_core.envelope import EnvelopeHistory, EnvelopeHistoryEntry
+from uagents_core.models import ErrorMessage, Model
 
 from uagents.asgi import ASGIServer
 from uagents.communication import Dispenser
@@ -29,9 +31,7 @@ from uagents.config import (
     parse_endpoint_config,
 )
 from uagents.context import Context, ContextFactory, ExternalContext, InternalContext
-from uagents.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents.dispatch import Sink, dispatcher
-from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
 from uagents.mailbox import (
     AgentUpdates,
     AgentverseConnectRequest,
@@ -43,7 +43,6 @@ from uagents.mailbox import (
     register_in_agentverse,
     unregister_in_agentverse,
 )
-from uagents.models import ErrorMessage, Model
 from uagents.network import (
     InsufficientFundsError,
     get_almanac_contract,
@@ -129,6 +128,8 @@ class AgentRepresentation:
 
     Attributes:
         _address (str): The address of the agent.
+        _name (Optional[str]): The name of the agent.
+        _identity (Identity): The identity of the agent.
         _name (str | None): The name of the agent.
         _signing_callback (Callable): The callback for signing messages.
 
@@ -144,20 +145,20 @@ class AgentRepresentation:
     def __init__(
         self,
         address: str,
-        name: str | None,
-        signing_callback: Callable,
+        name: Optional[str],
+        identity: Identity,
     ):
         """
         Initialize the AgentRepresentation instance.
 
         Args:
             address (str): The address of the context.
-            name (str | None): The optional name associated with the context.
-            signing_callback (Callable): The callback for signing messages.
+            name (Optional[str]): The optional name associated with the context.
+            identity (Identity): The identity of the agent.
         """
         self._address = address
         self._name = name
-        self._signing_callback = signing_callback
+        self._identity = identity
 
     @property
     def name(self) -> str:
@@ -191,17 +192,15 @@ class AgentRepresentation:
         """
         return TESTNET_PREFIX + "://" + self._address
 
-    def sign_digest(self, data: bytes) -> str:
+    @property
+    def identity(self) -> Identity:
         """
-        Sign the provided data with the callback of the agent's identity.
-
-        Args:
-            data (bytes): The data to sign.
+        Get the identity of the agent.
 
         Returns:
-            str: The signature of the data.
+            Identity: The identity of the agent.
         """
-        return self._signing_callback(data)
+        return self._identity
 
 
 class Agent(Sink):
@@ -486,7 +485,7 @@ class Agent(Sink):
             agent=AgentRepresentation(
                 address=self.address,
                 name=self._name,
-                signing_callback=self._identity.sign_digest,
+                identity=self._identity,
             ),
             storage=self._storage,
             ledger=self._ledger,
@@ -1237,7 +1236,7 @@ class Agent(Sink):
                 agent=AgentRepresentation(
                     address=self.address,
                     name=self._name,
-                    signing_callback=self._identity.sign_digest,
+                    identity=self._identity,
                 ),
                 storage=self._storage,
                 ledger=self._ledger,

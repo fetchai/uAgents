@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING, Any
 import requests
 from cosmpy.aerial.client import LedgerClient
 from pydantic.v1 import ValidationError
+from uagents_core.envelope import Envelope
+from uagents_core.models import ErrorMessage, Model
 
 from uagents.communication import (
     Dispenser,
@@ -22,8 +24,6 @@ from uagents.config import (
     DEFAULT_SEARCH_LIMIT,
 )
 from uagents.dispatch import dispatcher
-from uagents.envelope import Envelope
-from uagents.models import ErrorMessage, Model
 from uagents.resolver import Resolver, parse_identifier
 from uagents.storage import KeyValueStore
 from uagents.types import DeliveryStatus, JsonStr, MsgInfo, MsgStatus
@@ -509,7 +509,7 @@ class InternalContext(Context):
             expires=expires,
         )
         env.encode_payload(message_body)
-        env.sign(self.agent.sign_digest)
+        env.sign(self.agent.identity)
 
         # Create awaitable future for MsgStatus and sync response
         fut = asyncio.Future()

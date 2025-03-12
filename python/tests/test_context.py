@@ -4,6 +4,7 @@ import unittest
 from typing import Dict, Optional
 
 from aioresponses import aioresponses
+from uagents_core.envelope import Envelope
 
 from uagents import Agent
 from uagents.context import (
@@ -15,7 +16,6 @@ from uagents.context import (
 )
 from uagents.crypto import Identity
 from uagents.dispatch import dispatcher
-from uagents.envelope import Envelope
 from uagents.resolver import RulesBasedResolver
 
 
@@ -335,7 +335,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             schema_digest=msg_digest,
         )
         env.encode_payload(incoming.model_dump_json())
-        env.sign(self.clyde._identity.sign_digest)
+        env.sign(self.clyde._identity)
         payload = env.model_dump()
         payload["session"] = str(env.session)
         mocked_responses.post(endpoints[0], status=200, payload=payload)
@@ -372,7 +372,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             schema_digest=msg_digest,
         )
         env.encode_payload(incoming.model_dump_json())
-        env.sign(self.clyde._identity.sign_digest)
+        env.sign(self.clyde._identity)
         payload = env.model_dump()
         payload["session"] = str(env.session)
         mocked_responses.post(endpoints[0], status=200, payload=payload)

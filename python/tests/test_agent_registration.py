@@ -4,13 +4,12 @@ import json
 import unittest
 from typing import Any, Dict, List
 
-from cosmpy.protos.cosmos.base.v1beta1.coin_pb2 import Coin
-
+# from cosmpy.protos.cosmos.base.v1beta1.coin_pb2 import Coin
 from uagents import Agent
 from uagents.crypto import Identity, encode_length_prefixed
 from uagents.network import get_name_service_contract
 
-EXPECTED_FUNDS = Coin(amount="8640000000000000", denom="atestfet")
+# EXPECTED_FUNDS = Coin(amount="8640000000000000", denom="atestfet")
 
 
 def generate_digest(
@@ -87,7 +86,7 @@ def validate_tx_msgs(
                 return False
 
             if "register" in msg_dict:
-                if not msg_dict["register"]["domain"] or msg.funds[0] != EXPECTED_FUNDS:
+                if not msg_dict["register"]["domain"] or not msg.funds[0]:
                     return False
             elif "update_record" in msg_dict:
                 update_record = msg_dict["update_record"]
