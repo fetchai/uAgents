@@ -722,6 +722,7 @@ class NameServiceContract(LedgerContract):
         wallet_address: Address,
         agent_records: Union[List[Dict[str, Any]], str],
         domain: str,
+        duration: int,
         network: AgentNetwork,
         approval_token: str,
     ):
@@ -733,6 +734,7 @@ class NameServiceContract(LedgerContract):
             wallet_address (str): The wallet address initiating the registration.
             agent_address (str): The address of the agent.
             domain (str): The domain in which the name is registered.
+            duration (int): The duration in seconds for which the name is to be registered.
             network (AgentNetwork): The network in which the transaction is executed.
             approval_token (str): The approval token required for registration.
 
@@ -752,7 +754,7 @@ class NameServiceContract(LedgerContract):
             price_per_second = self.query_contract({"query_contract_state": {}})[
                 "price_per_second"
             ]
-            amount = int(price_per_second["amount"]) * ANAME_REGISTRATION_SECONDS
+            amount = int(price_per_second["amount"]) * duration
             denom = price_per_second["denom"]
 
             registration_msg = {
@@ -791,6 +793,7 @@ class NameServiceContract(LedgerContract):
         name: str,
         domain: str,
         approval_token: str,
+        duration: int = ANAME_REGISTRATION_SECONDS,
         overwrite: bool = True,
     ):
         """
@@ -802,6 +805,7 @@ class NameServiceContract(LedgerContract):
             agent_address (str): The address of the agent.
             name (str): The name to be registered.
             domain (str): The domain in which the name is registered.
+            duration (int): The duration in seconds for which the name is to be registered.
             approval_token (str): The approval token required for registration.
             overwrite (bool, optional): Specifies whether to overwrite any existing
                 addresses registered to the domain. If False, the address will be
@@ -851,6 +855,7 @@ class NameServiceContract(LedgerContract):
             wallet.address(),
             records,
             domain,
+            duration,
             network=network,
             approval_token=approval_token,
         )

@@ -6,7 +6,8 @@ from cosmpy.aerial.wallet import LocalWallet
 from uagents import Agent, Context, Model
 from uagents.network import get_faucet, get_name_service_contract, logger
 
-# NOTE: Run agent1.py before running agent2.py
+# NOTE: Run agent1.py before running agent2.py and be sure to connect your agent
+# using the local agent inspector link in the agent logs.
 
 
 class VerificationRequest(Model):
@@ -25,9 +26,14 @@ class Message(Model):
     message: str
 
 
+ANAME = "example-bob-0"
+DOMAIN = "agent"
+if ANAME == "YOUR_AGENT_NAME_TO_REGISTER":
+    raise ValueError("Please set a unique agent name to register")
+
+
 bob = Agent(
-    name="bob-0",
-    seed="agent bob-0 secret phrase",
+    name=ANAME,
     port=8001,
     mailbox=True,
 )
@@ -36,17 +42,19 @@ bob = Agent(
 my_wallet = LocalWallet.from_unsafe_seed("registration test wallet")
 name_service_contract = get_name_service_contract()
 faucet = get_faucet()
-DOMAIN = "agent"
 
 logger.info(f"Adding testnet funds to {my_wallet.address()}...")
 faucet.get_wealth(my_wallet.address())
 logger.info(f"Adding testnet funds to {my_wallet.address()}...complete")
 
 
-@bob.on_event("startup")
+@bob.on_interval(period=10)
 async def request_token(ctx: Context):
+    registered = ctx.storage.get("registered") or False
+    if registered:
+        return
     ctx.logger.info(
-        f"Sending verification request to oracle agent for domain {bob.name}.{DOMAIN}"
+        f"Sending verification request to oracle agent for domain {ANAME}.{DOMAIN}"
     )
 
     oracle_address = name_service_contract.get_oracle_agent_address()
@@ -54,7 +62,7 @@ async def request_token(ctx: Context):
     await ctx.send(
         oracle_address,
         VerificationRequest(
-            domain=bob.name + "." + DOMAIN,
+            domain=ANAME + "." + DOMAIN,
             address=str(my_wallet.address()),
             chain_id=ctx.ledger.query_chain_id(),
         ),
@@ -74,6 +82,7 @@ async def register_agent_name(ctx: Context, sender: str, msg: VerificationRespon
     await name_service_contract.register(
         bob.ledger, my_wallet, bob.address, bob.name, DOMAIN, approval_token=token
     )
+    ctx.storage.set("registered", True)
 
 
 @bob.on_message(model=Message)
