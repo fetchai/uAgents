@@ -1,7 +1,5 @@
 """Query Envelopes."""
 
-from typing import Optional, Union
-
 from uagents_core.crypto import generate_user_address
 from uagents_core.envelope import Envelope
 from uagents_core.models import Model
@@ -13,21 +11,21 @@ from uagents.resolver import Resolver
 async def query(
     destination: str,
     message: Model,
-    resolver: Optional[Resolver] = None,
+    resolver: Resolver | None = None,
     timeout: int = 30,
-) -> Union[MsgStatus, Envelope]:
+) -> MsgStatus | Envelope:
     """
     Query a remote agent with a message and retrieve the response envelope.
 
     Args:
         destination (str): The destination address of the remote agent.
         message (Model): The message to send.
-        resolver (Optional[Resolver], optional): The resolver to use for endpoint resolution.
+        resolver (Resolver | None): The resolver to use for endpoint resolution.
         Defaults to GlobalResolver.
         timeout (int): The timeout for the query in seconds. Defaults to 30.
 
     Returns:
-        Union[MsgStatus, Envelope]: The response envelope if successful, otherwise MsgStatus.
+        MsgStatus | Envelope: The response envelope if successful, otherwise MsgStatus.
     """
     response = await send_sync_message(
         destination=destination,

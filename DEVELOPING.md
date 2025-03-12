@@ -26,7 +26,7 @@
 
 ## <a name="setup"></a> Setting up a New Development Environment
 
-The easiest way to get set up for development is to install Python (`3.9` to `3.12`) and [poetry](https://pypi.org/project/poetry/), and then run the following from the top-level project directory:
+The easiest way to get set up for development is to install Python (`3.10` to `3.13`) and [poetry](https://pypi.org/project/poetry/), and then run the following from the top-level project directory:
 
 ```bash
   cd python

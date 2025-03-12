@@ -7,25 +7,38 @@
 #### coerce_metadata_to_str[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L83)
 ```python
 def coerce_metadata_to_str(
-    metadata: Optional[Dict[str, Any]]
-) -> Optional[Dict[str, Union[str, Dict[str, str]]]]
+        metadata: dict[str, Any] | None
+) -> dict[str, str | dict[str, str]] | None
 ```
 
 Step through the metadata and convert any non-string values to strings.
 
 
 
-#### extract_geo_metadata[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L102)
+#### extract_geo_metadata[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L100)
 ```python
 def extract_geo_metadata(
-        metadata: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]
+        metadata: dict[str, Any] | None) -> dict[str, Any] | None
 ```
 
 Extract geo-location metadata from the metadata dictionary.
 
 
 
-## LedgerBasedRegistrationPolicy Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L271)
+#### almanac_api_post[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L109)
+```python
+async def almanac_api_post(url: str,
+                           data: BaseModel,
+                           *,
+                           max_retries: int | None = None,
+                           retry_delay: RetryDelayFunc | None = None) -> bool
+```
+
+Send a POST request to the Almanac API.
+
+
+
+## LedgerBasedRegistrationPolicy Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L268)
 
 ```python
 class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy)
@@ -33,9 +46,9 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy)
 
 
 
-#### check_contract_version[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L329)
+#### check_contract_version[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L326)
 ```python
-def check_contract_version()
+def check_contract_version() -> None
 ```
 
 Check the version of the deployed Almanac contract and log a warning
@@ -43,13 +56,13 @@ if it is different from the supported version.
 
 
 
-#### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L343)
+#### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L340)
 ```python
 async def register(agent_identifier: str,
                    identity: Identity,
-                   protocols: List[str],
-                   endpoints: List[AgentEndpoint],
-                   metadata: Optional[Dict[str, Any]] = None)
+                   protocols: list[str],
+                   endpoints: list[AgentEndpoint],
+                   metadata: dict[str, Any] | None = None) -> None
 ```
 
 Register the agent on the Almanac contract if registration is about to expire or

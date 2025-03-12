@@ -82,10 +82,10 @@ class QuotaProtocol(Protocol)
 #### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L106)
 ```python
 def __init__(storage_reference: StorageAPI,
-             name: Optional[str] = None,
-             version: Optional[str] = None,
-             default_rate_limit: Optional[RateLimit] = None,
-             default_acl: Optional[AccessControlList] = None)
+             name: str | None = None,
+             version: str | None = None,
+             default_rate_limit: RateLimit | None = None,
+             default_acl: AccessControlList | None = None)
 ```
 
 Initialize a QuotaProtocol instance.
@@ -93,22 +93,21 @@ Initialize a QuotaProtocol instance.
 **Arguments**:
 
 - `storage_reference` _StorageAPI_ - The storage reference to use for rate limiting.
-- `name` _Optional[str], optional_ - The name of the protocol. Defaults to None.
-- `version` _Optional[str], optional_ - The version of the protocol. Defaults to None.
-- `default_rate_limit` _Optional[RateLimit], optional_ - The default rate limit.
-  Defaults to None.
-- `default_acl` _Optional[AccessControlList], optional_ - The access control list.
-  Defaults to None.
+- `name` _str | None_ - The name of the protocol. Defaults to None.
+- `version` _str | None_ - The version of the protocol. Defaults to None.
+- `default_rate_limit` _RateLimit | None_ - The default rate limit. Defaults to None.
+- `default_acl` _AccessControlList | None_ - The access control list. Defaults to None.
 
 
 
-#### on_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L131)
+#### on_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L129)
 ```python
-def on_message(model: Type[Model],
-               replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
-               allow_unverified: Optional[bool] = False,
-               rate_limit: Optional[RateLimit] = None,
-               access_control_list: Optional[AccessControlList] = None)
+def on_message(
+        model: type[Model],
+        replies: type[Model] | set[type[Model]] | None = None,
+        allow_unverified: bool = False,
+        rate_limit: RateLimit | None = None,
+        access_control_list: AccessControlList | None = None) -> Callable
 ```
 
 Overwritten decorator to register a message handler for the protocol
@@ -116,14 +115,11 @@ including rate limiting.
 
 **Arguments**:
 
-- `model` _Type[Model]_ - The message model type.
-- `replies` _Optional[Union[Type[Model], Set[Type[Model]]]], optional_ - The associated
-  reply types. Defaults to None.
-- `allow_unverified` _Optional[bool], optional_ - Whether to allow unverified messages.
-  Defaults to False.
-- `rate_limit` _Optional[RateLimit], optional_ - The rate limit to apply. Defaults to None.
-- `access_control_list` _Optional[AccessControlList], optional_ - The access control list to
-  apply.
+- `model` _type[Model]_ - The message model type.
+- `replies` _type[Model] | set[type[Model]] | None_ - The associated reply types.
+- `allow_unverified` _bool | None_ - Whether to allow unverified messages. Defaults to False.
+- `rate_limit` _RateLimit | None_ - The rate limit to apply. Defaults to None.
+- `access_control_list` _AccessControlList | None_ - The access control list to apply.
   
 
 **Returns**:
@@ -132,20 +128,20 @@ including rate limiting.
 
 
 
-#### wrap[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L164)
+#### wrap[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L159)
 ```python
 def wrap(func: MessageCallback,
-         rate_limit: Optional[RateLimit] = None,
-         acl: Optional[AccessControlList] = None) -> MessageCallback
+         rate_limit: RateLimit | None = None,
+         acl: AccessControlList | None = None) -> MessageCallback
 ```
 
 Decorator to wrap a function with rate limiting.
 
 **Arguments**:
 
-- `func` - The function to wrap with rate limiting
-- `rate_limit` - The rate limit to apply
-- `acl` - The access control list to apply
+- `func` _MessageCallback_ - The function to wrap.
+- `rate_limit` _RateLimit | None_ - The rate limit to apply. Defaults to None.
+- `acl` _AccessControlList | None_ - The access control list to apply.
   
 
 **Returns**:
@@ -154,7 +150,7 @@ Decorator to wrap a function with rate limiting.
 
 
 
-#### add_request[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L232)
+#### add_request[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L227)
 ```python
 def add_request(agent_address: str, function_name: str,
                 window_size_minutes: int, max_requests: int) -> bool
@@ -166,10 +162,10 @@ reset the time window and add the request.
 
 **Arguments**:
 
-- `agent_address` - The address of the agent making the request
+- `agent_address` - The address of the agent making the request.
   
 
 **Returns**:
 
-  False if the maximum number of requests has been exceeded, True otherwise
+  False if the maximum number of requests has been exceeded, True otherwise.
 

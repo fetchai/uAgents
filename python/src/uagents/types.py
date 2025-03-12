@@ -1,20 +1,8 @@
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import (
-    TYPE_CHECKING,
-    Annotated,
-    Any,
-    Awaitable,
-    Callable,
-    Dict,
-    List,
-    Literal,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from uagents_core.models import Model
@@ -30,12 +18,12 @@ MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
 EventCallback = Callable[["Context"], Awaitable[None]]
 WalletMessageCallback = Callable[["Context", Any], Awaitable[None]]
 
-RestReturnType = Union[Dict[str, Any], Model]
-RestGetHandler = Callable[["Context"], Awaitable[Optional[RestReturnType]]]
-RestPostHandler = Callable[["Context", Any], Awaitable[Optional[RestReturnType]]]
-RestHandler = Union[RestGetHandler, RestPostHandler]
+RestReturnType = dict[str, Any] | Model
+RestGetHandler = Callable[["Context"], Awaitable[RestReturnType | None]]
+RestPostHandler = Callable[["Context", Any], Awaitable[RestReturnType | None]]
+RestHandler = RestGetHandler | RestPostHandler
 RestMethod = Literal["GET", "POST"]
-RestHandlerMap = Dict[Tuple[RestMethod, str], RestHandler]
+RestHandlerMap = dict[tuple[RestMethod, str], RestHandler]
 
 
 AddressPrefix = Literal["agent", "test-agent"]
@@ -45,16 +33,16 @@ AgentNetwork = Literal["mainnet", "testnet"]
 class AgentInfo(BaseModel):
     address: str
     prefix: AddressPrefix
-    endpoints: List[AgentEndpoint]
-    protocols: List[str]
-    metadata: Optional[Dict[str, Any]] = None
+    endpoints: list[AgentEndpoint]
+    protocols: list[str]
+    metadata: dict[str, Any] | None = None
 
 
 class RestHandlerDetails(BaseModel):
     method: RestMethod
     endpoint: str
-    request_model: Optional[Type[Model]] = None
-    response_model: Type[Union[Model, BaseModel]]
+    request_model: type[Model] | None = None
+    response_model: type[Model | BaseModel]
 
 
 class AgentGeolocation(BaseModel):
@@ -86,7 +74,7 @@ class AgentMetadata(BaseModel):
         arbitrary_types_allowed=True,
     )
 
-    geolocation: Optional[AgentGeolocation] = None
+    geolocation: AgentGeolocation | None = None
 
 
 class DeliveryStatus(str, Enum):
@@ -123,11 +111,11 @@ class MsgStatus:
         detail (str): The details of the message delivery.
         destination (str): The destination address of the message.
         endpoint (str): The endpoint the message was sent to.
-        session (Optional[uuid.UUID]): The session ID of the message.
+        session (uuid.UUID | None): The session ID of the message.
     """
 
     status: DeliveryStatus
     detail: str
     destination: str
     endpoint: str
-    session: Optional[uuid.UUID] = None
+    session: uuid.UUID | None = None

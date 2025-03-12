@@ -6,12 +6,12 @@ Endpoint Resolver.
 
 
 
-#### weighted_random_sample[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L28)
+#### weighted_random_sample[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L32)
 ```python
-def weighted_random_sample(items: List[Any],
-                           weights: Optional[List[float]] = None,
+def weighted_random_sample(items: list[Any],
+                           weights: list[float] | None = None,
                            k: int = 1,
-                           rng=random) -> List[Any]
+                           rng=random) -> list[Any]
 ```
 
 Weighted random sample from a list of items without replacement.
@@ -20,19 +20,19 @@ Ref: Efraimidis, Pavlos S. "Weighted random sampling over data streams."
 
 **Arguments**:
 
-- `items` _List[Any]_ - The list of items to sample from.
-- `weights` _Optional[List[float]]_ - The optional list of weights for each item.
+- `items` _list[Any]_ - The list of items to sample from.
+  weights (list[float]] | None) The optional list of weights for each item.
 - `k` _int_ - The number of items to sample.
 - `rng` _random_ - The random number generator.
   
 
 **Returns**:
 
-- `List[Any]` - The sampled items.
+- `list[Any]` - The sampled items.
 
 
 
-#### is_valid_address[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L52)
+#### is_valid_address[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L56)
 ```python
 def is_valid_address(address: str) -> bool
 ```
@@ -50,7 +50,7 @@ Check if the given string is a valid address.
 
 
 
-#### is_valid_prefix[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L67)
+#### is_valid_prefix[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L71)
 ```python
 def is_valid_prefix(prefix: str) -> bool
 ```
@@ -68,9 +68,27 @@ Check if the given string is a valid prefix.
 
 
 
-#### parse_identifier[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L81)
+#### parse_prefix[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L85)
 ```python
-def parse_identifier(identifier: str) -> Tuple[str, str, str]
+def parse_prefix(prefix: str) -> AgentNetwork
+```
+
+Parse an agent prefix string into the corresponding network.
+
+**Arguments**:
+
+- `prefix` _str_ - The prefix string to be parsed.
+  
+
+**Returns**:
+
+- `AgentNetwork` - The corresponding network.
+
+
+
+#### parse_identifier[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L102)
+```python
+def parse_identifier(identifier: str) -> tuple[str, str, str]
 ```
 
 Parse an agent identifier string into prefix, name, and address.
@@ -82,11 +100,11 @@ Parse an agent identifier string into prefix, name, and address.
 
 **Returns**:
 
-  Tuple[str, str, str]: A tuple containing the prefix, name, and address as strings.
+  tuple[str, str, str]: A tuple containing the prefix, name, and address as strings.
 
 
 
-#### query_record[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L110)
+#### query_record[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L131)
 ```python
 def query_record(agent_address: str, service: str,
                  network: AgentNetwork) -> dict
@@ -107,9 +125,9 @@ Query a record from the Almanac contract.
 
 
 
-#### get_agent_address[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L130)
+#### get_agent_address[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L153)
 ```python
-def get_agent_address(name: str, network: AgentNetwork) -> Optional[str]
+def get_agent_address(name: str, network: AgentNetwork) -> str | None
 ```
 
 Get the agent address associated with the provided name from the name service contract.
@@ -122,11 +140,11 @@ Get the agent address associated with the provided name from the name service co
 
 **Returns**:
 
-- `Optional[str]` - The associated agent address if found.
+  str | None: The associated agent address if found.
 
 
 
-## Resolver Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L156)
+## Resolver Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L179)
 
 ```python
 class Resolver(ABC)
@@ -134,10 +152,10 @@ class Resolver(ABC)
 
 
 
-#### resolve[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L157)
+#### resolve[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L180)
 ```python
 @abstractmethod
-async def resolve(destination: str) -> Tuple[Optional[str], List[str]]
+async def resolve(destination: str) -> tuple[str | None, list[str]]
 ```
 
 Resolve the destination to an address and endpoint.
@@ -149,11 +167,11 @@ Resolve the destination to an address and endpoint.
 
 **Returns**:
 
-  Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
+  tuple[str | None, list[str]]: The address (if available) and resolved endpoints.
 
 
 
-## GlobalResolver Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L172)
+## GlobalResolver Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L194)
 
 ```python
 class GlobalResolver(Resolver)
@@ -161,24 +179,24 @@ class GlobalResolver(Resolver)
 
 
 
-#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L173)
+#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L195)
 ```python
-def __init__(max_endpoints: Optional[int] = None,
-             almanac_api_url: Optional[str] = None)
+def __init__(max_endpoints: int | None = None,
+             almanac_api_url: str | None = None)
 ```
 
 Initialize the GlobalResolver.
 
 **Arguments**:
 
-- `max_endpoints` _Optional[int]_ - The maximum number of endpoints to return.
-- `almanac_api_url` _Optional[str]_ - The url for almanac api
+- `max_endpoints` _int | None_ - The maximum number of endpoints to return.
+- `almanac_api_url` _str | None_ - The url for almanac api
 
 
 
-#### resolve[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L191)
+#### resolve[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L213)
 ```python
-async def resolve(destination: str) -> Tuple[Optional[str], List[str]]
+async def resolve(destination: str) -> tuple[str | None, list[str]]
 ```
 
 Resolve the destination using the appropriate resolver.
@@ -190,11 +208,11 @@ Resolve the destination using the appropriate resolver.
 
 **Returns**:
 
-  Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
+  tuple[str | None, list[str]]: The address (if available) and resolved endpoints.
 
 
 
-## AlmanacContractResolver Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L213)
+## AlmanacContractResolver Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L235)
 
 ```python
 class AlmanacContractResolver(Resolver)
@@ -202,22 +220,22 @@ class AlmanacContractResolver(Resolver)
 
 
 
-#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L214)
+#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L236)
 ```python
-def __init__(max_endpoints: Optional[int] = None)
+def __init__(max_endpoints: int | None = None)
 ```
 
 Initialize the AlmanacContractResolver.
 
 **Arguments**:
 
-- `max_endpoints` _Optional[int]_ - The maximum number of endpoints to return.
+- `max_endpoints` _int | None_ - The maximum number of endpoints to return.
 
 
 
-#### resolve[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L223)
+#### resolve[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L245)
 ```python
-async def resolve(destination: str) -> Tuple[Optional[str], List[str]]
+async def resolve(destination: str) -> tuple[str | None, list[str]]
 ```
 
 Resolve the destination using the Almanac contract.
@@ -229,11 +247,11 @@ Resolve the destination using the Almanac contract.
 
 **Returns**:
 
-  Tuple[str, List[str]]: The address and resolved endpoints.
+  tuple[str | None, list[str]]: The address and resolved endpoints.
 
 
 
-## AlmanacApiResolver Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L254)
+## AlmanacApiResolver Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L276)
 
 ```python
 class AlmanacApiResolver(Resolver)
@@ -241,24 +259,24 @@ class AlmanacApiResolver(Resolver)
 
 
 
-#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L255)
+#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L277)
 ```python
-def __init__(max_endpoints: Optional[int] = None,
-             almanac_api_url: Optional[str] = None)
+def __init__(max_endpoints: int | None = None,
+             almanac_api_url: str | None = None)
 ```
 
 Initialize the AlmanacApiResolver.
 
 **Arguments**:
 
-- `max_endpoints` _Optional[int]_ - The maximum number of endpoints to return.
-- `almanac_api_url` _Optional[str]_ - The url for almanac api
+- `max_endpoints` _int | None_ - The maximum number of endpoints to return.
+- `almanac_api_url` _str | None_ - The url for almanac api
 
 
 
-#### resolve[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L318)
+#### resolve[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L342)
 ```python
-async def resolve(destination: str) -> Tuple[Optional[str], List[str]]
+async def resolve(destination: str) -> tuple[str | None, list[str]]
 ```
 
 Resolve the destination using the Almanac API.
@@ -271,11 +289,11 @@ If the resolution using API fails, it retries using the Almanac Contract.
 
 **Returns**:
 
-  Tuple[Optional[str], List[str]]: The address and resolved endpoints.
+  tuple[str | None, list[str]]: The address and resolved endpoints.
 
 
 
-## NameServiceResolver Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L337)
+## NameServiceResolver Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L361)
 
 ```python
 class NameServiceResolver(Resolver)
@@ -283,22 +301,22 @@ class NameServiceResolver(Resolver)
 
 
 
-#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L338)
+#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L362)
 ```python
-def __init__(max_endpoints: Optional[int] = None)
+def __init__(max_endpoints: int | None = None)
 ```
 
 Initialize the NameServiceResolver.
 
 **Arguments**:
 
-- `max_endpoints` _Optional[int]_ - The maximum number of endpoints to return.
+- `max_endpoints` _int | None_ - The maximum number of endpoints to return.
 
 
 
-#### resolve[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L350)
+#### resolve[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L372)
 ```python
-async def resolve(destination: str) -> Tuple[Optional[str], List[str]]
+async def resolve(destination: str) -> tuple[str | None, list[str]]
 ```
 
 Resolve the destination using the NameService contract.
@@ -310,11 +328,11 @@ Resolve the destination using the NameService contract.
 
 **Returns**:
 
-  Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
+  tuple[str | None, list[str]]: The address (if available) and resolved endpoints.
 
 
 
-## RulesBasedResolver Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L368)
+## RulesBasedResolver Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L390)
 
 ```python
 class RulesBasedResolver(Resolver)
@@ -322,23 +340,23 @@ class RulesBasedResolver(Resolver)
 
 
 
-#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L369)
+#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L391)
 ```python
-def __init__(rules: Dict[str, str], max_endpoints: Optional[int] = None)
+def __init__(rules: dict[str, str], max_endpoints: int | None = None)
 ```
 
 Initialize the RulesBasedResolver with the provided rules.
 
 **Arguments**:
 
-- `rules` _Dict[str, str]_ - A dictionary of rules mapping destinations to endpoints.
-- `max_endpoints` _Optional[int]_ - The maximum number of endpoints to return.
+- `rules` _dict[str, str]_ - A dictionary of rules mapping destinations to endpoints.
+- `max_endpoints` _int | None_ - The maximum number of endpoints to return.
 
 
 
-#### resolve[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L380)
+#### resolve[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/resolver.py#L402)
 ```python
-async def resolve(destination: str) -> Tuple[Optional[str], List[str]]
+async def resolve(destination: str) -> tuple[str | None, list[str]]
 ```
 
 Resolve the destination using the provided rules.
@@ -350,5 +368,5 @@ Resolve the destination using the provided rules.
 
 **Returns**:
 
-  Tuple[str, List[str]]: The address and resolved endpoints.
+  tuple[str | None, list[str]]: The address and resolved endpoints.
 
