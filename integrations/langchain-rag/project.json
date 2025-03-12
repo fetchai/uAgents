@@ -1,6 +1,0 @@
-{
-    "title": "LangChain RAG",
-    "description": "LangChain RAG. RAG (retrieval augmentred generation) enables developers to improve the quality of LLM-generated responses by grounding the model on external sources of knowledge.",
-    "categories":   ["Text Generation", "LLM", "OpenAI", "RAG"],
-    "deltav": false
-}

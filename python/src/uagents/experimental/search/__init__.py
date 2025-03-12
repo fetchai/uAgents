@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, List, Literal
+from typing import Annotated, Literal
 
 import requests
 from pydantic import BaseModel, Field
@@ -83,18 +83,16 @@ class Agent(BaseModel):
 
 
 class AgentFilters(BaseModel):
-    """
-    The set of filters that should be applied to the agent search entries
-    """
+    """The set of filters that should be applied to the agent search entries"""
 
     # The state of the agent, i.e. is it alive or not
-    state: List[StatusType] = Field(default_factory=list)
+    state: list[StatusType] = Field(default_factory=list)
 
     # The category of the creator of the agent
-    category: List[AgentCategory] = Field(default_factory=list)
+    category: list[AgentCategory] = Field(default_factory=list)
 
     # The category of how the agent is hosted
-    agent_type: List[AgentType] = Field(default_factory=list)
+    agent_type: list[AgentType] = Field(default_factory=list)
 
 
 SortType = Literal["relevancy", "created-at", "last-modified", "interactions"]
@@ -102,9 +100,7 @@ SortDirection = Literal["asc", "desc"]
 
 
 class AgentSearchCriteria(BaseModel):
-    """
-    The search criteria that can be set for the agent search
-    """
+    """The search criteria that can be set for the agent search"""
 
     # The set of filters that should be applied to the search
     filters: AgentFilters = AgentFilters()
@@ -127,9 +123,7 @@ class AgentSearchCriteria(BaseModel):
 
 
 class AgentGeoFilter(BaseModel):
-    """
-    The geo filter that can be applied to the agent search
-    """
+    """The geo filter that can be applied to the agent search"""
 
     # The latitude of the location
     latitude: Annotated[float, Field(ge=-90, le=90)]
@@ -142,17 +136,15 @@ class AgentGeoFilter(BaseModel):
 
 
 class AgentGeoSearchCriteria(AgentSearchCriteria):
-    """
-    The search criteria that can be set for the agent search
-    """
+    """The search criteria that can be set for the agent search"""
 
     # The geo filter that can be applied to the search
     geo_filter: AgentGeoFilter
 
 
 def _geosearch_agents(criteria: AgentGeoSearchCriteria) -> list[Agent]:
-    # TODO currently results will be returned based on radius overlap, i.e., results can
-    # include agents that are farther away then the specified radius
+    # NOTE: currently results will be returned based on radius overlap, i.e., results can
+    # include agents that are farther away then the specified radius.
 
     # filter only for active agents
     criteria.filters = AgentFilters(state=["active"])
@@ -168,7 +160,7 @@ def _geosearch_agents(criteria: AgentGeoSearchCriteria) -> list[Agent]:
     return []
 
 
-def _search_agents(criteria: AgentSearchCriteria):
+def _search_agents(criteria: AgentSearchCriteria) -> list[Agent]:
     response = requests.post(
         url=SEARCH_API_URL,
         json=criteria.model_dump(),
@@ -186,7 +178,7 @@ def geosearch_agents_by_proximity(
     longitude: float,
     radius: float,
     limit: int = 30,
-):
+) -> list[Agent]:
     """
     Return all agents in a circle around the given coordinates that match the given search criteria
     """
@@ -205,7 +197,7 @@ def geosearch_agents_by_protocol(
     radius: float,
     protocol_digest: str,
     limit: int = 30,
-):
+) -> list[Agent]:
     """
     Return all agents in a circle around the given coordinates that match the given search criteria
     """
@@ -226,7 +218,7 @@ def geosearch_agents_by_protocol(
 
 def geosearch_agents_by_text(
     latitude: float, longitude: float, radius: float, search_text: str, limit: int = 30
-):
+) -> list[Agent]:
     """
     Return all agents in a circle around the given coordinates that match the given search_text
     """
@@ -240,10 +232,8 @@ def geosearch_agents_by_text(
     return _geosearch_agents(criteria)
 
 
-def search_agents_by_protocol(protocol_digest: str, limit: int = 30):
-    """
-    Return all agents that match the given search criteria
-    """
+def search_agents_by_protocol(protocol_digest: str, limit: int = 30) -> list[Agent]:
+    """Return all agents that match the given search criteria"""
     criteria = AgentSearchCriteria(
         filters=AgentFilters(state=["active"]),
         search_text=protocol_digest,
@@ -258,10 +248,8 @@ def search_agents_by_protocol(protocol_digest: str, limit: int = 30):
     return filtered_agents
 
 
-def search_agents_by_text(search_text: str, limit: int = 30):
-    """
-    Return all agents that match the given search_text
-    """
+def search_agents_by_text(search_text: str, limit: int = 30) -> list[Agent]:
+    """Return all agents that match the given search_text"""
     criteria = AgentSearchCriteria(
         filters=AgentFilters(state=["active"]),
         search_text=search_text,

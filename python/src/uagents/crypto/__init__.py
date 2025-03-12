@@ -3,7 +3,6 @@ import hashlib
 import json
 import struct
 from secrets import token_bytes
-from typing import Tuple, Union
 
 import bech32
 import ecdsa
@@ -14,7 +13,7 @@ from uagents.config import USER_PREFIX
 SHA_LENGTH = 256
 
 
-def _decode_bech32(value: str) -> Tuple[str, bytes]:
+def _decode_bech32(value: str) -> tuple[str, bytes]:
     prefix, data_base5 = bech32.bech32_decode(value)
     if not data_base5 or not prefix:
         raise ValueError("Unable to decode value")
@@ -60,7 +59,7 @@ def derive_key_from_seed(seed, prefix, index) -> bytes:
     return hasher.digest()
 
 
-def encode_length_prefixed(value: Union[str, int, bytes]) -> bytes:
+def encode_length_prefixed(value: str | int | bytes) -> bytes:
     if isinstance(value, str):
         encoded = value.encode()
     elif isinstance(value, int):
@@ -161,7 +160,7 @@ class Identity:
         hasher.update(encode_length_prefixed(wallet_address))
         return self.sign_digest(hasher.digest())
 
-    def sign_arbitrary(self, data: bytes) -> Tuple[str, str]:
+    def sign_arbitrary(self, data: bytes) -> tuple[str, str]:
         # create the sign doc
         sign_doc = {
             "chain_id": "",

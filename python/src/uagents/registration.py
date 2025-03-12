@@ -6,7 +6,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import aiohttp
 import grpc
@@ -40,8 +40,8 @@ class VerifiableModel(BaseModel):
     agent_identifier: str = Field(
         validation_alias=AliasChoices("agent_identifier", "agent_address")
     )
-    signature: Optional[str] = None
-    timestamp: Optional[int] = None
+    signature: str | None = None
+    timestamp: int | None = None
 
     def sign(self, identity: Identity):
         self.timestamp = int(time.time())
@@ -51,7 +51,7 @@ class VerifiableModel(BaseModel):
     def verify(self) -> bool:
         _, _, agent_address = parse_identifier(self.agent_identifier)
         return self.signature is not None and Identity.verify_digest(
-            agent_address, self._build_digest(), self.signature
+            address=agent_address, digest=self._build_digest(), signature=self.signature
         )
 
     def _build_digest(self) -> bytes:
@@ -67,13 +67,13 @@ class VerifiableModel(BaseModel):
 
 
 class AgentRegistrationAttestation(VerifiableModel):
-    protocols: List[str]
-    endpoints: List[AgentEndpoint]
-    metadata: Optional[Dict[str, Union[str, Dict[str, str]]]] = None
+    protocols: list[str]
+    endpoints: list[AgentEndpoint]
+    metadata: dict[str, str | dict[str, str]] | None = None
 
 
 class AgentRegistrationAttestationBatch(BaseModel):
-    attestations: List[AgentRegistrationAttestation]
+    attestations: list[AgentRegistrationAttestation]
 
 
 class AgentStatusUpdate(VerifiableModel):
@@ -81,11 +81,9 @@ class AgentStatusUpdate(VerifiableModel):
 
 
 def coerce_metadata_to_str(
-    metadata: Optional[Dict[str, Any]],
-) -> Optional[Dict[str, Union[str, Dict[str, str]]]]:
-    """
-    Step through the metadata and convert any non-string values to strings.
-    """
+    metadata: dict[str, Any] | None,
+) -> dict[str, str | dict[str, str]] | None:
+    """Step through the metadata and convert any non-string values to strings."""
     if metadata is None:
         return None
     out = {}
@@ -100,11 +98,9 @@ def coerce_metadata_to_str(
 
 
 def extract_geo_metadata(
-    metadata: Optional[Dict[str, Any]],
-) -> Optional[Dict[str, Any]]:
-    """
-    Extract geo-location metadata from the metadata dictionary.
-    """
+    metadata: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Extract geo-location metadata from the metadata dictionary."""
     if metadata is None:
         return None
     return {k: v for k, v in metadata.items() if k == "geolocation"}
@@ -114,9 +110,10 @@ async def almanac_api_post(
     url: str,
     data: BaseModel,
     *,
-    max_retries: Optional[int] = None,
-    retry_delay: Optional[RetryDelayFunc] = None,
+    max_retries: int | None = None,
+    retry_delay: RetryDelayFunc | None = None,
 ) -> bool:
+    """Send a POST request to the Almanac API."""
     num_retries = max_retries or ALMANAC_API_MAX_RETRIES
     retry_delay_func = retry_delay or default_exp_backoff
 
@@ -124,7 +121,7 @@ async def almanac_api_post(
         for retry in range(num_retries):
             try:
                 async with session.post(
-                    url,
+                    url=url,
                     headers={"content-type": "application/json"},
                     data=data.model_dump_json(),
                     timeout=aiohttp.ClientTimeout(total=ALMANAC_API_TIMEOUT_SECONDS),
@@ -145,49 +142,49 @@ class AgentRegistrationPolicy(ABC):
         self,
         agent_identifier: str,
         identity: Identity,
-        protocols: List[str],
-        endpoints: List[AgentEndpoint],
-        metadata: Optional[Dict[str, Any]] = None,
+        protocols: list[str],
+        endpoints: list[AgentEndpoint],
+        metadata: dict[str, Any] | None = None,
     ):
-        pass
+        raise NotImplementedError
 
 
 class BatchRegistrationPolicy(ABC):
     @abstractmethod
     async def register(self):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def add_agent(self, agent_info: AgentInfo, identity: Identity):
-        pass
+        raise NotImplementedError
 
 
 class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
     def __init__(
         self,
         *,
-        almanac_api: Optional[str] = None,
+        almanac_api: str | None = None,
         max_retries: int = ALMANAC_API_MAX_RETRIES,
-        retry_delay: Optional[RetryDelayFunc] = None,
-        logger: Optional[logging.Logger] = None,
+        retry_delay: RetryDelayFunc | None = None,
+        logger: logging.Logger | None = None,
     ):
         self._almanac_api = almanac_api or ALMANAC_API_URL
         self._max_retries = max_retries
         self._logger = logger or logging.getLogger(__name__)
         self._retry_delay = retry_delay or default_exp_backoff
-        self._last_successful_registration: Optional[datetime] = None
+        self._last_successful_registration: datetime | None = None
 
     @property
-    def last_successful_registration(self) -> Optional[datetime]:
+    def last_successful_registration(self) -> datetime | None:
         return self._last_successful_registration
 
     async def register(
         self,
         agent_identifier: str,
         identity: Identity,
-        protocols: List[str],
-        endpoints: List[AgentEndpoint],
-        metadata: Optional[Dict[str, Any]] = None,
+        protocols: list[str],
+        endpoints: list[AgentEndpoint],
+        metadata: dict[str, Any] | None = None,
     ):
         # create the attestation
         attestation = AgentRegistrationAttestation(
@@ -202,8 +199,8 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
 
         try:
             success = await almanac_api_post(
-                f"{self._almanac_api}/agents",
-                attestation,
+                url=f"{self._almanac_api}/agents",
+                data=attestation,
                 max_retries=self._max_retries,
                 retry_delay=self._retry_delay,
             )
@@ -219,20 +216,20 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
 class BatchAlmanacApiRegistrationPolicy(BatchRegistrationPolicy):
     def __init__(
         self,
-        almanac_api: Optional[str] = None,
-        logger: Optional[logging.Logger] = None,
+        almanac_api: str | None = None,
+        logger: logging.Logger | None = None,
         max_retries: int = ALMANAC_API_MAX_RETRIES,
-        retry_delay: Optional[RetryDelayFunc] = None,
+        retry_delay: RetryDelayFunc | None = None,
     ):
         self._almanac_api = almanac_api or ALMANAC_API_URL
-        self._attestations: List[AgentRegistrationAttestation] = []
+        self._attestations: list[AgentRegistrationAttestation] = []
         self._logger = logger or logging.getLogger(__name__)
         self._max_retries = max_retries
         self._retry_delay = retry_delay or default_exp_backoff
-        self._last_successful_registration: Optional[datetime] = None
+        self._last_successful_registration: datetime | None = None
 
     @property
-    def last_successful_registration(self) -> Optional[datetime]:
+    def last_successful_registration(self) -> datetime | None:
         return self._last_successful_registration
 
     def add_agent(self, agent_info: AgentInfo, identity: Identity):
@@ -254,8 +251,8 @@ class BatchAlmanacApiRegistrationPolicy(BatchRegistrationPolicy):
 
         try:
             success = await almanac_api_post(
-                f"{self._almanac_api}/agents/batch",
-                attestations,
+                url=f"{self._almanac_api}/agents/batch",
+                data=attestations,
                 max_retries=self._max_retries,
                 retry_delay=self._retry_delay,
             )
@@ -276,7 +273,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         almanac_contract: AlmanacContract,
         testnet: bool,
         *,
-        logger: Optional[logging.Logger] = None,
+        logger: logging.Logger | None = None,
     ):
         self._wallet = wallet
         self._ledger = ledger
@@ -284,49 +281,49 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         self._almanac_contract = almanac_contract
         self._registration_fee = almanac_contract.get_registration_fee()
         self._logger = logger or logging.getLogger(__name__)
-        self._broadcast_retries: Optional[int] = None
-        self._broadcast_retry_delay: Optional[RetryDelayFunc] = None
-        self._poll_retries: Optional[int] = None
-        self._poll_retry_delay: Optional[RetryDelayFunc] = None
-        self._last_successful_registration: Optional[datetime] = None
+        self._broadcast_retries: int | None = None
+        self._broadcast_retry_delay: RetryDelayFunc | None = None
+        self._poll_retries: int | None = None
+        self._poll_retry_delay: RetryDelayFunc | None = None
+        self._last_successful_registration: datetime | None = None
 
     @property
-    def last_successful_registration(self) -> Optional[datetime]:
+    def last_successful_registration(self) -> datetime | None:
         return self._last_successful_registration
 
     @property
-    def broadcast_retries(self) -> Optional[int]:
+    def broadcast_retries(self) -> int | None:
         return self._broadcast_retries
 
     @broadcast_retries.setter
-    def broadcast_retries(self, value: Optional[int]):
+    def broadcast_retries(self, value: int | None) -> None:
         self._broadcast_retries = value
 
     @property
-    def broadcast_retry_delay(self) -> Optional[RetryDelayFunc]:
+    def broadcast_retry_delay(self) -> RetryDelayFunc | None:
         return self._broadcast_retry_delay
 
     @broadcast_retry_delay.setter
-    def broadcast_retry_delay(self, value: Optional[RetryDelayFunc]):
+    def broadcast_retry_delay(self, value: RetryDelayFunc | None) -> None:
         self._broadcast_retry_delay = value
 
     @property
-    def poll_retries(self) -> Optional[int]:
+    def poll_retries(self) -> int | None:
         return self._poll_retries
 
     @poll_retries.setter
-    def poll_retries(self, value: Optional[int]):
+    def poll_retries(self, value: int | None) -> None:
         self._poll_retries = value
 
     @property
-    def poll_retry_delay(self) -> Optional[RetryDelayFunc]:
+    def poll_retry_delay(self) -> RetryDelayFunc | None:
         return self._poll_retry_delay
 
     @poll_retry_delay.setter
-    def poll_retry_delay(self, value: Optional[RetryDelayFunc]):
+    def poll_retry_delay(self, value: RetryDelayFunc | None) -> None:
         self._poll_retry_delay = value
 
-    def check_contract_version(self):
+    def check_contract_version(self) -> None:
         """
         Check the version of the deployed Almanac contract and log a warning
         if it is different from the supported version.
@@ -344,10 +341,10 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         self,
         agent_identifier: str,
         identity: Identity,
-        protocols: List[str],
-        endpoints: List[AgentEndpoint],
-        metadata: Optional[Dict[str, Any]] = None,
-    ):
+        protocols: list[str],
+        endpoints: list[AgentEndpoint],
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
         """
         Register the agent on the Almanac contract if registration is about to expire or
         the registration data has changed.
@@ -385,13 +382,13 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
             signature = self._sign_registration(identity, current_time)
             try:
                 await self._almanac_contract.register(
-                    self._ledger,
-                    self._wallet,
-                    agent_address,
-                    protocols,
-                    endpoints,
-                    signature,
-                    current_time,
+                    ledger=self._ledger,
+                    wallet=self._wallet,
+                    agent_address=agent_address,
+                    protocols=protocols,
+                    endpoints=endpoints,
+                    signature=signature,
+                    current_time=current_time,
                     broadcast_retries=self._broadcast_retries,
                     broadcast_retry_delay=self._broadcast_retry_delay,
                     poll_retries=self._poll_retries,
@@ -429,13 +426,12 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
 
         Raises:
             AssertionError: If the Almanac contract address is None.
-
         """
         assert self._almanac_contract.address is not None
         return identity.sign_registration(
-            str(self._almanac_contract.address),
-            timestamp,
-            str(self._wallet.address()),
+            contract_address=str(self._almanac_contract.address),
+            timestamp=timestamp,
+            wallet_address=str(self._wallet.address()),
         )
 
 
@@ -446,7 +442,7 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
         wallet: LocalWallet,
         almanac_contract: AlmanacContract,
         testnet: bool,
-        logger: Optional[logging.Logger] = None,
+        logger: logging.Logger | None = None,
     ):
         self._ledger = ledger
         self._wallet = wallet
@@ -454,52 +450,52 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
         self._testnet = testnet
         self._registration_fee = almanac_contract.get_registration_fee()
         self._logger = logger or logging.getLogger(__name__)
-        self._records: List[AlmanacContractRecord] = []
-        self._identities: Dict[str, Identity] = {}
+        self._records: list[AlmanacContractRecord] = []
+        self._identities: dict[str, Identity] = {}
 
-        self._broadcast_retries: Optional[int] = None
-        self._broadcast_retry_delay: Optional[RetryDelayFunc] = None
-        self._poll_retries: Optional[int] = None
-        self._poll_retry_delay: Optional[RetryDelayFunc] = None
-        self._last_successful_registration: Optional[datetime] = None
+        self._broadcast_retries: int | None = None
+        self._broadcast_retry_delay: RetryDelayFunc | None = None
+        self._poll_retries: int | None = None
+        self._poll_retry_delay: RetryDelayFunc | None = None
+        self._last_successful_registration: datetime | None = None
 
     @property
-    def last_successful_registration(self) -> Optional[datetime]:
+    def last_successful_registration(self) -> datetime | None:
         return self._last_successful_registration
 
     @property
-    def broadcast_retries(self) -> Optional[int]:
+    def broadcast_retries(self) -> int | None:
         return self._broadcast_retries
 
     @broadcast_retries.setter
-    def broadcast_retries(self, value: Optional[int]):
+    def broadcast_retries(self, value: int | None) -> None:
         self._broadcast_retries = value
 
     @property
-    def broadcast_retry_delay(self) -> Optional[RetryDelayFunc]:
+    def broadcast_retry_delay(self) -> RetryDelayFunc | None:
         return self._broadcast_retry_delay
 
     @broadcast_retry_delay.setter
-    def broadcast_retry_delay(self, value: Optional[RetryDelayFunc]):
+    def broadcast_retry_delay(self, value: RetryDelayFunc | None) -> None:
         self._broadcast_retry_delay = value
 
     @property
-    def poll_retries(self) -> Optional[int]:
+    def poll_retries(self) -> int | None:
         return self._poll_retries
 
     @poll_retries.setter
-    def poll_retries(self, value: Optional[int]):
+    def poll_retries(self, value: int | None) -> None:
         self._poll_retries = value
 
     @property
-    def poll_retry_delay(self) -> Optional[RetryDelayFunc]:
+    def poll_retry_delay(self) -> RetryDelayFunc | None:
         return self._poll_retry_delay
 
     @poll_retry_delay.setter
-    def poll_retry_delay(self, value: Optional[RetryDelayFunc]):
+    def poll_retry_delay(self, value: RetryDelayFunc | None) -> None:
         self._poll_retry_delay = value
 
-    def add_agent(self, agent_info: AgentInfo, identity: Identity):
+    def add_agent(self, agent_info: AgentInfo, identity: Identity) -> None:
         agent_record = AlmanacContractRecord(
             address=agent_info.address,
             prefix=agent_info.prefix,
@@ -514,7 +510,7 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
     def _get_balance(self) -> int:
         return self._ledger.query_bank_balance(Address(self._wallet.address()))
 
-    async def register(self):
+    async def register(self) -> None:
         self._logger.info("Registering agents on Almanac contract...")
         for record in self._records:
             record.sign(self._identities[record.address])
@@ -535,9 +531,9 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
 
         try:
             await self._almanac_contract.register_batch(
-                self._ledger,
-                self._wallet,
-                self._records,
+                ledger=self._ledger,
+                wallet=self._wallet,
+                agent_records=self._records,
                 broadcast_retries=self._broadcast_retries,
                 broadcast_retry_delay=self._broadcast_retry_delay,
                 poll_retries=self._poll_retries,
@@ -564,11 +560,11 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
         self,
         ledger: LedgerClient,
         wallet: LocalWallet,
-        almanac_contract: Optional[AlmanacContract],
+        almanac_contract: AlmanacContract | None,
         testnet: bool,
         *,
-        logger: Optional[logging.Logger] = None,
-        almanac_api: Optional[str] = None,
+        logger: logging.Logger | None = None,
+        almanac_api: str | None = None,
     ):
         self._logger = logger or logging.getLogger(__name__)
         self._api_policy = AlmanacApiRegistrationPolicy(
@@ -585,10 +581,10 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
         self,
         agent_identifier: str,
         identity: Identity,
-        protocols: List[str],
-        endpoints: List[AgentEndpoint],
-        metadata: Optional[Dict[str, Any]] = None,
-    ):
+        protocols: list[str],
+        endpoints: list[AgentEndpoint],
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
         # prefer the API registration policy as it is faster
         try:
             await self._api_policy.register(
@@ -629,8 +625,8 @@ async def update_agent_status(status: AgentStatusUpdate, almanac_api: str):
 
     with contextlib.suppress(Exception):
         await almanac_api_post(
-            f"{almanac_api}/agents/{agent_address}/status",
-            status,
+            url=f"{almanac_api}/agents/{agent_address}/status",
+            data=status,
         )
 
 
@@ -638,12 +634,12 @@ class DefaultBatchRegistrationPolicy(BatchRegistrationPolicy):
     def __init__(
         self,
         ledger: LedgerClient,
-        wallet: Optional[LocalWallet] = None,
-        almanac_contract: Optional[AlmanacContract] = None,
+        wallet: LocalWallet | None = None,
+        almanac_contract: AlmanacContract | None = None,
         testnet: bool = True,
         *,
-        logger: Optional[logging.Logger] = None,
-        almanac_api: Optional[str] = None,
+        logger: logging.Logger | None = None,
+        almanac_api: str | None = None,
     ):
         self._logger = logger or logging.getLogger(__name__)
         self._api_policy = BatchAlmanacApiRegistrationPolicy(
@@ -657,12 +653,12 @@ class DefaultBatchRegistrationPolicy(BatchRegistrationPolicy):
                 ledger, wallet, almanac_contract, testnet, logger=logger
             )
 
-    def add_agent(self, agent_info: AgentInfo, identity: Identity):
+    def add_agent(self, agent_info: AgentInfo, identity: Identity) -> None:
         self._api_policy.add_agent(agent_info, identity)
         if self._ledger_policy is not None:
             self._ledger_policy.add_agent(agent_info, identity)
 
-    async def register(self):
+    async def register(self) -> None:
         # prefer the API registration policy as it is faster
         try:
             await self._api_policy.register()

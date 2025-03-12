@@ -118,17 +118,19 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
             endpoint=["http://localhost:8000/submit"], seed="almanact_reg_agent"
         )
 
-        signature = agent.sign_registration(0)
+        contract_address = str(agent._almanac_contract.address)
+        wallet_address = str(agent.wallet.address())
+        signature = agent._identity.sign_registration(
+            contract_address=contract_address,
+            timestamp=0,
+            wallet_address=wallet_address,
+        )
 
         almanac_msg = agent._almanac_contract.get_registration_msg(
             list(agent.protocols.keys()), agent._endpoints, signature, 0, agent.address
         )
 
-        contract_address = str(agent._almanac_contract.address)
-
-        digest = generate_digest(
-            agent.address, contract_address, 0, str(agent.wallet.address())
-        )
+        digest = generate_digest(agent.address, contract_address, 0, wallet_address)
 
         self.assertEqual(
             mock_almanac_registration(almanac_msg, digest),

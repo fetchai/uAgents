@@ -35,12 +35,12 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12"]
         include:
           - os: macos-latest
-            python-version: "3.11"
+            python-version: "3.12"
           - os: windows-latest
-            python-version: "3.11"
+            python-version: "3.12"
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -78,7 +78,17 @@ jobs:
         name: Run tests
         run: |
           source $VENV
-          poetry run pytest
+          poetry run coverage run -m pytest
+        env:
+          COVERAGE_FILE: "${{ runner.temp }}/.coverage.${{ runner.os }}.${{ matrix.python-version }}"
+      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+        name: Store coverage file
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ runner.os }}-${{ matrix.python-version }}
+          path: ${{ runner.temp }}/.coverage.${{ runner.os }}.${{ matrix.python-version }}
+          if-no-files-found: error
+          include-hidden-files: true
 
   linting:
     name: Lint & Formatting
@@ -90,3 +100,35 @@ jobs:
           src: "python"
           args: "format --check"
           changed-files: "true"
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    needs: tests
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        id: download
+        with:
+          pattern: coverage-*
+          merge-multiple: true
+          path: ./python
+
+      - name: Coverage comment
+        id: coverage_comment
+        uses: py-cov-action/python-coverage-comment-action@v3
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MERGE_COVERAGE_FILES: true
+          COVERAGE_PATH: ./python
+
+      - name: Store Pull Request comment to be posted
+        uses: actions/upload-artifact@v4
+        if: steps.coverage_comment.outputs.COMMENT_FILE_WRITTEN == 'true'
+        with:
+          name: python-coverage-comment-action
+          path: python-coverage-comment-action.txt

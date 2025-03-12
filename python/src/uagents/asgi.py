@@ -1,15 +1,8 @@
 import asyncio
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from logging import Logger
-from typing import (
-    Any,
-    Dict,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import Any
 
 import uvicorn
 from pydantic import BaseModel, ValidationError
@@ -18,7 +11,7 @@ from pydantic.v1.error_wrappers import ErrorWrapper
 from requests.structures import CaseInsensitiveDict
 
 from uagents.communication import enclose_response_raw
-from uagents.config import RESPONSE_TIME_HINT_SECONDS
+from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS, RESPONSE_TIME_HINT_SECONDS
 from uagents.context import ERROR_MESSAGE_DIGEST
 from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
@@ -33,9 +26,7 @@ RESERVED_ENDPOINTS = ["/submit", "/messages", "/agent_info", "/connect", "/disco
 
 
 async def _read_asgi_body(receive):
-    """
-    Read the entire body of an ASGI message.
-    """
+    """Read the entire body of an ASGI message."""
     body = b""
     more_body = True
 
@@ -48,16 +39,14 @@ async def _read_asgi_body(receive):
 
 
 class ASGIServer:
-    """
-    ASGI server for receiving incoming envelopes.
-    """
+    """ASGI server for receiving incoming envelopes."""
 
     def __init__(
         self,
         port: int,
         loop: asyncio.AbstractEventLoop,
-        queries: Dict[str, asyncio.Future],
-        logger: Optional[Logger] = None,
+        queries: dict[str, asyncio.Future],
+        logger: Logger | None = None,
     ):
         """
         Initialize the ASGI server.
@@ -65,25 +54,21 @@ class ASGIServer:
         Args:
             port (int): The port to listen on.
             loop (asyncio.AbstractEventLoop): The event loop to use.
-            queries (Dict[str, asyncio.Future]): The dictionary of queries to resolve.
-            logger (Optional[Logger]): The logger to use.
+            queries (dict[str, asyncio.Future]): The dictionary of queries to resolve.
+            logger (Logger | None): The logger to use.
         """
         self._port = int(port)
         self._loop = loop
         self._queries = queries
-        self._rest_handler_map: Dict[
-            Tuple[str, RestMethod, str], RestHandlerDetails
+        self._rest_handler_map: dict[
+            tuple[str, RestMethod, str], RestHandlerDetails
         ] = {}
         self._logger = logger or get_logger("server")
-        self._server: Optional[uvicorn.Server] = None
+        self._server: uvicorn.Server | None = None
 
     @property
-    def server(self):
-        """
-        Property to access the underlying uvicorn server.
-
-        Returns: The server.
-        """
+    def server(self) -> uvicorn.Server | None:
+        """Property to access the underlying uvicorn server."""
         return self._server
 
     def add_rest_endpoint(
@@ -91,12 +76,10 @@ class ASGIServer:
         address: str,
         method: RestMethod,
         endpoint: str,
-        request: Optional[Type[Model]],
-        response: Type[Union[Model, BaseModel]],
+        request: type[Model] | None,
+        response: type[Model | BaseModel],
     ):
-        """
-        Add a REST endpoint to the server.
-        """
+        """Add a REST endpoint to the server."""
         self._rest_handler_map[(address, method, endpoint)] = RestHandlerDetails(
             method=method,
             endpoint=endpoint,
@@ -105,9 +88,7 @@ class ASGIServer:
         )
 
     def has_rest_endpoint(self, method: RestMethod, endpoint: str) -> bool:
-        """
-        Check if the server has a REST endpoint registered.
-        """
+        """Check if the server has a REST endpoint registered."""
         if endpoint in RESERVED_ENDPOINTS:
             self._logger.warning(f"Endpoint {endpoint} is reserved")
             return True
@@ -118,7 +99,7 @@ class ASGIServer:
 
     def _get_rest_handler_details(
         self, method: RestMethod, endpoint: str
-    ) -> Dict[str, RestHandlerDetails]:
+    ) -> dict[str, RestHandlerDetails]:
         handlers = {}
         for sink, meth, end in self._rest_handler_map:
             if meth == method and end == endpoint:
@@ -129,8 +110,8 @@ class ASGIServer:
         self,
         send,
         status_code: int = 200,
-        headers: Optional[Dict[str, str]] = None,
-        body: Optional[Union[Dict[str, Any], ErrorWrapper]] = None,
+        headers: dict[str, str] | None = None,
+        body: dict[str, Any] | ErrorWrapper | None = None,
     ):
         header = (
             [[k.encode(), v.encode()] for k, v in headers.items()]
@@ -156,18 +137,20 @@ class ASGIServer:
         await send({"type": "http.response.body", "body": encoded_body})
 
     async def handle_readiness_probe(self, headers: CaseInsensitiveDict, send):
-        """
-        Handle a readiness probe sent via the HEAD method.
-        """
+        """Handle a readiness probe sent via the HEAD method."""
         if b"x-uagents-address" not in headers:
-            await self._asgi_send(send, headers={"x-uagents-status": "indeterminate"})
+            await self._asgi_send(
+                send=send, headers={"x-uagents-status": "indeterminate"}
+            )
         else:
             address = headers[b"x-uagents-address"].decode()  # type: ignore
             if not dispatcher.contains(address):
-                await self._asgi_send(send, headers={"x-uagents-status": "not-ready"})
+                await self._asgi_send(
+                    send=send, headers={"x-uagents-status": "not-ready"}
+                )
             else:
                 await self._asgi_send(
-                    send,
+                    send=send,
                     headers={
                         "x-uagents-status": "ready",
                         "x-uagents-response-time-hint": str(RESPONSE_TIME_HINT_SECONDS),
@@ -175,21 +158,19 @@ class ASGIServer:
                 )
 
     async def handle_missing_content_type(self, headers: CaseInsensitiveDict, send):
-        """
-        Handle missing content type header.
-        """
+        """Handle missing content type header."""
         # if connecting from browser, return a 200 OK
         if b"user-agent" in headers:
-            await self._asgi_send(send, body={"status": "OK - Agent is running"})
+            await self._asgi_send(send=send, body={"status": "OK - Agent is running"})
         else:  # otherwise, return a 400 Bad Request
             await self._asgi_send(
-                send, 400, body={"error": "missing header: content-type"}
+                send=send,
+                status_code=400,
+                body={"error": "missing header: content-type"},
             )
 
     async def serve(self):
-        """
-        Start the server.
-        """
+        """Start the server."""
         config = uvicorn.Config(
             self,
             host=HOST,
@@ -215,17 +196,17 @@ class ASGIServer:
     async def _handle_rest(
         self,
         headers: CaseInsensitiveDict,
-        handlers: Dict[str, RestHandlerDetails],
+        handlers: dict[str, RestHandlerDetails],
         send,
         receive,
     ):
         raw_contents = await _read_asgi_body(receive)
-        received_request: Optional[Model] = None
+        received_request: Model | None = None
         if len(handlers) > 1:
             if b"x-uagents-address" not in headers:
                 await self._asgi_send(
-                    send,
-                    400,
+                    send=send,
+                    status_code=400,
                     body={
                         "error": "missing header: x-uagents-address",
                         "message": "Multiple handlers found for REST endpoint.",
@@ -238,13 +219,15 @@ class ASGIServer:
             destination, rest_handler = handlers.popitem()
 
         if not rest_handler:
-            await self._asgi_send(send, 404, body={"error": "not found"})
+            await self._asgi_send(
+                send=send, status_code=404, body={"error": "not found"}
+            )
             return
 
         if rest_handler.method == "POST" and rest_handler.request_model is not None:
             if not raw_contents:
                 await self._asgi_send(
-                    send, 400, body={"error": "No request body found"}
+                    send=send, status_code=400, body={"error": "No request body found"}
                 )
                 return
 
@@ -255,11 +238,13 @@ class ASGIServer:
             except ValidationErrorV1 as err:
                 e = dict(err.errors().pop())
                 self._logger.debug(f"Failed to validate REST request: {e}")
-                await self._asgi_send(send, 400, body=e)
+                await self._asgi_send(send=send, status_code=400, body=e)
                 return
 
         # get & call the handler
-        handler_response = await dispatcher.dispatch_rest(
+        handler_response: (
+            dict[str, Any] | Model | None
+        ) = await dispatcher.dispatch_rest(
             destination=destination,
             method=rest_handler.method,
             endpoint=rest_handler.endpoint,
@@ -280,14 +265,14 @@ class ASGIServer:
         except (ValidationErrorV1, ValueError) as err:
             self._logger.debug(f"Failed to validate REST response: {err}")
             await self._asgi_send(
-                send,
-                500,
+                send=send,
+                status_code=500,
                 body={"error": "Handler response does not match response schema."},
             )
             return
 
         # return the validated response
-        await self._asgi_send(send, body=validated_response.model_dump())
+        await self._asgi_send(send=send, body=validated_response.model_dump())
 
     async def __call__(self, scope, receive, send):  #  pylint: disable=too-many-branches
         """
@@ -304,24 +289,30 @@ class ASGIServer:
 
         # Handle OPTIONS preflight request for CORS
         if request_method == "OPTIONS":
-            await self._asgi_send(send, 204, headers={})
+            await self._asgi_send(send=send, status_code=204, headers={})
             return
 
         # check if the request is for a REST endpoint
-        handlers = self._get_rest_handler_details(request_method, request_path)
+        handlers: dict[str, RestHandlerDetails] = self._get_rest_handler_details(
+            method=request_method, endpoint=request_path
+        )
         if handlers:
             if (
                 request_path in RESERVED_ENDPOINTS
                 and "127.0.0.1" not in scope["client"]
             ):
-                await self._asgi_send(send, 403, body={"error": "forbidden"})
+                await self._asgi_send(
+                    send=send, status_code=403, body={"error": "forbidden"}
+                )
                 return
             await self._handle_rest(headers, handlers, send, receive)
             return
 
         # check if the request is for agent communication and reject if not
         if request_path != "/submit":
-            await self._asgi_send(send, 404, body={"error": "not found"})
+            await self._asgi_send(
+                send=send, status_code=404, body={"error": "not found"}
+            )
             return
 
         if request_method == "HEAD":
@@ -333,7 +324,9 @@ class ASGIServer:
             return
 
         if b"application/json" not in headers[b"content-type"]:  # type: ignore
-            await self._asgi_send(send, 400, body={"error": "invalid content-type"})
+            await self._asgi_send(
+                send=send, status_code=400, body={"error": "invalid content-type"}
+            )
             return
 
         # read the entire payload
@@ -342,14 +335,18 @@ class ASGIServer:
         try:
             contents = json.loads(raw_contents.decode())
         except (AttributeError, UnicodeDecodeError, json.JSONDecodeError):
-            await self._asgi_send(send, 400, body={"error": "empty or invalid payload"})
+            await self._asgi_send(
+                send=send, status_code=400, body={"error": "empty or invalid payload"}
+            )
             return
 
         try:
             env = Envelope.model_validate(contents)
         except ValidationError:
             await self._asgi_send(
-                send, 400, body={"error": "contents do not match envelope schema"}
+                send=send,
+                status_code=400,
+                body={"error": "contents do not match envelope schema"},
             )
             return
 
@@ -364,23 +361,38 @@ class ASGIServer:
                 env.verify()
             except Exception as err:
                 self._logger.warning(f"Failed to verify envelope: {err}")
-                await self._asgi_send(send, 400, body={"error": str(err)})
+                await self._asgi_send(
+                    send=send, status_code=400, body={"error": str(err)}
+                )
                 return
 
-        if not dispatcher.contains(env.target):
-            await self._asgi_send(send, 400, body={"error": "unable to route envelope"})
+        if not dispatcher.contains(address=env.target):
+            await self._asgi_send(
+                send=send, status_code=400, body={"error": "unable to route envelope"}
+            )
             return
 
         await dispatcher.dispatch_msg(
-            env.sender, env.target, env.schema_digest, env.decode_payload(), env.session
+            sender=env.sender,
+            destination=env.target,
+            schema_digest=env.schema_digest,
+            message=env.decode_payload(),
+            session=env.session,
         )
 
         # wait for any queries to be resolved
         if expects_response:
-            response_msg, schema_digest = await self._queries[env.sender]
-            if (env.expires is not None) and (
-                datetime.now() > datetime.fromtimestamp(env.expires)
-            ):
+            timeout = (
+                env.expires - datetime.now(timezone.utc).timestamp()
+                if env.expires
+                else DEFAULT_ENVELOPE_TIMEOUT_SECONDS
+            )
+            try:
+                response_msg, schema_digest = await asyncio.wait_for(
+                    self._queries[env.sender],
+                    timeout,
+                )
+            except asyncio.TimeoutError:
                 response_msg = ErrorMessage(
                     error="Query envelope expired"
                 ).model_dump_json()
@@ -388,9 +400,13 @@ class ASGIServer:
             sender = env.target
             target = env.sender
             response = enclose_response_raw(
-                response_msg, schema_digest, sender, env.session, target=target
+                json_message=response_msg,
+                schema_digest=schema_digest,
+                sender=sender,
+                session=env.session,
+                target=target,
             )
         else:
             response = "{}"
 
-        await self._asgi_send(send, body=json.loads(response))
+        await self._asgi_send(send=send, body=json.loads(response))

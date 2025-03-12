@@ -4,7 +4,7 @@
 
 
 
-## AgentGeolocation Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L65)
+## AgentGeolocation Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L53)
 
 ```python
 class AgentGeolocation(BaseModel)
@@ -25,7 +25,7 @@ Equivalent to 0.11m precision.
 
 
 
-## AgentMetadata Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L81)
+## AgentMetadata Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L69)
 
 ```python
 class AgentMetadata(BaseModel)
@@ -38,7 +38,7 @@ Additional fields will simply be passed through.
 
 
 
-## DeliveryStatus Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L97)
+## DeliveryStatus Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L85)
 
 ```python
 class DeliveryStatus(str, Enum)
@@ -48,23 +48,24 @@ Delivery status of a message.
 
 
 
-## MsgDigest Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L105)
+## MsgInfo Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L93)
 
 ```python
 @dataclass
-class MsgDigest()
+class MsgInfo()
 ```
 
-Represents a message digest containing a message and its schema digest.
+Represents a message digest containing a message and its schema digest and sender.
 
 **Attributes**:
 
 - `message` _Any_ - The message content.
+- `sender` _str_ - The address of the sender of the message.
 - `schema_digest` _str_ - The schema digest of the message.
 
 
 
-## MsgStatus Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L119)
+## MsgStatus Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L109)
 
 ```python
 @dataclass
@@ -79,5 +80,5 @@ Represents the status of a sent message.
 - `detail` _str_ - The details of the message delivery.
 - `destination` _str_ - The destination address of the message.
 - `endpoint` _str_ - The endpoint the message was sent to.
-- `session` _Optional[uuid.UUID]_ - The session ID of the message.
+- `session` _uuid.UUID | None_ - The session ID of the message.
 

@@ -4,6 +4,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from uagents import Agent
+from uagents.context import InternalContext
 from uagents.experimental.mobility.protocols.base_protocol import (
     CheckIn,
     CheckOut,
@@ -66,40 +67,40 @@ class MobilityAgent(Agent):
         """
         return self._checkedin_agents
 
-    def checkin_agent(self, addr: str, agent: CheckIn):
+    def checkin_agent(self, addr: str, agent: CheckIn) -> None:
         self._checkedin_agents.update(
             {addr: {"timestamp": datetime.now(), "agent": agent}}
         )
 
-    def checkout_agent(self, addr: str):
+    def checkout_agent(self, addr: str) -> dict[str, Any]:
         return self._checkedin_agents.pop(addr)
 
-    def activate_agent(self, agent: SearchResultAgent):
+    def activate_agent(self, agent: SearchResultAgent) -> None:
         for activated in self._proximity_agents:
             if activated.address == agent.address:
                 return
 
         self._proximity_agents.append(agent)
 
-    def deactivate_agent(self, agent: SearchResultAgent):
+    def deactivate_agent(self, agent: SearchResultAgent) -> None:
         self._proximity_agents.remove(agent)
 
-    async def update_geolocation(self, location: Location):
+    async def update_geolocation(self, location: Location) -> None:
         """Call this method with new location data to update the agent's location"""
         self._metadata["geolocation"]["latitude"] = location.latitude
         self._metadata["geolocation"]["longitude"] = location.longitude
         self._metadata["geolocation"]["radius"] = location.radius
         await self._invoke_location_update()
 
-    async def _invoke_location_update(self):
+    async def _invoke_location_update(self) -> None:
         self._logger.info(
             f"Updating location {(self.location['latitude'], self.location['longitude'])}"
         )
         proximity_agents = geosearch_agents_by_proximity(
-            self.location["latitude"],
-            self.location["longitude"],
-            self.location["radius"],
-            30,
+            latitude=self.location["latitude"],
+            longitude=self.location["longitude"],
+            radius=self.location["radius"],
+            limit=30,
         )
         # send a check-in message to all agents that are in the current proximity
         for agent in proximity_agents:
@@ -107,9 +108,9 @@ class MobilityAgent(Agent):
                 continue
             await self._send_checkin(agent)
         # find out which agents left proximity and send them a check-out message
-        addresses_that_left_proximity = {a.address for a in self._proximity_agents} - {
-            a.address for a in proximity_agents
-        }
+        addresses_that_left_proximity: set[str] = {
+            a.address for a in self._proximity_agents
+        } - {a.address for a in proximity_agents}
         agents_that_left_proximity = [
             a
             for a in self._proximity_agents
@@ -121,7 +122,7 @@ class MobilityAgent(Agent):
         self._proximity_agents = proximity_agents  # potential extra steps possible
 
     async def _send_checkin(self, agent: SearchResultAgent):
-        ctx = self._build_context()
+        ctx: InternalContext = self._build_context()
         # only send check-in to agents that are not already in the proximity list
         if agent in self._proximity_agents:
             return
@@ -133,7 +134,7 @@ class MobilityAgent(Agent):
             ),
         )
 
-    async def _send_checkout(self, agent: SearchResultAgent):
-        ctx = self._build_context()
+    async def _send_checkout(self, agent: SearchResultAgent) -> None:
+        ctx: InternalContext = self._build_context()
         # send checkout message to all agents that left the proximity
         await ctx.send(agent.address, CheckOut())
