@@ -7,10 +7,11 @@ from typing import Any, Dict, List
 from cosmpy.protos.cosmos.base.v1beta1.coin_pb2 import Coin
 
 from uagents import Agent
+from uagents.config import ANAME_REGISTRATION_SECONDS
 from uagents.crypto import Identity, encode_length_prefixed
 from uagents.network import get_name_service_contract
 
-EXPECTED_FUNDS = Coin(amount="8640000000000000", denom="atestfet")
+EXPECTED_FUNDS = Coin(amount="518400000000000000", denom="atestfet")
 
 
 def generate_digest(
@@ -86,11 +87,14 @@ def validate_tx_msgs(
             except (json.JSONDecodeError, AttributeError):
                 return False
 
-            if "register" in msg_dict:
-                if not msg_dict["register"]["domain"] or msg.funds[0] != EXPECTED_FUNDS:
+            if "register_domain" in msg_dict:
+                if (
+                    not msg_dict["register_domain"]["domain"]
+                    or msg.funds[0] != EXPECTED_FUNDS
+                ):
                     return False
-            elif "update_record" in msg_dict:
-                update_record = msg_dict["update_record"]
+            elif "update_domain_record" in msg_dict:
+                update_record = msg_dict["update_domain_record"]
                 if not update_record.get("domain") or not update_record.get(
                     "agent_records"
                 ):
@@ -144,7 +148,13 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
             self.fail("Name service contract address is invalid")
 
         tx = name_service_contract.get_registration_tx(
-            agent.name, agent.wallet.address(), agent.address, "example.agent", True
+            agent.name,
+            agent.wallet.address(),
+            agent.address,
+            "example.agent",
+            ANAME_REGISTRATION_SECONDS,
+            "testnet",
+            "token",
         )
 
         if not tx:
