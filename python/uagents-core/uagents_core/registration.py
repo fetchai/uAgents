@@ -2,7 +2,7 @@ import hashlib
 import json
 import time
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 from uagents_core.crypto import Identity
 from uagents_core.types import AddressPrefix, AgentEndpoint, AgentType
@@ -10,7 +10,9 @@ from uagents_core.utils.communication import parse_identifier
 
 
 class VerifiableModel(BaseModel):
-    agent_identifier: str
+    agent_identifier: str = Field(
+        validation_alias=AliasChoices("agent_identifier", "agent_address")
+    )
     signature: str | None = None
     timestamp: int | None = None
 

@@ -14,13 +14,13 @@ def weighted_random_sample(
     Ref: Efraimidis, Pavlos S. "Weighted random sampling over data streams."
 
     Args:
-        items (List[Any]): The list of items to sample from.
-        weights (Optional[List[float]]): The optional list of weights for each item.
+        items (list[Any]): The list of items to sample from.
+        weights (list[float]] | None) The optional list of weights for each item.
         k (int): The number of items to sample.
         rng (random): The random number generator.
 
     Returns:
-        List[Any]: The sampled items.
+        list[Any]: The sampled items.
     """
     if weights is None:
         return rng.sample(items, k=k)
@@ -52,7 +52,7 @@ def parse_identifier(identifier: str) -> tuple[str, str, str]:
         identifier (str): The identifier string to be parsed.
 
     Returns:
-        Tuple[str, str, str]: A Tuple containing the prefix, name, and address as strings.
+        tuple[str, str, str]: A Tuple containing the prefix, name, and address as strings.
     """
     prefix = ""
     name = ""

@@ -33,5 +33,5 @@ structlog.configure(
 )
 
 
-def get_logger(logger_name: str):
+def get_logger(logger_name: str) -> structlog.PrintLogger:
     return structlog.get_logger(logger_name)
