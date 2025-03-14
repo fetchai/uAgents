@@ -1,13 +1,12 @@
 import logging
 import sys
-from typing import Optional, Union
 
 from uvicorn.logging import DefaultFormatter
 
 logging.basicConfig(level=logging.INFO)
 
 
-def get_logger(logger_name: str, level: Union[int, str] = logging.INFO):
+def get_logger(logger_name: str, level: int | str = logging.INFO):
     """Get a logger with the given name using uvicorn's default formatter."""
     logger = logging.getLogger(logger_name)
     logger.setLevel(level)
@@ -20,12 +19,12 @@ def get_logger(logger_name: str, level: Union[int, str] = logging.INFO):
     return logger
 
 
-def log(logger: Optional[logging.Logger], level: int, message: str):
+def log(logger: logging.Logger | None, level: int, message: str):
     """
     Log a message with the given logger and level.
 
     Args:
-        logger (Optional[logging.Logger]): The logger to use.
+        logger (logging.Logger | None): The logger to use.
         level (int): The logging level.
         message (str): The message to log.
     """
@@ -35,19 +34,16 @@ def log(logger: Optional[logging.Logger], level: int, message: str):
         BACKUP_LOGGER.log(level, message)
 
 
-def set_global_log_level(level: Union[int, str]):
+def set_global_log_level(level: int | str):
     """
     Set the log level for all modules globally. Can still be overruled manually.
 
     Args:
-        level (Union[int, str]): The logging level as defined in _logging_.
+        level (int | str): The logging level as defined in _logging_.
     """
     logging.basicConfig(level=level)
-    # the manager of the root logger should be its only instance and contain
-    # all loggers of the process. Update the new log level in all of them.
     for name in logging.Logger.manager.loggerDict:
-        # TODO only apply to framework loggers?
         logging.getLogger(name).setLevel(level)
 
 
-BACKUP_LOGGER = get_logger("uagents", logging.INFO)
+BACKUP_LOGGER: logging.Logger = get_logger("uagents", logging.INFO)

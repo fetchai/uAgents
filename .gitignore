@@ -8,3 +8,4 @@ dist/
 .DS_Store
 .env
 .history/*
+.coverage

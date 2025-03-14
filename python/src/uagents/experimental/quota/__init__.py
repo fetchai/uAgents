@@ -70,7 +70,7 @@ async def message_handler(ctx: Context, sender: str, msg: Message):
 
 import functools
 import time
-from typing import Optional, Set, Type, Union
+from collections.abc import Callable
 
 from pydantic import BaseModel
 
@@ -106,22 +106,20 @@ class QuotaProtocol(Protocol):
     def __init__(
         self,
         storage_reference: StorageAPI,
-        name: Optional[str] = None,
-        version: Optional[str] = None,
-        default_rate_limit: Optional[RateLimit] = None,
-        default_acl: Optional[AccessControlList] = None,
+        name: str | None = None,
+        version: str | None = None,
+        default_rate_limit: RateLimit | None = None,
+        default_acl: AccessControlList | None = None,
     ):
         """
         Initialize a QuotaProtocol instance.
 
         Args:
             storage_reference (StorageAPI): The storage reference to use for rate limiting.
-            name (Optional[str], optional): The name of the protocol. Defaults to None.
-            version (Optional[str], optional): The version of the protocol. Defaults to None.
-            default_rate_limit (Optional[RateLimit], optional): The default rate limit.
-                Defaults to None.
-            default_acl (Optional[AccessControlList], optional): The access control list.
-                Defaults to None.
+            name (str | None): The name of the protocol. Defaults to None.
+            version (str | None): The version of the protocol. Defaults to None.
+            default_rate_limit (RateLimit | None): The default rate limit. Defaults to None.
+            default_acl (AccessControlList | None): The access control list. Defaults to None.
         """
         super().__init__(name=name, version=version)
         self.storage_ref = storage_reference
@@ -130,25 +128,22 @@ class QuotaProtocol(Protocol):
 
     def on_message(
         self,
-        model: Type[Model],
-        replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
-        allow_unverified: Optional[bool] = False,
-        rate_limit: Optional[RateLimit] = None,
-        access_control_list: Optional[AccessControlList] = None,
-    ):
+        model: type[Model],
+        replies: type[Model] | set[type[Model]] | None = None,
+        allow_unverified: bool = False,
+        rate_limit: RateLimit | None = None,
+        access_control_list: AccessControlList | None = None,
+    ) -> Callable:
         """
         Overwritten decorator to register a message handler for the protocol
         including rate limiting.
 
         Args:
-            model (Type[Model]): The message model type.
-            replies (Optional[Union[Type[Model], Set[Type[Model]]]], optional): The associated
-            reply types. Defaults to None.
-            allow_unverified (Optional[bool], optional): Whether to allow unverified messages.
-            Defaults to False.
-            rate_limit (Optional[RateLimit], optional): The rate limit to apply. Defaults to None.
-            access_control_list (Optional[AccessControlList], optional): The access control list to
-            apply.
+            model (type[Model]): The message model type.
+            replies (type[Model] | set[type[Model]] | None): The associated reply types.
+            allow_unverified (bool | None): Whether to allow unverified messages. Defaults to False.
+            rate_limit (RateLimit | None): The rate limit to apply. Defaults to None.
+            access_control_list (AccessControlList | None): The access control list to apply.
 
         Returns:
             Callable: The decorator to register the message handler.
@@ -164,16 +159,16 @@ class QuotaProtocol(Protocol):
     def wrap(
         self,
         func: MessageCallback,
-        rate_limit: Optional[RateLimit] = None,
-        acl: Optional[AccessControlList] = None,
+        rate_limit: RateLimit | None = None,
+        acl: AccessControlList | None = None,
     ) -> MessageCallback:
         """
         Decorator to wrap a function with rate limiting.
 
         Args:
-            func: The function to wrap with rate limiting
-            rate_limit: The rate limit to apply
-            acl: The access control list to apply
+            func (MessageCallback): The function to wrap.
+            rate_limit (RateLimit | None): The rate limit to apply. Defaults to None.
+            acl (AccessControlList | None): The access control list to apply.
 
         Returns:
             Callable: The decorated
@@ -185,7 +180,7 @@ class QuotaProtocol(Protocol):
         rate_limit = rate_limit or self.default_rate_limit
 
         @functools.wraps(func)
-        async def decorator(ctx: Context, sender: str, msg: Type[Model]):
+        async def decorator(ctx: Context, sender: str, msg: type[Model]):
             if (acl.default and sender in acl.blocked) or (
                 not acl.default and sender not in acl.allowed
             ):
@@ -197,10 +192,10 @@ class QuotaProtocol(Protocol):
                 sender in acl.bypass_rate_limit
                 or not rate_limit
                 or self.add_request(
-                    sender,
-                    func.__name__,
-                    rate_limit.window_size_minutes,
-                    rate_limit.max_requests,
+                    agent_address=sender,
+                    function_name=func.__name__,
+                    window_size_minutes=rate_limit.window_size_minutes,
+                    max_requests=rate_limit.max_requests,
                 )
             ):
                 result = await func(ctx, sender, msg)
@@ -215,7 +210,7 @@ class QuotaProtocol(Protocol):
 
         return decorator  # type: ignore
 
-    def _clean_usage(self, usage: dict[str, dict]):
+    def _clean_usage(self, usage: dict[str, dict]) -> None:
         """
         Remove all time windows that are older than the current time window.
 
@@ -242,12 +237,11 @@ class QuotaProtocol(Protocol):
         reset the time window and add the request.
 
         Args:
-            agent_address: The address of the agent making the request
+            agent_address: The address of the agent making the request.
 
         Returns:
-            False if the maximum number of requests has been exceeded, True otherwise
+            False if the maximum number of requests has been exceeded, True otherwise.
         """
-
         now = int(time.time())
 
         usage = self.storage_ref.get(agent_address) or {}

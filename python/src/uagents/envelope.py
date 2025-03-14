@@ -4,14 +4,10 @@ import base64
 import hashlib
 import struct
 import time
-from typing import Callable, List, Optional, Set
+from collections.abc import Callable
 
-from pydantic import (
-    UUID4,
-    BaseModel,
-    Field,
-    field_serializer,
-)
+from pydantic import UUID4, BaseModel, Field, field_serializer
+from typing_extensions import Self
 
 from uagents.crypto import Identity
 from uagents.storage import StorageAPI
@@ -29,12 +25,12 @@ class Envelope(BaseModel):
         session (UUID4): The session UUID that persists for back-and-forth
         dialogues between agents.
         schema_digest (str): The schema digest for the enclosed message.
-        protocol_digest (Optional[str]): The digest of the protocol associated with the message
+        protocol_digest (str | None): The digest of the protocol associated with the message
         (optional).
-        payload (Optional[str]): The encoded message payload of the envelope (optional).
-        expires (Optional[int]): The expiration timestamp (optional).
-        nonce (Optional[int]): The nonce value (optional).
-        signature (Optional[str]): The envelope signature (optional).
+        payload (str | None): The encoded message payload of the envelope (optional).
+        expires (int | None): The expiration timestamp (optional).
+        nonce (int | None): The nonce value (optional).
+        signature (str | None): The envelope signature (optional).
     """
 
     version: int
@@ -42,13 +38,13 @@ class Envelope(BaseModel):
     target: str
     session: UUID4
     schema_digest: str
-    protocol_digest: Optional[str] = None
-    payload: Optional[str] = None
-    expires: Optional[int] = None
-    nonce: Optional[int] = None
-    signature: Optional[str] = None
+    protocol_digest: str | None = None
+    payload: str | None = None
+    expires: int | None = None
+    nonce: int | None = None
+    signature: str | None = None
 
-    def encode_payload(self, value: JsonStr):
+    def encode_payload(self, value: JsonStr) -> None:
         """
         Encode the payload value and store it in the envelope.
 
@@ -69,7 +65,7 @@ class Envelope(BaseModel):
 
         return base64.b64decode(self.payload).decode()
 
-    def sign(self, signing_fn: Callable):
+    def sign(self, signing_fn: Callable) -> None:
         """
         Sign the envelope using the provided signing function.
 
@@ -124,15 +120,15 @@ class EnvelopeHistoryEntry(BaseModel):
     target: str
     session: UUID4
     schema_digest: str
-    protocol_digest: Optional[str] = None
-    payload: Optional[str] = None
+    protocol_digest: str | None = None
+    payload: str | None = None
 
     @field_serializer("session")
-    def serialize_session(self, session: UUID4, _info):
+    def serialize_session(self, session: UUID4, _info) -> JsonStr:
         return str(session)
 
     @classmethod
-    def from_envelope(cls, envelope: Envelope):
+    def from_envelope(cls, envelope: Envelope) -> Self:
         return cls(
             version=envelope.version,
             sender=envelope.sender,
@@ -145,7 +141,7 @@ class EnvelopeHistoryEntry(BaseModel):
 
 
 class EnvelopeHistoryResponse(BaseModel):
-    envelopes: List[EnvelopeHistoryEntry]
+    envelopes: list[EnvelopeHistoryEntry]
 
 
 class EnvelopeHistory:
@@ -159,23 +155,23 @@ class EnvelopeHistory:
         use_cache: bool = True,
         use_storage: bool = False,
     ):
-        self._cache: Optional[List[EnvelopeHistoryEntry]] = [] if use_cache else None
-        self._storage: Optional[StorageAPI] = storage if use_storage else None
+        self._cache: list[EnvelopeHistoryEntry] | None = [] if use_cache else None
+        self._storage: StorageAPI | None = storage if use_storage else None
 
-    def add_entry(self, entry: EnvelopeHistoryEntry):
+    def add_entry(self, entry: EnvelopeHistoryEntry) -> None:
         if self._cache is not None:
             self._cache.append(entry)
         if self._storage is not None:
             key = f"message-history:session:{str(entry.session)}"
-            session_msgs: List[JsonStr] = self._storage.get(key) or []
+            session_msgs: list[JsonStr] = self._storage.get(key) or []
             session_msgs.append(entry.model_dump_json())
             self._storage.set(key, session_msgs)
             self._add_session_to_index(entry.session)
         self.apply_retention_policy()
 
-    def _add_session_to_index(self, session: UUID4):
+    def _add_session_to_index(self, session: UUID4) -> None:
         if self._storage is not None:
-            all_sessions: Set[str] = set(
+            all_sessions: set[str] = set(
                 self._storage.get("message-history:sessions") or []
             )
             all_sessions.add(str(session))
@@ -186,14 +182,14 @@ class EnvelopeHistory:
             raise ValueError("EnvelopeHistory cache is not set")
         return EnvelopeHistoryResponse(envelopes=self._cache)
 
-    def get_session_messages(self, session: UUID4) -> List[EnvelopeHistoryEntry]:
+    def get_session_messages(self, session: UUID4) -> list[EnvelopeHistoryEntry]:
         if self._storage is None:
             raise ValueError("EnvelopeHistory storage is not set")
         key = f"message-history:session:{session}"
         session_msgs = self._storage.get(key) or []
         return [EnvelopeHistoryEntry.model_validate_json(msg) for msg in session_msgs]
 
-    def apply_retention_policy(self):
+    def apply_retention_policy(self) -> None:
         """Remove entries older than 24 hours"""
         cutoff_time = time.time() - 86400
 
@@ -207,7 +203,7 @@ class EnvelopeHistory:
 
         # apply retention policy to storage
         if self._storage is not None:
-            all_sessions: List[str] = (
+            all_sessions: list[str] = (
                 self._storage.get("message-history:sessions") or []
             )
             for session in all_sessions:

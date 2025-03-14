@@ -1,5 +1,4 @@
 import logging
-from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel
 
@@ -42,6 +41,9 @@ ALMANAC_API_MAX_RETRIES = 10
 ALMANAC_REGISTRATION_WAIT = 100
 MAILBOX_POLL_INTERVAL_SECONDS = 1.0
 
+ORACLE_AGENT_DOMAIN = "verify.fetch.ai"
+ANAME_REGISTRATION_SECONDS = 5184000
+
 WALLET_MESSAGING_POLL_INTERVAL_SECONDS = 2.0
 
 RESPONSE_TIME_HINT_SECONDS = 5
@@ -60,24 +62,24 @@ class AgentverseConfig(BaseModel):
 
 
 def parse_endpoint_config(
-    endpoint: Optional[Union[str, List[str], Dict[str, dict]]],
+    endpoint: str | list[str] | dict[str, dict] | None,
     agentverse: AgentverseConfig,
     mailbox: bool = False,
     proxy: bool = False,
-    logger: Optional[logging.Logger] = None,
-) -> List[AgentEndpoint]:
+    logger: logging.Logger | None = None,
+) -> list[AgentEndpoint]:
     """
     Parse the user-provided endpoint configuration.
 
     Args:
-        endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration.
+        endpoint (str | list[str] | dict[str, dict] | None): The endpoint configuration.
         agentverse (AgentverseConfig): The agentverse configuration.
         mailbox (bool): Whether to use the mailbox endpoint.
         proxy (bool): Whether to use the proxy endpoint.
-        logger (Optional[logging.Logger]): The logger to use.
+        logger (logging.Logger | None): The logger to use.
 
     Returns:
-        Optional[List[AgentEndpoint]: The parsed endpoint configuration.
+        [List[AgentEndpoint]: The parsed endpoint configuration.
     """
 
     logger = logger or get_logger("config")
@@ -115,7 +117,7 @@ def parse_endpoint_config(
 
 
 def parse_agentverse_config(
-    config: Optional[Union[str, Dict[str, str]]] = None,
+    config: str | dict[str, str] | None = None,
 ) -> AgentverseConfig:
     """
     Parse the user-provided agentverse configuration.
