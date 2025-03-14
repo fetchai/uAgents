@@ -531,7 +531,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
     async def test_request_fail_invalid_json(self):
         mock_send = AsyncMock()
         with patch("uagents.asgi._read_asgi_body") as mock_receive:
-            mock_receive.return_value = '{"bad", "json"}'.encode()
+            mock_receive.return_value = b'{"bad", "json"}'
             await self.agent._server(
                 scope={
                     "type": "http",

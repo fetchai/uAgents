@@ -1,6 +1,6 @@
 # pylint: disable=protected-access
 import unittest
-from typing import Callable
+from collections.abc import Callable
 
 from uagents import Agent, Field, Model, Protocol
 
