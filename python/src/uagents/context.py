@@ -6,25 +6,24 @@ import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from time import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
 import requests
 from cosmpy.aerial.client import LedgerClient
+from pydantic import UUID4, BaseModel, Field, field_serializer
 from pydantic.v1 import ValidationError
+from uagents_core.communication import parse_identifier
 from uagents_core.envelope import Envelope
-from uagents_core.models import ErrorMessage, Model
+from uagents_core.models import ERROR_MESSAGE_DIGEST, Model
 
-from uagents.communication import (
-    Dispenser,
-    dispatch_local_message,
-)
+from uagents.communication import Dispenser, dispatch_local_message
 from uagents.config import (
     ALMANAC_API_URL,
     DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     DEFAULT_SEARCH_LIMIT,
 )
 from uagents.dispatch import dispatcher
-from uagents.resolver import Resolver, parse_identifier
+from uagents.resolver import Resolver
 from uagents.storage import KeyValueStore
 from uagents.types import DeliveryStatus, JsonStr, MsgInfo, MsgStatus
 from uagents.utils import log
@@ -32,9 +31,6 @@ from uagents.utils import log
 if TYPE_CHECKING:
     from uagents.agent import AgentRepresentation
     from uagents.protocol import Protocol
-
-
-ERROR_MESSAGE_DIGEST = Model.build_schema_digest(ErrorMessage)
 
 
 class Context(ABC):
@@ -636,7 +632,7 @@ class ExternalContext(InternalContext):
     Represents the reactive context in which messages are handled and processed.
 
     Attributes:
-        _message_received (MsgDigest | None): The message digest received.
+        _message_received (MsgInfo): The received message.
         _queries (dict[str, asyncio.Future] | None): dictionary mapping query senders to their
             response Futures.
         _replies (dict[str, dict[str, type[Model]]] | None): Dictionary of allowed reply digests
@@ -657,7 +653,7 @@ class ExternalContext(InternalContext):
         Initialize the ExternalContext instance and attributes needed from the InternalContext.
 
         Args:
-            message_received (MsgDigest): The optional message digest received.
+            message_received (MsgInfo): Information about the received message.
             queries (dict[str, asyncio.Future]): Dictionary mapping query senders to their
                 response Futures.
             replies (dict[str, dict[str, type[Model]]] | None): Dictionary of allowed replies
@@ -749,3 +745,47 @@ class ExternalContext(InternalContext):
 
 
 ContextFactory = Callable[[], Context]
+
+
+class EnvelopeHistoryEntry(BaseModel):
+    timestamp: int = Field(default_factory=lambda: int(time.time()))
+    version: int
+    sender: str
+    target: str
+    session: UUID4
+    schema_digest: str
+    protocol_digest: str | None = None
+    payload: str | None = None
+
+    @field_serializer("session")
+    def serialize_session(self, session: UUID4, _info) -> JsonStr:
+        return str(session)
+
+    @classmethod
+    def from_envelope(cls, envelope: Envelope) -> Self:
+        return cls(
+            version=envelope.version,
+            sender=envelope.sender,
+            target=envelope.target,
+            session=envelope.session,
+            schema_digest=envelope.schema_digest,
+            protocol_digest=envelope.protocol_digest,
+            payload=envelope.decode_payload(),
+        )
+
+
+class EnvelopeHistory(BaseModel):
+    envelopes: list[EnvelopeHistoryEntry]
+
+    def add_entry(self, entry: EnvelopeHistoryEntry) -> None:
+        self.envelopes.append(entry)
+        self.apply_retention_policy()
+
+    def apply_retention_policy(self) -> None:
+        """Remove entries older than 24 hours"""
+        cutoff_time = time.time() - 86400
+        for e in self.envelopes:
+            if e.timestamp < cutoff_time:
+                self.envelopes.remove(e)
+            else:
+                break

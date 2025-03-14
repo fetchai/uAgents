@@ -15,8 +15,8 @@ from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
 from pydantic import ValidationError
 from typing_extensions import deprecated
+from uagents_core.config import AgentverseConfig
 from uagents_core.crypto import Identity, derive_key_from_seed, is_user_address
-from uagents_core.envelope import EnvelopeHistory, EnvelopeHistoryEntry
 from uagents_core.models import ErrorMessage, Model
 
 from uagents.asgi import ASGIServer
@@ -28,11 +28,17 @@ from uagents.config import (
     REGISTRATION_RETRY_INTERVAL_SECONDS,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     TESTNET_PREFIX,
-    AgentverseConfig,
     parse_agentverse_config,
     parse_endpoint_config,
 )
-from uagents.context import Context, ContextFactory, ExternalContext, InternalContext
+from uagents.context import (
+    Context,
+    ContextFactory,
+    EnvelopeHistory,
+    EnvelopeHistoryEntry,
+    ExternalContext,
+    InternalContext,
+)
 from uagents.dispatch import Sink, dispatcher
 from uagents.mailbox import (
     AgentUpdates,

@@ -14,6 +14,8 @@ from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
 from pydantic import AliasChoices, BaseModel, Field
+from uagents_core.communication import parse_identifier
+from uagents_core.crypto import Identity
 
 from uagents.config import (
     ALMANAC_API_MAX_RETRIES,
@@ -23,7 +25,7 @@ from uagents.config import (
     ALMANAC_REGISTRATION_WAIT,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
 )
-from uagents.crypto import Identity, sign_registration
+from uagents.crypto import sign_registration
 from uagents.network import (
     AlmanacContract,
     AlmanacContractRecord,
@@ -32,7 +34,6 @@ from uagents.network import (
     add_testnet_funds,
     default_exp_backoff,
 )
-from uagents.resolver import parse_identifier
 from uagents.types import AgentEndpoint, AgentInfo
 
 

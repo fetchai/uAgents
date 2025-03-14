@@ -9,6 +9,7 @@ from logging import Logger
 from typing import Any, ClassVar
 
 from pydantic import BaseModel, ValidationInfo, field_validator
+from typing_extensions import deprecated
 from uagents_core.models import Model
 
 from uagents.config import get_logger
@@ -321,6 +322,9 @@ class Protocol:
                 message_digest = Model.build_schema_digest(message)
                 self._interval_messages.add(message_digest)
 
+    @deprecated(
+        "on_query is deprecated and will be removed in a future release, use on_rest instead."
+    )
     def on_query(
         self,
         model: type[Model],

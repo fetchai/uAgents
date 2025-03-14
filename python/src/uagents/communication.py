@@ -8,12 +8,12 @@ from typing import NoReturn
 
 import aiohttp
 from pydantic import UUID4, ValidationError
-from uagents_core.crypto import is_user_address
-from uagents_core.envelope import Envelope, EnvelopeHistory, EnvelopeHistoryEntry
+from uagents_core.crypto import Identity, is_user_address
+from uagents_core.envelope import Envelope
 from uagents_core.models import Model
 
 from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
-from uagents.crypto import Identity
+from uagents.context import EnvelopeHistory, EnvelopeHistoryEntry
 from uagents.dispatch import dispatcher
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.types import DeliveryStatus, JsonStr, MsgStatus
