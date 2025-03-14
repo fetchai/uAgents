@@ -6,7 +6,7 @@ Agent Envelope.
 
 
 
-## Envelope Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L16)
+## Envelope Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L17)
 
 ```python
 class Envelope(BaseModel)
@@ -31,7 +31,7 @@ Represents an envelope for message communication between agents.
 
 
 
-#### encode_payload[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L46)
+#### encode_payload[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L47)
 ```python
 def encode_payload(value: JsonStr) -> None
 ```
@@ -44,7 +44,7 @@ Encode the payload value and store it in the envelope.
 
 
 
-#### decode_payload[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L55)
+#### decode_payload[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L56)
 ```python
 def decode_payload() -> str
 ```
@@ -57,7 +57,7 @@ Decode and retrieve the payload value from the envelope.
 
 
 
-#### sign[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L67)
+#### sign[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L68)
 ```python
 def sign(signing_fn: Callable) -> None
 ```
@@ -70,7 +70,7 @@ Sign the envelope using the provided signing function.
 
 
 
-#### verify[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L79)
+#### verify[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L80)
 ```python
 def verify() -> bool
 ```
@@ -89,15 +89,17 @@ Verify the envelope's signature.
 
 
 
-## EnvelopeHistory Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L142)
+## EnvelopeHistory Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L147)
 
 ```python
-class EnvelopeHistory(BaseModel)
+class EnvelopeHistory()
 ```
 
+Stores message history for an agent optionally using cache and/or storage.
 
 
-#### apply_retention_policy[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L149)
+
+#### apply_retention_policy[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L192)
 ```python
 def apply_retention_policy() -> None
 ```
