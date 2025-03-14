@@ -2,11 +2,11 @@
 import hashlib
 import json
 import unittest
-from typing import Any, Dict, List
+from typing import Any
 
 # from cosmpy.protos.cosmos.base.v1beta1.coin_pb2 import Coin
 from uagents import Agent
-from uagents.crypto import Identity, encode_length_prefixed
+from uagents.crypto import Identity, encode_length_prefixed, sign_registration
 from uagents.network import get_name_service_contract
 
 # EXPECTED_FUNDS = Coin(amount="8640000000000000", denom="atestfet")
@@ -23,7 +23,7 @@ def generate_digest(
     return hasher.digest()
 
 
-def validate_registration_msg(msg: Dict[str, Any]) -> bool:
+def validate_registration_msg(msg: dict[str, Any]) -> bool:
     try:
         if "register" not in msg:
             return False
@@ -70,7 +70,7 @@ def validate_registration_msg(msg: Dict[str, Any]) -> bool:
 
 
 def validate_tx_msgs(
-    msgs: List[Any], wallet_address: str, contract_address: str
+    msgs: list[Any], wallet_address: str, contract_address: str
 ) -> bool:
     try:
         for msg in msgs:
@@ -101,7 +101,7 @@ def validate_tx_msgs(
         return False
 
 
-def mock_almanac_registration(almanac_msg: Dict[str, Any], digest: bytes):
+def mock_almanac_registration(almanac_msg: dict[str, Any], digest: bytes):
     registration = almanac_msg["register"]
     return Identity.verify_digest(
         registration["agent_address"], digest, registration["signature"]
@@ -116,7 +116,8 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
 
         contract_address = str(agent._almanac_contract.address)
         wallet_address = str(agent.wallet.address())
-        signature = agent._identity.sign_registration(
+        signature = sign_registration(
+            agent._identity,
             contract_address=contract_address,
             timestamp=0,
             wallet_address=wallet_address,

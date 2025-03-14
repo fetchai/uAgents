@@ -6,13 +6,15 @@ import functools
 import logging
 import os
 import uuid
-from typing import Any, NoReturn, Optional
+from typing import Any, NoReturn
 
+import aiohttp
 import requests
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
 from pydantic import ValidationError
+from typing_extensions import deprecated
 from uagents_core.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents_core.envelope import EnvelopeHistory, EnvelopeHistoryEntry
 from uagents_core.models import ErrorMessage, Model
@@ -128,7 +130,7 @@ class AgentRepresentation:
 
     Attributes:
         _address (str): The address of the agent.
-        _name (Optional[str]): The name of the agent.
+        _name (str | None): The name of the agent.
         _identity (Identity): The identity of the agent.
         _name (str | None): The name of the agent.
         _signing_callback (Callable): The callback for signing messages.
@@ -145,7 +147,7 @@ class AgentRepresentation:
     def __init__(
         self,
         address: str,
-        name: Optional[str],
+        name: str | None,
         identity: Identity,
     ):
         """
@@ -153,7 +155,7 @@ class AgentRepresentation:
 
         Args:
             address (str): The address of the context.
-            name (Optional[str]): The optional name associated with the context.
+            name (str | None): The optional name associated with the context.
             identity (Identity): The identity of the agent.
         """
         self._address = address
@@ -379,10 +381,10 @@ class Agent(Sink):
 
         if self._registration_policy is None:
             self._registration_policy = DefaultRegistrationPolicy(
-                self._ledger,
-                self._wallet,
-                self._almanac_contract,
-                self._network == "testnet",
+                ledger=self._ledger,
+                wallet=self._wallet,
+                almanac_contract=self._almanac_contract,
+                testnet=self._network == "testnet",
                 almanac_api=self._almanac_api_url,
             )
         self._metadata = self._initialize_metadata(metadata)
@@ -826,6 +828,9 @@ class Agent(Sink):
         """
         return self._protocol.on_interval(period, messages)
 
+    @deprecated(
+        "on_query is deprecated and will be removed in a future release, use on_rest instead."
+    )
     def on_query(
         self,
         model: type[Model],
@@ -1005,9 +1010,9 @@ class Agent(Sink):
             self.protocols[protocol.digest] = protocol
 
         if publish_manifest:
-            self.publish_manifest(protocol.manifest())
+            self._loop.create_task(self.publish_manifest(protocol.manifest()))
 
-    def publish_manifest(self, manifest: dict[str, Any]):
+    async def publish_manifest(self, manifest: dict[str, Any]) -> None:
         """
         Publish a protocol manifest to the Almanac service.
 
@@ -1015,18 +1020,22 @@ class Agent(Sink):
             manifest (dict[str, Any]): The protocol manifest.
         """
         try:
-            response = requests.post(
-                f"{self._agentverse.url}/v1/almanac/manifests",
-                json=manifest,
-                timeout=5,
-            )
-            if response.status_code == 200:
-                self._logger.info(
-                    f"Manifest published successfully: {manifest['metadata']['name']}"
-                )
-            else:
-                self._logger.warning(f"Unable to publish manifest: {response.text}")
-        except requests.exceptions.RequestException as ex:
+            async with (
+                aiohttp.ClientSession() as session,
+                session.post(
+                    url=f"{self._agentverse.url}/v1/almanac/manifests",
+                    json=manifest,
+                ) as response,
+            ):
+                if response.status == 200:
+                    self._logger.info(
+                        f"Manifest published successfully: {manifest['metadata']['name']}"
+                    )
+                else:
+                    self._logger.warning(
+                        f"Unable to publish manifest: {await response.text()}"
+                    )
+        except aiohttp.ClientError as ex:
             self._logger.warning(f"Unable to publish manifest: {ex}")
 
     async def handle_message(

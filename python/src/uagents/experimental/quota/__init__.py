@@ -73,9 +73,9 @@ import time
 from collections.abc import Callable
 
 from pydantic import BaseModel
+from uagents_core.models import ErrorMessage
 
 from uagents import Context, Model, Protocol
-from uagents.models import ErrorMessage
 from uagents.storage import StorageAPI
 from uagents.types import MessageCallback
 

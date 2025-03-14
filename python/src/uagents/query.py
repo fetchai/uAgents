@@ -1,5 +1,6 @@
 """Query Envelopes."""
 
+from typing_extensions import deprecated
 from uagents_core.crypto import generate_user_address
 from uagents_core.envelope import Envelope
 from uagents_core.models import Model
@@ -8,6 +9,9 @@ from uagents.communication import MsgStatus, send_sync_message
 from uagents.resolver import Resolver
 
 
+@deprecated(
+    "Query is deprecated and will be removed in a future release, use send_sync_message instead."
+)
 async def query(
     destination: str,
     message: Model,

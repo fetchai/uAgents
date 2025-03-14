@@ -1,6 +1,5 @@
 import uuid
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Annotated, Any, Literal
 
@@ -85,8 +84,7 @@ class DeliveryStatus(str, Enum):
     FAILED = "failed"
 
 
-@dataclass
-class MsgInfo:
+class MsgInfo(BaseModel):
     """
     Represents a message digest containing a message and its schema digest and sender.
 
@@ -101,8 +99,7 @@ class MsgInfo:
     schema_digest: str
 
 
-@dataclass
-class MsgStatus:
+class MsgStatus(BaseModel):
     """
     Represents the status of a sent message.
 

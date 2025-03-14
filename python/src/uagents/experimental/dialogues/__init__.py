@@ -7,10 +7,11 @@ from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
+from uagents_core.models import ErrorMessage
+
 from uagents import Context, Model, Protocol
 from uagents.context import DeliveryStatus, MsgStatus
 from uagents.dispatch import JsonStr
-from uagents.models import ErrorMessage
 from uagents.storage import KeyValueStore, StorageAPI
 
 DEFAULT_SESSION_TIMEOUT_IN_SECONDS = 60

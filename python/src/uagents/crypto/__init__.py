@@ -1,7 +1,6 @@
 import base64
 import hashlib
 import json
-from typing import Tuple
 
 from uagents_core.crypto import Identity, encode_length_prefixed
 
@@ -21,8 +20,12 @@ def sign_registration(
     return identity.sign_digest(hasher.digest())
 
 
-def sign_arbitrary(identity: Identity, data: bytes) -> Tuple[str, str]:
-    # create the sign doc
+def sign_arbitrary(identity: Identity, data: bytes) -> tuple[str, str]:
+    """
+    Sign arbitrary data with the given identity.
+
+    Only used for wallet messaging.
+    """
     sign_doc = {
         "chain_id": "",
         "account_number": "0",
