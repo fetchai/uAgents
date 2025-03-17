@@ -89,7 +89,7 @@ Verify the envelope's signature.
 
 
 
-## EnvelopeHistory Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L152)
+## EnvelopeHistory Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L157)
 
 ```python
 class EnvelopeHistory()
@@ -122,7 +122,7 @@ Initialize the message history.
 
 
 
-#### add_entry[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L183)
+#### add_entry[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L188)
 ```python
 def add_entry(entry: EnvelopeHistoryEntry) -> None
 ```
@@ -135,7 +135,7 @@ Add an envelope entry to the message history.
 
 
 
-#### get_cached_messages[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L215)
+#### get_cached_messages[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L229)
 ```python
 def get_cached_messages() -> EnvelopeHistoryResponse
 ```
@@ -148,7 +148,7 @@ Retrieve the cached message history.
 
 
 
-#### get_session_messages[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L226)
+#### get_session_messages[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L240)
 ```python
 def get_session_messages(session: UUID4) -> list[EnvelopeHistoryEntry]
 ```
@@ -166,7 +166,7 @@ Retrieve the message history for a given session.
 
 
 
-#### apply_retention_policy[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L242)
+#### apply_retention_policy[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L255)
 ```python
 def apply_retention_policy() -> None
 ```
