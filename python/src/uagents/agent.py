@@ -375,6 +375,7 @@ class Agent(Sink):
                 storage=self._storage,
                 use_cache=enable_agent_inspector,
                 use_storage=store_message_history,
+                logger=self._logger,
             )
             if enable_agent_inspector or store_message_history
             else None

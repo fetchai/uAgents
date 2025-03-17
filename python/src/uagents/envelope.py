@@ -2,6 +2,7 @@
 
 import base64
 import hashlib
+import logging
 import struct
 import time
 from collections.abc import Callable
@@ -9,6 +10,10 @@ from collections.abc import Callable
 from pydantic import UUID4, BaseModel, Field, field_serializer
 from typing_extensions import Self
 
+from uagents.config import (
+    MESSAGE_HISTORY_MESSAGE_LIMIT,
+    MESSAGE_HISTORY_RETENTION_SECONDS,
+)
 from uagents.crypto import Identity
 from uagents.storage import StorageAPI
 from uagents.types import JsonStr
@@ -154,35 +159,80 @@ class EnvelopeHistory:
         storage: StorageAPI,
         use_cache: bool = True,
         use_storage: bool = False,
+        logger: logging.Logger | None = None,
+        retention_period: int = MESSAGE_HISTORY_RETENTION_SECONDS,
+        message_limit: int = MESSAGE_HISTORY_MESSAGE_LIMIT,
     ):
+        """
+        Initialize the message history.
+
+        Args:
+            storage (StorageAPI): The storage API to use.
+            use_cache (bool): Whether to use the cache.
+            use_storage (bool): Whether to use the storage.
+            logger (logging.Logger | None): The logger to use.
+            retention_period (int): The retention period in seconds.
+            message_limit (int): The message limit.
+        """
         self._cache: list[EnvelopeHistoryEntry] | None = [] if use_cache else None
         self._storage: StorageAPI | None = storage if use_storage else None
+        self._logger = logger or logging.getLogger(__name__)
+        self._retention_period = retention_period
+        self._message_limit = message_limit
 
     def add_entry(self, entry: EnvelopeHistoryEntry) -> None:
+        """
+        Add an envelope entry to the message history.
+
+        Args:
+            entry (EnvelopeHistoryEntry): The entry to add.
+        """
         if self._cache is not None:
             self._cache.append(entry)
         if self._storage is not None:
             key = f"message-history:session:{str(entry.session)}"
             session_msgs: list[JsonStr] = self._storage.get(key) or []
-            session_msgs.append(entry.model_dump_json())
-            self._storage.set(key, session_msgs)
-            self._add_session_to_index(entry.session)
+            try:
+                self._add_session_to_index(entry.session, len(session_msgs))
+                session_msgs.append(entry.model_dump_json())
+                self._storage.set(key, session_msgs)
+            except RuntimeError as ex:
+                self._logger.error(f"{ex.args[0]} Message will not be stored.")
         self.apply_retention_policy()
 
-    def _add_session_to_index(self, session: UUID4) -> None:
+    def _add_session_to_index(self, session: UUID4, num_msgs: int) -> int:
         if self._storage is not None:
-            all_sessions: set[str] = set(
-                self._storage.get("message-history:sessions") or []
-            )
-            all_sessions.add(str(session))
-            self._storage.set("message-history:sessions", list(all_sessions))
+            all_sessions = self._storage.get("message-history:sessions") or {}
+            total_msgs = sum(all_sessions.values()) if all_sessions else 0
+            if total_msgs >= self._message_limit:
+                raise RuntimeError("Message history storage limit exceeded!")
+            all_sessions.update({str(session): num_msgs + 1})
+            self._storage.set("message-history:sessions", all_sessions)
+            total_msgs = sum(all_sessions.values())
+            return total_msgs
+        return 0
 
     def get_cached_messages(self) -> EnvelopeHistoryResponse:
+        """
+        Retrieve the cached message history.
+
+        Returns:
+            EnvelopeHistoryResponse: The cached message history.
+        """
         if self._cache is None:
             raise ValueError("EnvelopeHistory cache is not set")
         return EnvelopeHistoryResponse(envelopes=self._cache)
 
     def get_session_messages(self, session: UUID4) -> list[EnvelopeHistoryEntry]:
+        """
+        Retrieve the message history for a given session.
+
+        Args:
+            session (UUID4): The session UUID.
+
+        Returns:
+            list[EnvelopeHistoryEntry]: The message history for the session.
+        """
         if self._storage is None:
             raise ValueError("EnvelopeHistory storage is not set")
         key = f"message-history:session:{session}"
@@ -190,8 +240,8 @@ class EnvelopeHistory:
         return [EnvelopeHistoryEntry.model_validate_json(msg) for msg in session_msgs]
 
     def apply_retention_policy(self) -> None:
-        """Remove entries older than 24 hours"""
-        cutoff_time = time.time() - 86400
+        """Remove entries older than retention period."""
+        cutoff_time = time.time() - self._retention_period
 
         # apply retention policy to cache
         if self._cache is not None:
@@ -200,12 +250,13 @@ class EnvelopeHistory:
                     self._cache.remove(e)
                 else:
                     break
+            if len(self._cache) > self._message_limit:
+                self._cache = self._cache[-self._message_limit :]
 
         # apply retention policy to storage
         if self._storage is not None:
-            all_sessions: list[str] = (
-                self._storage.get("message-history:sessions") or []
-            )
+            all_sessions = self._storage.get("message-history:sessions") or {}
+            sessions_to_remove = []
             for session in all_sessions:
                 key = f"message-history:session:{session}"
                 session_msgs = self._storage.get(key) or []
@@ -214,6 +265,8 @@ class EnvelopeHistory:
                 latest_msg = EnvelopeHistoryEntry.model_validate_json(session_msgs[-1])
                 if session_msgs and latest_msg.timestamp < cutoff_time:
                     self._storage.remove(key)
-                    all_sessions.remove(session)
+                    sessions_to_remove.append(session)
+            for session in sessions_to_remove:
+                del all_sessions[session]
 
             self._storage.set("message-history:sessions", all_sessions)

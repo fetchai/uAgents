@@ -461,3 +461,167 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         # Assertions
         self.assertEqual(status, exp_msg_status)
         self.assertEqual(len(dispatcher.pending_responses), 0)
+
+
+class TestMessageHistory(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.alice = Agent(name="alice", seed="alice msg recovery phrase")
+        self.bob_cache = Agent(
+            name="bob", seed="bob cache recovery phrase", enable_agent_inspector=True
+        )
+        self.bob_store = Agent(
+            enable_agent_inspector=False,
+            store_message_history=True,
+        )
+        self.bob_both = Agent(
+            store_message_history=True,
+            enable_agent_inspector=True,
+        )
+        self.bob_neither = Agent(enable_agent_inspector=False)
+        self.bob_retention_period = Agent(
+            store_message_history=True,
+            enable_agent_inspector=True,
+        )
+        assert self.bob_retention_period._message_history is not None
+        self.bob_retention_period._message_history._retention_period = 1
+        self.bob_message_limit = Agent(
+            store_message_history=True,
+            enable_agent_inspector=True,
+        )
+        assert self.bob_message_limit._message_history is not None
+        self.bob_message_limit._message_history._message_limit = 2
+
+        self.loop = asyncio.get_event_loop()
+        self.loop.create_task(self.alice._dispenser.run())
+        for bob in [
+            self.bob_cache,
+            self.bob_store,
+            self.bob_both,
+            self.bob_neither,
+            self.bob_retention_period,
+            self.bob_message_limit,
+        ]:
+
+            @bob.on_message(Message)
+            async def _(ctx, sender, _msg):
+                await ctx.send(sender, incoming)
+
+            bob.include(bob._protocol)
+            self.loop.create_task(bob._process_message_queue())
+            self.loop.create_task(bob._dispenser.run())
+
+    async def test_messages_cached_not_stored(self):
+        ctx = self.alice._build_context()
+        session_id = str(ctx.session)
+        await ctx.send(self.bob_cache.address, msg)
+        await asyncio.sleep(0.1)
+
+        message_history = self.bob_cache._message_history
+        assert message_history is not None
+        msgs = message_history.get_cached_messages().envelopes
+        self.assertEqual(len(msgs), 2)
+
+        key = f"message-history:session:{session_id}"
+        messages = self.bob_cache.storage.get(key) or []
+        self.assertEqual(len(messages), 0)
+
+    async def test_messages_stored_not_cached(self):
+        ctx = self.alice._build_context()
+        session_id = str(ctx.session)
+        await ctx.send(self.bob_store.address, msg)
+        await asyncio.sleep(0.1)
+
+        message_history = self.bob_store._message_history
+        assert message_history is not None
+        with self.assertRaises(ValueError):
+            _ = message_history.get_cached_messages()
+
+        key = f"message-history:session:{session_id}"
+        messages = self.bob_store.storage.get(key) or []
+        self.assertEqual(len(messages), 2)
+
+    async def test_messages_stored_and_cached(self):
+        ctx = self.alice._build_context()
+        session_id = str(ctx.session)
+        await ctx.send(self.bob_both.address, msg)
+        await asyncio.sleep(0.1)
+
+        message_history = self.bob_both._message_history
+        assert message_history is not None
+        msgs = message_history.get_cached_messages().envelopes
+        self.assertEqual(len(msgs), 2)
+
+        key = f"message-history:session:{session_id}"
+        messages = self.bob_both.storage.get(key) or []
+        self.assertEqual(len(messages), 2)
+
+    async def test_messages_neither_stored_nor_cached(self):
+        ctx = self.alice._build_context()
+        await ctx.send(self.bob_neither.address, msg)
+        await asyncio.sleep(0.1)
+
+        message_history = self.bob_neither._message_history
+        assert message_history is None
+
+        key = f"message-history:session:{str(ctx.session)}"
+        messages = self.bob_neither.storage.get(key) or []
+        self.assertEqual(len(messages), 0)
+
+    async def test_messages_deleted_after_retention_period(self):
+        ctx = self.alice._build_context()
+        await ctx.send(self.bob_retention_period.address, msg)
+        await asyncio.sleep(0.1)
+
+        message_history = self.bob_retention_period._message_history
+        assert message_history is not None
+        msgs = message_history.get_cached_messages().envelopes
+        self.assertEqual(len(msgs), 2)
+
+        key = f"message-history:session:{str(ctx.session)}"
+        messages = self.bob_retention_period.storage.get(key) or []
+        self.assertEqual(len(messages), 2)
+
+        await asyncio.sleep(1)
+        await ctx.send(self.bob_retention_period.address, msg)
+        await asyncio.sleep(0.1)
+
+        msgs = message_history.get_cached_messages().envelopes
+
+        # The first 2 messages should be deleted from cache, leaving only the second 2
+        self.assertEqual(len(msgs), 2)
+
+        # All messages should still be in storage since session is still active
+        messages = self.bob_retention_period.storage.get(key) or []
+        self.assertEqual(len(messages), 4)
+
+        await asyncio.sleep(1)
+        message_history.apply_retention_policy()
+        key = f"message-history:session:{str(ctx.session)}"
+        messages = self.bob_retention_period.storage.get(key) or []
+
+        # All messages should now be deleted from storage since last message is older
+        # than retention period
+        self.assertEqual(len(messages), 0)
+
+    async def test_message_storage_blocked_after_limit_reached(self):
+        ctx = self.alice._build_context()
+        await ctx.send(self.bob_message_limit.address, msg)
+        await asyncio.sleep(0.1)
+
+        message_history = self.bob_message_limit._message_history
+        assert message_history is not None
+        msgs = message_history.get_cached_messages().envelopes
+        self.assertEqual(len(msgs), 2)
+
+        key = f"message-history:session:{str(ctx.session)}"
+        messages = self.bob_message_limit.storage.get(key) or []
+        self.assertEqual(len(messages), 2)
+
+        await ctx.send(self.bob_message_limit.address, msg)
+        await asyncio.sleep(0.1)
+
+        msgs = message_history.get_cached_messages().envelopes
+        self.assertEqual(len(msgs), 2)
+
+        messages = self.bob_message_limit.storage.get(key) or []
+        self.assertEqual(len(messages), 2)

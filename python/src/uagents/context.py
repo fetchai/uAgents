@@ -477,7 +477,7 @@ class InternalContext(Context):
                 )
             # Handle local dispatch of messages
             if dispatcher.contains(parsed_address):
-                return await dispatch_local_message(
+                result = await dispatch_local_message(
                     sender=self.agent.address,
                     destination=parsed_address,
                     schema_digest=message_schema_digest,
