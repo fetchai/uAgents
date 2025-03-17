@@ -149,6 +149,11 @@ class EnvelopeHistoryResponse(BaseModel):
     envelopes: list[EnvelopeHistoryEntry]
 
 
+class SessionHistoryInfo(BaseModel):
+    latest_timestamp: int
+    message_count: int
+
+
 class EnvelopeHistory:
     """
     Stores message history for an agent optionally using cache and/or storage.
@@ -190,27 +195,36 @@ class EnvelopeHistory:
         if self._cache is not None:
             self._cache.append(entry)
         if self._storage is not None:
-            key = f"message-history:session:{str(entry.session)}"
+            key = self._get_key(entry.session)
             session_msgs: list[JsonStr] = self._storage.get(key) or []
             try:
-                self._add_session_to_index(entry.session, len(session_msgs))
+                session_info = SessionHistoryInfo(
+                    latest_timestamp=entry.timestamp,
+                    message_count=len(session_msgs) + 1,
+                )
+                self._update_session_info(entry.session, session_info)
                 session_msgs.append(entry.model_dump_json())
                 self._storage.set(key, session_msgs)
             except RuntimeError as ex:
                 self._logger.error(f"{ex.args[0]} Message will not be stored.")
         self.apply_retention_policy()
 
-    def _add_session_to_index(self, session: UUID4, num_msgs: int) -> int:
+    def _update_session_info(
+        self, session: UUID4, info_update: SessionHistoryInfo
+    ) -> None:
         if self._storage is not None:
             all_sessions = self._storage.get("message-history:sessions") or {}
-            total_msgs = sum(all_sessions.values()) if all_sessions else 0
+            total_msgs = 0
+            for info_json in all_sessions.values():
+                info = SessionHistoryInfo.model_validate_json(info_json)
+                total_msgs += info.message_count
             if total_msgs >= self._message_limit:
                 raise RuntimeError("Message history storage limit exceeded!")
-            all_sessions.update({str(session): num_msgs + 1})
+            all_sessions.update({str(session): info_update.model_dump_json()})
             self._storage.set("message-history:sessions", all_sessions)
-            total_msgs = sum(all_sessions.values())
-            return total_msgs
-        return 0
+
+    def _get_key(self, session: UUID4 | str) -> str:
+        return f"message-history:session:{str(session)}"
 
     def get_cached_messages(self) -> EnvelopeHistoryResponse:
         """
@@ -235,8 +249,7 @@ class EnvelopeHistory:
         """
         if self._storage is None:
             raise ValueError("EnvelopeHistory storage is not set")
-        key = f"message-history:session:{session}"
-        session_msgs = self._storage.get(key) or []
+        session_msgs = self._storage.get(self._get_key(session)) or []
         return [EnvelopeHistoryEntry.model_validate_json(msg) for msg in session_msgs]
 
     def apply_retention_policy(self) -> None:
@@ -257,14 +270,10 @@ class EnvelopeHistory:
         if self._storage is not None:
             all_sessions = self._storage.get("message-history:sessions") or {}
             sessions_to_remove = []
-            for session in all_sessions:
-                key = f"message-history:session:{session}"
-                session_msgs = self._storage.get(key) or []
-                if len(session_msgs) == 0:
-                    continue
-                latest_msg = EnvelopeHistoryEntry.model_validate_json(session_msgs[-1])
-                if session_msgs and latest_msg.timestamp < cutoff_time:
-                    self._storage.remove(key)
+            for session, info_json in all_sessions.items():
+                info = SessionHistoryInfo.model_validate_json(info_json)
+                if info.latest_timestamp < cutoff_time:
+                    self._storage.remove(self._get_key(session))
                     sessions_to_remove.append(session)
             for session in sessions_to_remove:
                 del all_sessions[session]
