@@ -22,6 +22,7 @@ from cosmpy.aerial.tx_helpers import SubmittedTx, TxResponse
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
 from uagents_core.crypto import Identity
+from uagents_core.types import AgentEndpoint
 
 from uagents.config import (
     ALMANAC_CONTRACT_VERSION,
@@ -33,7 +34,7 @@ from uagents.config import (
     TESTNET_CONTRACT_NAME_SERVICE,
 )
 from uagents.crypto import sign_registration
-from uagents.types import AgentEndpoint, AgentInfo, AgentNetwork
+from uagents.types import AgentInfo, AgentNetwork
 from uagents.utils import get_logger
 
 logger: Logger = get_logger("network")
@@ -325,7 +326,7 @@ class AlmanacContract(LedgerContract):
             address (str): The agent's address.
 
         Returns:
-            Tuple[int, list[AgentEndpoint], list[str]]: The expiry height of the agent's
+            tuple[int, list[AgentEndpoint], list[str]]: The expiry height of the agent's
             registration, the agent's endpoints, and the agent's protocols.
         """
         query_msg = {"query_records": {"agent_address": address}}

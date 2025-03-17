@@ -67,9 +67,8 @@ def parse_endpoint_config(
         logger (logging.Logger | None): The logger to use.
 
     Returns:
-        [List[AgentEndpoint]: The parsed endpoint configuration.
+        [list[AgentEndpoint]: The parsed endpoint configuration.
     """
-
     logger = logger or get_logger("config")
 
     if endpoint:

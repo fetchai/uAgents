@@ -747,6 +747,7 @@ class ExternalContext(InternalContext):
 ContextFactory = Callable[[], Context]
 
 
+# The envelope history is part of the context to keep track of sent messages
 class EnvelopeHistoryEntry(BaseModel):
     timestamp: int = Field(default_factory=lambda: int(time.time()))
     version: int

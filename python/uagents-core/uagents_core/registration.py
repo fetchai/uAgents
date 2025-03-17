@@ -4,9 +4,9 @@ import time
 
 from pydantic import AliasChoices, BaseModel, Field
 
+from uagents_core.communication import parse_identifier
 from uagents_core.crypto import Identity
 from uagents_core.types import AddressPrefix, AgentEndpoint, AgentType
-from uagents_core.utils.communication import parse_identifier
 
 
 class VerifiableModel(BaseModel):
@@ -16,7 +16,7 @@ class VerifiableModel(BaseModel):
     signature: str | None = None
     timestamp: int | None = None
 
-    def sign(self, identity: Identity):
+    def sign(self, identity: Identity) -> None:
         self.timestamp = int(time.time())
         digest = self._build_digest()
         self.signature = identity.sign_digest(digest)
@@ -41,12 +41,14 @@ class VerifiableModel(BaseModel):
         return sha256.digest()
 
 
+# AlmanacAPI related models
 class AgentRegistrationAttestation(VerifiableModel):
     protocols: list[str]
     endpoints: list[AgentEndpoint]
     metadata: dict[str, str | dict[str, str]] | None = None
 
 
+# mailbox related models
 class RegistrationRequest(BaseModel):
     address: str
     prefix: AddressPrefix | None = "test-agent"

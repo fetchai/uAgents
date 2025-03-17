@@ -18,6 +18,8 @@ from typing_extensions import deprecated
 from uagents_core.config import AgentverseConfig
 from uagents_core.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents_core.models import ErrorMessage, Model
+from uagents_core.registration import AgentUpdates
+from uagents_core.types import AgentEndpoint
 
 from uagents.asgi import ASGIServer
 from uagents.communication import Dispenser
@@ -41,7 +43,6 @@ from uagents.context import (
 )
 from uagents.dispatch import Sink, dispatcher
 from uagents.mailbox import (
-    AgentUpdates,
     AgentverseConnectRequest,
     AgentverseDisconnectRequest,
     MailboxClient,
@@ -71,7 +72,6 @@ from uagents.resolver import GlobalResolver, Resolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.types import (
     AddressPrefix,
-    AgentEndpoint,
     AgentInfo,
     AgentMetadata,
     AgentNetwork,
@@ -431,7 +431,7 @@ class Agent(Sink):
         if enable_agent_inspector:
 
             @self.on_rest_get("/agent_info", AgentInfo)  # type: ignore
-            async def _handle_get_info(_ctx: Context):
+            async def _handle_get_info(_ctx: Context) -> AgentInfo:
                 return AgentInfo(
                     address=self.address,
                     prefix=self._prefix,
@@ -441,13 +441,15 @@ class Agent(Sink):
                 )
 
             @self.on_rest_get("/messages", EnvelopeHistory)  # type: ignore
-            async def _handle_get_messages(_ctx: Context):
+            async def _handle_get_messages(_ctx: Context) -> EnvelopeHistory | None:
                 return self._message_cache
 
             @self.on_rest_post(
                 "/connect", AgentverseConnectRequest, RegistrationResponse
             )
-            async def _handle_connect(_ctx: Context, request: AgentverseConnectRequest):
+            async def _handle_connect(
+                _ctx: Context, request: AgentverseConnectRequest
+            ) -> RegistrationResponse:
                 agent_details = (
                     AgentUpdates(
                         name=self.name,
@@ -471,7 +473,7 @@ class Agent(Sink):
             )
             async def _handle_disconnect(
                 _ctx: Context, request: AgentverseDisconnectRequest
-            ):
+            ) -> UnregistrationResponse:
                 return await unregister_in_agentverse(
                     request=request,
                     agent_address=self.address,
@@ -547,6 +549,9 @@ class Agent(Sink):
             enable_wallet_messaging (bool | dict[str, str]): Wallet messaging configuration.
         """
         if enable_wallet_messaging:
+            self._logger.warning(
+                "Wallet messaging is deprecated and will be removed in a future release."
+            )
             wallet_chain_id = self._ledger.network_config.chain_id
             if (
                 isinstance(enable_wallet_messaging, dict)

@@ -48,4 +48,4 @@ def main(folder: str = ".") -> None:
 
 
 if __name__ == "__main__":
-    main(os.path.join(os.getcwd(), "python", "src"))
+    main(os.path.join(os.getcwd(), "src"))

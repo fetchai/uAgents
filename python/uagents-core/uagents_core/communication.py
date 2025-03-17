@@ -1,4 +1,4 @@
-import random
+from random import Random
 from typing import Any
 
 from uagents_core.config import AGENT_ADDRESS_LENGTH, AGENT_PREFIX
@@ -6,7 +6,10 @@ from uagents_core.crypto import is_user_address
 
 
 def weighted_random_sample(
-    items: list[Any], weights: list[float] | None = None, k: int = 1, rng=random
+    items: list[Any],
+    weights: list[float] | None = None,
+    k: int = 1,
+    rng: Random | None = None,
 ) -> list[Any]:
     """
     Weighted random sample from a list of items without replacement.
@@ -17,11 +20,12 @@ def weighted_random_sample(
         items (list[Any]): The list of items to sample from.
         weights (list[float]] | None) The optional list of weights for each item.
         k (int): The number of items to sample.
-        rng (random): The random number generator.
+        rng (Random): The random number generator.
 
     Returns:
         list[Any]: The sampled items.
     """
+    rng = rng or Random()
     if weights is None:
         return rng.sample(items, k=k)
     values = [rng.random() ** (1 / w) for w in weights]

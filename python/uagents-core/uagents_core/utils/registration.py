@@ -1,3 +1,9 @@
+"""
+This module provides methods to enable an identity to interact with other agents.
+
+Note: All methods in this module act synchronously / blocking.
+"""
+
 import urllib.parse
 
 import requests
@@ -6,6 +12,7 @@ from uagents_core.config import (
     DEFAULT_ALMANAC_API_PATH,
     DEFAULT_CHALLENGE_PATH,
     DEFAULT_REGISTRATION_PATH,
+    DEFAULT_REQUEST_TIMEOUT,
     AgentverseConfig,
 )
 from uagents_core.crypto import Identity
@@ -30,17 +37,18 @@ def register_in_almanac(
     *,
     protocol_digests: list[str],
     agentverse_config: AgentverseConfig | None = None,
-):
+    timeout: int = DEFAULT_REQUEST_TIMEOUT,
+) -> None:
     """
-    Register the agent with the Almanac API.
+    Register the identity with the Almanac API to make it discoverable by other agents.
 
     Args:
         request (AgentverseConnectRequest): The request containing the agent details.
         identity (Identity): The identity of the agent.
-        protocol_digest (List[str]): The digest of the protocol that the agent supports
+        protocol_digest (list[str]): The digest of the protocol that the agent supports
         agentverse_config (AgentverseConfig): The configuration for the agentverse API
+        timeout (int): The timeout for the request
     """
-
     # get the almanac API endpoint
     agentverse_config = agentverse_config or AgentverseConfig()
     almanac_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_ALMANAC_API_PATH)
@@ -60,15 +68,16 @@ def register_in_almanac(
         elif request.agent_type == "proxy":
             request.endpoint = f"{agentverse_config.url}/v1/proxy/submit"
 
+    # if no endpoint is provided for normal and proxy agents, log a warning
     if request.endpoint is None:
         logger.warning(
-            "No endpoint provided for agent registration",
+            msg="No endpoint provided for agent registration",
             extra=registration_metadata,
         )
         return
 
     logger.info(
-        "Registering with Almanac API",
+        msg="Registering with Almanac API",
         extra=registration_metadata,
     )
 
@@ -76,9 +85,7 @@ def register_in_almanac(
     attestation = AgentRegistrationAttestation(
         agent_identifier=agent_address,
         protocols=protocol_digests,
-        endpoints=[
-            AgentEndpoint(url=request.endpoint, weight=1),
-        ],
+        endpoints=[AgentEndpoint(url=request.endpoint, weight=1)],
         metadata=None,
     )
 
@@ -90,7 +97,7 @@ def register_in_almanac(
         f"{almanac_api}/agents",
         headers={"content-type": "application/json"},
         data=attestation.model_dump_json(),
-        timeout=10,
+        timeout=timeout,
     )
     r.raise_for_status()
     logger.debug(
@@ -99,6 +106,7 @@ def register_in_almanac(
     )
 
 
+# associate user account with your agent
 def register_in_agentverse(
     request: AgentverseConnectRequest,
     identity: Identity,
@@ -114,9 +122,6 @@ def register_in_agentverse(
         identity (Identity): The identity of the agent.
         agent_details (Optional[AgentUpdates]): The agent details to update.
         agentverse_config (AgentverseConfig): The configuration for the agentverse API
-
-    Returns:
-        None
     """
     # API endpoints
     agentverse_config = agentverse_config or AgentverseConfig()

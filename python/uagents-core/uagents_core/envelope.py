@@ -6,8 +6,9 @@ import struct
 from collections.abc import Callable
 
 from pydantic import UUID4, BaseModel
-from uagents.crypto import Identity
-from uagents.types import JsonStr
+
+from uagents_core.crypto import Identity
+from uagents_core.types import JsonStr
 
 
 class Envelope(BaseModel):

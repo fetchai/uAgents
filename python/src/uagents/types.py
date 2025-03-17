@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from uagents_core.models import Model
-from uagents_core.types import AgentEndpoint
+from uagents_core.types import AddressPrefix, AgentEndpoint
 
 if TYPE_CHECKING:
     from uagents.context import Context
@@ -25,7 +25,6 @@ RestMethod = Literal["GET", "POST"]
 RestHandlerMap = dict[tuple[RestMethod, str], RestHandler]
 
 
-AddressPrefix = Literal["agent", "test-agent"]
 AgentNetwork = Literal["mainnet", "testnet"]
 
 

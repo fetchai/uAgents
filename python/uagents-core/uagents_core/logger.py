@@ -1,37 +1,36 @@
 import logging
-import os
+import sys
 
-import structlog
-
-_log_level_map = {
-    "NOTSET": logging.NOTSET,
-    "DEBUG": logging.DEBUG,
-    "INFO": logging.INFO,
-    "WARNING": logging.WARNING,
-    "ERROR": logging.ERROR,
-    "CRITICAL": logging.CRITICAL,
-}
-
-_log_level: str = os.getenv("LOG_LEVEL", "INFO")
+logging.basicConfig(level=logging.INFO)
 
 
-structlog.configure(
-    processors=[
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.processors.StackInfoRenderer(),
-        structlog.dev.set_exc_info,
-        structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S", utc=False),
-        structlog.dev.ConsoleRenderer(),
-    ],
-    wrapper_class=structlog.make_filtering_bound_logger(
-        _log_level_map.get(_log_level, logging.INFO)
-    ),
-    context_class=dict,
-    logger_factory=structlog.PrintLoggerFactory(),
-    cache_logger_on_first_use=False,
+formatter = logging.Formatter(
+    fmt="%(asctime)s,%(msecs)03d %(name)s %(levelname)s %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 
 
-def get_logger(logger_name: str) -> structlog.PrintLogger:
-    return structlog.get_logger(logger_name)
+def get_logger(
+    logger_name: str | None = None,
+    level: int | str = logging.INFO,
+    log_file: str = "uagents_core.log",
+) -> logging.Logger:
+    """
+    Get a logger with the given name.
+
+    If no name is specified, the root logger is returned.
+    """
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(level)
+
+    log_handler = logging.StreamHandler(sys.stdout)
+    log_handler.setFormatter(formatter)
+    logger.addHandler(log_handler)
+
+    if log_file:
+        log_handler = logging.FileHandler(log_file)
+        log_handler.setFormatter(formatter)
+        logger.addHandler(log_handler)
+
+    logger.propagate = False
+    return logger
