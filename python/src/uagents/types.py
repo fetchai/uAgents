@@ -1,6 +1,4 @@
-import uuid
 from collections.abc import Awaitable, Callable
-from enum import Enum
 from time import time
 from typing import TYPE_CHECKING, Annotated, Any, Literal
 
@@ -85,14 +83,6 @@ class AgentMetadata(BaseModel):
     geolocation: AgentGeolocation | None = None
 
 
-class DeliveryStatus(str, Enum):
-    """Delivery status of a message."""
-
-    SENT = "sent"
-    DELIVERED = "delivered"
-    FAILED = "failed"
-
-
 class MsgInfo(BaseModel):
     """
     Represents a message digest containing a message and its schema digest and sender.
@@ -106,25 +96,6 @@ class MsgInfo(BaseModel):
     message: Any
     sender: str
     schema_digest: str
-
-
-class MsgStatus(BaseModel):
-    """
-    Represents the status of a sent message.
-
-    Attributes:
-        status (str): The delivery status of the message {'sent', 'delivered', 'failed'}.
-        detail (str): The details of the message delivery.
-        destination (str): The destination address of the message.
-        endpoint (str): The endpoint the message was sent to.
-        session (uuid.UUID | None): The session ID of the message.
-    """
-
-    status: DeliveryStatus
-    detail: str
-    destination: str
-    endpoint: str
-    session: uuid.UUID | None = None
 
 
 class EnvelopeHistoryEntry(BaseModel):

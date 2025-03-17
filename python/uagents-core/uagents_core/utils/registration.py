@@ -1,7 +1,5 @@
 """
-This module provides methods to enable an identity to interact with other agents.
-
-Note: All methods in this module act synchronously / blocking.
+This module provides methods to register your identity with the Fetch.ai services.
 """
 
 import urllib.parse
@@ -17,6 +15,7 @@ from uagents_core.config import (
 )
 from uagents_core.crypto import Identity
 from uagents_core.logger import get_logger
+from uagents_core.protocol import is_valid_protocol_digest
 from uagents_core.registration import (
     AgentRegistrationAttestation,
     AgentUpdates,
@@ -32,23 +31,49 @@ logger = get_logger("uagents_core.utils.registration")
 
 
 def register_in_almanac(
-    request: AgentverseConnectRequest,
     identity: Identity,
-    *,
+    endpoints: list[str],
     protocol_digests: list[str],
+    *,
     agentverse_config: AgentverseConfig | None = None,
     timeout: int = DEFAULT_REQUEST_TIMEOUT,
-) -> None:
+) -> bool:
     """
     Register the identity with the Almanac API to make it discoverable by other agents.
 
     Args:
-        request (AgentverseConnectRequest): The request containing the agent details.
         identity (Identity): The identity of the agent.
-        protocol_digest (list[str]): The digest of the protocol that the agent supports
+        endpoints (list[str]): The endpoints that the agent can be reached at.
+        protocol_digests (list[str]): The digests of the protocol that the agent supports
         agentverse_config (AgentverseConfig): The configuration for the agentverse API
         timeout (int): The timeout for the request
     """
+    # check endpoints
+    if not endpoints:
+        logger.warning("No endpoints provided; skipping registration")
+        return False
+    for endpoint in endpoints:
+        result = urllib.parse.urlparse(endpoint)
+        if not all([result.scheme, result.netloc]):
+            logger.error(
+                msg="Invalid endpoint provided; skipping registration",
+                extra={"endpoint": endpoint},
+            )
+            return False
+
+    agent_endpoints: list[AgentEndpoint] = [
+        AgentEndpoint(url=endpoint, weight=1) for endpoint in endpoints
+    ]
+
+    # check protocol digests
+    for proto_digest in protocol_digests:
+        if not is_valid_protocol_digest(proto_digest):
+            logger.error(
+                msg="Invalid protocol digest provided; skipping registration",
+                extra={"protocol_digest": proto_digest},
+            )
+            return False
+
     # get the almanac API endpoint
     agentverse_config = agentverse_config or AgentverseConfig()
     almanac_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_ALMANAC_API_PATH)
@@ -56,54 +81,37 @@ def register_in_almanac(
     # get the agent address
     agent_address = identity.address
 
-    registration_metadata = {
-        "almanac_endpoint": almanac_api,
-        "agent_address": agent_address,
-        "agent_endpoint": request.endpoint or "",
-        "protocol_digest": ",".join(protocol_digests),
-    }
-    if request.endpoint is None:
-        if request.agent_type == "mailbox":
-            request.endpoint = f"{agentverse_config.url}/v1/submit"
-        elif request.agent_type == "proxy":
-            request.endpoint = f"{agentverse_config.url}/v1/proxy/submit"
-
-    # if no endpoint is provided for normal and proxy agents, log a warning
-    if request.endpoint is None:
-        logger.warning(
-            msg="No endpoint provided for agent registration",
-            extra=registration_metadata,
-        )
-        return
-
-    logger.info(
-        msg="Registering with Almanac API",
-        extra=registration_metadata,
-    )
-
     # create the attestation
     attestation = AgentRegistrationAttestation(
         agent_identifier=agent_address,
         protocols=protocol_digests,
-        endpoints=[AgentEndpoint(url=request.endpoint, weight=1)],
+        endpoints=agent_endpoints,
         metadata=None,
     )
+
+    logger.info(msg="Registering with Almanac API", extra=attestation.model_dump())
 
     # sign the attestation
     attestation.sign(identity)
 
     # submit the attestation to the API
-    r = requests.post(
-        f"{almanac_api}/agents",
-        headers={"content-type": "application/json"},
-        data=attestation.model_dump_json(),
-        timeout=timeout,
-    )
-    r.raise_for_status()
-    logger.debug(
-        "Agent attestation submitted",
-        extra=registration_metadata,
-    )
+    try:
+        response = requests.post(
+            f"{almanac_api}/agents",
+            headers={"content-type": "application/json"},
+            data=attestation.model_dump_json(),
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        logger.debug("Agent attestation submitted", extra=attestation.model_dump())
+        return True
+    except requests.RequestException as e:
+        logger.error(
+            msg="Error submitting agent attestation to Almanac API",
+            extra=attestation.model_dump(),
+            exc_info=e,
+        )
+        return False
 
 
 # associate user account with your agent

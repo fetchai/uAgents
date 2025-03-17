@@ -8,10 +8,9 @@ from typing import Any
 from uuid import UUID
 
 from uagents_core.models import ErrorMessage
+from uagents_core.types import DeliveryStatus, JsonStr, MsgStatus
 
 from uagents import Context, Model, Protocol
-from uagents.context import DeliveryStatus, MsgStatus
-from uagents.dispatch import JsonStr
 from uagents.storage import KeyValueStore, StorageAPI
 
 DEFAULT_SESSION_TIMEOUT_IN_SECONDS = 60

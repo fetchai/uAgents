@@ -14,6 +14,7 @@ from pydantic.v1 import ValidationError
 from uagents_core.communication import parse_identifier
 from uagents_core.envelope import Envelope
 from uagents_core.models import ERROR_MESSAGE_DIGEST, Model
+from uagents_core.types import DeliveryStatus, MsgStatus
 
 from uagents.communication import dispatch_local_message
 from uagents.config import (
@@ -24,7 +25,7 @@ from uagents.config import (
 from uagents.dispatch import dispatcher
 from uagents.resolver import Resolver
 from uagents.storage import KeyValueStore
-from uagents.types import DeliveryStatus, JsonStr, MsgInfo, MsgStatus
+from uagents.types import JsonStr, MsgInfo
 from uagents.utils import log
 
 if TYPE_CHECKING:

@@ -13,7 +13,7 @@ formatter = logging.Formatter(
 def get_logger(
     logger_name: str | None = None,
     level: int | str = logging.INFO,
-    log_file: str = "uagents_core.log",
+    log_file: str | None = "uagents_core.log",
 ) -> logging.Logger:
     """
     Get a logger with the given name.

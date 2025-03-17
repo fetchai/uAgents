@@ -6,49 +6,16 @@ import hashlib
 import json
 from collections.abc import Awaitable, Callable
 from logging import Logger
-from typing import Any, ClassVar
+from typing import Any
 
-from pydantic import BaseModel, ValidationInfo, field_validator
 from typing_extensions import deprecated
 from uagents_core.models import Model
+from uagents_core.protocol import ProtocolSpecification
 
 from uagents.config import get_logger
 from uagents.types import IntervalCallback, MessageCallback
 
 logger: Logger = get_logger("protocol")
-
-
-class ProtocolSpecification(BaseModel):
-    """Specification for the interactions and roles of a protocol."""
-
-    interactions: dict[type[Model], set[type[Model]]]
-    roles: dict[str, set[type[Model]]] | None = None
-    name: str = ""
-    version: str = "0.1.0"
-
-    SPEC_VERSION: ClassVar = "1.0"
-
-    @field_validator("roles")
-    @classmethod
-    def validate_roles(cls, roles, info: ValidationInfo):
-        """
-        Ensure that all models included in roles are also included in the interactions.
-        """
-        if roles is None:
-            return roles
-
-        interactions: dict[type[Model], set[type[Model]]] = info.data["interactions"]
-        interaction_models = set(interactions.keys())
-
-        for role, models in roles.items():
-            invalid_models = models - interaction_models
-            if invalid_models:
-                model_names = [model.__name__ for model in invalid_models]
-                raise ValueError(
-                    f"Role '{role}' contains models that don't "
-                    f"exist in interactions: {model_names}"
-                )
-        return roles
 
 
 class Protocol:
@@ -65,7 +32,7 @@ class Protocol:
         version: str | None = None,
         spec: ProtocolSpecification | None = None,
         role: str | None = None,
-    ):
+    ) -> None:
         """
         Initialize a Protocol instance.
 
@@ -219,7 +186,6 @@ class Protocol:
             name (str | None): The name of the protocol.
             version (str | None): The version of the protocol.
         """
-
         if name and spec.name and name != spec.name:
             logger.warning(
                 f"Protocol specification name '{spec.name}' overrides given protocol name '{name}'"
@@ -518,7 +484,7 @@ class Protocol:
             del cleaned_manifest["metadata"]
         cleaned_manifest["metadata"] = {}
 
-        encoded = json.dumps(cleaned_manifest, indent=None, sort_keys=True).encode(
-            "utf8"
-        )
+        encoded: bytes = json.dumps(
+            obj=cleaned_manifest, indent=None, sort_keys=True
+        ).encode("utf8")
         return f"proto:{hashlib.sha256(encoded).digest().hex()}"

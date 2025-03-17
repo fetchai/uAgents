@@ -1,3 +1,5 @@
+"""This module provides methods to resolve an agent address."""
+
 import urllib.parse
 from typing import Any
 
@@ -7,11 +9,12 @@ from uagents_core.communication import parse_identifier, weighted_random_sample
 from uagents_core.config import (
     DEFAULT_ALMANAC_API_PATH,
     DEFAULT_MAX_ENDPOINTS,
+    DEFAULT_REQUEST_TIMEOUT,
     AgentverseConfig,
 )
 from uagents_core.logger import get_logger
 
-logger = get_logger("uagents_core.utils.communication")
+logger = get_logger("uagents_core.utils.parser")
 
 
 def lookup_endpoint_for_agent(
@@ -21,7 +24,7 @@ def lookup_endpoint_for_agent(
     agentverse_config: AgentverseConfig | None = None,
 ) -> list[str]:
     """
-    Look up the endpoints for an agent using the Almanac API.
+    Resolve the endpoints for an agent using the Almanac API.
 
     Args:
         destination (str): The destination address to look up.
@@ -38,23 +41,30 @@ def lookup_endpoint_for_agent(
         "agent_address": agent_address,
         "lookup_url": almanac_api,
     }
-    logger.debug("looking up endpoint for agent", extra=request_meta)
-    r = requests.get(f"{almanac_api}/agents/{agent_address}")
-    r.raise_for_status()
+    logger.debug(msg="looking up endpoint for agent", extra=request_meta)
+    try:
+        response = requests.get(
+            url=f"{almanac_api}/agents/{agent_address}", timeout=DEFAULT_REQUEST_TIMEOUT
+        )
+        response.raise_for_status()
+    except requests.RequestException as e:
+        request_meta["exception"] = e
+        logger.error(msg="Error looking up agent endpoint", extra=request_meta)
+        return []
 
-    request_meta["response_status"] = r.status_code
+    request_meta["response_status"] = response.status_code
     logger.info(
-        "Got response looking up agent endpoint",
+        msg="Got response looking up agent endpoint",
         extra=request_meta,
     )
 
-    endpoints = r.json().get("endpoints", [])
+    endpoints: list = response.json().get("endpoints", [])
 
     if len(endpoints) > 0:
         urls = [val.get("url") for val in endpoints]
         weights = [val.get("weight") for val in endpoints]
         return weighted_random_sample(
-            urls,
+            items=urls,
             weights=weights,
             k=min(max_endpoints, len(endpoints)),
         )

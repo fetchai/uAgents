@@ -28,8 +28,8 @@ def weighted_random_sample(
     rng = rng or Random()
     if weights is None:
         return rng.sample(items, k=k)
-    values = [rng.random() ** (1 / w) for w in weights]
-    order = sorted(range(len(items)), key=lambda i: values[i])
+    values: list[Any] = [rng.random() ** (1 / w) for w in weights]
+    order: list[int] = sorted(range(len(items)), key=lambda i: values[i])
     return [items[i] for i in order[-k:]]
 
 

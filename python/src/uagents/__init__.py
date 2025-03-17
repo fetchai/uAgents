@@ -1,4 +1,5 @@
 from uagents_core.models import Field, Model
+from uagents_core.protocol import ProtocolSpecification
 
 from .agent import Agent, Bureau
 from .context import Context
@@ -11,4 +12,5 @@ __all__ = [
     "Field",
     "Model",
     "Protocol",
+    "ProtocolSpecification",
 ]

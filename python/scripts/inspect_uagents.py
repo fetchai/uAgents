@@ -1,3 +1,5 @@
+"""Script to inspect all modules in a folder and list all classes and functions in them."""
+
 import importlib
 import inspect
 import json

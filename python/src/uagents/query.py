@@ -4,8 +4,9 @@ from typing_extensions import deprecated
 from uagents_core.crypto import generate_user_address
 from uagents_core.envelope import Envelope
 from uagents_core.models import Model
+from uagents_core.types import MsgStatus
 
-from uagents.communication import MsgStatus, send_sync_message
+from uagents.communication import send_sync_message
 from uagents.resolver import Resolver
 
 
