@@ -6,8 +6,11 @@ Query Envelopes.
 
 
 
-#### query[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/query.py#L10)
+#### query[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/query.py#L12)
 ```python
+@deprecated(
+    "Query is deprecated and will be removed in a future release, use send_sync_message instead."
+)
 async def query(destination: str,
                 message: Model,
                 resolver: Resolver | None = None,

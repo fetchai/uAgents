@@ -1,9 +1,19 @@
 import uuid
 from collections.abc import Awaitable, Callable
 from enum import Enum
+from time import time
 from typing import TYPE_CHECKING, Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    UUID4,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+)
+from typing_extensions import Self
+from uagents_core.envelope import Envelope
 from uagents_core.models import Model
 from uagents_core.types import AddressPrefix, AgentEndpoint
 
@@ -115,3 +125,47 @@ class MsgStatus(BaseModel):
     destination: str
     endpoint: str
     session: uuid.UUID | None = None
+
+
+class EnvelopeHistoryEntry(BaseModel):
+    timestamp: int = Field(default_factory=lambda: int(time.time()))
+    version: int
+    sender: str
+    target: str
+    session: UUID4
+    schema_digest: str
+    protocol_digest: str | None = None
+    payload: str | None = None
+
+    @field_serializer("session")
+    def serialize_session(self, session: UUID4, _info) -> JsonStr:
+        return str(session)
+
+    @classmethod
+    def from_envelope(cls, envelope: Envelope) -> Self:
+        return cls(
+            version=envelope.version,
+            sender=envelope.sender,
+            target=envelope.target,
+            session=envelope.session,
+            schema_digest=envelope.schema_digest,
+            protocol_digest=envelope.protocol_digest,
+            payload=envelope.decode_payload(),
+        )
+
+
+class EnvelopeHistory(BaseModel):
+    envelopes: list[EnvelopeHistoryEntry]
+
+    def add_entry(self, entry: EnvelopeHistoryEntry) -> None:
+        self.envelopes.append(entry)
+        self.apply_retention_policy()
+
+    def apply_retention_policy(self) -> None:
+        """Remove entries older than 24 hours"""
+        cutoff_time = time.time() - 86400
+        for e in self.envelopes:
+            if e.timestamp < cutoff_time:
+                self.envelopes.remove(e)
+            else:
+                break

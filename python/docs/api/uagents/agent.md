@@ -18,23 +18,19 @@ Represents an agent in the context of a message.
 
 - `_address` _str_ - The address of the agent.
 - `_name` _str | None_ - The name of the agent.
-- `_signing_callback` _Callable_ - The callback for signing messages.
+- `_identity` _Identity_ - The identity of the agent.
   
   Properties:
 - `name` _str_ - The name of the agent.
 - `address` _str_ - The address of the agent.
 - `identifier` _str_ - The agent's address and network prefix.
-  
-
-**Methods**:
-
-- `sign_digest(data` - bytes) -> str: Sign the provided data with the agent's identity.
+- `identity` _Identity_ - The identity of the agent.
 
 
 
 #### __init__
 ```python
-def __init__(address: str, name: str | None, signing_callback: Callable)
+def __init__(address: str, name: str | None, identity: Identity) -> None
 ```
 
 Initialize the AgentRepresentation instance.
@@ -43,7 +39,7 @@ Initialize the AgentRepresentation instance.
 
 - `address` _str_ - The address of the context.
 - `name` _str | None_ - The optional name associated with the context.
-- `signing_callback` _Callable_ - The callback for signing messages.
+- `identity` _Identity_ - The identity of the agent.
 
 
 
@@ -89,21 +85,17 @@ Get the address of the agent used for communication including the network prefix
 
 
 
-#### sign_digest
+#### identity
 ```python
-def sign_digest(data: bytes) -> str
+@property
+def identity() -> Identity
 ```
 
-Sign the provided data with the callback of the agent's identity.
-
-**Arguments**:
-
-- `data` _bytes_ - The data to sign.
-  
+Get the identity of the agent.
 
 **Returns**:
 
-- `str` - The signature of the data.
+- `Identity` - The identity of the agent.
 
 
 
@@ -536,6 +528,9 @@ Decorator to register an interval handler for the provided period.
 
 #### on_query
 ```python
+@deprecated(
+    "on_query is deprecated and will be removed in a future release, use on_rest instead."
+)
 def on_query(model: type[Model],
              replies: type[Model] | set[type[Model]] | None = None)
 ```
@@ -643,7 +638,7 @@ Include a protocol into the agent's capabilities.
 
 #### publish_manifest
 ```python
-def publish_manifest(manifest: dict[str, Any])
+async def publish_manifest(manifest: dict[str, Any]) -> None
 ```
 
 Publish a protocol manifest to the Almanac service.

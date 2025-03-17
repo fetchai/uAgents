@@ -6,7 +6,7 @@ Dialogue class aka. blueprint for protocols.
 
 
 
-## Node Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L22)
+## Node Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L23)
 
 ```python
 class Node()
@@ -16,7 +16,7 @@ A node represents a state in the dialogue.
 
 
 
-## Edge Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L37)
+## Edge Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L38)
 
 ```python
 class Edge()
@@ -26,7 +26,7 @@ An edge represents a transition between two states in the dialogue.
 
 
 
-#### model[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L57)
+#### model[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L58)
 ```python
 @property
 def model() -> type[Model] | None
@@ -47,7 +47,7 @@ Set the message model type for the edge.
 
 
 
-#### func[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L67)
+#### func[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L68)
 ```python
 @property
 def func() -> MessageCallback | None
@@ -68,7 +68,7 @@ Set the message handler that will be called when a message is received.
 
 
 
-#### efunc[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L77)
+#### efunc[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L78)
 ```python
 @property
 def efunc() -> MessageCallback | None
@@ -78,7 +78,7 @@ The edge handler that is associated with the edge.
 
 
 
-#### set_edge_handler[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L82)
+#### set_edge_handler[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L83)
 ```python
 def set_edge_handler(model: type[Model], func: MessageCallback) -> None
 ```
@@ -88,7 +88,7 @@ This handler can not be overwritten by a decorator.
 
 
 
-#### set_message_handler[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L92)
+#### set_message_handler[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L93)
 ```python
 def set_message_handler(model: type[Model], func: MessageCallback) -> None
 ```
@@ -98,7 +98,7 @@ a decorator defines a new function to be called.
 
 
 
-## Dialogue Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L103)
+## Dialogue Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L104)
 
 ```python
 class Dialogue(Protocol)
@@ -146,7 +146,7 @@ The current features include:
 
 
 
-#### rules[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L197)
+#### rules[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L198)
 ```python
 @property
 def rules() -> dict[str, list[str]]
@@ -160,7 +160,7 @@ Property to access the rules of the dialogue.
 
 
 
-#### get_overview[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L215)
+#### get_overview[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L216)
 ```python
 def get_overview() -> dict
 ```
@@ -173,7 +173,7 @@ Get an overview of the dialogue structure.
 
 
 
-#### is_starter[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L315)
+#### is_starter[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L316)
 ```python
 def is_starter(digest: str) -> bool
 ```
@@ -183,7 +183,7 @@ False otherwise.
 
 
 
-#### is_ender[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L322)
+#### is_ender[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L323)
 ```python
 def is_ender(digest: str) -> bool
 ```
@@ -193,7 +193,7 @@ False otherwise.
 
 
 
-#### get_current_state[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L329)
+#### get_current_state[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L330)
 ```python
 def get_current_state(session_id: UUID) -> str
 ```
@@ -202,7 +202,7 @@ Get the current state of the dialogue for a given session.
 
 
 
-#### is_finished[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L333)
+#### is_finished[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L334)
 ```python
 def is_finished(session_id: UUID) -> bool
 ```
@@ -212,7 +212,7 @@ False otherwise.
 
 
 
-#### update_state[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L427)
+#### update_state[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L428)
 ```python
 def update_state(digest: str, session_id: UUID) -> None
 ```
@@ -227,7 +227,7 @@ if it does not exist.
 
 
 
-#### cleanup_conversation[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L444)
+#### cleanup_conversation[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L445)
 ```python
 def cleanup_conversation(session_id: UUID) -> None
 ```
@@ -236,7 +236,7 @@ Removes all messages related with the given session from the dialogue instance.
 
 
 
-#### add_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L449)
+#### add_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L450)
 ```python
 def add_message(session_id: UUID, message_type: str, schema_digest: str,
                 sender: str, receiver: str, content: JsonStr,
@@ -247,7 +247,7 @@ Add a message to the conversation of the given session within the dialogue insta
 
 
 
-#### get_conversation[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L478)
+#### get_conversation[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L479)
 ```python
 def get_conversation(session_id: UUID,
                      message_filter: str | None = None) -> list[Any]
@@ -271,7 +271,7 @@ This includes both sent and received messages.
 
 
 
-#### get_edge[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L505)
+#### get_edge[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L506)
 ```python
 def get_edge(edge_name: str) -> Edge
 ```
@@ -280,7 +280,7 @@ Return an edge from the dialogue instance.
 
 
 
-#### is_valid_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L513)
+#### is_valid_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L514)
 ```python
 def is_valid_message(session_id: UUID, msg_digest: str) -> bool
 ```
@@ -299,7 +299,7 @@ Check if an incoming message is valid for a given session.
 
 
 
-#### is_valid_reply[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L533)
+#### is_valid_reply[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L534)
 ```python
 def is_valid_reply(in_msg: str, out_msg: str) -> bool
 ```
@@ -318,7 +318,7 @@ Check if a reply is valid for a given message.
 
 
 
-#### is_included[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L548)
+#### is_included[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L549)
 ```python
 def is_included(msg_digest: str) -> bool
 ```
@@ -336,7 +336,7 @@ Check if a message is included in the dialogue.
 
 
 
-#### manifest[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L614)
+#### manifest[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L615)
 ```python
 def manifest() -> dict[str, Any]
 ```
@@ -346,7 +346,7 @@ and recalculate the digest.
 
 
 
-#### start_dialogue[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L638)
+#### start_dialogue[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L639)
 ```python
 async def start_dialogue(ctx: Context, destination: str,
                          message: Model) -> list[MsgStatus]
@@ -367,7 +367,7 @@ Start a dialogue with a message.
 
 
 
-#### initialise_cleanup_task[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L685)
+#### initialise_cleanup_task[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L686)
 ```python
 def initialise_cleanup_task(interval: int = 1) -> None
 ```

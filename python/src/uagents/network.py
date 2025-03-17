@@ -82,7 +82,7 @@ class AlmanacContractRecord(AgentInfo):
     timestamp: int | None = None
     signature: str | None = None
 
-    def sign(self, identity: Identity):
+    def sign(self, identity: Identity) -> None:
         self.timestamp = int(time.time()) - ALMANAC_REGISTRATION_WAIT
         self.signature = sign_registration(
             identity=identity,
@@ -170,7 +170,6 @@ async def wait_for_tx_to_complete(
     Returns:
         TxResponse: The response object containing the transaction details.
     """
-
     delay_func = poll_retry_delay or block_polling_exp_backoff
     response: TxResponse | None = None
     for n in range(poll_retries or DEFAULT_POLL_RETRIES):

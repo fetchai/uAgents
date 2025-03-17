@@ -7,10 +7,7 @@ from datetime import datetime, timezone
 
 import requests
 from dateutil import parser
-from uagents_core.communication import (
-    parse_identifier,
-    weighted_random_sample,
-)
+from uagents_core.communication import parse_identifier, weighted_random_sample
 
 from uagents.config import (
     ALMANAC_API_URL,

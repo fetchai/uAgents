@@ -3,7 +3,6 @@
 import base64
 import hashlib
 import struct
-from collections.abc import Callable
 
 from pydantic import UUID4, BaseModel
 
@@ -62,7 +61,7 @@ class Envelope(BaseModel):
 
         return base64.b64decode(self.payload).decode()
 
-    def sign(self, signing_fn: Callable) -> None:
+    def sign(self, identity: Identity) -> None:
         """
         Sign the envelope using the provided signing function.
 
@@ -70,7 +69,7 @@ class Envelope(BaseModel):
             signing_fn (callback): The callback used for signing.
         """
         try:
-            self.signature = signing_fn(self._digest())
+            self.signature = identity.sign_digest(self._digest())
         except Exception as err:
             raise ValueError(f"Failed to sign envelope: {err}") from err
 

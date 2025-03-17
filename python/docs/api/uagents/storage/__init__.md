@@ -4,7 +4,7 @@
 
 
 
-## StorageAPI Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L11)
+## StorageAPI Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L10)
 
 ```python
 class StorageAPI(ABC)
@@ -14,7 +14,7 @@ Interface for a key-value like storage system.
 
 
 
-## KeyValueStore Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L35)
+## KeyValueStore Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L34)
 
 ```python
 class KeyValueStore(StorageAPI)
@@ -42,7 +42,7 @@ A simple key-value store implementation for data storage.
 
 
 
-#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L55)
+#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L54)
 ```python
 def __init__(name: str, cwd: str | None = None)
 ```
@@ -56,7 +56,7 @@ Initialize the KeyValueStore instance.
 
 
 
-#### load_all_keys[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L100)
+#### load_all_keys[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L99)
 ```python
 def load_all_keys() -> dict
 ```
@@ -69,7 +69,7 @@ Load all private keys from the private keys file.
 
 
 
-#### save_private_keys[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L114)
+#### save_private_keys[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L113)
 ```python
 def save_private_keys(name: str, identity_key: str, wallet_key: str) -> None
 ```
@@ -84,7 +84,7 @@ Save private keys to the private keys file.
 
 
 
-#### get_or_create_private_keys[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L131)
+#### get_or_create_private_keys[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/storage/__init__.py#L130)
 ```python
 def get_or_create_private_keys(name: str) -> tuple[str, str]
 ```

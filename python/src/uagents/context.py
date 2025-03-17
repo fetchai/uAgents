@@ -6,17 +6,16 @@ import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from time import time
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any
 
 import requests
 from cosmpy.aerial.client import LedgerClient
-from pydantic import UUID4, BaseModel, Field, field_serializer
 from pydantic.v1 import ValidationError
 from uagents_core.communication import parse_identifier
 from uagents_core.envelope import Envelope
 from uagents_core.models import ERROR_MESSAGE_DIGEST, Model
 
-from uagents.communication import Dispenser, dispatch_local_message
+from uagents.communication import dispatch_local_message
 from uagents.config import (
     ALMANAC_API_URL,
     DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
@@ -30,6 +29,7 @@ from uagents.utils import log
 
 if TYPE_CHECKING:
     from uagents.agent import AgentRepresentation
+    from uagents.communication import Dispenser
     from uagents.protocol import Protocol
 
 
@@ -261,7 +261,7 @@ class InternalContext(Context):
         storage: KeyValueStore,
         ledger: LedgerClient,
         resolver: Resolver,
-        dispenser: Dispenser,
+        dispenser: "Dispenser",
         session: uuid.UUID | None = None,
         interval_messages: set[str] | None = None,
         wallet_messaging_client: Any | None = None,
@@ -745,48 +745,3 @@ class ExternalContext(InternalContext):
 
 
 ContextFactory = Callable[[], Context]
-
-
-# The envelope history is part of the context to keep track of sent messages
-class EnvelopeHistoryEntry(BaseModel):
-    timestamp: int = Field(default_factory=lambda: int(time.time()))
-    version: int
-    sender: str
-    target: str
-    session: UUID4
-    schema_digest: str
-    protocol_digest: str | None = None
-    payload: str | None = None
-
-    @field_serializer("session")
-    def serialize_session(self, session: UUID4, _info) -> JsonStr:
-        return str(session)
-
-    @classmethod
-    def from_envelope(cls, envelope: Envelope) -> Self:
-        return cls(
-            version=envelope.version,
-            sender=envelope.sender,
-            target=envelope.target,
-            session=envelope.session,
-            schema_digest=envelope.schema_digest,
-            protocol_digest=envelope.protocol_digest,
-            payload=envelope.decode_payload(),
-        )
-
-
-class EnvelopeHistory(BaseModel):
-    envelopes: list[EnvelopeHistoryEntry]
-
-    def add_entry(self, entry: EnvelopeHistoryEntry) -> None:
-        self.envelopes.append(entry)
-        self.apply_retention_policy()
-
-    def apply_retention_policy(self) -> None:
-        """Remove entries older than 24 hours"""
-        cutoff_time = time.time() - 86400
-        for e in self.envelopes:
-            if e.timestamp < cutoff_time:
-                self.envelopes.remove(e)
-            else:
-                break

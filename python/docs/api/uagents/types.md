@@ -4,7 +4,7 @@
 
 
 
-## AgentGeolocation Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L53)
+## AgentGeolocation Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L56)
 
 ```python
 class AgentGeolocation(BaseModel)
@@ -25,7 +25,7 @@ Equivalent to 0.11m precision.
 
 
 
-## AgentMetadata Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L69)
+## AgentMetadata Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L72)
 
 ```python
 class AgentMetadata(BaseModel)
@@ -38,7 +38,7 @@ Additional fields will simply be passed through.
 
 
 
-## DeliveryStatus Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L85)
+## DeliveryStatus Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L88)
 
 ```python
 class DeliveryStatus(str, Enum)
@@ -48,11 +48,10 @@ Delivery status of a message.
 
 
 
-## MsgInfo Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L93)
+## MsgInfo Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L96)
 
 ```python
-@dataclass
-class MsgInfo()
+class MsgInfo(BaseModel)
 ```
 
 Represents a message digest containing a message and its schema digest and sender.
@@ -65,11 +64,10 @@ Represents a message digest containing a message and its schema digest and sende
 
 
 
-## MsgStatus Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L109)
+## MsgStatus Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L111)
 
 ```python
-@dataclass
-class MsgStatus()
+class MsgStatus(BaseModel)
 ```
 
 Represents the status of a sent message.
@@ -81,4 +79,21 @@ Represents the status of a sent message.
 - `destination` _str_ - The destination address of the message.
 - `endpoint` _str_ - The endpoint the message was sent to.
 - `session` _uuid.UUID | None_ - The session ID of the message.
+
+
+
+## EnvelopeHistory Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L158)
+
+```python
+class EnvelopeHistory(BaseModel)
+```
+
+
+
+#### apply_retention_policy[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/types.py#L165)
+```python
+def apply_retention_policy() -> None
+```
+
+Remove entries older than 24 hours
 

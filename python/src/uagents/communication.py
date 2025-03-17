@@ -13,10 +13,15 @@ from uagents_core.envelope import Envelope
 from uagents_core.models import Model
 
 from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
-from uagents.context import EnvelopeHistory, EnvelopeHistoryEntry
 from uagents.dispatch import dispatcher
 from uagents.resolver import GlobalResolver, Resolver
-from uagents.types import DeliveryStatus, JsonStr, MsgStatus
+from uagents.types import (
+    DeliveryStatus,
+    EnvelopeHistory,
+    EnvelopeHistoryEntry,
+    JsonStr,
+    MsgStatus,
+)
 from uagents.utils import get_logger
 
 LOGGER: logging.Logger = get_logger("dispenser", logging.DEBUG)

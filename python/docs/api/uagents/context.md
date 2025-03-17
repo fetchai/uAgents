@@ -6,7 +6,7 @@ Agent Context and Message Handling
 
 
 
-## Context Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L40)
+## Context Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L36)
 
 ```python
 class Context(ABC)
@@ -33,7 +33,7 @@ session (uuid.UUID): The session UUID associated with the context.
 
 
 
-#### agent[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L61)
+#### agent[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L57)
 ```python
 @property
 @abstractmethod
@@ -48,7 +48,7 @@ Get the agent representation associated with the context.
 
 
 
-#### storage[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L72)
+#### storage[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L68)
 ```python
 @property
 @abstractmethod
@@ -63,7 +63,7 @@ Get the key-value store associated with the context.
 
 
 
-#### ledger[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L83)
+#### ledger[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L79)
 ```python
 @property
 @abstractmethod
@@ -78,7 +78,7 @@ Get the ledger client associated with the context.
 
 
 
-#### logger[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L94)
+#### logger[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L90)
 ```python
 @property
 @abstractmethod
@@ -93,7 +93,7 @@ Get the logger instance associated with the context.
 
 
 
-#### session[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L105)
+#### session[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L101)
 ```python
 @property
 @abstractmethod
@@ -108,7 +108,7 @@ Get the session UUID associated with the context.
 
 
 
-#### get_agents_by_protocol[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L116)
+#### get_agents_by_protocol[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L112)
 ```python
 @abstractmethod
 def get_agents_by_protocol(protocol_digest: str,
@@ -134,7 +134,7 @@ limited to a specified number of addresses.
 
 
 
-#### broadcast[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L138)
+#### broadcast[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L134)
 ```python
 @abstractmethod
 async def broadcast(
@@ -164,7 +164,7 @@ The schema digest of the message is used for verification.
 
 
 
-#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L163)
+#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L159)
 ```python
 @abstractmethod
 async def send(destination: str,
@@ -187,7 +187,7 @@ Send a message to the specified destination.
 
 
 
-#### send_raw[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L183)
+#### send_raw[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L179)
 ```python
 @abstractmethod
 async def send_raw(
@@ -222,7 +222,7 @@ message schema digest are sent separately.
 
 
 
-#### send_and_receive[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L214)
+#### send_and_receive[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L210)
 ```python
 @abstractmethod
 async def send_and_receive(
@@ -251,7 +251,7 @@ Send a message to the specified destination and receive a response.
 
 
 
-#### send_wallet_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L238)
+#### send_wallet_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L234)
 ```python
 @abstractmethod
 async def send_wallet_message(destination: str, text: str, msg_type: int = 1)
@@ -272,7 +272,7 @@ Send a message to the wallet of the specified destination.
 
 
 
-## InternalContext Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L259)
+## InternalContext Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L255)
 
 ```python
 class InternalContext(Context)
@@ -282,7 +282,7 @@ Represents the agent internal context for proactive behaviour.
 
 
 
-#### session[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L301)
+#### session[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L297)
 ```python
 @property
 def session() -> uuid.UUID
@@ -296,7 +296,7 @@ Get the session UUID associated with the context.
 
 
 
-#### outbound_messages[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L311)
+#### outbound_messages[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L307)
 ```python
 @property
 def outbound_messages() -> dict[str, tuple[JsonStr, str]]
@@ -310,7 +310,7 @@ Get the dictionary of outbound messages associated with the context.
 
 
 
-#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L395)
+#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L391)
 ```python
 async def send(destination: str,
                message: Model,
@@ -324,7 +324,7 @@ contexts, like 'replies', 'message_received', or 'protocol'.
 
 
 
-#### send_and_receive[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L548)
+#### send_and_receive[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L544)
 ```python
 async def send_and_receive(
     destination: str,
@@ -352,7 +352,7 @@ Send a message to the specified destination and receive a response.
 
 
 
-## ExternalContext Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L634)
+## ExternalContext Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L630)
 
 ```python
 class ExternalContext(InternalContext)
@@ -362,7 +362,7 @@ Represents the reactive context in which messages are handled and processed.
 
 **Attributes**:
 
-- `_message_received` _MsgDigest | None_ - The message digest received.
+- `_message_received` _MsgInfo_ - The received message.
 - `_queries` _dict[str, asyncio.Future] | None_ - dictionary mapping query senders to their
   response Futures.
 - `_replies` _dict[str, dict[str, type[Model]]] | None_ - Dictionary of allowed reply digests
@@ -372,7 +372,7 @@ Represents the reactive context in which messages are handled and processed.
 
 
 
-#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L648)
+#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L644)
 ```python
 def __init__(message_received: MsgInfo,
              queries: dict[str, asyncio.Future] | None = None,
@@ -385,7 +385,7 @@ Initialize the ExternalContext instance and attributes needed from the InternalC
 
 **Arguments**:
 
-- `message_received` _MsgDigest_ - The optional message digest received.
+- `message_received` _MsgInfo_ - Information about the received message.
 - `queries` _dict[str, asyncio.Future]_ - Dictionary mapping query senders to their
   response Futures.
 - `replies` _dict[str, dict[str, type[Model]]] | None_ - Dictionary of allowed replies
@@ -394,7 +394,7 @@ Initialize the ExternalContext instance and attributes needed from the InternalC
 
 
 
-#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L702)
+#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L698)
 ```python
 async def send(destination: str,
                message: Model,

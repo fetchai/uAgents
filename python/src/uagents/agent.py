@@ -36,8 +36,6 @@ from uagents.config import (
 from uagents.context import (
     Context,
     ContextFactory,
-    EnvelopeHistory,
-    EnvelopeHistoryEntry,
     ExternalContext,
     InternalContext,
 )
@@ -75,6 +73,8 @@ from uagents.types import (
     AgentInfo,
     AgentMetadata,
     AgentNetwork,
+    EnvelopeHistory,
+    EnvelopeHistoryEntry,
     EventCallback,
     IntervalCallback,
     JsonStr,
@@ -138,16 +138,12 @@ class AgentRepresentation:
         _address (str): The address of the agent.
         _name (str | None): The name of the agent.
         _identity (Identity): The identity of the agent.
-        _name (str | None): The name of the agent.
-        _signing_callback (Callable): The callback for signing messages.
 
     Properties:
         name (str): The name of the agent.
         address (str): The address of the agent.
         identifier (str): The agent's address and network prefix.
-
-    Methods:
-        sign_digest(data: bytes) -> str: Sign the provided data with the agent's identity.
+        identity (Identity): The identity of the agent.
     """
 
     def __init__(
@@ -155,7 +151,7 @@ class AgentRepresentation:
         address: str,
         name: str | None,
         identity: Identity,
-    ):
+    ) -> None:
         """
         Initialize the AgentRepresentation instance.
 
@@ -270,7 +266,6 @@ class Agent(Sink):
         protocols (dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
         corresponding protocols.
         metadata (dict[str, Any] | None): Metadata associated with the agent.
-
     """
 
     def __init__(
@@ -341,7 +336,7 @@ class Agent(Sink):
         self._agentverse = parse_agentverse_config(agentverse)
 
         # configure endpoints and mailbox
-        self._endpoints = parse_endpoint_config(
+        self._endpoints: list[AgentEndpoint] = parse_endpoint_config(
             endpoint, self._agentverse, mailbox, proxy, self._logger
         )
 

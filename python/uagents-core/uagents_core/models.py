@@ -37,3 +37,6 @@ class ErrorMessage(Model):
     """Error message model"""
 
     error: str
+
+
+ERROR_MESSAGE_DIGEST = Model.build_schema_digest(ErrorMessage)
