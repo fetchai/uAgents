@@ -14,6 +14,7 @@ from cosmpy.protos.cosmwasm.wasm.v1.query_pb2 import (
     QuerySmartContractStateRequest,
     QuerySmartContractStateResponse,
 )
+from uagents_core.types import AgentInfo
 
 from uagents.config import (
     ALMANAC_CONTRACT_VERSION,
@@ -26,7 +27,6 @@ from uagents.registration import (
     BatchLedgerRegistrationPolicy,
     LedgerBasedRegistrationPolicy,
 )
-from uagents.types import AgentInfo
 
 
 class FakeSubmittedTx:

@@ -1,6 +1,6 @@
 import logging
+import time
 from collections.abc import Awaitable, Callable
-from time import time
 from typing import TYPE_CHECKING, Annotated, Any, Literal
 
 from pydantic import (
@@ -145,7 +145,7 @@ class EnvelopeHistory:
         logger: logging.Logger | None = None,
         retention_period: int = MESSAGE_HISTORY_RETENTION_SECONDS,
         message_limit: int = MESSAGE_HISTORY_MESSAGE_LIMIT,
-    ):
+    ) -> None:
         """
         Initialize the message history.
 

@@ -1,6 +1,7 @@
 import unittest
 
 from aioresponses import aioresponses
+from uagents_core.types import AgentEndpoint
 
 from uagents.crypto import Identity
 from uagents.registration import (
@@ -8,7 +9,6 @@ from uagents.registration import (
     AlmanacApiRegistrationPolicy,
     coerce_metadata_to_str,
 )
-from uagents.types import AgentEndpoint
 
 TEST_PROTOCOLS = ["foo", "bar", "baz"]
 TEST_ENDPOINTS = [

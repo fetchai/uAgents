@@ -5,12 +5,14 @@ import unittest
 from typing import Any
 
 # from cosmpy.protos.cosmos.base.v1beta1.coin_pb2 import Coin
-from uagents import Agent
+from uagents_core.identity import Identity, encode_length_prefixed
 
-# EXPECTED_FUNDS = Coin(amount="8640000000000000", denom="atestfet")
+from uagents import Agent
 from uagents.config import ANAME_REGISTRATION_SECONDS
-from uagents.crypto import Identity, encode_length_prefixed, sign_registration
+from uagents.crypto import sign_registration
 from uagents.network import get_name_service_contract
+
+EXPECTED_FUNDS = 'denom: "atestfet"\namount: "518400000000000000"\n'
 
 
 def generate_digest(
@@ -86,8 +88,11 @@ def validate_tx_msgs(
             except (json.JSONDecodeError, AttributeError):
                 return False
 
-            if "register" in msg_dict:
-                if not msg_dict["register"]["domain"] or not msg.funds[0]:
+            if "register_domain" in msg_dict:
+                if (
+                    not msg_dict["register_domain"]["domain"]
+                    or str(msg.funds[0]) != EXPECTED_FUNDS
+                ):
                     return False
             elif "update_domain_record" in msg_dict:
                 update_record = msg_dict["update_domain_record"]
@@ -145,13 +150,13 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
             self.fail("Name service contract address is invalid")
 
         tx = name_service_contract.get_registration_tx(
-            agent.name,
-            agent.wallet.address(),
-            agent.address,
-            "example.agent",
-            ANAME_REGISTRATION_SECONDS,
-            "testnet",
-            "token",
+            name=agent.name,
+            wallet_address=agent.wallet.address(),
+            agent_records=agent.address,
+            domain="example.agent",
+            duration=ANAME_REGISTRATION_SECONDS,
+            network="testnet",
+            approval_token="token",
         )
 
         if not tx:
@@ -159,7 +164,9 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(
             validate_tx_msgs(
-                tx.msgs, str(agent.wallet.address()), name_service_contract.address.data
+                msgs=tx.msgs,
+                wallet_address=agent.wallet.address().data,
+                contract_address=name_service_contract.address.data,
             ),
             "Name service registration TX is invalid",
         )

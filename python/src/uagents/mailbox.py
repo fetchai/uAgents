@@ -114,7 +114,7 @@ async def register_in_agentverse(
         # response to challenge with signature to get token
         prove_url = f"{agentverse.url}/v1/agents"
         async with session.post(
-            prove_url,
+            url=prove_url,
             data=RegistrationRequest(
                 address=identity.address,
                 prefix=prefix,
