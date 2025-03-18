@@ -31,7 +31,11 @@ from uagents.config import (
 from uagents.context import Context, ContextFactory, ExternalContext, InternalContext
 from uagents.crypto import Identity, derive_key_from_seed, is_user_address
 from uagents.dispatch import Sink, dispatcher
-from uagents.envelope import EnvelopeHistory, EnvelopeHistoryEntry
+from uagents.envelope import (
+    EnvelopeHistory,
+    EnvelopeHistoryEntry,
+    EnvelopeHistoryResponse,
+)
 from uagents.mailbox import (
     AgentUpdates,
     AgentverseConnectRequest,
@@ -228,7 +232,7 @@ class Agent(Sink):
         _signed_message_handlers (dict[str, MessageCallback]): Handlers for signed messages.
         _unsigned_message_handlers (dict[str, MessageCallback]): Handlers for
         unsigned messages.
-        _message_cache (EnvelopeHistory): History of messages received by the agent.
+        _message_history (EnvelopeHistory): History of messages received by the agent.
         _models (dict[str, type[Model]]): Dictionary mapping supported message digests to messages.
         _replies (dict[str, dict[str, type[Model]]]): Dictionary of allowed replies for each type
         of incoming message.
@@ -289,6 +293,7 @@ class Agent(Sink):
         readme_path: str | None = None,
         avatar_url: str | None = None,
         publish_agent_details: bool = False,
+        store_message_history: bool = False,
     ):
         """
         Initialize an Agent instance.
@@ -318,6 +323,7 @@ class Agent(Sink):
             avatar_url (str | None): The URL for the agent's avatar image on Agentverse.
             publish_agent_details (bool): Publish agent details to Agentverse on connection via
             local agent inspector.
+            store_message_history (bool): Store the message history for the agent.
         """
         self._init_done = False
         self._name = name
@@ -364,10 +370,17 @@ class Agent(Sink):
         self._replies: dict[str, dict[str, type[Model]]] = {}
         self._queries: dict[str, asyncio.Future] = {}
         self._dispatcher = dispatcher
-        self._message_cache: EnvelopeHistory | None = (
-            EnvelopeHistory(envelopes=[]) if enable_agent_inspector else None
+        self._message_history: EnvelopeHistory | None = (
+            EnvelopeHistory(
+                storage=self._storage,
+                use_cache=enable_agent_inspector,
+                use_storage=store_message_history,
+                logger=self._logger,
+            )
+            if enable_agent_inspector or store_message_history
+            else None
         )
-        self._dispenser = Dispenser(msg_cache_ref=self._message_cache)
+        self._dispenser = Dispenser(msg_cache_ref=self._message_history)
         self._message_queue = asyncio.Queue()
         self._on_startup = []
         self._on_shutdown = []
@@ -433,9 +446,11 @@ class Agent(Sink):
                     metadata=self.metadata,
                 )
 
-            @self.on_rest_get("/messages", EnvelopeHistory)  # type: ignore
+            @self.on_rest_get("/messages", EnvelopeHistoryResponse)  # type: ignore
             async def _handle_get_messages(_ctx: Context):
-                return self._message_cache
+                if self._message_history is None:
+                    return None
+                return self._message_history.get_cached_messages()
 
             @self.on_rest_post(
                 "/connect", AgentverseConnectRequest, RegistrationResponse
@@ -495,6 +510,7 @@ class Agent(Sink):
             interval_messages=self._interval_messages,
             wallet_messaging_client=self._wallet_messaging_client,
             logger=self._logger,
+            message_history=self._message_history,
         )
 
     def _initialize_wallet_and_identity(self, seed, name, wallet_key_derivation_index):
@@ -1220,8 +1236,8 @@ class Agent(Sink):
             protocol_info = self.get_message_protocol(schema_digest)
             protocol_digest = protocol_info[0] if protocol_info else None
 
-            if self._message_cache:
-                self._message_cache.add_entry(
+            if self._message_history:
+                self._message_history.add_entry(
                     EnvelopeHistoryEntry(
                         version=1,
                         sender=sender,
@@ -1252,6 +1268,7 @@ class Agent(Sink):
                     message=message, sender=sender, schema_digest=schema_digest
                 ),
                 protocol=protocol_info,
+                message_history=self._message_history,
             )
 
             # sanity check

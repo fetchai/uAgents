@@ -6,7 +6,7 @@ Agent Envelope.
 
 
 
-## Envelope Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L16)
+## Envelope Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L22)
 
 ```python
 class Envelope(BaseModel)
@@ -31,7 +31,7 @@ Represents an envelope for message communication between agents.
 
 
 
-#### encode_payload[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L46)
+#### encode_payload[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L52)
 ```python
 def encode_payload(value: JsonStr) -> None
 ```
@@ -44,7 +44,7 @@ Encode the payload value and store it in the envelope.
 
 
 
-#### decode_payload[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L55)
+#### decode_payload[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L61)
 ```python
 def decode_payload() -> str
 ```
@@ -57,7 +57,7 @@ Decode and retrieve the payload value from the envelope.
 
 
 
-#### sign[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L67)
+#### sign[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L73)
 ```python
 def sign(signing_fn: Callable) -> None
 ```
@@ -70,7 +70,7 @@ Sign the envelope using the provided signing function.
 
 
 
-#### verify[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L79)
+#### verify[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L85)
 ```python
 def verify() -> bool
 ```
@@ -89,18 +89,87 @@ Verify the envelope's signature.
 
 
 
-## EnvelopeHistory Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L142)
+## EnvelopeHistory Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L157)
 
 ```python
-class EnvelopeHistory(BaseModel)
+class EnvelopeHistory()
 ```
 
+Stores message history for an agent optionally using cache and/or storage.
 
 
-#### apply_retention_policy[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L149)
+
+#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L233)
+```python
+def __init__(storage: StorageAPI,
+             use_cache: bool = True,
+             use_storage: bool = False,
+             logger: logging.Logger | None = None,
+             retention_period: int = MESSAGE_HISTORY_RETENTION_SECONDS,
+             message_limit: int = MESSAGE_HISTORY_MESSAGE_LIMIT)
+```
+
+Initialize the message history.
+
+**Arguments**:
+
+- `storage` _StorageAPI_ - The storage API to use.
+- `use_cache` _bool_ - Whether to use the cache.
+- `use_storage` _bool_ - Whether to use the storage.
+- `logger` _logging.Logger | None_ - The logger to use.
+- `retention_period` _int_ - The retention period in seconds.
+- `message_limit` _int_ - The message limit.
+
+
+
+#### add_entry[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L188)
+```python
+def add_entry(entry: EnvelopeHistoryEntry) -> None
+```
+
+Add an envelope entry to the message history.
+
+**Arguments**:
+
+- `entry` _EnvelopeHistoryEntry_ - The entry to add.
+
+
+
+#### get_cached_messages[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L229)
+```python
+def get_cached_messages() -> EnvelopeHistoryResponse
+```
+
+Retrieve the cached message history.
+
+**Returns**:
+
+- `EnvelopeHistoryResponse` - The cached message history.
+
+
+
+#### get_session_messages[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L240)
+```python
+def get_session_messages(session: UUID4) -> list[EnvelopeHistoryEntry]
+```
+
+Retrieve the message history for a given session.
+
+**Arguments**:
+
+- `session` _UUID4_ - The session UUID.
+  
+
+**Returns**:
+
+- `list[EnvelopeHistoryEntry]` - The message history for the session.
+
+
+
+#### apply_retention_policy[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/envelope.py#L255)
 ```python
 def apply_retention_policy() -> None
 ```
 
-Remove entries older than 24 hours
+Remove entries older than retention period.
 

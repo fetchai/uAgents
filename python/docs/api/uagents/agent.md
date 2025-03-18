@@ -137,7 +137,7 @@ ts at which the agent is reachable.
 - `_signed_message_handlers` _dict[str, MessageCallback]_ - Handlers for signed messages.
 - `_unsigned_message_handlers` _dict[str, MessageCallback]_ - Handlers for
   unsigned messages.
-- `_message_cache` _EnvelopeHistory_ - History of messages received by the agent.
+- `_message_history` _EnvelopeHistory_ - History of messages received by the agent.
 - `_models` _dict[str, type[Model]]_ - Dictionary mapping supported message digests to messages.
 - `_replies` _dict[str, dict[str, type[Model]]]_ - Dictionary of allowed replies for each type
   of incoming message.
@@ -197,7 +197,8 @@ def __init__(name: str | None = None,
              metadata: dict[str, Any] | None = None,
              readme_path: str | None = None,
              avatar_url: str | None = None,
-             publish_agent_details: bool = False)
+             publish_agent_details: bool = False,
+             store_message_history: bool = False)
 ```
 
 Initialize an Agent instance.
@@ -228,6 +229,7 @@ Initialize an Agent instance.
 - `avatar_url` _str | None_ - The URL for the agent's avatar image on Agentverse.
 - `publish_agent_details` _bool_ - Publish agent details to Agentverse on connection via
   local agent inspector.
+- `store_message_history` _bool_ - Store the message history for the agent.
 
 
 
