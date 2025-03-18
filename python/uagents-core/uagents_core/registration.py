@@ -1,14 +1,39 @@
 import hashlib
 import json
 import time
+from abc import ABC, abstractmethod
+from typing import Any
 
 from pydantic import AliasChoices, BaseModel, Field
 
-from uagents_core.communication import parse_identifier
-from uagents_core.crypto import Identity
-from uagents_core.types import AddressPrefix, AgentEndpoint, AgentType
+from uagents_core.identity import Identity, parse_identifier
+from uagents_core.types import AddressPrefix, AgentEndpoint, AgentInfo, AgentType
 
 
+class AgentRegistrationPolicy(ABC):
+    @abstractmethod
+    async def register(
+        self,
+        agent_identifier: str,
+        identity: Identity,
+        protocols: list[str],
+        endpoints: list[AgentEndpoint],
+        metadata: dict[str, Any] | None = None,
+    ):
+        raise NotImplementedError
+
+
+class BatchRegistrationPolicy(ABC):
+    @abstractmethod
+    async def register(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def add_agent(self, agent_info: AgentInfo, identity: Identity):
+        raise NotImplementedError
+
+
+# Registration models
 class VerifiableModel(BaseModel):
     agent_identifier: str = Field(
         validation_alias=AliasChoices("agent_identifier", "agent_address")

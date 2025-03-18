@@ -21,8 +21,8 @@ from cosmpy.aerial.tx import Transaction
 from cosmpy.aerial.tx_helpers import SubmittedTx, TxResponse
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
-from uagents_core.crypto import Identity
-from uagents_core.types import AgentEndpoint
+from uagents_core.identity import Identity
+from uagents_core.types import AgentEndpoint, AgentInfo
 
 from uagents.config import (
     ALMANAC_CONTRACT_VERSION,
@@ -34,7 +34,7 @@ from uagents.config import (
     TESTNET_CONTRACT_NAME_SERVICE,
 )
 from uagents.crypto import sign_registration
-from uagents.types import AgentInfo, AgentNetwork
+from uagents.types import AgentNetwork
 from uagents.utils import get_logger
 
 logger: Logger = get_logger("network")

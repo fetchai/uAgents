@@ -1,6 +1,6 @@
 import uuid
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -13,6 +13,14 @@ AddressPrefix = Literal["agent", "test-agent"]
 class AgentEndpoint(BaseModel):
     url: str
     weight: int
+
+
+class AgentInfo(BaseModel):
+    address: str
+    prefix: AddressPrefix
+    endpoints: list[AgentEndpoint]
+    protocols: list[str]
+    metadata: dict[str, Any] | None = None
 
 
 class DeliveryStatus(str, Enum):

@@ -9,7 +9,7 @@ from babble import Client
 from babble import Identity as BabbleIdentity  # pylint: disable=unused-import
 from babble import Message as WalletMessage
 from cosmpy.aerial.wallet import LocalWallet
-from uagents_core.crypto import Identity
+from uagents_core.identity import Identity
 
 from uagents.config import WALLET_MESSAGING_POLL_INTERVAL_SECONDS
 from uagents.context import ContextFactory

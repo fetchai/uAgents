@@ -1,8 +1,8 @@
 """Query Envelopes."""
 
 from typing_extensions import deprecated
-from uagents_core.crypto import generate_user_address
 from uagents_core.envelope import Envelope
+from uagents_core.identity import generate_user_address
 from uagents_core.models import Model
 from uagents_core.types import MsgStatus
 

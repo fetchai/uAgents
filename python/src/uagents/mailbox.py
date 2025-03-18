@@ -6,8 +6,8 @@ import aiohttp
 from aiohttp.client_exceptions import ClientConnectorError
 from pydantic import UUID4, BaseModel, ValidationError
 from uagents_core.config import AgentverseConfig
-from uagents_core.crypto import Identity, is_user_address
 from uagents_core.envelope import Envelope
+from uagents_core.identity import Identity, is_user_address
 from uagents_core.models import Model
 from uagents_core.registration import (
     AgentUpdates,

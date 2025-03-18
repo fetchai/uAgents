@@ -5,8 +5,8 @@ import unittest
 import uuid
 from unittest.mock import AsyncMock, call, patch
 
-from uagents_core.crypto import generate_user_address
 from uagents_core.envelope import Envelope
+from uagents_core.identity import generate_user_address
 
 from uagents import Agent, Model
 from uagents.communication import enclose_response

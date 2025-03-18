@@ -14,7 +14,7 @@ from uagents_core.config import (
     DEFAULT_REQUEST_TIMEOUT,
     AgentverseConfig,
 )
-from uagents_core.crypto import Identity
+from uagents_core.identity import Identity
 from uagents_core.logger import get_logger
 from uagents_core.protocol import is_valid_protocol_digest
 from uagents_core.registration import (

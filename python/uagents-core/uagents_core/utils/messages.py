@@ -8,10 +8,10 @@ from uuid import UUID, uuid4
 
 import requests
 
-from uagents_core.communication import weighted_random_sample
 from uagents_core.config import DEFAULT_REQUEST_TIMEOUT, AgentverseConfig
-from uagents_core.crypto import Identity
 from uagents_core.envelope import Envelope
+from uagents_core.helpers import weighted_random_sample
+from uagents_core.identity import Identity
 from uagents_core.logger import get_logger
 from uagents_core.models import Model
 from uagents_core.types import DeliveryStatus, MsgStatus

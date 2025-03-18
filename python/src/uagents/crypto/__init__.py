@@ -2,7 +2,7 @@ import base64
 import hashlib
 import json
 
-from uagents_core.crypto import Identity, encode_length_prefixed
+from uagents_core.identity import Identity, encode_length_prefixed
 
 
 def sign_registration(

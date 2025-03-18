@@ -13,7 +13,6 @@ from pydantic import (
 from typing_extensions import Self
 from uagents_core.envelope import Envelope
 from uagents_core.models import Model
-from uagents_core.types import AddressPrefix, AgentEndpoint
 
 if TYPE_CHECKING:
     from uagents.context import Context
@@ -34,14 +33,6 @@ RestHandlerMap = dict[tuple[RestMethod, str], RestHandler]
 
 
 AgentNetwork = Literal["mainnet", "testnet"]
-
-
-class AgentInfo(BaseModel):
-    address: str
-    prefix: AddressPrefix
-    endpoints: list[AgentEndpoint]
-    protocols: list[str]
-    metadata: dict[str, Any] | None = None
 
 
 class RestHandlerDetails(BaseModel):

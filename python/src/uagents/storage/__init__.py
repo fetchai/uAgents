@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from cosmpy.aerial.wallet import PrivateKey
-from uagents_core.crypto import Identity
+from uagents_core.identity import Identity
 
 
 class StorageAPI(ABC):

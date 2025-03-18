@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING, Any
 import requests
 from cosmpy.aerial.client import LedgerClient
 from pydantic.v1 import ValidationError
-from uagents_core.communication import parse_identifier
 from uagents_core.envelope import Envelope
+from uagents_core.identity import parse_identifier
 from uagents_core.models import ERROR_MESSAGE_DIGEST, Model
 from uagents_core.types import DeliveryStatus, MsgStatus
 

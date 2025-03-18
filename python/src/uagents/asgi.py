@@ -9,8 +9,8 @@ from pydantic import BaseModel, ValidationError
 from pydantic.v1 import ValidationError as ValidationErrorV1
 from pydantic.v1.error_wrappers import ErrorWrapper
 from requests.structures import CaseInsensitiveDict
-from uagents_core.crypto import is_user_address
 from uagents_core.envelope import Envelope
+from uagents_core.identity import is_user_address
 from uagents_core.models import ErrorMessage, Model
 
 from uagents.communication import enclose_response_raw

@@ -1,6 +1,6 @@
 import unittest
 
-from uagents_core.communication import is_valid_address
+from uagents_core.identity import is_valid_address
 
 from uagents import Agent
 from uagents.config import AGENT_ADDRESS_LENGTH

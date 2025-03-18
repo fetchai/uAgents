@@ -5,13 +5,14 @@ from typing import Any
 
 import requests
 
-from uagents_core.communication import parse_identifier, weighted_random_sample
 from uagents_core.config import (
     DEFAULT_ALMANAC_API_PATH,
     DEFAULT_MAX_ENDPOINTS,
     DEFAULT_REQUEST_TIMEOUT,
     AgentverseConfig,
 )
+from uagents_core.helpers import weighted_random_sample
+from uagents_core.identity import parse_identifier
 from uagents_core.logger import get_logger
 
 logger = get_logger("uagents_core.utils.parser")

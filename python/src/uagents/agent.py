@@ -16,10 +16,10 @@ from cosmpy.crypto.address import Address
 from pydantic import ValidationError
 from typing_extensions import deprecated
 from uagents_core.config import AgentverseConfig
-from uagents_core.crypto import Identity, derive_key_from_seed, is_user_address
+from uagents_core.identity import Identity, derive_key_from_seed, is_user_address
 from uagents_core.models import ErrorMessage, Model
 from uagents_core.registration import AgentUpdates
-from uagents_core.types import AgentEndpoint
+from uagents_core.types import AddressPrefix, AgentEndpoint, AgentInfo
 
 from uagents.asgi import ASGIServer
 from uagents.communication import Dispenser
@@ -69,8 +69,6 @@ from uagents.registration import (
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.types import (
-    AddressPrefix,
-    AgentInfo,
     AgentMetadata,
     AgentNetwork,
     EnvelopeHistory,

@@ -7,6 +7,8 @@ import bech32
 import ecdsa
 from ecdsa.util import sigencode_string_canonize
 
+from uagents_core.config import AGENT_ADDRESS_LENGTH, AGENT_PREFIX
+
 USER_PREFIX = "user"
 SHA_LENGTH = 256
 
@@ -160,3 +162,46 @@ class Identity:
         verifying_key = ecdsa.VerifyingKey.from_string(pk_data, curve=ecdsa.SECP256k1)
 
         return verifying_key.verify_digest(sig_data, digest)
+
+
+def is_valid_address(address: str) -> bool:
+    """
+    Check if the given string is a valid address.
+
+    Args:
+        address (str): The address to be checked.
+
+    Returns:
+        bool: True if the address is valid; False otherwise.
+    """
+    return is_user_address(address) or (
+        len(address) == AGENT_ADDRESS_LENGTH and address.startswith(AGENT_PREFIX)
+    )
+
+
+def parse_identifier(identifier: str) -> tuple[str, str, str]:
+    """
+    Parse an agent identifier string into prefix, name, and address.
+
+    Args:
+        identifier (str): The identifier string to be parsed.
+
+    Returns:
+        tuple[str, str, str]: A Tuple containing the prefix, name, and address as strings.
+    """
+    prefix = ""
+    name = ""
+    address = ""
+
+    if "://" in identifier:
+        prefix, identifier = identifier.split("://", 1)
+
+    if "/" in identifier:
+        name, identifier = identifier.split("/", 1)
+
+    if is_valid_address(identifier):
+        address = identifier
+    else:
+        name = identifier
+
+    return prefix, name, address

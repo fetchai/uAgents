@@ -6,7 +6,7 @@ import struct
 
 from pydantic import UUID4, BaseModel
 
-from uagents_core.crypto import Identity
+from uagents_core.identity import Identity
 from uagents_core.types import JsonStr
 
 

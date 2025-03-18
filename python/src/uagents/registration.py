@@ -3,7 +3,6 @@ import contextlib
 import json
 import logging
 import time
-from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any
 
@@ -13,10 +12,14 @@ from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
 from pydantic import BaseModel
-from uagents_core.communication import parse_identifier
-from uagents_core.crypto import Identity
-from uagents_core.registration import AgentRegistrationAttestation, VerifiableModel
-from uagents_core.types import AgentEndpoint
+from uagents_core.identity import Identity, parse_identifier
+from uagents_core.registration import (
+    AgentRegistrationAttestation,
+    AgentRegistrationPolicy,
+    BatchRegistrationPolicy,
+    VerifiableModel,
+)
+from uagents_core.types import AgentEndpoint, AgentInfo
 
 from uagents.config import (
     ALMANAC_API_MAX_RETRIES,
@@ -35,7 +38,6 @@ from uagents.network import (
     add_testnet_funds,
     default_exp_backoff,
 )
-from uagents.types import AgentInfo
 
 
 class AgentRegistrationAttestationBatch(BaseModel):
@@ -63,9 +65,7 @@ def coerce_metadata_to_str(
     return out
 
 
-def extract_geo_metadata(
-    metadata: dict[str, Any] | None,
-) -> dict[str, Any] | None:
+def extract_geo_metadata(metadata: dict[str, Any] | None) -> dict[str, Any] | None:
     """Extract geo-location metadata from the metadata dictionary."""
     if metadata is None:
         return None
@@ -100,29 +100,6 @@ async def almanac_api_post(
 
                 await asyncio.sleep(retry_delay_func(retry))
     return False
-
-
-class AgentRegistrationPolicy(ABC):
-    @abstractmethod
-    async def register(
-        self,
-        agent_identifier: str,
-        identity: Identity,
-        protocols: list[str],
-        endpoints: list[AgentEndpoint],
-        metadata: dict[str, Any] | None = None,
-    ):
-        raise NotImplementedError
-
-
-class BatchRegistrationPolicy(ABC):
-    @abstractmethod
-    async def register(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def add_agent(self, agent_info: AgentInfo, identity: Identity):
-        raise NotImplementedError
 
 
 class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
