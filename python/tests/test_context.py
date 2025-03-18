@@ -512,7 +512,6 @@ class TestMessageHistory(unittest.IsolatedAsyncioTestCase):
 
     async def test_messages_cached_not_stored(self):
         ctx = self.alice._build_context()
-        session_id = str(ctx.session)
         await ctx.send(self.bob_cache.address, msg)
         await asyncio.sleep(0.1)
 
@@ -521,13 +520,11 @@ class TestMessageHistory(unittest.IsolatedAsyncioTestCase):
         msgs = message_history.get_cached_messages().envelopes
         self.assertEqual(len(msgs), 2)
 
-        key = f"message-history:session:{session_id}"
-        messages = self.bob_cache.storage.get(key) or []
-        self.assertEqual(len(messages), 0)
+        with self.assertRaises(ValueError):
+            _ = message_history.get_session_messages(ctx.session)
 
     async def test_messages_stored_not_cached(self):
         ctx = self.alice._build_context()
-        session_id = str(ctx.session)
         await ctx.send(self.bob_store.address, msg)
         await asyncio.sleep(0.1)
 
@@ -536,13 +533,11 @@ class TestMessageHistory(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             _ = message_history.get_cached_messages()
 
-        key = f"message-history:session:{session_id}"
-        messages = self.bob_store.storage.get(key) or []
-        self.assertEqual(len(messages), 2)
+        stored_msgs = message_history.get_session_messages(ctx.session)
+        self.assertEqual(len(stored_msgs), 2)
 
     async def test_messages_stored_and_cached(self):
         ctx = self.alice._build_context()
-        session_id = str(ctx.session)
         await ctx.send(self.bob_both.address, msg)
         await asyncio.sleep(0.1)
 
@@ -551,9 +546,8 @@ class TestMessageHistory(unittest.IsolatedAsyncioTestCase):
         msgs = message_history.get_cached_messages().envelopes
         self.assertEqual(len(msgs), 2)
 
-        key = f"message-history:session:{session_id}"
-        messages = self.bob_both.storage.get(key) or []
-        self.assertEqual(len(messages), 2)
+        stored_msgs = message_history.get_session_messages(ctx.session)
+        self.assertEqual(len(stored_msgs), 2)
 
     async def test_messages_neither_stored_nor_cached(self):
         ctx = self.alice._build_context()
@@ -577,9 +571,8 @@ class TestMessageHistory(unittest.IsolatedAsyncioTestCase):
         msgs = message_history.get_cached_messages().envelopes
         self.assertEqual(len(msgs), 2)
 
-        key = f"message-history:session:{str(ctx.session)}"
-        messages = self.bob_retention_period.storage.get(key) or []
-        self.assertEqual(len(messages), 2)
+        stored_msgs = message_history.get_session_messages(ctx.session)
+        self.assertEqual(len(stored_msgs), 2)
 
         await asyncio.sleep(1)
         await ctx.send(self.bob_retention_period.address, msg)
@@ -591,17 +584,16 @@ class TestMessageHistory(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(msgs), 2)
 
         # All messages should still be in storage since session is still active
-        messages = self.bob_retention_period.storage.get(key) or []
-        self.assertEqual(len(messages), 4)
+        stored_msgs = message_history.get_session_messages(ctx.session)
+        self.assertEqual(len(stored_msgs), 4)
 
         await asyncio.sleep(1)
         message_history.apply_retention_policy()
-        key = f"message-history:session:{str(ctx.session)}"
-        messages = self.bob_retention_period.storage.get(key) or []
+        stored_msgs = message_history.get_session_messages(ctx.session)
 
         # All messages should now be deleted from storage since last message is older
         # than retention period
-        self.assertEqual(len(messages), 0)
+        self.assertEqual(len(stored_msgs), 0)
 
     async def test_message_storage_blocked_after_limit_reached(self):
         ctx = self.alice._build_context()
@@ -613,9 +605,8 @@ class TestMessageHistory(unittest.IsolatedAsyncioTestCase):
         msgs = message_history.get_cached_messages().envelopes
         self.assertEqual(len(msgs), 2)
 
-        key = f"message-history:session:{str(ctx.session)}"
-        messages = self.bob_message_limit.storage.get(key) or []
-        self.assertEqual(len(messages), 2)
+        stored_msgs = message_history.get_session_messages(ctx.session)
+        self.assertEqual(len(stored_msgs), 2)
 
         await ctx.send(self.bob_message_limit.address, msg)
         await asyncio.sleep(0.1)
@@ -623,5 +614,5 @@ class TestMessageHistory(unittest.IsolatedAsyncioTestCase):
         msgs = message_history.get_cached_messages().envelopes
         self.assertEqual(len(msgs), 2)
 
-        messages = self.bob_message_limit.storage.get(key) or []
-        self.assertEqual(len(messages), 2)
+        stored_msgs = message_history.get_session_messages(ctx.session)
+        self.assertEqual(len(stored_msgs), 2)
