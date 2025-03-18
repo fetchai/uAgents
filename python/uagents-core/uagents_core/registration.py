@@ -48,7 +48,7 @@ class AgentRegistrationAttestation(VerifiableModel):
     metadata: dict[str, str | dict[str, str]] | None = None
 
 
-# mailbox related models
+# Agentverse related models
 class RegistrationRequest(BaseModel):
     address: str
     prefix: AddressPrefix | None = "test-agent"
@@ -80,4 +80,5 @@ class AgentUpdates(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     readme: str | None = Field(default=None, max_length=80000)
     avatar_url: str | None = Field(default=None, max_length=4000)
+    short_description: str | None = Field(default=None, max_length=300)
     agent_type: AgentType | None = "custom"
