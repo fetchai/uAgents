@@ -90,7 +90,7 @@ class MsgInfo(BaseModel):
 
 
 class EnvelopeHistoryEntry(BaseModel):
-    timestamp: int = Field(default_factory=lambda: int(time.time()))
+    timestamp: int = Field(default_factory=lambda: int(time()))
     version: int
     sender: str
     target: str
@@ -125,7 +125,7 @@ class EnvelopeHistory(BaseModel):
 
     def apply_retention_policy(self) -> None:
         """Remove entries older than 24 hours"""
-        cutoff_time = time.time() - 86400
+        cutoff_time = time() - 86400
         for e in self.envelopes:
             if e.timestamp < cutoff_time:
                 self.envelopes.remove(e)
