@@ -1,99 +1,121 @@
-import logging
-from collections.abc import Awaitable, Callable
-from time import time
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+"""Agent Envelope."""
 
-from pydantic import (
-    UUID4,
-    BaseModel,
-    ConfigDict,
-    Field,
-    field_serializer,
-    field_validator,
-)
+import base64
+import hashlib
+import logging
+import struct
+import time
+from collections.abc import Callable
+
+from pydantic import UUID4, BaseModel, Field, field_serializer
 from typing_extensions import Self
-from uagents_core.envelope import Envelope
-from uagents_core.models import Model
 
 from uagents.config import (
     MESSAGE_HISTORY_MESSAGE_LIMIT,
     MESSAGE_HISTORY_RETENTION_SECONDS,
 )
+from uagents.crypto import Identity
 from uagents.storage import StorageAPI
-
-if TYPE_CHECKING:
-    from uagents.context import Context
-
-JsonStr = str
-
-IntervalCallback = Callable[["Context"], Awaitable[None]]
-MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
-EventCallback = Callable[["Context"], Awaitable[None]]
-WalletMessageCallback = Callable[["Context", Any], Awaitable[None]]
-
-RestReturnType = dict[str, Any] | Model
-RestGetHandler = Callable[["Context"], Awaitable[RestReturnType | None]]
-RestPostHandler = Callable[["Context", Any], Awaitable[RestReturnType | None]]
-RestHandler = RestGetHandler | RestPostHandler
-RestMethod = Literal["GET", "POST"]
-RestHandlerMap = dict[tuple[RestMethod, str], RestHandler]
+from uagents.types import JsonStr
 
 
-AgentNetwork = Literal["mainnet", "testnet"]
-
-
-class RestHandlerDetails(BaseModel):
-    method: RestMethod
-    endpoint: str
-    request_model: type[Model] | None = None
-    response_model: type[Model | BaseModel]
-
-
-class AgentGeolocation(BaseModel):
-    model_config = ConfigDict(strict=True, allow_inf_nan=False)
-    latitude: Annotated[float, Field(ge=-90, le=90)]
-    longitude: Annotated[float, Field(ge=-180, le=180)]
-    radius: Annotated[float, Field(gt=0)] = 0.5
-
-    @field_validator("latitude", "longitude")
-    @classmethod
-    def serialize_precision(cls, val: float) -> float:
-        """
-        Round the latitude and longitude to 6 decimal places.
-        Equivalent to 0.11m precision.
-        """
-        return round(val, 6)
-
-
-class AgentMetadata(BaseModel):
+class Envelope(BaseModel):
     """
-    Model used to validate metadata for an agent.
-
-    Framework specific fields will be added here to ensure valid serialization.
-    Additional fields will simply be passed through.
-    """
-
-    model_config = ConfigDict(
-        extra="allow",
-        arbitrary_types_allowed=True,
-    )
-
-    geolocation: AgentGeolocation | None = None
-
-
-class MsgInfo(BaseModel):
-    """
-    Represents a message digest containing a message and its schema digest and sender.
+    Represents an envelope for message communication between agents.
 
     Attributes:
-        message (Any): The message content.
-        sender (str): The address of the sender of the message.
-        schema_digest (str): The schema digest of the message.
+        version (int): The envelope version.
+        sender (str): The sender's address.
+        target (str): The target's address.
+        session (UUID4): The session UUID that persists for back-and-forth
+        dialogues between agents.
+        schema_digest (str): The schema digest for the enclosed message.
+        protocol_digest (str | None): The digest of the protocol associated with the message
+        (optional).
+        payload (str | None): The encoded message payload of the envelope (optional).
+        expires (int | None): The expiration timestamp (optional).
+        nonce (int | None): The nonce value (optional).
+        signature (str | None): The envelope signature (optional).
     """
 
-    message: Any
+    version: int
     sender: str
+    target: str
+    session: UUID4
     schema_digest: str
+    protocol_digest: str | None = None
+    payload: str | None = None
+    expires: int | None = None
+    nonce: int | None = None
+    signature: str | None = None
+
+    def encode_payload(self, value: JsonStr) -> None:
+        """
+        Encode the payload value and store it in the envelope.
+
+        Args:
+            value (JsonStr): The payload value to be encoded.
+        """
+        self.payload = base64.b64encode(value.encode()).decode()
+
+    def decode_payload(self) -> str:
+        """
+        Decode and retrieve the payload value from the envelope.
+
+        Returns:
+            str: The decoded payload value, or '' if payload is not present.
+        """
+        if self.payload is None:
+            return ""
+
+        return base64.b64decode(self.payload).decode()
+
+    def sign(self, signing_fn: Callable) -> None:
+        """
+        Sign the envelope using the provided signing function.
+
+        Args:
+            signing_fn (callback): The callback used for signing.
+        """
+        try:
+            self.signature = signing_fn(self._digest())
+        except Exception as err:
+            raise ValueError(f"Failed to sign envelope: {err}") from err
+
+    def verify(self) -> bool:
+        """
+        Verify the envelope's signature.
+
+        Returns:
+            bool: True if the signature is valid.
+
+        Raises:
+            ValueError: If the signature is missing.
+            ecdsa.BadSignatureError: If the signature is invalid.
+        """
+        if self.signature is None:
+            raise ValueError("Envelope signature is missing")
+        return Identity.verify_digest(self.sender, self._digest(), self.signature)
+
+    def _digest(self) -> bytes:
+        """
+        Compute the digest of the envelope's content.
+
+        Returns:
+            bytes: The computed digest.
+        """
+        hasher = hashlib.sha256()
+        hasher.update(self.sender.encode())
+        hasher.update(self.target.encode())
+        hasher.update(str(self.session).encode())
+        hasher.update(self.schema_digest.encode())
+        if self.payload is not None:
+            hasher.update(self.payload.encode())
+        if self.expires is not None:
+            hasher.update(struct.pack(">Q", self.expires))
+        if self.nonce is not None:
+            hasher.update(struct.pack(">Q", self.nonce))
+        return hasher.digest()
 
 
 class EnvelopeHistoryEntry(BaseModel):

@@ -45,7 +45,11 @@ Raised when a transaction broadcast fails due to a timeout.
 
 
 
+<<<<<<< HEAD
 #### get_ledger[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L95)
+=======
+#### get_ledger[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L94)
+>>>>>>> origin/main
 ```python
 def get_ledger(network: AgentNetwork = "testnet") -> LedgerClient
 ```
@@ -63,7 +67,11 @@ Get the Ledger client.
 
 
 
+<<<<<<< HEAD
 #### get_faucet[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L108)
+=======
+#### get_faucet[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L107)
+>>>>>>> origin/main
 ```python
 def get_faucet() -> FaucetApi
 ```
@@ -76,7 +84,11 @@ Get the Faucet API instance.
 
 
 
+<<<<<<< HEAD
 #### add_testnet_funds[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L118)
+=======
+#### add_testnet_funds[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L117)
+>>>>>>> origin/main
 ```python
 def add_testnet_funds(wallet_address: str) -> None
 ```
@@ -89,7 +101,11 @@ Add testnet funds to the provided wallet address.
 
 
 
+<<<<<<< HEAD
 #### parse_record_config[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L130)
+=======
+#### parse_record_config[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L129)
+>>>>>>> origin/main
 ```python
 def parse_record_config(
     record: str | list[str] | dict[str, dict] | None
@@ -104,7 +120,11 @@ Parse the user-provided record configuration.
 
 
 
+<<<<<<< HEAD
 #### wait_for_tx_to_complete[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L153)
+=======
+#### wait_for_tx_to_complete[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L152)
+>>>>>>> origin/main
 ```python
 async def wait_for_tx_to_complete(
         tx_hash: str,
@@ -450,7 +470,11 @@ Execute a query with additional checks and error handling.
 
 
 
+<<<<<<< HEAD
 #### is_name_available[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L644)
+=======
+#### is_name_available[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L650)
+>>>>>>> origin/main
 ```python
 def is_name_available(name: str, domain: str) -> bool
 ```
@@ -469,7 +493,11 @@ Check if a name is available within a domain.
 
 
 
+<<<<<<< HEAD
 #### is_owner[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L658)
+=======
+#### is_owner[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L664)
+>>>>>>> origin/main
 ```python
 def is_owner(name: str, domain: str, wallet_address: str) -> bool
 ```
@@ -489,7 +517,11 @@ Check if the provided wallet address is the owner of a name within a domain.
 
 
 
+<<<<<<< HEAD
 #### is_domain_public[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L679)
+=======
+#### is_domain_public[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L685)
+>>>>>>> origin/main
 ```python
 def is_domain_public(domain: str) -> bool
 ```
@@ -507,7 +539,11 @@ Check if a domain is public.
 
 
 
+<<<<<<< HEAD
 #### get_previous_records[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L696)
+=======
+#### get_previous_records[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L702)
+>>>>>>> origin/main
 ```python
 def get_previous_records(name: str, domain: str)
 ```
@@ -527,11 +563,16 @@ Retrieve the previous records for a given name within a specified domain.
 
 
 
+<<<<<<< HEAD
 #### get_registration_tx[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L714)
+=======
+#### get_registration_tx[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L720)
+>>>>>>> origin/main
 ```python
 def get_registration_tx(name: str, wallet_address: Address,
                         agent_records: list[dict[str, Any]] | str, domain: str,
-                        network: AgentNetwork) -> Transaction | None
+                        duration: int, network: AgentNetwork,
+                        approval_token: str) -> Transaction | None
 ```
 
 Get the registration transaction for registering a name within a domain.
@@ -542,7 +583,9 @@ Get the registration transaction for registering a name within a domain.
 - `wallet_address` _str_ - The wallet address initiating the registration.
 - `agent_address` _str_ - The address of the agent.
 - `domain` _str_ - The domain in which the name is registered.
-- `test` _bool_ - The agent type
+- `duration` _int_ - The duration in seconds for which the name is to be registered.
+- `network` _AgentNetwork_ - The network in which the transaction is executed.
+- `approval_token` _str_ - The approval token required for registration.
   
 
 **Returns**:
@@ -552,13 +595,19 @@ Get the registration transaction for registering a name within a domain.
 
 
 
+<<<<<<< HEAD
 #### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L781)
+=======
+#### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L796)
+>>>>>>> origin/main
 ```python
 async def register(ledger: LedgerClient,
                    wallet: LocalWallet,
                    agent_records: str | list[str] | dict[str, dict] | None,
                    name: str,
                    domain: str,
+                   approval_token: str,
+                   duration: int = ANAME_REGISTRATION_SECONDS,
                    overwrite: bool = True) -> None
 ```
 
@@ -572,13 +621,19 @@ Register a name within a domain using the NameService contract.
   to be registered.
 - `name` _str_ - The name to be registered.
 - `domain` _str_ - The domain in which the name is registered.
+- `duration` _int_ - The duration in seconds for which the name is to be registered.
+- `approval_token` _str_ - The approval token required for registration.
 - `overwrite` _bool, optional_ - Specifies whether to overwrite any existing
   addresses registered to the domain. If False, the address will be
   appended to the previous records. Defaults to True.
 
 
 
+<<<<<<< HEAD
 #### unregister[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L864)
+=======
+#### unregister[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L885)
+>>>>>>> origin/main
 ```python
 async def unregister(name: str, domain: str, wallet: LocalWallet) -> None
 ```
@@ -593,7 +648,11 @@ Unregister a name within a domain using the NameService contract.
 
 
 
+<<<<<<< HEAD
 #### get_name_service_contract[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L902)
+=======
+#### get_name_service_contract[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L923)
+>>>>>>> origin/main
 ```python
 def get_name_service_contract(
         network: AgentNetwork = "testnet") -> NameServiceContract
