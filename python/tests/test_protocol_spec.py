@@ -111,3 +111,8 @@ class TestProtocolSpec(unittest.TestCase):
                 interactions={Chat: set()},
                 roles={"user": {NotInProtocol}},
             )
+
+    def test_manifest_same_as_spec_manifest(self):
+        manifest = user_proto.manifest()
+        spec_manifest = user_proto.spec.manifest(role="user")
+        self.assertEqual(manifest, spec_manifest)
