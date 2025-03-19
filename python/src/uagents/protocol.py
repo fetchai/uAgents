@@ -1,9 +1,6 @@
 """Exchange Protocol"""
 
-import copy
 import functools
-import hashlib
-import json
 from collections.abc import Awaitable, Callable
 from logging import Logger
 from typing import Any
@@ -391,52 +388,7 @@ class Protocol:
         Returns:
             dict[str, Any]: The protocol's manifest.
         """
-        metadata = {
-            "name": self.name,
-            "version": self.version,
-        }
-
-        manifest = {
-            "version": "1.0",
-            "metadata": {},
-            "models": [],
-            "interactions": [],
-        }
-
-        all_models: dict[str, type[Model]] = {}
-
-        for schema_digest, model in self._models.items():
-            if schema_digest not in all_models:
-                all_models[schema_digest] = model
-
-        for _, replies in self._replies.items():
-            for schema_digest, model in replies.items():
-                if schema_digest not in all_models:
-                    all_models[schema_digest] = model
-
-        for schema_digest, model in all_models.items():
-            manifest["models"].append(
-                {"digest": schema_digest, "schema": model.schema()}
-            )
-
-        for request, responses in self._replies.items():
-            manifest["interactions"].append(
-                {
-                    "type": "query"
-                    if request in self._unsigned_message_handlers
-                    else "normal",
-                    "request": request,
-                    "responses": sorted(list(responses.keys())),
-                }
-            )
-
-        encoded = json.dumps(manifest, indent=None, sort_keys=True).encode("utf8")
-        metadata["digest"] = f"proto:{hashlib.sha256(encoded).digest().hex()}"
-
-        final_manifest: dict[str, Any] = copy.deepcopy(manifest)
-        final_manifest["metadata"] = metadata
-
-        return final_manifest
+        return self._spec.manifest(role=self._role)
 
     def verify(self) -> bool:
         """
@@ -479,12 +431,4 @@ class Protocol:
         Returns:
             str: The computed digest.
         """
-        cleaned_manifest = copy.deepcopy(manifest)
-        if "metadata" in cleaned_manifest:
-            del cleaned_manifest["metadata"]
-        cleaned_manifest["metadata"] = {}
-
-        encoded: bytes = json.dumps(
-            obj=cleaned_manifest, indent=None, sort_keys=True
-        ).encode("utf8")
-        return f"proto:{hashlib.sha256(encoded).digest().hex()}"
+        return ProtocolSpecification.compute_digest(manifest)

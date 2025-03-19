@@ -79,32 +79,31 @@ class ProtocolSpecification(BaseModel):
         else:
             interactions = self.interactions
 
-        all_models: dict[str, type[Model]] = {}
-        all_replies: dict[str, dict[str, type[Model]]] = {}
-
-        for model in interactions:
-            model_digest = Model.build_schema_digest(model)
-            all_models[model_digest] = model
+        handled_models: dict[str, type[Model]] = {}
+        reply_models: dict[str, type[Model]] = {}
+        reply_rules: dict[str, dict[str, type[Model]]] = {}
 
         for model, replies in interactions.items():
             model_digest = Model.build_schema_digest(model)
+            handled_models[model_digest] = model
             if len(replies) == 0:
-                all_replies[model_digest] = {}
+                reply_rules[model_digest] = {}
             else:
                 for reply in replies:
                     reply_digest = Model.build_schema_digest(reply)
-                    all_models[reply_digest] = reply
-                    if model_digest in all_replies:
-                        all_replies[model_digest][reply_digest] = reply
+                    reply_models[reply_digest] = reply
+                    if model_digest in reply_rules:
+                        reply_rules[model_digest][reply_digest] = reply
                     else:
-                        all_replies[model_digest] = {reply_digest: reply}
+                        reply_rules[model_digest] = {reply_digest: reply}
 
+        all_models = handled_models | reply_models
         for schema_digest, model in all_models.items():
             manifest["models"].append(
                 {"digest": schema_digest, "schema": model.schema()}
             )
 
-        for request, responses in all_replies.items():
+        for request, responses in reply_rules.items():
             manifest["interactions"].append(
                 {
                     "type": "normal",
@@ -120,12 +119,6 @@ class ProtocolSpecification(BaseModel):
         final_manifest["metadata"] = metadata
 
         return final_manifest
-
-    @staticmethod
-    def manifest_raw(
-        interactions: dict[type[Model], set[type[Model]]],
-    ) -> dict[str, Any]:
-        pass
 
     @staticmethod
     def compute_digest(manifest: dict[str, Any]) -> str:

@@ -38,6 +38,67 @@ spec = ProtocolSpecification(
     },
 )
 
+# Generated from the Protocol's previous manifest implementation
+USER_PROTOCOL_MANIFEST = {
+    "version": "1.0",
+    "metadata": {
+        "name": "ChatProtocol",
+        "version": "0.1.0",
+        "digest": "proto:4cd9a2a7be8b56192b97464c6c59bbcf483a9e97c41519d5aff229d9a6fc0972",
+    },
+    "models": [
+        {
+            "digest": "model:73e6dc00dc6d6142f6ad445f41be357c2b97c7136cece363c43496c800d8f11e",
+            "schema": {"title": "ProposeChat", "type": "object", "properties": {}},
+        },
+        {
+            "digest": "model:82ff6e4e880c1257fc35e1be1932c268ca5910e488403c8d51b4fe5ef26d9846",
+            "schema": {
+                "title": "Chat",
+                "type": "object",
+                "properties": {"text": {"title": "Text", "type": "string"}},
+                "required": ["text"],
+            },
+        },
+        {
+            "digest": "model:576c72a1611982d06f4dcbd5cecf847a1109e894704482e0d1f721dd2be2df50",
+            "schema": {"title": "EndChat", "type": "object", "properties": {}},
+        },
+        {
+            "digest": "model:04c3f9c389fff2e9e58fbdd56193d958593b8b4c7bd3c700acc6ef7bb8c094c0",
+            "schema": {"title": "RejectChat", "type": "object", "properties": {}},
+        },
+        {
+            "digest": "model:0551174733a6b2271f32f9b0d1f760715590a6e88e9886fd20c9391a3b524abc",
+            "schema": {"title": "AcceptChat", "type": "object", "properties": {}},
+        },
+    ],
+    "interactions": [
+        {
+            "type": "normal",
+            "request": "model:73e6dc00dc6d6142f6ad445f41be357c2b97c7136cece363c43496c800d8f11e",
+            "responses": [
+                "model:04c3f9c389fff2e9e58fbdd56193d958593b8b4c7bd3c700acc6ef7bb8c094c0",
+                "model:0551174733a6b2271f32f9b0d1f760715590a6e88e9886fd20c9391a3b524abc",
+            ],
+        },
+        {
+            "type": "normal",
+            "request": "model:82ff6e4e880c1257fc35e1be1932c268ca5910e488403c8d51b4fe5ef26d9846",
+            "responses": [
+                "model:576c72a1611982d06f4dcbd5cecf847a1109e894704482e0d1f721dd2be2df50",
+                "model:82ff6e4e880c1257fc35e1be1932c268ca5910e488403c8d51b4fe5ef26d9846",
+            ],
+        },
+        {
+            "type": "normal",
+            "request": "model:576c72a1611982d06f4dcbd5cecf847a1109e894704482e0d1f721dd2be2df50",
+            "responses": [],
+        },
+    ],
+}
+
+
 user_proto = Protocol(name="ChatProtocol", version="0.1", spec=spec, role="user")
 agent_proto = Protocol(name="ChatProtocol", version="0.1", spec=spec, role="agent")
 
@@ -112,7 +173,6 @@ class TestProtocolSpec(unittest.TestCase):
                 roles={"user": {NotInProtocol}},
             )
 
-    def test_manifest_same_as_spec_manifest(self):
-        manifest = user_proto.manifest()
-        spec_manifest = user_proto.spec.manifest(role="user")
-        self.assertEqual(manifest, spec_manifest)
+    def test_proto_spec_manifest_same_as_orig_proto_manifest(self):
+        spec_manifest_user = user_proto.spec.manifest(role="user")
+        self.assertEqual(spec_manifest_user, USER_PROTOCOL_MANIFEST)
