@@ -741,7 +741,7 @@ class ExternalContext(InternalContext):
         received: MsgInfo = self._message_received
         if received.schema_digest in self._replies:
             return message_schema_digest in self._replies[received.schema_digest]
-        return False
+        return True
 
     async def send(
         self,
