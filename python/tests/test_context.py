@@ -5,7 +5,7 @@ from typing import Dict, Optional
 
 from aioresponses import aioresponses
 
-from uagents import Agent
+from uagents import Agent, Protocol
 from uagents.context import (
     DeliveryStatus,
     ExternalContext,
@@ -27,6 +27,14 @@ class Message(Model):
     message: str
 
 
+class Request(Model):
+    text: str
+
+
+class Response(Model):
+    text: str
+
+
 endpoints = ["http://localhost:8000"]
 
 incoming = Incoming(text="hello")
@@ -34,7 +42,9 @@ incoming_digest = Model.build_schema_digest(incoming)
 
 msg = Message(message="hey")
 msg_digest = Model.build_schema_digest(msg)
-test_replies = {incoming_digest: {msg_digest: Message}}
+
+request = Request(text="request")
+request_digest = Model.build_schema_digest(request)
 
 
 class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
@@ -53,14 +63,26 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         self.alice = Agent(name="alice", seed="alice recovery phrase", resolve=resolver)
         self.bob = Agent(name="bob", seed="bob recovery phrase")
 
-        @self.bob.on_message(model=Message)
+        proto0 = Protocol()
+        proto1 = Protocol()
+
+        @proto0.on_message(model=Incoming, replies=Message)
+        async def _(ctx, sender, msg):
+            await ctx.send(sender, Message(message="msg"))
+
+        @proto0.on_message(model=Request)
+        async def _(ctx, sender, msg):
+            await ctx.send(sender, Response(text="response"))
+
+        @proto1.on_message(model=Message, replies=Incoming)
         async def _(ctx, sender, msg):
             await asyncio.sleep(1.1)
             await ctx.send(sender, incoming)
 
         self.loop = asyncio.get_event_loop()
         self.loop.create_task(self.alice._dispenser.run())
-        self.bob.include(self.bob._protocol)
+        self.alice.include(proto0)
+        self.bob.include(proto1)
         self.loop.create_task(self.bob._process_message_queue())
         self.loop.create_task(self.bob._dispenser.run())
 
@@ -103,7 +125,10 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
     async def test_send_local_dispatch_valid_reply(self):
         context = self.get_external_context(
-            incoming, incoming_digest, replies=test_replies, sender=self.bob.address
+            incoming,
+            incoming_digest,
+            replies=self.alice._replies,
+            sender=self.bob.address,
         )
         result = await context.send(self.bob.address, msg)
         exp_msg_status = MsgStatus(
@@ -118,7 +143,10 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
     async def test_send_local_dispatch_invalid_reply(self):
         context = self.get_external_context(
-            incoming, incoming_digest, replies=test_replies, sender=self.bob.address
+            incoming,
+            incoming_digest,
+            replies=self.alice._replies,
+            sender=self.bob.address,
         )
         result = await context.send(self.bob.address, incoming)
         exp_msg_status = MsgStatus(
@@ -133,7 +161,10 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
     async def test_send_local_dispatch_not_a_reply(self):
         context = self.get_external_context(
-            incoming, incoming_digest, replies=test_replies, sender=self.clyde.address
+            incoming,
+            incoming_digest,
+            replies=self.alice._replies,
+            sender=self.clyde.address,
         )
         result = await context.send(self.bob.address, incoming)
         exp_msg_status = MsgStatus(
@@ -144,6 +175,23 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             session=context.session,
         )
 
+        self.assertEqual(result, exp_msg_status)
+
+    async def test_send_local_dispatch_replies_not_validated(self):
+        context = self.get_external_context(
+            request,
+            request_digest,
+            replies=self.alice._replies,
+            sender=self.bob.address,
+        )
+        result = await context.send(self.bob.address, Response(text="response"))
+        exp_msg_status = MsgStatus(
+            status=DeliveryStatus.DELIVERED,
+            detail="Message dispatched locally",
+            destination=self.bob.address,
+            endpoint="",
+            session=context.session,
+        )
         self.assertEqual(result, exp_msg_status)
 
     async def test_send_local_dispatch_valid_interval_msg(self):
