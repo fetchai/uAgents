@@ -168,7 +168,7 @@ ts at which the agent is reachable.
 
 
 #### __init__
-```python[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/agent.py#L233)
+```python[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/agent.py#L204)
 def __init__(name: str | None = None,
              port: int | None = None,
              seed: str | None = None,

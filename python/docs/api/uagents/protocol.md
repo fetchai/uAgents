@@ -6,29 +6,7 @@ Exchange Protocol
 
 
 
-## ProtocolSpecification Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L21)
-
-```python
-class ProtocolSpecification(BaseModel)
-```
-
-Specification for the interactions and roles of a protocol.
-
-
-
-#### validate_roles
-
-```python
-@field_validator("roles")
-@classmethod
-def validate_roles(cls, roles, info: ValidationInfo)
-```
-
-Ensure that all models included in roles are also included in the interactions.
-
-
-
-## Protocol Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L54)
+## Protocol Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L18)
 
 ```python
 class Protocol()
@@ -41,12 +19,12 @@ interval message handlers that define the logic of the protocol.
 
 
 
-#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L62)
+#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L26)
 ```python
 def __init__(name: str | None = None,
              version: str | None = None,
              spec: ProtocolSpecification | None = None,
-             role: str | None = None)
+             role: str | None = None) -> None
 ```
 
 Initialize a Protocol instance.
@@ -60,7 +38,7 @@ Initialize a Protocol instance.
 
 
 
-#### intervals[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L95)
+#### intervals[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L59)
 ```python
 @property
 def intervals() -> list[tuple[IntervalCallback, float]]
@@ -74,7 +52,7 @@ Property to access the interval handlers.
 
 
 
-#### models[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L105)
+#### models[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L69)
 ```python
 @property
 def models() -> dict[str, type[Model]]
@@ -88,7 +66,7 @@ Property to access the registered models.
 
 
 
-#### replies[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L115)
+#### replies[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L79)
 ```python
 @property
 def replies() -> dict[str, dict[str, type[Model]]]
@@ -103,7 +81,7 @@ Property to access the registered replies.
 
 
 
-#### interval_messages[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L126)
+#### interval_messages[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L90)
 ```python
 @property
 def interval_messages() -> set[str]
@@ -117,7 +95,7 @@ Property to access the interval message digests.
 
 
 
-#### signed_message_handlers[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L136)
+#### signed_message_handlers[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L100)
 ```python
 @property
 def signed_message_handlers() -> dict[str, MessageCallback]
@@ -131,7 +109,7 @@ Property to access the signed message handlers.
 
 
 
-#### unsigned_message_handlers[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L146)
+#### unsigned_message_handlers[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L110)
 ```python
 @property
 def unsigned_message_handlers() -> dict[str, MessageCallback]
@@ -145,7 +123,7 @@ Property to access the unsigned message handlers.
 
 
 
-#### name[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L156)
+#### name[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L120)
 ```python
 @property
 def name() -> str
@@ -159,7 +137,7 @@ Property to access the protocol name.
 
 
 
-#### version[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L166)
+#### version[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L130)
 ```python
 @property
 def version() -> str
@@ -173,7 +151,7 @@ Property to access the protocol version.
 
 
 
-#### canonical_name[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L176)
+#### canonical_name[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L140)
 ```python
 @property
 def canonical_name() -> str
@@ -187,7 +165,7 @@ Property to access the canonical name of the protocol ('name:version').
 
 
 
-#### digest[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L186)
+#### digest[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L150)
 ```python
 @property
 def digest() -> str
@@ -201,7 +179,7 @@ Property to access the digest of the protocol's manifest.
 
 
 
-#### spec[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L196)
+#### spec[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L160)
 ```python
 @property
 def spec() -> ProtocolSpecification
@@ -215,7 +193,7 @@ Property to access the protocol specification.
 
 
 
-#### on_interval[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L273)
+#### on_interval[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L236)
 ```python
 def on_interval(
         period: float,
@@ -236,7 +214,7 @@ Decorator to register an interval handler for the protocol.
 
 
 
-#### on_query[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L325)
+#### on_query[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L288)
 ```python
 @deprecated(
     "on_query is deprecated and will be removed in a future release, use on_rest instead."
@@ -260,7 +238,7 @@ Decorator to register a query handler for the protocol.
 
 
 
-#### on_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L345)
+#### on_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L308)
 ```python
 def on_message(model: type[Model],
                replies: type[Model] | set[type[Model]] | None = None,
@@ -282,7 +260,7 @@ Decorator to register a message handler for the protocol.
 
 
 
-#### manifest[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L420)
+#### manifest[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L383)
 ```python
 def manifest() -> dict[str, Any]
 ```
@@ -296,7 +274,7 @@ protocol details and interface.
 
 
 
-#### verify[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L475)
+#### verify[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L393)
 ```python
 def verify() -> bool
 ```
@@ -309,7 +287,7 @@ Check if the protocol implements all interactions of its specification.
 
 
 
-#### compute_digest[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L505)
+#### compute_digest[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L423)
 ```python
 @staticmethod
 def compute_digest(manifest: dict[str, Any]) -> str

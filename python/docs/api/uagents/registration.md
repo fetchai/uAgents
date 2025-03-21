@@ -4,7 +4,7 @@
 
 
 
-#### coerce_metadata_to_str[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L49)
+#### coerce_metadata_to_str[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L51)
 ```python
 def coerce_metadata_to_str(
         metadata: dict[str, Any] | None
@@ -15,7 +15,7 @@ Step through the metadata and convert any non-string values to strings.
 
 
 
-#### extract_geo_metadata[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L66)
+#### extract_geo_metadata[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L68)
 ```python
 def extract_geo_metadata(
         metadata: dict[str, Any] | None) -> dict[str, Any] | None
@@ -38,7 +38,7 @@ Send a POST request to the Almanac API.
 
 
 
-## LedgerBasedRegistrationPolicy Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L234)
+## LedgerBasedRegistrationPolicy Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L211)
 
 ```python
 class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy)
@@ -46,7 +46,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy)
 
 
 
-#### check_contract_version[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L292)
+#### check_contract_version[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L269)
 ```python
 def check_contract_version() -> None
 ```
@@ -56,7 +56,7 @@ if it is different from the supported version.
 
 
 
-#### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L306)
+#### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L283)
 ```python
 async def register(agent_identifier: str,
                    identity: Identity,
