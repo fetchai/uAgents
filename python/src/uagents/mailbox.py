@@ -1,38 +1,33 @@
 import asyncio
 import logging
 from datetime import datetime
-from typing import Annotated, Literal
 
 import aiohttp
 from aiohttp.client_exceptions import ClientConnectorError
-from pydantic import UUID4, BaseModel, StringConstraints, ValidationError
+from pydantic import UUID4, BaseModel, ValidationError
+from uagents_core.config import AgentverseConfig
+from uagents_core.envelope import Envelope
+from uagents_core.identity import Identity, is_user_address
+from uagents_core.models import Model
+from uagents_core.registration import (
+    AgentUpdates,
+    ChallengeRequest,
+    ChallengeResponse,
+    RegistrationRequest,
+)
+from uagents_core.types import AddressPrefix, AgentEndpoint, AgentType
 
-from uagents.config import MAILBOX_POLL_INTERVAL_SECONDS, AgentverseConfig
-from uagents.crypto import Identity, is_user_address
+from uagents.config import MAILBOX_POLL_INTERVAL_SECONDS
 from uagents.dispatch import dispatcher
-from uagents.envelope import Envelope
-from uagents.models import Model
-from uagents.types import AddressPrefix, AgentEndpoint
 from uagents.utils import get_logger
 
 logger = get_logger("mailbox")
-
-
-AgentType = Literal["mailbox", "proxy", "custom"]
 
 
 class AgentverseConnectRequest(Model):
     user_token: str
     agent_type: AgentType
     endpoint: str | None = None
-
-
-class ChallengeRequest(BaseModel):
-    address: str
-
-
-class ChallengeResponse(BaseModel):
-    challenge: str
 
 
 class ChallengeProof(BaseModel):
@@ -46,25 +41,9 @@ class ChallengeProofResponse(Model):
     expiry: str
 
 
-class RegistrationRequest(BaseModel):
-    address: str
-    prefix: AddressPrefix | None = "test-agent"
-    challenge: str
-    challenge_response: str
-    agent_type: AgentType
-    endpoint: str | None = None
-
-
 class RegistrationResponse(Model):
     success: bool
     detail: str | None = None
-
-
-class AgentUpdates(BaseModel):
-    name: Annotated[str, StringConstraints(min_length=1, max_length=80)]
-    readme: Annotated[str, StringConstraints(max_length=80000)] | None = None
-    avatar_url: Annotated[str, StringConstraints(max_length=4000)] | None = None
-    agent_type: AgentType | None = "mailbox"
 
 
 class AgentverseDisconnectRequest(Model):
@@ -135,7 +114,7 @@ async def register_in_agentverse(
         # response to challenge with signature to get token
         prove_url = f"{agentverse.url}/v1/agents"
         async with session.post(
-            prove_url,
+            url=prove_url,
             data=RegistrationRequest(
                 address=identity.address,
                 prefix=prefix,
@@ -158,9 +137,9 @@ async def register_in_agentverse(
                         request.user_token, identity.address, agent_details, agentverse
                     )
                 return RegistrationResponse(success=True)
-            else:
-                detail = (await resp.json())["detail"]
-                return RegistrationResponse(success=False, detail=detail)
+
+            detail = (await resp.json())["detail"]
+            return RegistrationResponse(success=False, detail=detail)
 
 
 async def unregister_in_agentverse(
@@ -192,9 +171,9 @@ async def unregister_in_agentverse(
             if resp.status == 200:
                 logger.info("Successfully unregistered from Agentverse")
                 return UnregistrationResponse(success=True)
-            else:
-                detail = (await resp.json())["detail"]
-                return UnregistrationResponse(success=False, detail=detail)
+
+            detail = (await resp.json())["detail"]
+            return UnregistrationResponse(success=False, detail=detail)
 
 
 async def update_agent_details(

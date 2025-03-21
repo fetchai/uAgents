@@ -1,8 +1,8 @@
 import logging
 
-from pydantic import BaseModel
+from uagents_core.config import AgentverseConfig
+from uagents_core.types import AgentEndpoint
 
-from uagents.types import AgentEndpoint
 from uagents.utils import get_logger
 
 AGENT_PREFIX = "agent"
@@ -55,15 +55,6 @@ MESSAGE_HISTORY_MESSAGE_LIMIT = 1000
 MESSAGE_HISTORY_RETENTION_SECONDS = 86400
 
 
-class AgentverseConfig(BaseModel):
-    base_url: str = AGENTVERSE_BASE_URL
-    http_prefix: str = "https"
-
-    @property
-    def url(self) -> str:
-        return f"{self.http_prefix}://{self.base_url}"
-
-
 def parse_endpoint_config(
     endpoint: str | list[str] | dict[str, dict] | None,
     agentverse: AgentverseConfig,
@@ -82,9 +73,8 @@ def parse_endpoint_config(
         logger (logging.Logger | None): The logger to use.
 
     Returns:
-        [List[AgentEndpoint]: The parsed endpoint configuration.
+        [list[AgentEndpoint]: The parsed endpoint configuration.
     """
-
     logger = logger or get_logger("config")
 
     if endpoint:

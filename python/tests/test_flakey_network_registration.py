@@ -1,7 +1,6 @@
 import json
 import logging
 import unittest
-from typing import Optional, Tuple
 
 import grpc
 from cosmpy.aerial.client import Account
@@ -15,6 +14,7 @@ from cosmpy.protos.cosmwasm.wasm.v1.query_pb2 import (
     QuerySmartContractStateRequest,
     QuerySmartContractStateResponse,
 )
+from uagents_core.types import AgentInfo
 
 from uagents.config import (
     ALMANAC_CONTRACT_VERSION,
@@ -27,7 +27,6 @@ from uagents.registration import (
     BatchLedgerRegistrationPolicy,
     LedgerBasedRegistrationPolicy,
 )
-from uagents.types import AgentInfo
 
 
 class FakeSubmittedTx:
@@ -97,7 +96,7 @@ class FakeLedgerClient:
     def query_failure_count(self, value: int):
         self._query_failure_count = value
 
-    def query_bank_balance(self, address: Address, denom: Optional[str] = None) -> int:
+    def query_bank_balance(self, address: Address, denom: str | None = None) -> int:
         return TESTNET_REGISTRATION_FEE + 1
 
     def query_account(self, address: Address) -> Account:
@@ -107,7 +106,7 @@ class FakeLedgerClient:
             sequence=0,
         )
 
-    def estimate_gas_and_fee_for_tx(self, tx: Transaction) -> Tuple[int, str]:
+    def estimate_gas_and_fee_for_tx(self, tx: Transaction) -> tuple[int, str]:
         return 0, f"0{self.network_config.fee_denomination}"
 
     def broadcast_tx(self, tx: Transaction) -> SubmittedTx:

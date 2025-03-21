@@ -1,53 +1,18 @@
 """Exchange Protocol"""
 
-import copy
 import functools
-import hashlib
-import json
 from collections.abc import Awaitable, Callable
 from logging import Logger
-from typing import Any, ClassVar
+from typing import Any
 
-from pydantic import BaseModel, ValidationInfo, field_validator
+from typing_extensions import deprecated
+from uagents_core.models import Model
+from uagents_core.protocol import ProtocolSpecification
 
 from uagents.config import get_logger
-from uagents.models import Model
 from uagents.types import IntervalCallback, MessageCallback
 
 logger: Logger = get_logger("protocol")
-
-
-class ProtocolSpecification(BaseModel):
-    """Specification for the interactions and roles of a protocol."""
-
-    interactions: dict[type[Model], set[type[Model]]]
-    roles: dict[str, set[type[Model]]] | None = None
-    name: str = ""
-    version: str = "0.1.0"
-
-    SPEC_VERSION: ClassVar = "1.0"
-
-    @field_validator("roles")
-    @classmethod
-    def validate_roles(cls, roles, info: ValidationInfo):
-        """
-        Ensure that all models included in roles are also included in the interactions.
-        """
-        if roles is None:
-            return roles
-
-        interactions: dict[type[Model], set[type[Model]]] = info.data["interactions"]
-        interaction_models = set(interactions.keys())
-
-        for role, models in roles.items():
-            invalid_models = models - interaction_models
-            if invalid_models:
-                model_names = [model.__name__ for model in invalid_models]
-                raise ValueError(
-                    f"Role '{role}' contains models that don't "
-                    f"exist in interactions: {model_names}"
-                )
-        return roles
 
 
 class Protocol:
@@ -64,7 +29,7 @@ class Protocol:
         version: str | None = None,
         spec: ProtocolSpecification | None = None,
         role: str | None = None,
-    ):
+    ) -> None:
         """
         Initialize a Protocol instance.
 
@@ -218,7 +183,6 @@ class Protocol:
             name (str | None): The name of the protocol.
             version (str | None): The version of the protocol.
         """
-
         if name and spec.name and name != spec.name:
             logger.warning(
                 f"Protocol specification name '{spec.name}' overrides given protocol name '{name}'"
@@ -321,6 +285,9 @@ class Protocol:
                 message_digest = Model.build_schema_digest(message)
                 self._interval_messages.add(message_digest)
 
+    @deprecated(
+        "on_query is deprecated and will be removed in a future release, use on_rest instead."
+    )
     def on_query(
         self,
         model: type[Model],
@@ -421,52 +388,7 @@ class Protocol:
         Returns:
             dict[str, Any]: The protocol's manifest.
         """
-        metadata = {
-            "name": self.name,
-            "version": self.version,
-        }
-
-        manifest = {
-            "version": "1.0",
-            "metadata": {},
-            "models": [],
-            "interactions": [],
-        }
-
-        all_models: dict[str, type[Model]] = {}
-
-        for schema_digest, model in self._models.items():
-            if schema_digest not in all_models:
-                all_models[schema_digest] = model
-
-        for _, replies in self._replies.items():
-            for schema_digest, model in replies.items():
-                if schema_digest not in all_models:
-                    all_models[schema_digest] = model
-
-        for schema_digest, model in all_models.items():
-            manifest["models"].append(
-                {"digest": schema_digest, "schema": model.schema()}
-            )
-
-        for request, responses in self._replies.items():
-            manifest["interactions"].append(
-                {
-                    "type": "query"
-                    if request in self._unsigned_message_handlers
-                    else "normal",
-                    "request": request,
-                    "responses": sorted(list(responses.keys())),
-                }
-            )
-
-        encoded = json.dumps(manifest, indent=None, sort_keys=True).encode("utf8")
-        metadata["digest"] = f"proto:{hashlib.sha256(encoded).digest().hex()}"
-
-        final_manifest: dict[str, Any] = copy.deepcopy(manifest)
-        final_manifest["metadata"] = metadata
-
-        return final_manifest
+        return self._spec.manifest(role=self._role)
 
     def verify(self) -> bool:
         """
@@ -509,12 +431,4 @@ class Protocol:
         Returns:
             str: The computed digest.
         """
-        cleaned_manifest = copy.deepcopy(manifest)
-        if "metadata" in cleaned_manifest:
-            del cleaned_manifest["metadata"]
-        cleaned_manifest["metadata"] = {}
-
-        encoded = json.dumps(cleaned_manifest, indent=None, sort_keys=True).encode(
-            "utf8"
-        )
-        return f"proto:{hashlib.sha256(encoded).digest().hex()}"
+        return ProtocolSpecification.compute_digest(manifest)

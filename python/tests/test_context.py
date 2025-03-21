@@ -1,9 +1,9 @@
 # pylint: disable=protected-access
 import asyncio
 import unittest
-from typing import Dict, Optional
 
 from aioresponses import aioresponses
+from uagents_core.envelope import Envelope
 
 from uagents import Agent, Protocol
 from uagents.context import (
@@ -15,7 +15,6 @@ from uagents.context import (
 )
 from uagents.crypto import Identity
 from uagents.dispatch import dispatcher
-from uagents.envelope import Envelope
 from uagents.resolver import RulesBasedResolver
 
 
@@ -91,8 +90,8 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         message: Model,
         schema_digest: str,
         sender: str,
-        replies: Optional[Dict[str, Dict[str, type[Model]]]] = None,
-        queries: Optional[Dict[str, asyncio.Future]] = None,
+        replies: dict[str, dict[str, type[Model]]] | None = None,
+        queries: dict[str, asyncio.Future] | None = None,
     ):
         return ExternalContext(
             agent=self.alice,
@@ -383,7 +382,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             schema_digest=msg_digest,
         )
         env.encode_payload(incoming.model_dump_json())
-        env.sign(self.clyde._identity.sign_digest)
+        env.sign(self.clyde._identity)
         payload = env.model_dump()
         payload["session"] = str(env.session)
         mocked_responses.post(endpoints[0], status=200, payload=payload)
@@ -420,7 +419,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             schema_digest=msg_digest,
         )
         env.encode_payload(incoming.model_dump_json())
-        env.sign(self.clyde._identity.sign_digest)
+        env.sign(self.clyde._identity)
         payload = env.model_dump()
         payload["session"] = str(env.session)
         mocked_responses.post(endpoints[0], status=200, payload=payload)

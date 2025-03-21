@@ -30,7 +30,7 @@ class MobilityAgent(Agent):
         mobility_type: MobilityType,
         static_signal: str,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(**kwargs)
         self.mobility = True
         self._metadata["geolocation"] = location.model_dump()
@@ -121,14 +121,14 @@ class MobilityAgent(Agent):
             await self._send_checkout(agent)
         self._proximity_agents = proximity_agents  # potential extra steps possible
 
-    async def _send_checkin(self, agent: SearchResultAgent):
+    async def _send_checkin(self, agent: SearchResultAgent) -> None:
         ctx: InternalContext = self._build_context()
         # only send check-in to agents that are not already in the proximity list
         if agent in self._proximity_agents:
             return
         await ctx.send(
-            agent.address,
-            CheckIn(
+            destination=agent.address,
+            message=CheckIn(
                 mobility_type=self.mobility_type,
                 supported_protocols=list(self.protocols.keys()),
             ),
@@ -137,4 +137,4 @@ class MobilityAgent(Agent):
     async def _send_checkout(self, agent: SearchResultAgent) -> None:
         ctx: InternalContext = self._build_context()
         # send checkout message to all agents that left the proximity
-        await ctx.send(agent.address, CheckOut())
+        await ctx.send(destination=agent.address, message=CheckOut())

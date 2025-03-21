@@ -6,14 +6,20 @@ import functools
 import logging
 import os
 import uuid
-from collections.abc import Callable
 from typing import Any, NoReturn
 
+import aiohttp
 import requests
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
 from pydantic import ValidationError
+from typing_extensions import deprecated
+from uagents_core.config import AgentverseConfig
+from uagents_core.identity import Identity, derive_key_from_seed, is_user_address
+from uagents_core.models import ErrorMessage, Model
+from uagents_core.registration import AgentUpdates
+from uagents_core.types import AddressPrefix, AgentEndpoint, AgentInfo
 
 from uagents.asgi import ASGIServer
 from uagents.communication import Dispenser
@@ -24,20 +30,17 @@ from uagents.config import (
     REGISTRATION_RETRY_INTERVAL_SECONDS,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
     TESTNET_PREFIX,
-    AgentverseConfig,
     parse_agentverse_config,
     parse_endpoint_config,
 )
-from uagents.context import Context, ContextFactory, ExternalContext, InternalContext
-from uagents.crypto import Identity, derive_key_from_seed, is_user_address
-from uagents.dispatch import Sink, dispatcher
-from uagents.envelope import (
-    EnvelopeHistory,
-    EnvelopeHistoryEntry,
-    EnvelopeHistoryResponse,
+from uagents.context import (
+    Context,
+    ContextFactory,
+    ExternalContext,
+    InternalContext,
 )
+from uagents.dispatch import Sink, dispatcher
 from uagents.mailbox import (
-    AgentUpdates,
     AgentverseConnectRequest,
     AgentverseDisconnectRequest,
     MailboxClient,
@@ -47,7 +50,6 @@ from uagents.mailbox import (
     register_in_agentverse,
     unregister_in_agentverse,
 )
-from uagents.models import ErrorMessage, Model
 from uagents.network import (
     InsufficientFundsError,
     get_almanac_contract,
@@ -67,11 +69,11 @@ from uagents.registration import (
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.types import (
-    AddressPrefix,
-    AgentEndpoint,
-    AgentInfo,
     AgentMetadata,
     AgentNetwork,
+    EnvelopeHistory,
+    EnvelopeHistoryEntry,
+    EnvelopeHistoryResponse,
     EventCallback,
     IntervalCallback,
     JsonStr,
@@ -134,34 +136,32 @@ class AgentRepresentation:
     Attributes:
         _address (str): The address of the agent.
         _name (str | None): The name of the agent.
-        _signing_callback (Callable): The callback for signing messages.
+        _identity (Identity): The identity of the agent.
 
     Properties:
         name (str): The name of the agent.
         address (str): The address of the agent.
         identifier (str): The agent's address and network prefix.
-
-    Methods:
-        sign_digest(data: bytes) -> str: Sign the provided data with the agent's identity.
+        identity (Identity): The identity of the agent.
     """
 
     def __init__(
         self,
         address: str,
         name: str | None,
-        signing_callback: Callable,
-    ):
+        identity: Identity,
+    ) -> None:
         """
         Initialize the AgentRepresentation instance.
 
         Args:
             address (str): The address of the context.
             name (str | None): The optional name associated with the context.
-            signing_callback (Callable): The callback for signing messages.
+            identity (Identity): The identity of the agent.
         """
         self._address = address
         self._name = name
-        self._signing_callback = signing_callback
+        self._identity = identity
 
     @property
     def name(self) -> str:
@@ -195,17 +195,15 @@ class AgentRepresentation:
         """
         return TESTNET_PREFIX + "://" + self._address
 
-    def sign_digest(self, data: bytes) -> str:
+    @property
+    def identity(self) -> Identity:
         """
-        Sign the provided data with the callback of the agent's identity.
-
-        Args:
-            data (bytes): The data to sign.
+        Get the identity of the agent.
 
         Returns:
-            str: The signature of the data.
+            Identity: The identity of the agent.
         """
-        return self._signing_callback(data)
+        return self._identity
 
 
 class Agent(Sink):
@@ -267,7 +265,6 @@ class Agent(Sink):
         protocols (dict[str, Protocol]): Dictionary mapping all supported protocol digests to their
         corresponding protocols.
         metadata (dict[str, Any] | None): Metadata associated with the agent.
-
     """
 
     def __init__(
@@ -340,7 +337,7 @@ class Agent(Sink):
         self._agentverse = parse_agentverse_config(agentverse)
 
         # configure endpoints and mailbox
-        self._endpoints = parse_endpoint_config(
+        self._endpoints: list[AgentEndpoint] = parse_endpoint_config(
             endpoint, self._agentverse, mailbox, proxy, self._logger
         )
 
@@ -393,10 +390,10 @@ class Agent(Sink):
 
         if self._registration_policy is None:
             self._registration_policy = DefaultRegistrationPolicy(
-                self._ledger,
-                self._wallet,
-                self._almanac_contract,
-                self._network == "testnet",
+                ledger=self._ledger,
+                wallet=self._wallet,
+                almanac_contract=self._almanac_contract,
+                testnet=self._network == "testnet",
                 almanac_api=self._almanac_api_url,
             )
         self._metadata = self._initialize_metadata(metadata)
@@ -437,7 +434,7 @@ class Agent(Sink):
         if enable_agent_inspector:
 
             @self.on_rest_get("/agent_info", AgentInfo)  # type: ignore
-            async def _handle_get_info(_ctx: Context):
+            async def _handle_get_info(_ctx: Context) -> AgentInfo:
                 return AgentInfo(
                     address=self.address,
                     prefix=self._prefix,
@@ -447,7 +444,9 @@ class Agent(Sink):
                 )
 
             @self.on_rest_get("/messages", EnvelopeHistoryResponse)  # type: ignore
-            async def _handle_get_messages(_ctx: Context):
+            async def _handle_get_messages(
+                _ctx: Context,
+            ) -> None | EnvelopeHistoryResponse:
                 if self._message_history is None:
                     return None
                 return self._message_history.get_cached_messages()
@@ -455,7 +454,9 @@ class Agent(Sink):
             @self.on_rest_post(
                 "/connect", AgentverseConnectRequest, RegistrationResponse
             )
-            async def _handle_connect(_ctx: Context, request: AgentverseConnectRequest):
+            async def _handle_connect(
+                _ctx: Context, request: AgentverseConnectRequest
+            ) -> RegistrationResponse:
                 agent_details = (
                     AgentUpdates(
                         name=self.name,
@@ -479,7 +480,7 @@ class Agent(Sink):
             )
             async def _handle_disconnect(
                 _ctx: Context, request: AgentverseDisconnectRequest
-            ):
+            ) -> UnregistrationResponse:
                 return await unregister_in_agentverse(
                     request=request,
                     agent_address=self.address,
@@ -501,7 +502,7 @@ class Agent(Sink):
             agent=AgentRepresentation(
                 address=self.address,
                 name=self._name,
-                signing_callback=self._identity.sign_digest,
+                identity=self._identity,
             ),
             storage=self._storage,
             ledger=self._ledger,
@@ -556,6 +557,9 @@ class Agent(Sink):
             enable_wallet_messaging (bool | dict[str, str]): Wallet messaging configuration.
         """
         if enable_wallet_messaging:
+            self._logger.warning(
+                "Wallet messaging is deprecated and will be removed in a future release."
+            )
             wallet_chain_id = self._ledger.network_config.chain_id
             if (
                 isinstance(enable_wallet_messaging, dict)
@@ -843,6 +847,9 @@ class Agent(Sink):
         """
         return self._protocol.on_interval(period, messages)
 
+    @deprecated(
+        "on_query is deprecated and will be removed in a future release, use on_rest instead."
+    )
     def on_query(
         self,
         model: type[Model],
@@ -1022,9 +1029,9 @@ class Agent(Sink):
             self.protocols[protocol.digest] = protocol
 
         if publish_manifest:
-            self.publish_manifest(protocol.manifest())
+            self._loop.create_task(self.publish_manifest(protocol.manifest()))
 
-    def publish_manifest(self, manifest: dict[str, Any]):
+    async def publish_manifest(self, manifest: dict[str, Any]) -> None:
         """
         Publish a protocol manifest to the Almanac service.
 
@@ -1032,18 +1039,22 @@ class Agent(Sink):
             manifest (dict[str, Any]): The protocol manifest.
         """
         try:
-            response = requests.post(
-                f"{self._agentverse.url}/v1/almanac/manifests",
-                json=manifest,
-                timeout=5,
-            )
-            if response.status_code == 200:
-                self._logger.info(
-                    f"Manifest published successfully: {manifest['metadata']['name']}"
-                )
-            else:
-                self._logger.warning(f"Unable to publish manifest: {response.text}")
-        except requests.exceptions.RequestException as ex:
+            async with (
+                aiohttp.ClientSession() as session,
+                session.post(
+                    url=f"{self._agentverse.url}/v1/almanac/manifests",
+                    json=manifest,
+                ) as response,
+            ):
+                if response.status == 200:
+                    self._logger.info(
+                        f"Manifest published successfully: {manifest['metadata']['name']}"
+                    )
+                else:
+                    self._logger.warning(
+                        f"Unable to publish manifest: {await response.text()}"
+                    )
+        except aiohttp.ClientError as ex:
             self._logger.warning(f"Unable to publish manifest: {ex}")
 
     async def handle_message(
@@ -1253,7 +1264,7 @@ class Agent(Sink):
                 agent=AgentRepresentation(
                     address=self.address,
                     name=self._name,
-                    signing_callback=self._identity.sign_digest,
+                    identity=self._identity,
                 ),
                 storage=self._storage,
                 ledger=self._ledger,

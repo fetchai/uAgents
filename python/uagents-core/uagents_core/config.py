@@ -7,13 +7,14 @@ DEFAULT_CHALLENGE_PATH = "/v1/auth/challenge"
 
 DEFAULT_MAX_ENDPOINTS = 10
 
+DEFAULT_REQUEST_TIMEOUT = 10
+
 AGENT_ADDRESS_LENGTH = 65
 AGENT_PREFIX = "agent"
 
 
 class AgentverseConfig(BaseModel):
     base_url: str = DEFAULT_AGENTVERSE_URL
-    protocol: str = "https"
     http_prefix: str = "https"
 
     @property

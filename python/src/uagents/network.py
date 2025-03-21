@@ -21,6 +21,8 @@ from cosmpy.aerial.tx import Transaction
 from cosmpy.aerial.tx_helpers import SubmittedTx, TxResponse
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
+from uagents_core.identity import Identity
+from uagents_core.types import AgentEndpoint, AgentInfo
 
 from uagents.config import (
     ALMANAC_CONTRACT_VERSION,
@@ -33,8 +35,8 @@ from uagents.config import (
     TESTNET_CONTRACT_ALMANAC,
     TESTNET_CONTRACT_NAME_SERVICE,
 )
-from uagents.crypto import Identity
-from uagents.types import AgentEndpoint, AgentInfo, AgentNetwork
+from uagents.crypto import sign_registration
+from uagents.types import AgentNetwork
 from uagents.utils import get_logger
 
 logger: Logger = get_logger("network")
@@ -82,9 +84,10 @@ class AlmanacContractRecord(AgentInfo):
     timestamp: int | None = None
     signature: str | None = None
 
-    def sign(self, identity: Identity):
+    def sign(self, identity: Identity) -> None:
         self.timestamp = int(time.time()) - ALMANAC_REGISTRATION_WAIT
-        self.signature = identity.sign_registration(
+        self.signature = sign_registration(
+            identity=identity,
             contract_address=self.contract_address,
             timestamp=self.timestamp,
             wallet_address=self.sender_address,
@@ -169,7 +172,6 @@ async def wait_for_tx_to_complete(
     Returns:
         TxResponse: The response object containing the transaction details.
     """
-
     delay_func = poll_retry_delay or block_polling_exp_backoff
     response: TxResponse | None = None
     for n in range(poll_retries or DEFAULT_POLL_RETRIES):
@@ -325,7 +327,7 @@ class AlmanacContract(LedgerContract):
             address (str): The agent's address.
 
         Returns:
-            Tuple[int, list[AgentEndpoint], list[str]]: The expiry height of the agent's
+            tuple[int, list[AgentEndpoint], list[str]]: The expiry height of the agent's
             registration, the agent's endpoints, and the agent's protocols.
         """
         query_msg = {"query_records": {"agent_address": address}}

@@ -9,14 +9,14 @@ from pydantic import BaseModel, ValidationError
 from pydantic.v1 import ValidationError as ValidationErrorV1
 from pydantic.v1.error_wrappers import ErrorWrapper
 from requests.structures import CaseInsensitiveDict
+from uagents_core.envelope import Envelope
+from uagents_core.identity import is_user_address
+from uagents_core.models import ErrorMessage, Model
 
 from uagents.communication import enclose_response_raw
 from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS, RESPONSE_TIME_HINT_SECONDS
 from uagents.context import ERROR_MESSAGE_DIGEST
-from uagents.crypto import is_user_address
 from uagents.dispatch import dispatcher
-from uagents.envelope import Envelope
-from uagents.models import ErrorMessage, Model
 from uagents.types import RestHandlerDetails, RestMethod
 from uagents.utils import get_logger
 

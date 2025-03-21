@@ -2,24 +2,31 @@ import base64
 import hashlib
 import struct
 from secrets import token_bytes
-from typing import Tuple, Union
 
 import bech32
 import ecdsa
 from ecdsa.util import sigencode_string_canonize
 
+from uagents_core.config import AGENT_ADDRESS_LENGTH, AGENT_PREFIX
+
 USER_PREFIX = "user"
 SHA_LENGTH = 256
 
 
-def _decode_bech32(value: str) -> Tuple[str, bytes]:
+def _decode_bech32(value: str) -> tuple[str, bytes]:
     prefix, data_base5 = bech32.bech32_decode(value)
-    data = bytes(bech32.convertbits(data_base5, 5, 8, False))
-    return prefix, data
+    if not data_base5 or not prefix:
+        raise ValueError("Unable to decode value")
+    converted = bech32.convertbits(data_base5, 5, 8, False)
+    if not converted:
+        raise ValueError("Unable to convert value")
+    return prefix, bytes(converted)
 
 
 def _encode_bech32(prefix: str, value: bytes) -> str:
     value_base5 = bech32.convertbits(value, 8, 5)
+    if not value_base5:
+        raise ValueError("Unable to convert value")
     return bech32.bech32_encode(prefix, value_base5)
 
 
@@ -28,7 +35,7 @@ def is_user_address(address: str) -> bool:
 
 
 def generate_user_address() -> str:
-    return _encode_bech32(USER_PREFIX, token_bytes(32))
+    return _encode_bech32(prefix=USER_PREFIX, value=token_bytes(32))
 
 
 def _key_derivation_hash(prefix: str, index: int) -> bytes:
@@ -52,7 +59,7 @@ def derive_key_from_seed(seed, prefix, index) -> bytes:
     return hasher.digest()
 
 
-def encode_length_prefixed(value: Union[str, int, bytes]) -> bytes:
+def encode_length_prefixed(value: str | int | bytes) -> bytes:
     if isinstance(value, str):
         encoded = value.encode()
     elif isinstance(value, int):
@@ -76,7 +83,7 @@ class Identity:
         self._sk = signing_key
 
         # build the address
-        pub_key_bytes = self._sk.get_verifying_key().to_string(encoding="compressed")
+        pub_key_bytes = self._sk.get_verifying_key().to_string("compressed")  # type: ignore
         self._address = _encode_bech32("agent", pub_key_bytes)
         self._pub_key = pub_key_bytes.hex()
 
@@ -155,3 +162,46 @@ class Identity:
         verifying_key = ecdsa.VerifyingKey.from_string(pk_data, curve=ecdsa.SECP256k1)
 
         return verifying_key.verify_digest(sig_data, digest)
+
+
+def is_valid_address(address: str) -> bool:
+    """
+    Check if the given string is a valid address.
+
+    Args:
+        address (str): The address to be checked.
+
+    Returns:
+        bool: True if the address is valid; False otherwise.
+    """
+    return is_user_address(address) or (
+        len(address) == AGENT_ADDRESS_LENGTH and address.startswith(AGENT_PREFIX)
+    )
+
+
+def parse_identifier(identifier: str) -> tuple[str, str, str]:
+    """
+    Parse an agent identifier string into prefix, name, and address.
+
+    Args:
+        identifier (str): The identifier string to be parsed.
+
+    Returns:
+        tuple[str, str, str]: A Tuple containing the prefix, name, and address as strings.
+    """
+    prefix = ""
+    name = ""
+    address = ""
+
+    if "://" in identifier:
+        prefix, identifier = identifier.split("://", 1)
+
+    if "/" in identifier:
+        name, identifier = identifier.split("/", 1)
+
+    if is_valid_address(identifier):
+        address = identifier
+    else:
+        name = identifier
+
+    return prefix, name, address
