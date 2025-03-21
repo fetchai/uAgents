@@ -79,25 +79,25 @@ class ProtocolSpecification(BaseModel):
         else:
             interactions = self.interactions
 
-        handled_models: dict[str, type[Model]] = {}
-        reply_models: dict[str, type[Model]] = {}
+        all_models: dict[str, type[Model]] = {}
         reply_rules: dict[str, dict[str, type[Model]]] = {}
+
+        for model in interactions:
+            all_models[Model.build_schema_digest(model)] = model
 
         for model, replies in interactions.items():
             model_digest = Model.build_schema_digest(model)
-            handled_models[model_digest] = model
             if len(replies) == 0:
                 reply_rules[model_digest] = {}
             else:
                 for reply in replies:
                     reply_digest = Model.build_schema_digest(reply)
-                    reply_models[reply_digest] = reply
+                    all_models[reply_digest] = reply
                     if model_digest in reply_rules:
                         reply_rules[model_digest][reply_digest] = reply
                     else:
                         reply_rules[model_digest] = {reply_digest: reply}
 
-        all_models = handled_models | reply_models
         for schema_digest, model in all_models.items():
             manifest["models"].append(
                 {"digest": schema_digest, "schema": model.schema()}
@@ -112,8 +112,7 @@ class ProtocolSpecification(BaseModel):
                 }
             )
 
-        encoded = json.dumps(manifest, indent=None, sort_keys=True).encode("utf8")
-        metadata["digest"] = f"proto:{hashlib.sha256(encoded).digest().hex()}"
+        metadata["digest"] = self.compute_digest(manifest)
 
         final_manifest: dict[str, Any] = copy.deepcopy(manifest)
         final_manifest["metadata"] = metadata
@@ -131,11 +130,12 @@ class ProtocolSpecification(BaseModel):
         Returns:
             str: The computed digest.
         """
-        cleaned_manifest = copy.deepcopy(manifest)
-        if "metadata" in cleaned_manifest:
-            del cleaned_manifest["metadata"]
-        cleaned_manifest["metadata"] = {}
-
+        cleaned_manifest = {
+            "version": manifest["version"],
+            "metadata": {},
+            "models": manifest["models"],
+            "interactions": manifest["interactions"],
+        }
         encoded: bytes = json.dumps(
             obj=cleaned_manifest, indent=None, sort_keys=True
         ).encode("utf8")
