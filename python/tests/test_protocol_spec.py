@@ -38,11 +38,6 @@ spec = ProtocolSpecification(
     },
 )
 
-# Generated from the Protocol's previous manifest/digest implementation
-USER_PROTOCOL_DIGEST = (
-    "proto:4cd9a2a7be8b56192b97464c6c59bbcf483a9e97c41519d5aff229d9a6fc0972"
-)
-
 user_proto = Protocol(name="ChatProtocol", version="0.1", spec=spec, role="user")
 agent_proto = Protocol(name="ChatProtocol", version="0.1", spec=spec, role="agent")
 
@@ -116,6 +111,3 @@ class TestProtocolSpec(unittest.TestCase):
                 interactions={Chat: set()},
                 roles={"user": {NotInProtocol}},
             )
-
-    def test_proto_spec_manifest_same_as_orig_proto_manifest(self):
-        self.assertEqual(user_proto.digest, USER_PROTOCOL_DIGEST)

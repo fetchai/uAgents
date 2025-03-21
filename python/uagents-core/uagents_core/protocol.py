@@ -82,11 +82,9 @@ class ProtocolSpecification(BaseModel):
         all_models: dict[str, type[Model]] = {}
         reply_rules: dict[str, dict[str, type[Model]]] = {}
 
-        for model in interactions:
-            all_models[Model.build_schema_digest(model)] = model
-
         for model, replies in interactions.items():
             model_digest = Model.build_schema_digest(model)
+            all_models[model_digest] = model
             if len(replies) == 0:
                 reply_rules[model_digest] = {}
             else:
@@ -133,8 +131,10 @@ class ProtocolSpecification(BaseModel):
         cleaned_manifest = {
             "version": manifest["version"],
             "metadata": {},
-            "models": manifest["models"],
-            "interactions": manifest["interactions"],
+            "models": sorted(manifest["models"], key=lambda x: x["digest"]),
+            "interactions": sorted(
+                manifest["interactions"], key=lambda x: x["request"]
+            ),
         }
         encoded: bytes = json.dumps(
             obj=cleaned_manifest, indent=None, sort_keys=True
