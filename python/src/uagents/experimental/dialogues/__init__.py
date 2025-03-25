@@ -559,7 +559,7 @@ class Dialogue(Protocol):
 
     def _load_storage(self) -> dict[UUID, list[Any]]:
         """Load the sessions from the storage."""
-        cache: dict | None = self._storage.get(self.name)
+        cache: dict | None = self._storage.get(self._name)
         return (
             {UUID(session_id): session for session_id, session in cache.items()}
             if cache
