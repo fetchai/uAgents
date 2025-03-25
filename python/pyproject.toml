@@ -12,7 +12,7 @@ license = { text = "Apache 2.0" }
 readme = "README.md"
 requires-python = ">=3.10,<4.0"
 dependencies = [
-    "uagents_core",
+    "uagents_core @ ./uagents-core",
     "pydantic (>=2.8,<3.0)",
     "uvicorn (>=0.30.1,<1.0)",
     "aiohttp (>=3.8.3,<4.0)",
@@ -27,9 +27,6 @@ wallet = ["fetchai-babble >=0.4.5"]
 homepage = "https://fetch.ai"
 repository = "https://github.com/fetchai/uAgents"
 documentation = "https://fetch.ai/docs"
-
-[tool.poetry.dependencies]
-uagents_core = { path = "./uagents-core" }
 
 [tool.poetry.group.dev.dependencies]
 aioresponses = "^0.7.8"

@@ -2582,4 +2582,4 @@ wallet = ["fetchai-babble"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4.0"
-content-hash = "215731451f6c6baf3e3af4a7a3e7b16ac89e71afba53a6953a81e808b7670819"
+content-hash = "854efa332f46ea4b3510c6a2cb8be934a70b1a26e5a31b4bb6a1ae2a0d67650c"
