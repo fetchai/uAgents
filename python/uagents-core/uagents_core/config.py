@@ -4,6 +4,8 @@ DEFAULT_AGENTVERSE_URL = "agentverse.ai"
 DEFAULT_ALMANAC_API_PATH = "/v1/almanac"
 DEFAULT_REGISTRATION_PATH = "/v1/agents"
 DEFAULT_CHALLENGE_PATH = "/v1/auth/challenge"
+DEFAULT_MAILBOX_PATH = "/v1/submit"
+DEFAULT_PROXY_PATH = "/v1/proxy/submit"
 
 DEFAULT_MAX_ENDPOINTS = 10
 
@@ -20,3 +22,11 @@ class AgentverseConfig(BaseModel):
     @property
     def url(self) -> str:
         return f"{self.http_prefix}://{self.base_url}"
+
+    @property
+    def mailbox_endpoint(self) -> str:
+        return f"{self.url}{DEFAULT_MAILBOX_PATH}"
+
+    @property
+    def proxy_endpoint(self) -> str:
+        return f"{self.url}{DEFAULT_PROXY_PATH}"
