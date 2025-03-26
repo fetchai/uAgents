@@ -1,6 +1,6 @@
 import unittest
 from enum import Enum
-from typing import List, Literal, Optional
+from typing import Literal
 
 from uagents import Model
 
@@ -46,12 +46,12 @@ class TestModelDigest(unittest.TestCase):
         class UAgentResponse(Model):
             version: Literal["v1"] = "v1"
             type: UAgentResponseType
-            request_id: Optional[str]
-            agent_address: Optional[str]
-            message: Optional[str]
-            options: Optional[List[KeyValue]]
-            verbose_message: Optional[str]
-            verbose_options: Optional[List[KeyValue]]
+            request_id: str | None
+            agent_address: str | None
+            message: str | None
+            options: list[KeyValue] | None
+            verbose_message: str | None
+            verbose_options: list[KeyValue] | None
 
         target_digest = (
             "model:cf0d1367c5f9ed8a269de559b2fbca4b653693bb8315d47eda146946a168200e"

@@ -3,6 +3,7 @@
 __pycache__
 *.json
 !project.json
+!endpoint.json
 dist/
 *.sqlite3
 .DS_Store

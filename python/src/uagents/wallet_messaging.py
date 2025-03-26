@@ -9,10 +9,11 @@ from babble import Client
 from babble import Identity as BabbleIdentity  # pylint: disable=unused-import
 from babble import Message as WalletMessage
 from cosmpy.aerial.wallet import LocalWallet
+from uagents_core.identity import Identity
 
 from uagents.config import WALLET_MESSAGING_POLL_INTERVAL_SECONDS
 from uagents.context import ContextFactory
-from uagents.crypto import Identity
+from uagents.crypto import sign_arbitrary
 from uagents.types import WalletMessageCallback
 from uagents.utils import get_logger
 
@@ -28,7 +29,10 @@ class WalletMessagingClient:
         delegate_pubkey = identity.pub_key
         delegate_pubkey_b64 = base64.b64encode(bytes.fromhex(delegate_pubkey)).decode()
         public_key = base64.b64decode(wallet.public_key().public_key).hex()
-        signed_bytes, signature = identity.sign_arbitrary(public_key.encode())
+        signed_bytes, signature = sign_arbitrary(
+            identity=identity,
+            data=public_key.encode(),
+        )
         self._client = Client(
             delegate_address=identity.address,
             delegate_pubkey=delegate_pubkey_b64,

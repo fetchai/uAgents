@@ -2,16 +2,17 @@
 import hashlib
 import json
 import unittest
-from typing import Any, Dict, List
+from typing import Any
 
-from cosmpy.protos.cosmos.base.v1beta1.coin_pb2 import Coin
+# from cosmpy.protos.cosmos.base.v1beta1.coin_pb2 import Coin
+from uagents_core.identity import Identity, encode_length_prefixed
 
 from uagents import Agent
 from uagents.config import ANAME_REGISTRATION_SECONDS
-from uagents.crypto import Identity, encode_length_prefixed
+from uagents.crypto import sign_registration
 from uagents.network import get_name_service_contract
 
-EXPECTED_FUNDS = Coin(amount="518400000000000000", denom="atestfet")
+EXPECTED_FUNDS = 'denom: "atestfet"\namount: "518400000000000000"\n'
 
 
 def generate_digest(
@@ -25,7 +26,7 @@ def generate_digest(
     return hasher.digest()
 
 
-def validate_registration_msg(msg: Dict[str, Any]) -> bool:
+def validate_registration_msg(msg: dict[str, Any]) -> bool:
     try:
         if "register" not in msg:
             return False
@@ -72,7 +73,7 @@ def validate_registration_msg(msg: Dict[str, Any]) -> bool:
 
 
 def validate_tx_msgs(
-    msgs: List[Any], wallet_address: str, contract_address: str
+    msgs: list[Any], wallet_address: str, contract_address: str
 ) -> bool:
     try:
         for msg in msgs:
@@ -90,7 +91,7 @@ def validate_tx_msgs(
             if "register_domain" in msg_dict:
                 if (
                     not msg_dict["register_domain"]["domain"]
-                    or msg.funds[0] != EXPECTED_FUNDS
+                    or str(msg.funds[0]) != EXPECTED_FUNDS
                 ):
                     return False
             elif "update_domain_record" in msg_dict:
@@ -106,7 +107,7 @@ def validate_tx_msgs(
         return False
 
 
-def mock_almanac_registration(almanac_msg: Dict[str, Any], digest: bytes):
+def mock_almanac_registration(almanac_msg: dict[str, Any], digest: bytes):
     registration = almanac_msg["register"]
     return Identity.verify_digest(
         registration["agent_address"], digest, registration["signature"]
@@ -121,7 +122,8 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
 
         contract_address = str(agent._almanac_contract.address)
         wallet_address = str(agent.wallet.address())
-        signature = agent._identity.sign_registration(
+        signature = sign_registration(
+            agent._identity,
             contract_address=contract_address,
             timestamp=0,
             wallet_address=wallet_address,
@@ -148,13 +150,13 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
             self.fail("Name service contract address is invalid")
 
         tx = name_service_contract.get_registration_tx(
-            agent.name,
-            agent.wallet.address(),
-            agent.address,
-            "example.agent",
-            ANAME_REGISTRATION_SECONDS,
-            "testnet",
-            "token",
+            name=agent.name,
+            wallet_address=agent.wallet.address(),
+            agent_records=agent.address,
+            domain="example.agent",
+            duration=ANAME_REGISTRATION_SECONDS,
+            network="testnet",
+            approval_token="token",
         )
 
         if not tx:
@@ -162,7 +164,9 @@ class TestRegistration(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(
             validate_tx_msgs(
-                tx.msgs, str(agent.wallet.address()), name_service_contract.address.data
+                msgs=tx.msgs,
+                wallet_address=agent.wallet.address().data,
+                contract_address=name_service_contract.address.data,
             ),
             "Name service registration TX is invalid",
         )

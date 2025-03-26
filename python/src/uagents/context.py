@@ -11,30 +11,27 @@ from typing import TYPE_CHECKING, Any
 import requests
 from cosmpy.aerial.client import LedgerClient
 from pydantic.v1 import ValidationError
+from uagents_core.envelope import Envelope
+from uagents_core.identity import parse_identifier
+from uagents_core.models import ERROR_MESSAGE_DIGEST, Model
+from uagents_core.types import DeliveryStatus, MsgStatus
 
-from uagents.communication import (
-    Dispenser,
-    dispatch_local_message,
-)
+from uagents.communication import dispatch_local_message
 from uagents.config import (
     ALMANAC_API_URL,
     DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     DEFAULT_SEARCH_LIMIT,
 )
 from uagents.dispatch import dispatcher
-from uagents.envelope import Envelope, EnvelopeHistory, EnvelopeHistoryEntry
-from uagents.models import ErrorMessage, Model
-from uagents.resolver import Resolver, parse_identifier
+from uagents.resolver import Resolver
 from uagents.storage import KeyValueStore
-from uagents.types import DeliveryStatus, JsonStr, MsgInfo, MsgStatus
+from uagents.types import EnvelopeHistory, EnvelopeHistoryEntry, JsonStr, MsgInfo
 from uagents.utils import log
 
 if TYPE_CHECKING:
     from uagents.agent import AgentRepresentation
+    from uagents.communication import Dispenser
     from uagents.protocol import Protocol
-
-
-ERROR_MESSAGE_DIGEST = Model.build_schema_digest(ErrorMessage)
 
 
 class Context(ABC):
@@ -276,7 +273,7 @@ class InternalContext(Context):
         storage: KeyValueStore,
         ledger: LedgerClient,
         resolver: Resolver,
-        dispenser: Dispenser,
+        dispenser: "Dispenser",
         session: uuid.UUID | None = None,
         interval_messages: set[str] | None = None,
         wallet_messaging_client: Any | None = None,
@@ -536,7 +533,7 @@ class InternalContext(Context):
                     expires=expires,
                 )
                 env.encode_payload(message_body)
-                env.sign(self.agent.sign_digest)
+                env.sign(self.agent.identity)
 
                 # Create awaitable future for MsgStatus and sync response
                 fut = asyncio.Future()
@@ -680,7 +677,7 @@ class ExternalContext(InternalContext):
     Represents the reactive context in which messages are handled and processed.
 
     Attributes:
-        _message_received (MsgDigest | None): The message digest received.
+        _message_received (MsgInfo): The received message.
         _queries (dict[str, asyncio.Future] | None): dictionary mapping query senders to their
             response Futures.
         _replies (dict[str, dict[str, type[Model]]] | None): Dictionary of allowed reply digests
@@ -701,7 +698,7 @@ class ExternalContext(InternalContext):
         Initialize the ExternalContext instance and attributes needed from the InternalContext.
 
         Args:
-            message_received (MsgDigest): The optional message digest received.
+            message_received (MsgInfo): Information about the received message.
             queries (dict[str, asyncio.Future]): Dictionary mapping query senders to their
                 response Futures.
             replies (dict[str, dict[str, type[Model]]] | None): Dictionary of allowed replies

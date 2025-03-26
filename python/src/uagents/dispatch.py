@@ -4,7 +4,8 @@ from asyncio import Future
 from typing import Any
 from uuid import UUID
 
-from uagents.models import Model
+from uagents_core.models import Model
+
 from uagents.types import JsonStr, RestMethod
 
 PendingResponseKey = tuple[str, str, UUID]

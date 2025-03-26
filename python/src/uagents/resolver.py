@@ -4,20 +4,18 @@ import logging
 import random
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from typing import Any
 
 import requests
 from dateutil import parser
+from uagents_core.helpers import weighted_random_sample
+from uagents_core.identity import parse_identifier
 
 from uagents.config import (
-    AGENT_ADDRESS_LENGTH,
-    AGENT_PREFIX,
     ALMANAC_API_URL,
     DEFAULT_MAX_ENDPOINTS,
     MAINNET_PREFIX,
     TESTNET_PREFIX,
 )
-from uagents.crypto import is_user_address
 from uagents.network import (
     AlmanacContract,
     get_almanac_contract,
@@ -27,45 +25,6 @@ from uagents.types import AgentNetwork
 from uagents.utils import get_logger
 
 LOGGER: logging.Logger = get_logger("resolver", logging.WARNING)
-
-
-def weighted_random_sample(
-    items: list[Any], weights: list[float] | None = None, k: int = 1, rng=random
-) -> list[Any]:
-    """
-    Weighted random sample from a list of items without replacement.
-
-    Ref: Efraimidis, Pavlos S. "Weighted random sampling over data streams."
-
-    Args:
-        items (list[Any]): The list of items to sample from.
-        weights (list[float]] | None) The optional list of weights for each item.
-        k (int): The number of items to sample.
-        rng (random): The random number generator.
-
-    Returns:
-        list[Any]: The sampled items.
-    """
-    if weights is None:
-        return rng.sample(items, k=k)
-    values = [rng.random() ** (1 / w) for w in weights]
-    order = sorted(range(len(items)), key=lambda i: values[i])
-    return [items[i] for i in order[-k:]]
-
-
-def is_valid_address(address: str) -> bool:
-    """
-    Check if the given string is a valid address.
-
-    Args:
-        address (str): The address to be checked.
-
-    Returns:
-        bool: True if the address is valid; False otherwise.
-    """
-    return is_user_address(address) or (
-        len(address) == AGENT_ADDRESS_LENGTH and address.startswith(AGENT_PREFIX)
-    )
 
 
 def is_valid_prefix(prefix: str) -> bool:
@@ -97,35 +56,6 @@ def parse_prefix(prefix: str) -> AgentNetwork:
     if prefix == MAINNET_PREFIX:
         return "mainnet"
     raise ValueError(f"Invalid prefix: {prefix}")
-
-
-def parse_identifier(identifier: str) -> tuple[str, str, str]:
-    """
-    Parse an agent identifier string into prefix, name, and address.
-
-    Args:
-        identifier (str): The identifier string to be parsed.
-
-    Returns:
-        tuple[str, str, str]: A tuple containing the prefix, name, and address as strings.
-    """
-
-    prefix = ""
-    name = ""
-    address = ""
-
-    if "://" in identifier:
-        prefix, identifier = identifier.split("://", 1)
-
-    if "/" in identifier:
-        name, identifier = identifier.split("/", 1)
-
-    if is_valid_address(identifier):
-        address = identifier
-    else:
-        name = identifier
-
-    return prefix, name, address
 
 
 def query_record(agent_address: str, service: str, network: AgentNetwork) -> dict:

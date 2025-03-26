@@ -7,10 +7,10 @@ from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
+from uagents_core.models import ErrorMessage
+from uagents_core.types import DeliveryStatus, JsonStr, MsgStatus
+
 from uagents import Context, Model, Protocol
-from uagents.context import DeliveryStatus, MsgStatus
-from uagents.dispatch import JsonStr
-from uagents.models import ErrorMessage
 from uagents.storage import KeyValueStore, StorageAPI
 
 DEFAULT_SESSION_TIMEOUT_IN_SECONDS = 60
@@ -559,7 +559,7 @@ class Dialogue(Protocol):
 
     def _load_storage(self) -> dict[UUID, list[Any]]:
         """Load the sessions from the storage."""
-        cache: dict | None = self._storage.get(self.name)
+        cache: dict | None = self._storage.get(self._name)
         return (
             {UUID(session_id): session for session_id, session in cache.items()}
             if cache

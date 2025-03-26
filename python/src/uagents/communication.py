@@ -8,14 +8,19 @@ from typing import NoReturn
 
 import aiohttp
 from pydantic import UUID4, ValidationError
+from uagents_core.envelope import Envelope
+from uagents_core.identity import Identity, is_user_address
+from uagents_core.models import Model
+from uagents_core.types import DeliveryStatus, MsgStatus
 
 from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
-from uagents.crypto import Identity, is_user_address
 from uagents.dispatch import dispatcher
-from uagents.envelope import Envelope, EnvelopeHistory, EnvelopeHistoryEntry
-from uagents.models import Model
 from uagents.resolver import GlobalResolver, Resolver
-from uagents.types import DeliveryStatus, JsonStr, MsgStatus
+from uagents.types import (
+    EnvelopeHistory,
+    EnvelopeHistoryEntry,
+    JsonStr,
+)
 from uagents.utils import get_logger
 
 LOGGER: logging.Logger = get_logger("dispenser", logging.DEBUG)
@@ -244,7 +249,7 @@ async def send_message_raw(
     )
     env.encode_payload(message_body)
     if not is_user_address(sender_address) and isinstance(sender, Identity):
-        env.sign(sender.sign_digest)
+        env.sign(sender)
 
     response = await send_exchange_envelope(
         envelope=env,

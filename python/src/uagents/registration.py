@@ -1,10 +1,8 @@
 import asyncio
 import contextlib
-import hashlib
 import json
 import logging
 import time
-from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any
 
@@ -13,7 +11,15 @@ import grpc
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import BaseModel
+from uagents_core.identity import Identity, parse_identifier
+from uagents_core.registration import (
+    AgentRegistrationAttestation,
+    AgentRegistrationPolicy,
+    BatchRegistrationPolicy,
+    VerifiableModel,
+)
+from uagents_core.types import AgentEndpoint, AgentInfo
 
 from uagents.config import (
     ALMANAC_API_MAX_RETRIES,
@@ -23,7 +29,7 @@ from uagents.config import (
     ALMANAC_REGISTRATION_WAIT,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
 )
-from uagents.crypto import Identity
+from uagents.crypto import sign_registration
 from uagents.network import (
     AlmanacContract,
     AlmanacContractRecord,
@@ -32,44 +38,6 @@ from uagents.network import (
     add_testnet_funds,
     default_exp_backoff,
 )
-from uagents.resolver import parse_identifier
-from uagents.types import AgentEndpoint, AgentInfo
-
-
-class VerifiableModel(BaseModel):
-    agent_identifier: str = Field(
-        validation_alias=AliasChoices("agent_identifier", "agent_address")
-    )
-    signature: str | None = None
-    timestamp: int | None = None
-
-    def sign(self, identity: Identity):
-        self.timestamp = int(time.time())
-        digest = self._build_digest()
-        self.signature = identity.sign_digest(digest)
-
-    def verify(self) -> bool:
-        _, _, agent_address = parse_identifier(self.agent_identifier)
-        return self.signature is not None and Identity.verify_digest(
-            address=agent_address, digest=self._build_digest(), signature=self.signature
-        )
-
-    def _build_digest(self) -> bytes:
-        sha256 = hashlib.sha256()
-        sha256.update(
-            json.dumps(
-                self.model_dump(exclude={"signature"}),
-                sort_keys=True,
-                separators=(",", ":"),
-            ).encode("utf-8")
-        )
-        return sha256.digest()
-
-
-class AgentRegistrationAttestation(VerifiableModel):
-    protocols: list[str]
-    endpoints: list[AgentEndpoint]
-    metadata: dict[str, str | dict[str, str]] | None = None
 
 
 class AgentRegistrationAttestationBatch(BaseModel):
@@ -97,9 +65,7 @@ def coerce_metadata_to_str(
     return out
 
 
-def extract_geo_metadata(
-    metadata: dict[str, Any] | None,
-) -> dict[str, Any] | None:
+def extract_geo_metadata(metadata: dict[str, Any] | None) -> dict[str, Any] | None:
     """Extract geo-location metadata from the metadata dictionary."""
     if metadata is None:
         return None
@@ -134,29 +100,6 @@ async def almanac_api_post(
 
                 await asyncio.sleep(retry_delay_func(retry))
     return False
-
-
-class AgentRegistrationPolicy(ABC):
-    @abstractmethod
-    async def register(
-        self,
-        agent_identifier: str,
-        identity: Identity,
-        protocols: list[str],
-        endpoints: list[AgentEndpoint],
-        metadata: dict[str, Any] | None = None,
-    ):
-        raise NotImplementedError
-
-
-class BatchRegistrationPolicy(ABC):
-    @abstractmethod
-    async def register(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def add_agent(self, agent_info: AgentInfo, identity: Identity):
-        raise NotImplementedError
 
 
 class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
@@ -428,7 +371,9 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
             AssertionError: If the Almanac contract address is None.
         """
         assert self._almanac_contract.address is not None
-        return identity.sign_registration(
+
+        return sign_registration(
+            identity=identity,
             contract_address=str(self._almanac_contract.address),
             timestamp=timestamp,
             wallet_address=str(self._wallet.address()),

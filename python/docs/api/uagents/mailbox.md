@@ -4,7 +4,7 @@
 
 
 
-#### is_mailbox_agent[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L86)
+#### is_mailbox_agent[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L65)
 ```python
 def is_mailbox_agent(endpoints: list[AgentEndpoint],
                      agentverse: AgentverseConfig) -> bool
@@ -18,7 +18,7 @@ Check if the agent is a mailbox agent.
 
 
 
-#### register_in_agentverse[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L98)
+#### register_in_agentverse[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L77)
 ```python
 async def register_in_agentverse(
         request: AgentverseConnectRequest,
@@ -46,7 +46,7 @@ Registers agent in Agentverse
 
 
 
-#### unregister_in_agentverse[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L166)
+#### unregister_in_agentverse[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L145)
 ```python
 async def unregister_in_agentverse(
         request: AgentverseDisconnectRequest, agent_address: str,
@@ -68,7 +68,7 @@ Unregisters agent in Agentverse
 
 
 
-#### update_agent_details[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L200)
+#### update_agent_details[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L179)
 ```python
 async def update_agent_details(user_token: str,
                                agent_address: str,
@@ -87,7 +87,7 @@ Updates agent details in Agentverse.
 
 
 
-## MailboxClient Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L233)
+## MailboxClient Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L212)
 
 ```python
 class MailboxClient()
@@ -97,7 +97,7 @@ Client for interacting with the Agentverse mailbox server.
 
 
 
-#### run[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L248)
+#### run[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L227)
 ```python
 async def run()
 ```
