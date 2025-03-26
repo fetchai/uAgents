@@ -15,7 +15,7 @@ from uagents_core.helpers import weighted_random_sample
 from uagents_core.identity import parse_identifier
 from uagents_core.logger import get_logger
 
-logger = get_logger("uagents_core.utils.parser")
+logger = get_logger("uagents_core.utils.resolver")
 
 
 def lookup_endpoint_for_agent(
