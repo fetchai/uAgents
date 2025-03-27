@@ -1328,6 +1328,8 @@ class Agent(Sink):
                 except Exception as ex:
                     self._logger.exception(f"Exception in message handler: {ex}")
 
+            context.validate_replies()
+
 
 class Bureau:
     # pylint: disable=protected-access
