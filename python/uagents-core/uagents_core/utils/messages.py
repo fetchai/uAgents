@@ -15,7 +15,7 @@ from uagents_core.identity import Identity
 from uagents_core.logger import get_logger
 from uagents_core.models import Model
 from uagents_core.types import DeliveryStatus, MsgStatus
-from uagents_core.utils.parser import lookup_endpoint_for_agent
+from uagents_core.utils.resolver import lookup_endpoint_for_agent
 
 logger = get_logger("uagents_core.utils.messages")
 
