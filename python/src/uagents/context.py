@@ -13,7 +13,7 @@ from cosmpy.aerial.client import LedgerClient
 from pydantic.v1 import ValidationError
 from uagents_core.envelope import Envelope
 from uagents_core.identity import parse_identifier
-from uagents_core.models import Model
+from uagents_core.models import ERROR_MESSAGE_DIGEST, Model
 from uagents_core.types import DeliveryStatus, MsgStatus
 
 from uagents.communication import dispatch_local_message
@@ -715,15 +715,17 @@ class ExternalContext(InternalContext):
         """
         If the context specifies replies, ensure that a valid reply was sent.
         """
-        if not self._replies:
-            return
-
         sender = self._message_received.sender
         received_digest = self._message_received.schema_digest
 
+        if not self._replies or received_digest not in self._replies:
+            return
+
+        valid_replies = set(self._replies[received_digest]) | {ERROR_MESSAGE_DIGEST}
+
         valid_reply_sent = False
         for target, (_, schema_digest) in self._outbound_messages.items():
-            if target == sender and schema_digest in self._replies[received_digest]:
+            if target == sender and schema_digest in valid_replies:
                 valid_reply_sent = True
                 break
 
