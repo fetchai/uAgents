@@ -1321,14 +1321,13 @@ class Agent(Sink):
             if handler is not None:
                 try:
                     await handler(context, sender, recovered)
+                    context.validate_replies()
                 except OSError as ex:
                     self._logger.exception(f"OS Error in message handler: {ex}")
                 except RuntimeError as ex:
                     self._logger.exception(f"Runtime Error in message handler: {ex}")
                 except Exception as ex:
                     self._logger.exception(f"Exception in message handler: {ex}")
-
-            context.validate_replies()
 
 
 class Bureau:
