@@ -16,10 +16,10 @@ class ProtocolSpecification(BaseModel):
         name (str): The name of the protocol.
         version (str): The version of the protocol.
         interactions (dict[type[Model], set[type[Model]]]): A mapping of models
-            to the set of models that can reply to them.
-        roles (dict[str, set[type[Model]]] | None): A mapping of role names to
-            the set of models that need to be implemented by that role.
-            If None, all models can be used in all roles.
+            to the corresponding set of models that are valid replies.
+        roles (dict[str, set[type[Model]]] | None): A mapping of role names to the set of
+            incoming message models that role needs to be implement handlers for.
+            If None, all models can be implemented by all roles.
     """
 
     name: str = ""
