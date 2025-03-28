@@ -1,9 +1,7 @@
 .idea/
 *.py[cgo]
 __pycache__
-*.json
-!project.json
-!endpoint.json
+# *.json
 dist/
 *.sqlite3
 .DS_Store
