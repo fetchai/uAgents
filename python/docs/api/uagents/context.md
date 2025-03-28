@@ -431,7 +431,7 @@ If the context specifies replies, ensure that a valid reply was sent.
 
 
 
-#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L737)
+#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L739)
 ```python
 async def send(destination: str,
                message: Model,
