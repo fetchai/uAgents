@@ -711,34 +711,30 @@ class ExternalContext(InternalContext):
         self._message_received = message_received
         self._protocol = protocol or ("", None)
 
-    def _is_valid_reply(self, message_schema_digest: str, destination: str) -> bool:
+    def validate_replies(self) -> None:
         """
-        Check if the message type is a valid reply to the message received.
-
-        Args:
-            message_type (type[Model]): The type of the message to check.
-            destination (str): The destination address of the message.
-
-        Returns:
-            bool: Whether the message type is a valid reply.
+        If the context specifies replies, ensure that a valid reply was sent.
         """
-        if message_schema_digest == ERROR_MESSAGE_DIGEST:
-            return True
+        sender = self._message_received.sender
+        received_digest = self._message_received.schema_digest
 
-        if not self._message_received:
-            raise ValueError("No message received")
+        if not self._replies or received_digest not in self._replies:
+            return
 
-        if not self._replies:
-            return True
+        valid_replies = set(self._replies[received_digest]) | {ERROR_MESSAGE_DIGEST}
 
-        # If the destination is not the sender of the message received, it is not a reply
-        if destination != self._message_received.sender:
-            return True
+        valid_reply_sent = False
+        for target, (_, schema_digest) in self._outbound_messages.items():
+            if target == sender and schema_digest in valid_replies:
+                valid_reply_sent = True
+                break
 
-        received: MsgInfo = self._message_received
-        if received.schema_digest in self._replies:
-            return message_schema_digest in self._replies[received.schema_digest]
-        return True
+        if not valid_reply_sent:
+            log(
+                logger=self.logger,
+                level=logging.ERROR,
+                message=f"No valid reply was sent to {sender} for message: {received_digest}",
+            )
 
     async def send(
         self,
@@ -758,26 +754,10 @@ class ExternalContext(InternalContext):
             MsgStatus: The delivery status of the message.
         """
         schema_digest = Model.build_schema_digest(message)
-        message_type = type(message)
 
         # This is the re-active send method
         # at this point we have received a message and have built a context
         # replies, message_received, and protocol are set
-
-        if not self._is_valid_reply(schema_digest, destination):
-            log(
-                logger=self.logger,
-                level=logging.ERROR,
-                message=f"Outgoing message '{message_type}' is not a valid reply"
-                f"to received message: {self._message_received.schema_digest}",
-            )
-            return MsgStatus(
-                status=DeliveryStatus.FAILED,
-                detail="Invalid reply",
-                destination=destination,
-                endpoint="",
-                session=self._session,
-            )
 
         return await self.send_raw(
             destination=destination,

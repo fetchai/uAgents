@@ -422,7 +422,16 @@ Initialize the ExternalContext instance and attributes needed from the InternalC
 
 
 
-#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L743)
+#### validate_replies[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L714)
+```python
+def validate_replies() -> None
+```
+
+If the context specifies replies, ensure that a valid reply was sent.
+
+
+
+#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L737)
 ```python
 async def send(destination: str,
                message: Model,
