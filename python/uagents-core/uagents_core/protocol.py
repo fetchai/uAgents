@@ -9,12 +9,23 @@ from uagents_core.models import Model
 
 
 class ProtocolSpecification(BaseModel):
-    """Specification for the interactions and roles of a protocol."""
+    """
+    Specification for the interactions and roles of a protocol.
 
-    interactions: dict[type[Model], set[type[Model]]]
-    roles: dict[str, set[type[Model]]] | None = None
+    Args:
+        name (str): The name of the protocol.
+        version (str): The version of the protocol.
+        interactions (dict[type[Model], set[type[Model]]]): A mapping of models
+            to the set of models that can reply to them.
+        roles (dict[str, set[type[Model]]] | None): A mapping of role names to
+            the set of models that need to be implemented by that role.
+            If None, all models can be used in all roles.
+    """
+
     name: str = ""
     version: str = "0.1.0"
+    interactions: dict[type[Model], set[type[Model]]]
+    roles: dict[str, set[type[Model]]] | None = None
 
     SPEC_VERSION: ClassVar = "1.0"
 
