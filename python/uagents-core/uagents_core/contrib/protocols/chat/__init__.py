@@ -1,3 +1,7 @@
+"""
+This module contains the protocol specification for the agent chat protocol.
+"""
+
 from datetime import datetime
 from typing import Literal, TypedDict
 
@@ -8,7 +12,7 @@ from uagents_core.protocol import ProtocolSpecification
 
 
 class Metadata(TypedDict):
-    # primarily used with hte `Resource` model. This field specifies the mime_type of
+    # primarily used with the `Resource` model. This field specifies the mime_type of
     # resource that is being referenced. A full list can be found at `docs/mime_types.md`
     mime_type: str
 
@@ -41,7 +45,7 @@ class ResourceContent(Model):
 
     # The resource or list of resource for this content. typically only a single
     # resource will be sent, however, if there are accompanying resources like
-    # thumbnails and audo tracks these can be additionally referenced
+    # thumbnails and audio tracks these can be additionally referenced
     #
     # In the case of the a list of resources, the first element of the list is always
     # considered the primary resource
@@ -113,5 +117,8 @@ class ChatAcknowledgement(Model):
 chat_protocol_spec = ProtocolSpecification(
     name="AgentChatProtocol",
     version="0.3.0",
-    interactions={ChatMessage: {ChatAcknowledgement}, ChatAcknowledgement: set()},
+    interactions={
+        ChatMessage: {ChatAcknowledgement},
+        ChatAcknowledgement: set(),
+    },
 )
