@@ -1,120 +1,54 @@
-# uAgents: AI Agent Framework
+# Repository Coverage
 
-[![Official Website](https://img.shields.io/badge/Official%20Website-fetch.ai-blue?style=flat&logo=world&logoColor=white)](https://fetch.ai) [![GitHub Repo stars](https://img.shields.io/github/stars/Fetchai/uAgents?style=social)](https://github.com/Fetchai/uAgents/stargazers) [![Twitter Follow](https://img.shields.io/twitter/follow/fetch_ai?style=social)](https://twitter.com/fetch_ai)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![Tests](https://img.shields.io/github/actions/workflow/status/Fetchai/uAgents/ci-tests.yml?label=Tests)](https://github.com/Fetchai/uAgents/actions/workflows/ci-tests.yml) ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/uagents)
+[Full report](https://htmlpreview.github.io/?https://github.com/fetchai/uAgents/blob/python-coverage-comment-action-data/htmlcov/index.html)
 
-uAgents is a library developed by Fetch.ai that allows for creating autonomous AI agents in Python. With simple and expressive decorators, you can have an agent that performs various tasks on a schedule or takes action on various events.
+| Name                             |    Stmts |     Miss |   Cover |   Missing |
+|--------------------------------- | -------: | -------: | ------: | --------: |
+| src/uagents/agent.py             |      521 |      205 |     61% |106-117, 129, 174-176, 196, 334, 401-405, 431, 438, 450-452, 460-470, 484, 560-584, 601-608, 638, 658, 688, 698, 708, 724, 734, 746, 794, 804-806, 821-831, 868, 913, 929-932, 978-983, 1009, 1011, 1021, 1032, 1041-1058, 1087, 1098-1116, 1122-1127, 1133-1137, 1143, 1147-1156, 1160-1161, 1168-1178, 1182-1189, 1193-1211, 1219-1222, 1231, 1293-1302, 1311-1319, 1326, 1328, 1330, 1417-1425, 1450, 1488, 1494-1507, 1511-1534, 1538-1541 |
+| src/uagents/asgi.py              |      178 |       25 |     86% |29-37, 71, 92-93, 173-193, 221-224, 283, 291-292, 394-398 |
+| src/uagents/communication.py     |      111 |       35 |     68% |135-136, 140, 151, 153, 187, 219-266, 296, 334 |
+| src/uagents/config.py            |       75 |        2 |     97% |   91, 127 |
+| src/uagents/context.py           |      168 |       33 |     80% |301, 305, 329, 338-341, 349-368, 377-401, 487-491, 665-668, 733 |
+| src/uagents/dispatch.py          |       61 |        2 |     97% |    43, 90 |
+| src/uagents/mailbox.py           |      156 |       99 |     37% |98-142, 161-176, 194-209, 229-231, 235-265, 275-303, 312-329, 333-368 |
+| src/uagents/network.py           |      288 |      114 |     60% |58, 66-67, 117, 127, 141-152, 182, 214-225, 244, 246-249, 310-313, 333-355, 367, 379, 391, 442, 492, 514, 520, 523, 571, 583-586, 608, 611, 639, 641-644, 647-648, 678-685, 697-702, 716-720, 778-779, 825-885, 901-914, 936 |
+| src/uagents/protocol.py          |      141 |       15 |     89% |168, 187, 200, 202, 210, 255, 282-286, 306, 333, 342, 434 |
+| src/uagents/query.py             |       13 |       13 |      0% |      3-45 |
+| src/uagents/registration.py      |      298 |       87 |     71% |72, 101-102, 154, 176, 179-186, 189-208, 239, 247, 255, 263, 276, 307-319, 348-355, 413, 421, 429, 437, 464-475, 496-500, 519, 534-565, 569-572, 602-604, 608-632 |
+| src/uagents/resolver.py          |      122 |       69 |     43% |54-58, 73-80, 94-106, 154-162, 185-203, 233-270, 283-284, 312-317, 344, 348 |
+| src/uagents/setup.py             |       19 |       19 |      0% |      3-37 |
+| src/uagents/types.py             |      126 |        1 |     99% |        65 |
+| src/uagents/utils.py             |       21 |        4 |     81% | 34, 44-46 |
+| src/uagents/wallet\_messaging.py |       55 |       55 |      0% |      1-84 |
+|                        **TOTAL** | **2353** |  **778** | **67%** |           |
 
-## 🚀 Features
 
-- 🤖 **Easy creation and management**: Create any type of agent you can think of and implement it in code.
-- 🔗 **Connected**: On startup, each agent automatically joins the fast-growing network of uAgents by registering on the Almanac, a smart contract deployed on the Fetch.ai blockchain.
-- 🔒 **Secure**: uAgent messages and wallets are cryptographically secured, so their identities and assets are protected.
+## Setup coverage badge
 
-## ⚡ Quickstart
+Below are examples of the badges you can use in your main branch `README` file.
 
-### Installation
+### Direct image
 
-Get started with uAgents by installing it for Python 3.10 to 3.13:
+[![Coverage badge](https://raw.githubusercontent.com/fetchai/uAgents/python-coverage-comment-action-data/badge.svg)](https://htmlpreview.github.io/?https://github.com/fetchai/uAgents/blob/python-coverage-comment-action-data/htmlcov/index.html)
 
-    pip install uagents
+This is the one to use if your repository is private or if you don't want to customize anything.
 
-### Running a Demo
+### [Shields.io](https://shields.io) Json Endpoint
 
-#### Creating an Agent
+[![Coverage badge](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/fetchai/uAgents/python-coverage-comment-action-data/endpoint.json)](https://htmlpreview.github.io/?https://github.com/fetchai/uAgents/blob/python-coverage-comment-action-data/htmlcov/index.html)
 
-Build your first uAgent using the following script:
+Using this one will allow you to [customize](https://shields.io/endpoint) the look of your badge.
+It won't work with private repositories. It won't be refreshed more than once per five minutes.
 
-```python3
-from uagents import Agent, Context
-alice = Agent(name="alice", seed="alice recovery phrase")
-```
+### [Shields.io](https://shields.io) Dynamic Badge
 
-Include a seed parameter when creating an agent to set fixed addresses, or leave it out to generate a new random address each time.
+[![Coverage badge](https://img.shields.io/badge/dynamic/json?color=brightgreen&label=coverage&query=%24.message&url=https%3A%2F%2Fraw.githubusercontent.com%2Ffetchai%2FuAgents%2Fpython-coverage-comment-action-data%2Fendpoint.json)](https://htmlpreview.github.io/?https://github.com/fetchai/uAgents/blob/python-coverage-comment-action-data/htmlcov/index.html)
 
-#### Giving it a task
+This one will always be the same color. It won't work for private repos. I'm not even sure why we included it.
 
-Give it a simple task, such as a greeting:
+## What is that?
 
-```python3
-@alice.on_interval(period=2.0)
-async def say_hello(ctx: Context):
-    ctx.logger.info(f'hello, my name is {ctx.agent.name}')
-
-if __name__ == "__main__":
-    alice.run()
-```
-
-#### Running the Agent
-
-So far, your code should look like this:
-
-```python3
-from uagents import Agent, Context
-
-alice = Agent(name="alice", seed="alice recovery phrase")
-
-@alice.on_interval(period=2.0)
-async def say_hello(ctx: Context):
-    ctx.logger.info(f'hello, my name is {ctx.agent.name}')
-
-if __name__ == "__main__":
-    alice.run()
-```
-
-Run it using:
-
-```bash
-python agent.py
-```
-
-You should see the results in your terminal.
-
-## 📖 Documentation
-
-Please see the [official documentation](https://fetch.ai/docs) for full setup instructions and advanced features.
-
-- [👋 Introduction](https://fetch.ai/docs/concepts/agents/agents)
-- [💻 Installation](https://fetch.ai/docs/guides/agents/installing-uagent)
-- Tutorials
-  - [🤖 Create an agent](https://fetch.ai/docs/guides/agents/create-a-uagent)
-  - [🛣️ Agent Communication](https://fetch.ai/docs/guides/agents/communicating-with-other-agents)
-  - [🍽️ Restaurant Booking Demo](https://fetch.ai/docs/guides/agents/booking-demo)
-- Key Concepts:
-  - [📍Addresses](https://fetch.ai/docs/guides/agents/getting-uagent-address)
-  - [💾 Storage](https://fetch.ai/docs/guides/agents/storage-function)
-  - [📝 Interval Tasks](https://fetch.ai/docs/guides/agents/interval-task)
-  - [🌐 Agent Broadcast](https://fetch.ai/docs/guides/agents/broadcast)
-  - [⚙️ Almanac Contracts](https://fetch.ai/docs/guides/agents/register-in-almanac)
-
-## 🌱 Examples and Integrations
-
-The [`uAgent-Examples`](https://github.com/fetchai/uAgent-Examples) repository contains several examples of how to create and run various types of agents as well as more intricate integrations. This is the official place for internal and community open source applications built on uAgents.
-
-## Python Library
-
-Go to the [`python`](https://github.com/fetchai/uAgents/tree/main/python) folder for details on the Python uAgents library.
-
-## uAgents Core
-
-The [`uagents-core`](https://github.com/fetchai/uAgents/tree/main/python/uagents-core) folder contains core definitions and functionalities to build 'agent' like software which can interact and integrate with Fetch.ai ecosystem and agent marketplace.
-
-## ✨ Contributing
-
-All contributions are welcome! Remember, contribution includes not only code, but any help with docs or issues raised by other developers. See our [contribution guidelines](https://github.com/fetchai/uAgents/blob/main/CONTRIBUTING.md) for more details.
-
-### 📄 Development Guidelines
-
-Read our [development guidelines](https://github.com/fetchai/uAgents/blob/main/DEVELOPING.md) to learn some useful tips related to development.
-
-### ❓ Issues, Questions, and Discussions
-
-We use [GitHub Issues](https://github.com/fetchai/uAgents/issues) for tracking requests and bugs, and [GitHub Discussions](https://github.com/fetchai/uAgents/discussions) for general questions and discussion.
-
-## 🛡 Disclaimer
-
-This project, uAgents, is provided "as-is" without any warranty, express or implied. By using this software, you agree to assume all risks associated with its use, including but not limited to unexpected behavior, data loss, or any other issues that may arise. The developers and contributors of this project do not accept any responsibility or liability for any losses, damages, or other consequences that may occur as a result of using this software.
-
-## License
-
-The uAgents project is licensed under [Apache License 2.0](https://github.com/fetchai/uAgents/blob/main/LICENSE).
+This branch is part of the
+[python-coverage-comment-action](https://github.com/marketplace/actions/python-coverage-comment)
+GitHub Action. All the files in this branch are automatically generated and may be
+overwritten at any moment.
