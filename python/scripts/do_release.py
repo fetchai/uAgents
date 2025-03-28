@@ -50,7 +50,7 @@ def get_the_latest_release_version(package: str) -> Version:
 def get_current_version(package: str) -> Version:
     """Get current code version."""
     text = (get_package_path(package) / "pyproject.toml").read_text()
-    version = tomli.loads(text)["tool"]["poetry"]["version"]
+    version = tomli.loads(text)["project"]["version"]
     return Version(version)
 
 
