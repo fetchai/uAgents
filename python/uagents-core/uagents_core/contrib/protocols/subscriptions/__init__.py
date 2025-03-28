@@ -1,3 +1,10 @@
+"""
+This module contains the protocol specification for agent subscription management.
+
+A chat agent that supports this protocol will be able to accept or reject paid
+subscription requests from other agents.
+"""
+
 from enum import Enum
 
 from uagents_core.models import Model
@@ -18,7 +25,10 @@ class Tier(Model):
 
 
 class RequestAgentSubscriptionRenewal(Model):
+    # the system generated event id associated with this upgrade
     update_id: str
+
+    # the tier this upgrade is subscribing to
     tier: Tier
 
 
@@ -34,10 +44,12 @@ class RequestAgentSubscriptionUpgrade(Model):
 
 
 class AcceptAgentSubscriptionUpdate(Model):
+    # the update id associated with this upgrade
     update_id: str
 
 
 class RejectAgentSubscriptionUpdate(Model):
+    # the update id associated with this upgrade
     update_id: str
 
 

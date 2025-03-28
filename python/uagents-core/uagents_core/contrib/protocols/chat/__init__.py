@@ -1,3 +1,7 @@
+"""
+This module contains the protocol specification for the agent chat protocol.
+"""
+
 from datetime import datetime
 from typing import Literal, TypedDict
 
