@@ -63,10 +63,10 @@ class Envelope(BaseModel):
 
     def sign(self, identity: Identity) -> None:
         """
-        Sign the envelope using the provided signing function.
+        Sign the envelope using the provided agent identity.
 
         Args:
-            signing_fn (callback): The callback used for signing.
+            identity (Identity): The agent identity to sign the envelope.
         """
         try:
             self.signature = identity.sign_digest(self._digest())
