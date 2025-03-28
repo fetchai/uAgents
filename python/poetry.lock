@@ -2256,20 +2256,18 @@ name = "uagents-core"
 version = "0.2.0"
 description = "Core components for agent based systems"
 optional = false
-python-versions = ">=3.10,<4.0"
+python-versions = "<4.0,>=3.10"
 groups = ["main"]
-files = []
-develop = false
+files = [
+    {file = "uagents_core-0.2.0-py3-none-any.whl", hash = "sha256:2bd4a955d4a125e63c9a1cf4f37424f661437512fe5dfea6457ecb1fc1e28178"},
+    {file = "uagents_core-0.2.0.tar.gz", hash = "sha256:d0f9308582fd0ac8f79d4f0da45a1c15e2195e7af28dbb05d7b28a2dd26407dc"},
+]
 
 [package.dependencies]
 bech32 = ">=1.2.0,<2.0"
 ecdsa = ">=0.19.0,<1.0"
 pydantic = ">=2.8,<3.0"
 requests = ">=2.32.3,<3.0"
-
-[package.source]
-type = "directory"
-url = "uagents-core"
 
 [[package]]
 name = "urllib3"
@@ -2582,4 +2580,4 @@ wallet = ["fetchai-babble"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4.0"
-content-hash = "854efa332f46ea4b3510c6a2cb8be934a70b1a26e5a31b4bb6a1ae2a0d67650c"
+content-hash = "450a0d2bd8780f9cd8b71c6ed22ba074de05ae0ac6e58c1c248ba7c492aecd41"
