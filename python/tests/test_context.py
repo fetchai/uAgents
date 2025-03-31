@@ -491,6 +491,58 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(status, exp_msg_status)
         self.assertEqual(len(dispatcher.pending_responses), 0)
 
+    async def test_send_and_receive_async_success_multi_types(self):
+        context = self.alice._build_context()
+
+        class WrongMessage(Model):
+            wrong: str
+
+        # Perform the actual operation
+        response, status = await context.send_and_receive(
+            self.bob.address, msg, response_type={WrongMessage, Incoming}, timeout=5
+        )
+
+        # Define the expected message status
+        exp_msg_status = MsgStatus(
+            status=DeliveryStatus.DELIVERED,
+            detail="Message dispatched locally",
+            destination=self.bob.address,
+            endpoint="",
+            session=context.session,
+        )
+
+        # Assertions
+        self.assertEqual(status, exp_msg_status)
+        self.assertEqual(response, incoming)
+        self.assertEqual(len(dispatcher.pending_responses), 0)
+
+    async def test_send_and_receive_async_wrong_response_types(self):
+        context = self.alice._build_context()
+
+        class WrongMessage(Model):
+            wrong: str
+
+        class WrongAgain(Model):
+            wrong: str
+
+        # Perform the actual operation
+        response, status = await context.send_and_receive(
+            self.bob.address, msg, response_type={WrongMessage, WrongAgain}, timeout=5
+        )
+
+        # Define the expected message status
+        exp_msg_status = MsgStatus(
+            status=DeliveryStatus.FAILED,
+            detail="Received unexpected response type",
+            destination=self.bob.address,
+            endpoint="",
+            session=context.session,
+        )
+
+        # Assertions
+        self.assertEqual(status, exp_msg_status)
+        self.assertEqual(len(dispatcher.pending_responses), 0)
+
 
 class TestMessageHistory(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
