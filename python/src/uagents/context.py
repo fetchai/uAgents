@@ -224,7 +224,7 @@ class Context(ABC):
         self,
         destination: str,
         message: Model,
-        response_type: type[Model],
+        response_type: type[Model] | set[type[Model]],
         sync: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> tuple[Model | None, MsgStatus]:
@@ -234,7 +234,7 @@ class Context(ABC):
         Args:
             destination (str): The destination address to send the message to.
             message (Model): The message to be sent.
-            response_type (type[Model]): The type of the response message.
+            response_type (type[Model] | set[type[Model]]): The type(s) of the response message.
             sync (bool): Whether to send the message synchronously or asynchronously.
             timeout (int): The timeout for sending the message, in seconds.
 
@@ -590,7 +590,7 @@ class InternalContext(Context):
         self,
         destination: str,
         message: Model,
-        response_type: type[Model],
+        response_type: type[Model] | set[type[Model]],
         sync: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> tuple[Model | None, MsgStatus]:
@@ -600,7 +600,7 @@ class InternalContext(Context):
         Args:
             destination (str): The destination address to send the message to.
             message (Model): The message to be sent.
-            response_type (type[Model]): The type of the response message.
+            response_type (type[Model] | set[type[Model]]): The type(s) of the response message.
             sync (bool): Whether to send the message synchronously or asynchronously.
             timeout (int): The timeout for sending the message, in seconds.
 
@@ -626,7 +626,7 @@ class InternalContext(Context):
             )
             return None, msg_status
 
-        response_msg = await dispatcher.wait_for_response(
+        response_msg: JsonStr | None = await dispatcher.wait_for_response(
             self.agent.address, parsed_address, self._session, timeout
         )
 
@@ -640,21 +640,35 @@ class InternalContext(Context):
                 session=self._session,
             )
 
-        try:
-            return response_type.parse_raw(response_msg), msg_status
-        except ValidationError:
+        response_types: set[type[Model]] = (
+            {response_type} if isinstance(response_type, type) else response_type
+        )
+
+        response: Model | None = None
+        for r_type in response_types:
+            try:
+                parsed: Model = r_type.parse_raw(response_msg)
+                if parsed:
+                    response = parsed
+                    break
+            except ValidationError:
+                pass
+
+        if response is None:
             log(
                 logger=self.logger,
                 level=logging.ERROR,
                 message=f"Received unexpected response: {response_msg}",
             )
-            return None, MsgStatus(
+            msg_status = MsgStatus(
                 status=DeliveryStatus.FAILED,
                 detail="Received unexpected response type",
                 destination=destination,
                 endpoint="",
                 session=self._session,
             )
+
+        return response, msg_status
 
     async def send_wallet_message(
         self,

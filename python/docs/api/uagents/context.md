@@ -243,7 +243,7 @@ message schema digest are sent separately.
 async def send_and_receive(
     destination: str,
     message: Model,
-    response_type: type[Model],
+    response_type: type[Model] | set[type[Model]],
     sync: bool = False,
     timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS
 ) -> tuple[Model | None, MsgStatus]
@@ -255,7 +255,7 @@ Send a message to the specified destination and receive a response.
 
 - `destination` _str_ - The destination address to send the message to.
 - `message` _Model_ - The message to be sent.
-- `response_type` _type[Model]_ - The type of the response message.
+- `response_type` _type[Model] | set[type[Model]]_ - The type(s) of the response message.
 - `sync` _bool_ - Whether to send the message synchronously or asynchronously.
 - `timeout` _int_ - The timeout for sending the message, in seconds.
   
@@ -357,7 +357,7 @@ contexts, like 'replies', 'message_received', or 'protocol'.
 async def send_and_receive(
     destination: str,
     message: Model,
-    response_type: type[Model],
+    response_type: type[Model] | set[type[Model]],
     sync: bool = False,
     timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS
 ) -> tuple[Model | None, MsgStatus]
@@ -369,7 +369,7 @@ Send a message to the specified destination and receive a response.
 
 - `destination` _str_ - The destination address to send the message to.
 - `message` _Model_ - The message to be sent.
-- `response_type` _type[Model]_ - The type of the response message.
+- `response_type` _type[Model] | set[type[Model]]_ - The type(s) of the response message.
 - `sync` _bool_ - Whether to send the message synchronously or asynchronously.
 - `timeout` _int_ - The timeout for sending the message, in seconds.
   
@@ -380,7 +380,7 @@ Send a message to the specified destination and receive a response.
 
 
 
-## ExternalContext Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L675)
+## ExternalContext Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L689)
 
 ```python
 class ExternalContext(InternalContext)
@@ -400,7 +400,7 @@ Represents the reactive context in which messages are handled and processed.
 
 
 
-#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L689)
+#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L703)
 ```python
 def __init__(message_received: MsgInfo,
              queries: dict[str, asyncio.Future] | None = None,
@@ -422,7 +422,7 @@ Initialize the ExternalContext instance and attributes needed from the InternalC
 
 
 
-#### validate_replies[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L714)
+#### validate_replies[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L728)
 ```python
 def validate_replies() -> None
 ```
@@ -431,7 +431,7 @@ If the context specifies replies, ensure that a valid reply was sent.
 
 
 
-#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L739)
+#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L753)
 ```python
 async def send(destination: str,
                message: Model,
