@@ -113,7 +113,7 @@ def send_message_to_agent(
     env = generate_message_envelope(
         destination=destination,
         message_schema_digest=Model.build_schema_digest(msg),
-        message_body=msg.model_dump(),
+        message_body=json.loads(msg.model_dump_json()),
         sender=sender,
         session_id=session_id,
     )
