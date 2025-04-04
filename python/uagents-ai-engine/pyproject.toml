@@ -1,4 +1,4 @@
-[tool.poetry]
+[project]
 name = "uagents-ai-engine"
 version = "0.10.0"
 description = "Integrating AI-Engine with UAgents"
@@ -6,9 +6,11 @@ authors = ["Fetch.AI Limited"]
 license = "Apache 2.0"
 readme = "README.md"
 keywords = ["uagents", "agents", "ai", "ai-engine", "fetch.ai"]
-packages = [{include = "ai_engine", from = "src" }]
+requires-python = ">=3.10,<4.0"
+dependencies = [
+    "uagents (>=0.22.0, < 1.0.0)",
+    "pydantic (>=2.8,<3.0)",
+]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-uagents = "^0.22.0"
-pydantic = ">=2.8,<3.0"
+[tool.poetry]
+packages = [{include = "ai_engine", from = "src" }]
