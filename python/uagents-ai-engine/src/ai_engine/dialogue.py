@@ -1,8 +1,8 @@
-from pydantic import BaseModel
 from typing import Literal
 
-from uagents.experimental.dialogues import Edge, Node
+from pydantic import BaseModel
 
+from uagents.experimental.dialogues import Edge, Node
 
 # Extending dialogues with metadata for AI Engine support.
 # This will move to the uagents.experimental.dialogues module in the future.
@@ -11,7 +11,8 @@ from uagents.experimental.dialogues import Edge, Node
 class EdgeMetadata(BaseModel):
     """Metadata for the edges"""
 
-    # what is the target of this transition, user means direct message to the user, ai, system involves AI Engine processing
+    # what is the target of this transition, user means direct message to the user,
+    # ai, system involves AI Engine processing
     target: Literal["user", "ai", "system", "agent"]
 
     # can the AI Engine observe this transition, and process the information
@@ -35,7 +36,7 @@ def create_edge(
     observable: bool,
     parent: Node,
     child: Node,
-):
+) -> Edge:
     """Create an edge with metadata"""
 
     # create the metadata

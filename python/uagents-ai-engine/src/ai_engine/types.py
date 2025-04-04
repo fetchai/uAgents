@@ -1,6 +1,7 @@
-from uagents.models import Model
 from enum import Enum
-from typing import Optional, List, Literal
+from typing import Literal
+
+from uagents import Model
 
 
 class UAgentResponseType(Enum):
@@ -19,12 +20,12 @@ class KeyValue(Model):
 class UAgentResponse(Model):
     version: Literal["v1"] = "v1"
     type: UAgentResponseType
-    request_id: Optional[str] = None
-    agent_address: Optional[str] = None
-    message: Optional[str] = None
-    options: Optional[List[KeyValue]] = None
-    verbose_message: Optional[str] = None
-    verbose_options: Optional[List[KeyValue]] = None
+    request_id: str | None = None
+    agent_address: str | None = None
+    message: str | None = None
+    options: list[KeyValue] | None = None
+    verbose_message: str | None = None
+    verbose_options: list[KeyValue] | None = None
 
 
 class BookingRequest(Model):

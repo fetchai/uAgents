@@ -4,8 +4,8 @@ import json
 
 from ai_engine.chitchat import ChitChatDialogue
 from ai_engine.messages import DialogueMessage
-from uagents import Agent, Context, Model
 
+from uagents import Agent, Context, Model
 
 agent = Agent(
     name="chat_agent",
@@ -77,7 +77,8 @@ async def accepted_chitchat(
     _msg: AcceptChitChatDialogue,
 ):
     ctx.logger.info(
-        f"session with {sender} was accepted. This shouldn't be called as this agent is not the initiator."
+        f"session with {sender} was accepted. "
+        "This shouldn't be called as this agent is not the initiator."
     )
 
 
@@ -119,7 +120,6 @@ async def conclude_chitchat(
 ):
     # do something when the dialogue is concluded after messages have been exchanged
     ctx.logger.info(f"Received conclude message from: {sender}; accessing history:")
-    ctx.logger.info(ctx.dialogue)
 
 
 agent.include(chitchat_dialogue, publish_manifest=True)

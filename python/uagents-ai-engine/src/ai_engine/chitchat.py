@@ -1,13 +1,10 @@
 """Specific dialogue class for the AI enabled chit-chat dialogue."""
 
-from typing import Type, Optional
-
-from uagents import Model
-from uagents.storage import StorageAPI
-from uagents.experimental.dialogues import Dialogue, Node
-
 from ai_engine.dialogue import create_edge
 
+from uagents import Model
+from uagents.experimental.dialogues import Dialogue, Node
+from uagents.storage import StorageAPI
 
 # Node definition for the dialogue states
 # Node definition for the dialogue states
@@ -90,7 +87,7 @@ class ChitChatDialogue(Dialogue):
     def __init__(
         self,
         version: str,
-        storage: Optional[StorageAPI] = None,
+        storage: StorageAPI | None = None,
         cleanup_interval: int = 0,
     ) -> None:
         super().__init__(
@@ -113,7 +110,7 @@ class ChitChatDialogue(Dialogue):
             cleanup_interval=cleanup_interval,
         )
 
-    def on_initiate_session(self, model: Type[Model]):
+    def on_initiate_session(self, model: type[Model]):
         """
         This handler is triggered when the initial message of the
         dialogue is received. From here you can either accept or reject.
@@ -122,7 +119,7 @@ class ChitChatDialogue(Dialogue):
         """
         return super()._on_state_transition(init_session.name, model)
 
-    def on_reject_session(self, model: Type[Model]):
+    def on_reject_session(self, model: type[Model]):
         """
         This handler is triggered when a reject message is returned on
         the initial message.
@@ -130,7 +127,7 @@ class ChitChatDialogue(Dialogue):
         """
         return super()._on_state_transition(reject_session.name, model)
 
-    def on_start_dialogue(self, model: Type[Model]):
+    def on_start_dialogue(self, model: type[Model]):
         """
         This handler is triggered when an accept message is returned on
         the initial message.
@@ -139,7 +136,7 @@ class ChitChatDialogue(Dialogue):
         """
         return super()._on_state_transition(start_dialogue.name, model)
 
-    def on_continue_dialogue(self, model: Type[Model]):
+    def on_continue_dialogue(self, model: type[Model]):
         """
         This handler is triggered for every incoming "chitchat" message
         once the session has been accepted.
@@ -148,7 +145,7 @@ class ChitChatDialogue(Dialogue):
         """
         return super()._on_state_transition(cont_dialogue.name, model)
 
-    def on_end_session(self, model: Type[Model]):
+    def on_end_session(self, model: type[Model]):
         """
         This handler is triggered once the other party has ended the dialogue.
         Any final conclusion or cleanup goes here.
