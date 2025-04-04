@@ -1,9 +1,10 @@
-from pydantic.v1 import BaseModel, Field, Extra
-from uagents import Model
-from uuid import UUID, uuid4
 from datetime import datetime, timezone
-from typing import Optional, List, Literal, Union
+from typing import Literal
+from uuid import UUID, uuid4
 
+from pydantic.v1 import BaseModel, Extra, Field
+
+from uagents import Model
 
 # here are some message types that is currently supported by DeltaV
 
@@ -12,7 +13,7 @@ class KeyValue(BaseModel):
     """Key value pair for options"""
 
     # key of the option
-    key: Union[int, str]
+    key: int | str
 
     # value of the option
     value: str
@@ -27,24 +28,29 @@ class AgentJSON(BaseModel):
     type: str
 
     # text to be presented before the UI element
-    text: Optional[str] = None
+    text: str | None = None
 
     # options for the user to select from
-    options: Optional[List[KeyValue]] = None
+    options: list[KeyValue] | None = None
 
 
 ### IMPORTANT NOTE ###
-# If the expected model doesn't have any field -> AI Engine automatically send the expected empty message (if there are more edges user will select which edge to go next)
+# If the expected model doesn't have any field -> AI Engine automatically send the
+# expected empty message (if there are more edges user will select which edge to go next)
 # If there are fields in the expected model, there is two case:
 #   1. Generic Model: AI Engine is going to trigger context building and build the required JSON
-#   2. Model inherits BaseMessage: if message_id: UUID, timestamp: datetime fields are present, AI Engine is going to wait for the user to send UserMessage via API / DeltaV UI
+#   2. Model inherits BaseMessage: if message_id: UUID, timestamp: datetime fields are present,
+#      AI Engine is going to wait for the user to send UserMessage via API / DeltaV UI
 class BaseMessage(Model):
     """Base message model for all messages"""
 
     # message id, for each new message it should be a unique id
     message_id: UUID = Field(
         default_factory=uuid4,
-        description="Unique message ID, never ask for this. Ignore this field! It's set automatically.",
+        description=(
+            "Unique message ID, never ask for this."
+            "Ignore this field! It's set automatically."
+        ),
     )
 
     # timestamp of the message creation
@@ -63,20 +69,29 @@ class DialogueMessage(BaseMessage):
     # type
     type: Literal["agent_message", "agent_json", "user_message"] = Field(
         default="user_message",
-        description="Type of message, don't ask for this. Ignore this field! It's set automatically.",
+        description=(
+            "Type of message, don't ask for this."
+            "Ignore this field! It's set automatically."
+        ),
     )
 
     # agent messages, this is the text that the agent wants to send to the user
-    agent_message: Optional[str] = Field(
+    agent_message: str | None = Field(
         default=None, description="The message that the agent wants to send to the user"
     )
-    agent_json: Optional[AgentJSON] = Field(
+    agent_json: AgentJSON | None = Field(
         default=None,
-        description="Agent JSON message, to map to UI elements. Ignore this field! It's set automatically.",
+        description=(
+            "Agent JSON message, to map to UI elements."
+            "Ignore this field! It's set automatically."
+        ),
     )
 
     # user messages, this is the text that the user wants to send to the agent
-    user_message: Optional[str] = Field(
+    user_message: str | None = Field(
         default=None,
-        description="The message that the user sent to the agent. Always Ask the user what message they want to send to the agent!",
+        description=(
+            "The message that the user sent to the agent."
+            "Always Ask the user what message they want to send to the agent!"
+        ),
     )
