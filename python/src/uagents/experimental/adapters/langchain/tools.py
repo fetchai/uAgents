@@ -1,20 +1,21 @@
 """Tool for converting a Langchain agent into a uAgent and registering it on Agentverse."""
 
-import os
-import atexit
-import time
-import threading
-import requests
-import socket
 import asyncio
-from typing import Dict, Any, Optional, Type, List, Union, Callable, Literal, TypedDict
+import atexit
+import os
+import socket
+import threading
+import time
 from datetime import datetime
-from pydantic.v1 import UUID4
+from threading import Lock
+from typing import Any, Callable, Dict, List, Literal, Optional, Type, TypedDict, Union
 from uuid import uuid4
 
+import requests
 from langchain_core.callbacks import CallbackManagerForToolRun
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
+from pydantic.v1 import UUID4
 
 from uagents import Agent, Context, Model, Protocol
 from uagents_core.contrib.protocols.chat import (
@@ -26,7 +27,6 @@ from uagents_core.contrib.protocols.chat import (
     chat_protocol_spec,
 )
 
-from threading import Lock
 
 # Flag to track if the cleanup handler is registered
 _CLEANUP_HANDLER_REGISTERED = False
@@ -34,6 +34,7 @@ _CLEANUP_HANDLER_REGISTERED = False
 # Dictionary to keep track of all running uAgents
 RUNNING_UAGENTS = {}
 RUNNING_UAGENTS_LOCK = Lock()
+
 
 # Define message models for communication
 class QueryMessage(Model):
@@ -69,6 +70,7 @@ class StructuredOutputResponse(Model):
 # Initialize protocols
 chat_proto = Protocol(spec=chat_protocol_spec)
 struct_output_client_proto = Protocol(name="StructuredOutputClientProtocol", version="0.1.0")
+
 
 # Cleanup functions for uAgents
 def cleanup_uagent(agent_name):
