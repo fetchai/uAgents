@@ -39,8 +39,10 @@ RUNNING_UAGENTS_LOCK = Lock()
 class QueryMessage(Model):
     query: str
 
+
 class ResponseMessage(Model):
     response: str
+
 
 # Define chat helper functions
 def create_text_chat(text: str, end_session: bool = True) -> ChatMessage:
@@ -53,13 +55,16 @@ def create_text_chat(text: str, end_session: bool = True) -> ChatMessage:
         content=content,
     )
 
+
 # Define model for structured output
 class StructuredOutputPrompt(Model):
     prompt: str
     output_schema: dict[str, Any]
 
+
 class StructuredOutputResponse(Model):
     output: dict[str, Any]
+
 
 # Initialize protocols
 chat_proto = Protocol(spec=chat_protocol_spec)
@@ -75,11 +80,13 @@ def cleanup_uagent(agent_name):
             return True
     return False
 
+
 def cleanup_all_uagents():
     """Stop all uAgents"""
     with RUNNING_UAGENTS_LOCK:
         for agent_name in list(RUNNING_UAGENTS.keys()):
             cleanup_uagent(agent_name)
+
 
 class UAgentRegisterToolInput(BaseModel):
     """Input schema for UAgentRegister tool."""
@@ -123,7 +130,7 @@ class UAgentRegisterTool(BaseTool):
         if preferred_port is not None:
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.bind(('', preferred_port))
+                    s.bind(("", preferred_port))
                     return preferred_port
             except OSError:
                 print(f"Preferred port {preferred_port} is in use, searching for alternative...")
@@ -132,7 +139,7 @@ class UAgentRegisterTool(BaseTool):
         for port in range(start_range, end_range):
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.bind(('', port))
+                    s.bind(("", port))
                     return port
             except OSError:
                 continue
@@ -170,7 +177,7 @@ class UAgentRegisterTool(BaseTool):
             "uagent": uagent,
             "port": port,
             "agent_obj": agent_obj,
-            "ai_agent_address": "agent1qtlpfshtlcxekgrfcpmv7m9zpajuwu7d5jfyachvpa4u3dkt6k0uwwp2lct", #ai_agent_address
+            "ai_agent_address": "agent1qtlpfshtlcxekgrfcpmv7m9zpajuwu7d5jfyachvpa4u3dkt6k0uwwp2lct",  # ai_agent_address
             "mailbox": mailbox
         }
         
@@ -196,10 +203,10 @@ class UAgentRegisterTool(BaseTool):
                 
                 try:
                     # Try .run() method first (most common with agents)
-                    if hasattr(agent, 'run'):
+                    if hasattr(agent, "run"):
                         result = agent.run(msg.query)
                     # Try .invoke() for newer agent versions
-                    elif hasattr(agent, 'invoke'):
+                    elif hasattr(agent, "invoke"):
                         result = agent.invoke(msg.query)
                     # Fall back to direct call for chains
                     else:
