@@ -63,6 +63,7 @@ def register_in_almanac(
     identity: Identity,
     endpoints: list[str],
     protocol_digests: list[str],
+    metadata: dict[str, str | dict[str, str]] | None = None,
     *,
     agentverse_config: AgentverseConfig | None = None,
     timeout: int = DEFAULT_REQUEST_TIMEOUT,
@@ -115,7 +116,7 @@ def register_in_almanac(
         agent_identifier=agent_address,
         protocols=protocol_digests,
         endpoints=agent_endpoints,
-        metadata=None,
+        metadata=metadata,
     )
 
     logger.info(msg="Registering with Almanac API", extra=attestation.model_dump())
