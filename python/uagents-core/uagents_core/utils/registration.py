@@ -2,6 +2,7 @@
 This module provides methods to register your identity with the Fetch.ai services.
 """
 
+from typing import Dict, Optional, Union
 import urllib.parse
 
 import requests
@@ -65,6 +66,7 @@ def register_in_almanac(
     protocol_digests: list[str],
     *,
     agentverse_config: AgentverseConfig | None = None,
+    metadata: Optional[Dict[str, Union[str, Dict[str, str]]]] = None,
     timeout: int = DEFAULT_REQUEST_TIMEOUT,
 ) -> bool:
     """
@@ -115,7 +117,7 @@ def register_in_almanac(
         agent_identifier=agent_address,
         protocols=protocol_digests,
         endpoints=agent_endpoints,
-        metadata=None,
+        metadata=metadata,
     )
 
     logger.info(msg="Registering with Almanac API", extra=attestation.model_dump())
