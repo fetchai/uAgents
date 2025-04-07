@@ -221,11 +221,6 @@ def register_in_agentverse(
                 extra=registration_metadata,
             )
             return False
-        if response.status_code == 406:
-            logger.info(
-                msg=response.ex,
-                extra=registration_metadata,
-            )
         else:
             registration_response = RegistrationResponse.model_validate_json(
                 response.text
