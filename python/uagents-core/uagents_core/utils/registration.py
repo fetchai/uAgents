@@ -52,7 +52,7 @@ def _send_post_request(
         return True, response
     except requests.RequestException as e:
         logger.error(
-            msg="Error submitting request",
+            msg=f"Error submitting request: {response.text}",
             extra={"url": url, "data": data.model_dump_json()},
             exc_info=e,
         )
@@ -221,9 +221,9 @@ def register_in_agentverse(
                 extra=registration_metadata,
             )
             return False
-        if response.status_code == 409:
+        if response.status_code == 406:
             logger.info(
-                msg="Agent already registered with Agentverse",
+                msg=response.ex,
                 extra=registration_metadata,
             )
         else:
