@@ -732,7 +732,12 @@ class ExternalContext(InternalContext):
         sender = self._message_received.sender
         received_digest = self._message_received.schema_digest
 
+        # If no replies are defined, do not check for valid replies
         if not self._replies or received_digest not in self._replies:
+            return
+        
+        # If the replies is defined as the empty set, do not check for valid replies
+        if self._replies[received_digest] == set():
             return
 
         valid_replies = set(self._replies[received_digest]) | {ERROR_MESSAGE_DIGEST}
