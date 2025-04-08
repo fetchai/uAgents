@@ -51,9 +51,9 @@ def _send_post_request(
         response.raise_for_status()
         return True, response
     except requests.RequestException as e:
-        error_response = getattr(e, "response", None)
-        if error_response is not None:
-            error_detail = error_response.text
+        error_detail = getattr(e, "response", None)
+        if error_detail is not None:
+            error_detail = error_detail.text
         logger.error(
             msg=f"Error submitting request: {error_detail}",
             extra={"url": url, "data": data.model_dump_json()},
