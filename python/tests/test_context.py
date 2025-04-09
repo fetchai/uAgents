@@ -139,6 +139,8 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertEqual(result, exp_msg_status)
+        with self.assertNoLogs(context.logger, level="ERROR"):
+            context.validate_replies(Incoming)
 
     async def test_send_local_dispatch_not_a_reply(self):
         context = self.get_external_context(
@@ -155,8 +157,12 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             endpoint="",
             session=context.session,
         )
-
         self.assertEqual(result, exp_msg_status)
+
+        with self.assertLogs(context.logger, level="ERROR") as log:
+            context.validate_replies(Incoming)
+            self.assertEqual(len(log.output), 1)
+            self.assertIn("No valid reply", log.output[0])
 
     async def test_send_local_dispatch_replies_not_validated(self):
         context = self.get_external_context(
@@ -174,6 +180,9 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             session=context.session,
         )
         self.assertEqual(result, exp_msg_status)
+
+        with self.assertNoLogs(context.logger, level="ERROR"):
+            context.validate_replies(Incoming)
 
     async def test_send_local_dispatch_valid_interval_msg(self):
         context = self.alice._build_context()
