@@ -732,6 +732,9 @@ class ExternalContext(InternalContext):
     def validate_replies(self, message_type: type[Model]) -> None:
         """
         If the context specifies replies, ensure that a valid reply was sent.
+
+        Args:
+            message_type (type[Model]): The type of the received message.
         """
         sender = self._message_received.sender
         received_digest = self._message_received.schema_digest

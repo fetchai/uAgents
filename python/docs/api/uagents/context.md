@@ -314,14 +314,14 @@ Get the session UUID associated with the context.
 #### outbound_messages[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L321)
 ```python
 @property
-def outbound_messages() -> dict[str, tuple[JsonStr, str]]
+def outbound_messages() -> dict[str, list[tuple[JsonStr, str]]]
 ```
 
 Get the dictionary of outbound messages associated with the context.
 
 **Returns**:
 
-  dict[str, tuple[JsonStr, str]]: The dictionary of outbound messages.
+  dict[str, list[tuple[JsonStr, str]]]: The dictionary of outbound messages.
 
 
 
@@ -352,7 +352,7 @@ contexts, like 'replies', 'message_received', or 'protocol'.
 
 
 
-#### send_and_receive[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L589)
+#### send_and_receive[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L593)
 ```python
 async def send_and_receive(
     destination: str,
@@ -380,7 +380,7 @@ Send a message to the specified destination and receive a response.
 
 
 
-## ExternalContext Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L689)
+## ExternalContext Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L693)
 
 ```python
 class ExternalContext(InternalContext)
@@ -400,7 +400,7 @@ Represents the reactive context in which messages are handled and processed.
 
 
 
-#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L703)
+#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L707)
 ```python
 def __init__(message_received: MsgInfo,
              queries: dict[str, asyncio.Future] | None = None,
@@ -422,16 +422,20 @@ Initialize the ExternalContext instance and attributes needed from the InternalC
 
 
 
-#### validate_replies[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L728)
+#### validate_replies[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L732)
 ```python
-def validate_replies() -> None
+def validate_replies(message_type: type[Model]) -> None
 ```
 
 If the context specifies replies, ensure that a valid reply was sent.
 
+**Arguments**:
+
+- `message_type` _type[Model]_ - The type of the received message.
 
 
-#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L753)
+
+#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L773)
 ```python
 async def send(destination: str,
                message: Model,
