@@ -144,7 +144,7 @@ def send_message_to_agent(
             result.append(
                 MsgStatus(
                     status=DeliveryStatus.FAILED,
-                    detail=response.text,
+                    detail=str(e),
                     destination=destination,
                     endpoint=endpoint,
                     session=env.session,
