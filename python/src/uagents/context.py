@@ -13,7 +13,7 @@ from cosmpy.aerial.client import LedgerClient
 from pydantic.v1 import ValidationError
 from uagents_core.envelope import Envelope
 from uagents_core.identity import parse_identifier
-from uagents_core.models import ERROR_MESSAGE_DIGEST, Model
+from uagents_core.models import ERROR_MESSAGE_DIGEST, ErrorMessage, Model
 from uagents_core.types import DeliveryStatus, MsgStatus
 
 from uagents.communication import dispatch_local_message
@@ -290,7 +290,7 @@ class InternalContext(Context):
         self._interval_messages = interval_messages
         self._wallet_messaging_client = wallet_messaging_client
         self._message_history = message_history
-        self._outbound_messages: dict[str, tuple[JsonStr, str]] = {}
+        self._outbound_messages: dict[str, list[tuple[JsonStr, str]]] = {}
 
     @property
     def agent(self) -> "AgentRepresentation":
@@ -319,12 +319,12 @@ class InternalContext(Context):
         return self._session
 
     @property
-    def outbound_messages(self) -> dict[str, tuple[JsonStr, str]]:
+    def outbound_messages(self) -> dict[str, list[tuple[JsonStr, str]]]:
         """
         Get the dictionary of outbound messages associated with the context.
 
         Returns:
-            dict[str, tuple[JsonStr, str]]: The dictionary of outbound messages.
+            dict[str, list[tuple[JsonStr, str]]]: The dictionary of outbound messages.
         """
         return self._outbound_messages
 
@@ -496,10 +496,14 @@ class InternalContext(Context):
                     session=self._session,
                 )
 
-            self._outbound_messages[parsed_address] = (
-                message_body,
-                message_schema_digest,
-            )
+            if parsed_address in self._outbound_messages:
+                self._outbound_messages[parsed_address].append(
+                    (message_body, message_schema_digest)
+                )
+            else:
+                self._outbound_messages[parsed_address] = [
+                    (message_body, message_schema_digest)
+                ]
 
         if result is None:
             # Resolve destination using the resolver
@@ -725,29 +729,45 @@ class ExternalContext(InternalContext):
         self._message_received = message_received
         self._protocol = protocol or ("", None)
 
-    def validate_replies(self) -> None:
+    def validate_replies(self, message_type: type[Model]) -> None:
         """
         If the context specifies replies, ensure that a valid reply was sent.
+
+        Args:
+            message_type (type[Model]): The type of the received message.
         """
         sender = self._message_received.sender
         received_digest = self._message_received.schema_digest
 
+        # If no replies are defined, do not check for valid replies
         if not self._replies or received_digest not in self._replies:
             return
 
-        valid_replies = set(self._replies[received_digest]) | {ERROR_MESSAGE_DIGEST}
+        # If replies are defined as empty, do not check for valid replies
+        if self._replies[received_digest] == {}:
+            return
+
+        valid_replies = self._replies[received_digest] | {
+            ERROR_MESSAGE_DIGEST: ErrorMessage
+        }
 
         valid_reply_sent = False
-        for target, (_, schema_digest) in self._outbound_messages.items():
-            if target == sender and schema_digest in valid_replies:
+        for target, msgs in self._outbound_messages.items():
+            if target == sender and any(
+                [digest in valid_replies for _, digest in msgs]
+            ):
                 valid_reply_sent = True
                 break
 
         if not valid_reply_sent:
+            valid_reply_types = {model.__name__ for model in valid_replies.values()}
             log(
                 logger=self.logger,
                 level=logging.ERROR,
-                message=f"No valid reply was sent to {sender} for message: {received_digest}",
+                message=(
+                    f"No valid reply {valid_reply_types} was sent to "
+                    f"{sender} for received message: {message_type.__name__}."
+                ),
             )
 
     async def send(
