@@ -6,6 +6,7 @@ from aioresponses import aioresponses
 from uagents_core.envelope import Envelope
 
 from uagents import Agent, Protocol
+from uagents.agent import AgentRepresentation
 from uagents.context import (
     DeliveryStatus,
     ExternalContext,
@@ -45,6 +46,9 @@ msg_digest = Model.build_schema_digest(msg)
 request = Request(text="request")
 request_digest = Model.build_schema_digest(request)
 
+response = Response(text="response")
+response_digest = Model.build_schema_digest(response)
+
 
 class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
@@ -73,6 +77,10 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         async def _(ctx, sender, msg):
             await ctx.send(sender, Response(text="response"))
 
+        @proto0.on_message(model=Response, replies=set())
+        async def _(ctx, sender, msg):
+            pass
+
         @proto1.on_message(model=Message, replies=Incoming)
         async def _(ctx, sender, msg):
             await asyncio.sleep(1.1)
@@ -94,7 +102,11 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         queries: dict[str, asyncio.Future] | None = None,
     ):
         return ExternalContext(
-            agent=self.alice,
+            agent=AgentRepresentation(
+                address=self.alice.address,
+                name=self.alice.name,
+                identity=self.alice._identity,
+            ),
             storage=self.alice._storage,
             ledger=self.alice._ledger,
             resolver=self.alice._resolver,
@@ -164,7 +176,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(len(log.output), 1)
             self.assertIn("No valid reply", log.output[0])
 
-    async def test_send_local_dispatch_replies_not_validated(self):
+    async def test_send_local_dispatch_replies_not_defined(self):
         context = self.get_external_context(
             request,
             request_digest,
@@ -183,6 +195,40 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
         with self.assertNoLogs(context.logger, level="ERROR"):
             context.validate_replies(Incoming)
+
+    async def test_send_local_dispatch_replies_empty(self):
+        context = self.get_external_context(
+            response,
+            response_digest,
+            replies=self.alice._replies,
+            sender=self.bob.address,
+        )
+        result = await context.send(self.bob.address, Message(message="msg"))
+        exp_msg_status = MsgStatus(
+            status=DeliveryStatus.DELIVERED,
+            detail="Message dispatched locally",
+            destination=self.bob.address,
+            endpoint="",
+            session=context.session,
+        )
+        self.assertEqual(result, exp_msg_status)
+
+        with self.assertNoLogs(context.logger, level="ERROR"):
+            context.validate_replies(Incoming)
+
+    async def test_send_local_dispatch_no_reply_to_sender(self):
+        context = self.get_external_context(
+            incoming,
+            incoming_digest,
+            replies=self.alice._replies,
+            sender=self.bob.address,
+        )
+        await context.send(self.clyde.address, msg)
+
+        with self.assertLogs(context.logger, level="ERROR") as log:
+            context.validate_replies(Incoming)
+            self.assertEqual(len(log.output), 1)
+            self.assertIn("No valid reply", log.output[0])
 
     async def test_send_local_dispatch_valid_interval_msg(self):
         context = self.alice._build_context()
