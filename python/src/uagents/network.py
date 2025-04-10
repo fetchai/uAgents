@@ -210,7 +210,12 @@ class AlmanacContract(LedgerContract):
         """
         try:
             deployed_version = self.get_contract_version()
-            if deployed_version != ALMANAC_CONTRACT_VERSION:
+
+            # parse major and minor versions
+            deployed_major_version = deployed_version.split(".")[0]
+            supported_major_version = ALMANAC_CONTRACT_VERSION.split(".")[0]
+
+            if supported_major_version != deployed_major_version:
                 logger.warning(
                     f"The deployed version of the Almanac Contract is {deployed_version} "
                     f"and you are using version {ALMANAC_CONTRACT_VERSION}. "
