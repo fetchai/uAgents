@@ -19,7 +19,6 @@ from uagents_core.config import AgentverseConfig
 from uagents_core.identity import Identity, derive_key_from_seed, is_user_address
 from uagents_core.models import ErrorMessage, Model
 from uagents_core.registration import AgentUpdates
-from uagents_core.storage import ExternalStorage
 from uagents_core.types import AddressPrefix, AgentEndpoint, AgentInfo
 
 from uagents.asgi import ASGIServer
@@ -359,7 +358,6 @@ class Agent(Sink):
         self._ledger = get_ledger(network)
         self._almanac_contract = get_almanac_contract(network)
         self._storage = KeyValueStore(self.address[0:16])
-        self._external_storage = ExternalStorage(self._identity, self._agentverse)
         self._interval_handlers: list[tuple[IntervalCallback, float]] = []
         self._interval_messages: set[str] = set()
         self._signed_message_handlers: dict[str, MessageCallback] = {}
@@ -668,16 +666,6 @@ class Agent(Sink):
             KeyValueStore: The key-value store instance.
         """
         return self._storage
-
-    @property
-    def external_storage(self) -> ExternalStorage:
-        """
-        Get the external storage interface used by the agent.
-
-        Returns:
-            ExternalStorage: The external storage client.
-        """
-        return self._external_storage
 
     @property
     def agentverse(self) -> AgentverseConfig:

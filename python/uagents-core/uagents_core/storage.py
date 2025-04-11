@@ -8,8 +8,9 @@ from uagents_core.config import AgentverseConfig
 from uagents_core.identity import Identity
 
 
-
-def compute_attestation(identity: Identity, validity_start: datetime, validity_secs: int, nonce: bytes) -> str:
+def compute_attestation(
+    identity: Identity, validity_start: datetime, validity_secs: int, nonce: bytes
+) -> str:
     """
     Compute a valid agent attestation token for authentication.
     """
@@ -26,7 +27,6 @@ def compute_attestation(identity: Identity, validity_start: datetime, validity_s
     signature = identity.sign(payload)
     attestation = f"attr:{base64.b64encode(payload).decode()}:{signature}"
     return attestation
-
 
 
 class ExternalStorage:
@@ -46,7 +46,9 @@ class ExternalStorage:
 
         response = requests.put(url, json=payload, headers=headers)
         if response.status_code != 200:
-            raise RuntimeError(f"Upload failed: {response.status_code}, {response.text}")
+            raise RuntimeError(
+                f"Upload failed: {response.status_code}, {response.text}"
+            )
         return response.json()
 
     def download(self, asset_id: str) -> str:
@@ -58,7 +60,9 @@ class ExternalStorage:
 
         response = requests.get(url, headers=headers)
         if response.status_code != 200:
-            raise RuntimeError(f"Download failed: {response.status_code}, {response.text}")
+            raise RuntimeError(
+                f"Download failed: {response.status_code}, {response.text}"
+            )
 
         data = response.json()
         return data["contents"]
