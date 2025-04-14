@@ -1,5 +1,6 @@
 import base64
 import struct
+from typing import Optional
 from datetime import datetime
 from secrets import token_bytes
 
@@ -30,9 +31,9 @@ def compute_attestation(
 
 
 class ExternalStorage:
-    def __init__(self, identity: Identity, agentverse: AgentverseConfig):
+    def __init__(self, identity: Identity, storage_url: Optional[str] = None):
         self.identity = identity
-        self.storage_url = agentverse.storage_endpoint
+        self.storage_url = storage_url or AgentverseConfig().storage_endpoint
 
     def _make_attestation(self) -> str:
         nonce = token_bytes(32)
