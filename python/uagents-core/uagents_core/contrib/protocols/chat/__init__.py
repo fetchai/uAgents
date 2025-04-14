@@ -80,6 +80,10 @@ class EndStreamContent(Model):
     stream_id: UUID4
 
 
+class CreateResourceContent(Model):
+    type: Literal["create-resource"]
+
+
 # The combined agent content types
 AgentContent = (
     TextContent
@@ -89,6 +93,7 @@ AgentContent = (
     | EndSessionContent
     | StartStreamContent
     | EndStreamContent
+    | CreateResourceContent
 )
 
 
