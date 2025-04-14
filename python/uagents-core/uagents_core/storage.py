@@ -43,14 +43,17 @@ class ExternalStorage:
     def upload(self, asset_id: str, asset_content: str):
         url = f"{self.storage_url}/assets/{asset_id}/contents/"
         headers = {"Authorization": f"Agent {self._make_attestation()}"}
-        payload = {"contents": base64.b64encode(asset_content.encode()).decode()}
+        payload = {
+            "contents": base64.b64encode(asset_content.encode()).decode(),
+            "mime_type": "text/plain"
+        }
 
         response = requests.put(url, json=payload, headers=headers)
         if response.status_code != 200:
             raise RuntimeError(
                 f"Upload failed: {response.status_code}, {response.text}"
             )
-        return response.json()
+        return response
 
     def download(self, asset_id: str) -> str:
         url = f"{self.storage_url}/assets/{asset_id}/contents/"
@@ -65,5 +68,4 @@ class ExternalStorage:
                 f"Download failed: {response.status_code}, {response.text}"
             )
 
-        data = response.json()
-        return data["contents"]
+        return response
