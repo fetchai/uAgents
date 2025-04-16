@@ -45,7 +45,7 @@ class ExternalStorage:
         headers = {"Authorization": f"Agent {self._make_attestation()}"}
         payload = {
             "contents": base64.b64encode(asset_content.encode()).decode(),
-            "mime_type": "text/plain"
+            "mime_type": "text/plain",
         }
 
         response = requests.put(url, json=payload, headers=headers)
