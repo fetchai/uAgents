@@ -22,19 +22,19 @@ class Settings(BaseSettings):
     pypi_password: str
 
     # which package we are releasing
-    package: Literal["main", "core"] = "main"
+    package: Literal["main", "core", "adapter"] = "main"
 
 
 def get_tag_prefix(package: str) -> str:
     """Map package to tag."""
 
-    return {"main": "v", "core": "core@"}[package]
+    return {"main": "v", "core": "core@", "adapter": "adapter@"}[package]
 
 
 def get_package_path(package: str) -> Path:
     """Get package path."""
 
-    return {"main": ROOT, "core": ROOT / "uagents-core"}[package]
+    return {"main": ROOT, "core": ROOT / "uagents-core", "adapter": ROOT / "uagents-adapter"}[package]
 
 
 def get_the_latest_release_version(package: str) -> Version:
@@ -67,6 +67,7 @@ def make_tag(current_version: Version, package: str) -> None:
     tag_text = {
         "main": f"Release {current_version}",
         "core": f"UAgents-Core release {current_version}",
+        "adapter": f"UAgents-Adapter release {current_version}",
     }[package]
     subprocess.check_call(
         f"git tag {tag_prefix}{current_version} -m '{tag_text}'", shell=True

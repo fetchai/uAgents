@@ -53,4 +53,10 @@ jobs:
           export PYPI_PASSWORD=$PYPI_PASSWORD_FOR_CORE
         fi
 
+        if [[ "${{ github.event.pull_request.head.ref }}" == release/adapter@* ]]; then
+          export PACKAGE="adapter"
+          unset PYPI_PASSWORD
+          export PYPI_PASSWORD=$PYPI_PASSWORD_FOR_ADAPTER
+        fi
+
         python3 ./scripts/do_release.py
