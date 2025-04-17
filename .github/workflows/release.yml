@@ -40,6 +40,7 @@ jobs:
         PYPI_USERNAME: __token__
         PYPI_PASSWORD: ${{secrets.FETCHBOT_PYPI_TOKEN}}
         PYPI_PASSWORD_FOR_CORE: ${{ secrets.FETCHBOT_PYPI_TOKEN_FOR_CORE }}
+        PYPI_PASSWORD_FOR_ADAPTER: ${{ secrets.FETCHBOT_PYPI_TOKEN_FOR_ADAPTER }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GH_TOKEN: ${{ github.token }}
       run: |
