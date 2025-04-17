@@ -34,10 +34,11 @@ def get_tag_prefix(package: str) -> str:
 def get_package_path(package: str) -> Path:
     """Get package path."""
 
-    return {"main": ROOT, 
-            "core": ROOT / "uagents-core", 
-            "adapter": ROOT / "uagents-adapter"
-        }[package]
+    return {
+        "main": ROOT,
+        "core": ROOT / "uagents-core",
+        "adapter": ROOT / "uagents-adapter",
+    }[package]
 
 
 def get_the_latest_release_version(package: str) -> Version:
