@@ -1,25 +1,22 @@
-[tool.poetry]
+[project]
 name = "uagents-adapter"
 version = "0.1.0"
 description = "Adapters for uAgents to integrate with LangChain and CrewAI"
-authors = ["Fetch.AI Limited"]
-license = "Apache 2.0"
+authors = [{ name = "Fetch.AI Limited" }]
+license = { text = "Apache 2.0" }
 readme = "README.md"
 keywords = ["uagents", "agents", "langchain", "crewai", "fetch.ai"]
-packages = [{include = "uagents_adapter", from = "src" }]
+requires-python = ">=3.10,<4.0"
+dependencies = [
+    "uagents (>=0.22.3)",
+    "pydantic (>=2.8,<3.0)",
+    "langchain-core (>=0.3.52,<0.4.0)",
+    "requests (>=2.32.0,<3.0)",
+]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-uagents = "<=0.22.3"
-pydantic = ">=2.8,<3.0"
-langchain-core = ">=0.3.52,<0.4.0"
-requests = "^2.32.0"
-
-# Dependencies moved to flat structure from optional groups
-langchain-openai = ">=0.3.13,<0.4.0"
-openai = "^1.74.0"
-crewai = "^0.33.0"
-tavily-python = "^0.2.8"
+[tool.poetry]
+# install from src/uagents_adapter folder
+packages = [{ include = "uagents_adapter", from = "src" }]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
