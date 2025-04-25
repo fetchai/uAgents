@@ -222,7 +222,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         self._ledger = ledger
         self._testnet = testnet
         self._almanac_contract = almanac_contract
-        self._registration_fee = almanac_contract.get_registration_fee()
+        self._registration_fee = almanac_contract.get_registration_fee(wallet.address())
         self._logger = logger or logging.getLogger(__name__)
         self._broadcast_retries: int | None = None
         self._broadcast_retry_delay: RetryDelayFunc | None = None
@@ -393,7 +393,7 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
         self._wallet = wallet
         self._almanac_contract = almanac_contract
         self._testnet = testnet
-        self._registration_fee = almanac_contract.get_registration_fee()
+        self._registration_fee = almanac_contract.get_registration_fee(wallet.address())
         self._logger = logger or logging.getLogger(__name__)
         self._records: list[AlmanacContractRecord] = []
         self._identities: dict[str, Identity] = {}
