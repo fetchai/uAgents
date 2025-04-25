@@ -59,6 +59,10 @@ class FakeWasmClient:
             )
         elif "query_records" in data:
             return QuerySmartContractStateResponse(data=json.dumps({}).encode())
+        elif "access_control" in data:
+            return QuerySmartContractStateResponse(
+                data=json.dumps({"has_role": False}).encode()
+            )
         print("Unknown request", req, data)
         raise AssertionError("Unknown request")
 
