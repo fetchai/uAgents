@@ -265,13 +265,27 @@ class AlmanacContract(LedgerContract):
 
         return response["contract_version"]
 
-    def get_registration_fee(self) -> int:
+    def get_registration_fee(self, wallet_address: Address | None = None) -> int:
         """
         Get the registration fee for the contract.
 
         Returns:
             int: The registration fee.
         """
+
+        if wallet_address:
+            role_query_msg = {
+                "access_control": {
+                    "query_has_role": {
+                        "role": "clearing_registrar",
+                        "addr": str(wallet_address),
+                    }
+                }
+            }
+            role_response = self.query_contract(role_query_msg)
+            if role_response.get("has_role"):
+                return 0
+
         query_msg = {"query_contract_state": {}}
         response = self.query_contract(query_msg)
 
@@ -457,13 +471,14 @@ class AlmanacContract(LedgerContract):
         )
 
         denom = self._client.network_config.fee_denomination
-        fee = self.get_registration_fee()
+        fee = self.get_registration_fee(wallet.address())
+        funds = f"{fee}{denom}" if fee else None
         transaction.add_message(
             create_cosmwasm_execute_msg(
                 sender_address=wallet.address(),
                 contract_address=self.address,
                 args=almanac_msg,
-                funds=f"{fee}{denom}",
+                funds=funds,
             )
         )
 
@@ -536,13 +551,14 @@ class AlmanacContract(LedgerContract):
             )
 
             denom = self._client.network_config.fee_denomination
-            fee = self.get_registration_fee()
+            fee = self.get_registration_fee(wallet.address())
+            funds = f"{fee}{denom}" if fee else None
             transaction.add_message(
                 create_cosmwasm_execute_msg(
                     sender_address=wallet.address(),
                     contract_address=self.address,
                     args=almanac_msg,
-                    funds=f"{fee}{denom}",
+                    funds=funds,
                 )
             )
 
