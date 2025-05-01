@@ -52,6 +52,7 @@ class TestAgent(unittest.TestCase):
         self.assertEqual(len(models), 1)
         self.assertEqual(len(unsigned_msg_handlers), 0)
         self.assertEqual(len(signed_msg_handlers), 1)
+        self.assertEqual(len(protocol.spec.interactions), 1)
         self.assertTrue(isinstance(signed_msg_handlers[MESSAGE_DIGEST], Callable))
         self.assertTrue(MESSAGE_DIGEST in self.protocol.models)
 
