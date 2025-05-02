@@ -1,10 +1,11 @@
 import base64
 import struct
-from typing import Optional
 from datetime import datetime
 from secrets import token_bytes
+from typing import Optional
 
 import requests
+
 from uagents_core.config import AgentverseConfig
 from uagents_core.identity import Identity
 

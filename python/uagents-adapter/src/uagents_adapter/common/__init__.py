@@ -1,11 +1,11 @@
 """Common functionality and utilities for uAgent adapters."""
 
-import atexit
 import asyncio
+import atexit
 import os
 import socket
 from datetime import datetime
-from threading import Lock, Event
+from threading import Event, Lock
 from typing import Any, Dict, Optional, Type
 from uuid import uuid4
 
@@ -13,13 +13,11 @@ import requests
 from langchain_core.callbacks import CallbackManagerForToolRun
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
-from uagents import Agent, Context, Model, Protocol
+from uagents import Agent, Model
 from uagents_core.contrib.protocols.chat import (
-    ChatAcknowledgement,
     ChatMessage,
     EndSessionContent,
     TextContent,
-    chat_protocol_spec,
 )
 
 # Dictionary to keep track of all running uAgents
@@ -33,6 +31,7 @@ AGENT_READY_EVENT = Event()
 # Define message model for responses
 class ResponseMessage(Model):
     """Standard response message for uAgents."""
+
     response: str
 
 
@@ -73,7 +72,7 @@ atexit.register(cleanup_all_uagents)
 
 class BaseRegisterToolInput(BaseModel):
     """Base input schema for register tools."""
-    
+
     name: str = Field(..., description="Name of the agent")
     port: int = Field(
         ..., description="Port to run on (defaults to a random port between 8000-9000)"
@@ -100,10 +99,10 @@ class BaseRegisterTool(BaseTool):
     _current_agent_info: Optional[Dict[str, Any]] = None
 
     def _find_available_port(
-        self, 
-        preferred_port: Optional[int] = None, 
-        start_range: int = 8000, 
-        end_range: int = 9000
+        self,
+        preferred_port: Optional[int] = None,
+        start_range: int = 8000,
+        end_range: int = 9000,
     ) -> int:
         """Find an available port to use for the agent."""
         # Try the preferred port first
@@ -130,16 +129,11 @@ class BaseRegisterTool(BaseTool):
         raise RuntimeError(
             f"Could not find an available port in range {start_range}-{end_range}"
         )
-    
-    def _create_agent(
-        self, 
-        name: str, 
-        port: int, 
-        mailbox: bool = True
-    ) -> Agent:
+
+    def _create_agent(self, name: str, port: int, mailbox: bool = True) -> Agent:
         """Create a uAgent with consistent configuration."""
         seed = f"uagent_seed_{name}_{port}"
-        
+
         if mailbox:
             return Agent(name=name, port=port, seed=seed, mailbox=True)
         else:
@@ -149,31 +143,31 @@ class BaseRegisterTool(BaseTool):
                 seed=seed,
                 endpoint=[f"http://localhost:{port}/submit"],
             )
-    
+
     def _get_ai_agent_address(self, ai_agent_address: Optional[str] = None) -> str:
         """Get AI agent address with fallback to environment variable."""
         if ai_agent_address:
             return ai_agent_address
-            
+
         env_address = os.getenv("AI_AGENT_ADDRESS")
         if env_address:
             return env_address
-            
+
         # Default fallback address
         return "agent1qtlpfshtlcxekgrfcpmv7m9zpajuwu7d5jfyachvpa4u3dkt6k0uwwp2lct"
-        
+
     async def _start_agent_async(self, uagent: Agent) -> None:
         """Start an agent using asyncio."""
         await uagent.run()
-    
+
     def _start_uagent_with_asyncio(self, agent_info: Dict[str, Any]) -> None:
         """Start a uAgent using asyncio in its own thread."""
         uagent = agent_info["uagent"]
-        
+
         # Create and set up a new event loop for this thread
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        
+
         # Start the agent in the loop
         try:
             loop.run_until_complete(self._start_agent_async(uagent))
@@ -181,23 +175,25 @@ class BaseRegisterTool(BaseTool):
             print(f"Error running uAgent: {e}")
         finally:
             loop.close()
-    
-    def _register_with_agentverse(self, agent_info: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+
+    def _register_with_agentverse(
+        self, agent_info: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Register agent with Agentverse API."""
         # Get API token from agent_info or environment
         api_token = agent_info.get("api_token")
         if not api_token:
             api_token = os.getenv("AGENTVERSE_API_TOKEN")
-            
+
         if not api_token:
             print("No API token provided for Agentverse registration")
             return None
-        
+
         # Get agent information
         name = agent_info["name"]
         description = agent_info.get("description", f"Agent: {name}")
         address = agent_info["uagent"].address
-        
+
         # Set up the API request
         endpoint = "https://agentverse.ai/api/v1/register-agent"
         headers = {"Authorization": f"Bearer {api_token}"}
@@ -206,11 +202,11 @@ class BaseRegisterTool(BaseTool):
             "description": description,
             "address": address,
         }
-        
+
         # Make the API request
         try:
             response = requests.post(endpoint, json=data, headers=headers)
-            
+
             if response.status_code == 200:
                 return response.json()
             else:
@@ -219,7 +215,7 @@ class BaseRegisterTool(BaseTool):
         except Exception as e:
             print(f"Error registering agent with Agentverse: {e}")
             return None
-    
+
     def get_agent_info(self) -> Optional[Dict[str, Any]]:
         """Get information about the current agent."""
         return self._current_agent_info
@@ -236,46 +232,47 @@ class BaseRegisterTool(BaseTool):
         """Common run implementation to be used by derived classes."""
         # Reset ready event
         AGENT_READY_EVENT.clear()
-        
+
         # Add additional information to agent_info
         if description:
             agent_info["description"] = description
         if api_token:
             agent_info["api_token"] = api_token
-            
+
         # Store in module-level registry and instance variable
         with RUNNING_UAGENTS_LOCK:
             RUNNING_UAGENTS[name] = agent_info
         self._current_agent_info = agent_info
-        
+
         # Start the agent in a separate thread using asyncio
         import threading
+
         agent_thread = threading.Thread(
             target=self._start_uagent_with_asyncio,
             args=(agent_info,),
             daemon=True,
         )
         agent_thread.start()
-        
+
         # Wait for agent to be ready (or timeout)
         AGENT_READY_EVENT.wait(timeout=15)
-        
+
         # Register with Agentverse if we have an API token
         if api_token and agent_info.get("mailbox", True):
             registration_result = self._register_with_agentverse(agent_info)
             agent_info["registration_result"] = registration_result
-        
+
         # Return as requested format
         if return_dict:
             return agent_info
-            
+
         # Format a nice output message
         address = agent_info.get("address", "unknown")
         result = f"Created uAgent '{name}' with address {address} on port {port}"
-        
+
         if agent_info.get("registration_result"):
             result += "\nRegistered with Agentverse successfully"
-            
+
         return result
 
     async def _arun(
@@ -290,4 +287,4 @@ class BaseRegisterTool(BaseTool):
         run_manager: Optional[CallbackManagerForToolRun] = None,
     ) -> str:
         """Async implementation to be overridden by subclasses."""
-        raise NotImplementedError("Subclasses must implement this method") 
+        raise NotImplementedError("Subclasses must implement this method")

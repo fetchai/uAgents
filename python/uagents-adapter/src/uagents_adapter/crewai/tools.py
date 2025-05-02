@@ -1,19 +1,15 @@
 """Tool for converting a CrewAI agent into a uAgent and registering it on Agentverse."""
 
-import atexit
 import json
 import os
 import socket
 import threading
 import time
 from datetime import datetime
-from threading import Lock
-from typing import Any, Dict, List, Optional
-from uuid import uuid4
+from typing import Any, Dict, List
 
 import requests
 from langchain_core.callbacks import CallbackManagerForToolRun
-from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 from uagents import Agent, Context, Model, Protocol
 from uagents_core.contrib.protocols.chat import (
@@ -27,6 +23,7 @@ from uagents_core.contrib.protocols.chat import (
 
 try:
     from openai import OpenAI
+
     has_openai = True
 except ImportError:
     has_openai = False
@@ -34,9 +31,10 @@ except ImportError:
 from ..common import (
     RUNNING_UAGENTS,
     RUNNING_UAGENTS_LOCK,
-    BaseRegisterTool, 
+    BaseRegisterTool,
     BaseRegisterToolInput,
     ResponseMessage,
+    cleanup_uagent,
     create_text_chat,
 )
 
@@ -50,7 +48,7 @@ def extract_params_from_text(text: str, param_keys: List[str]) -> Dict[str, str]
     if not has_openai:
         print("OpenAI package not installed. Parameter extraction will not work.")
         return {key: "" for key in param_keys}
-        
+
     # Initialize the client with your API key
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:

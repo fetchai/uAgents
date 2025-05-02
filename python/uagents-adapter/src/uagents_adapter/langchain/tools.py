@@ -6,8 +6,7 @@ import socket
 import threading
 import time
 from datetime import datetime
-from typing import Any, Dict, Optional, cast
-from uuid import uuid4
+from typing import Any, Dict, Optional
 
 import requests
 from langchain_core.callbacks import CallbackManagerForToolRun
@@ -23,29 +22,32 @@ from uagents_core.contrib.protocols.chat import (
 )
 
 from ..common import (
-    RUNNING_UAGENTS, 
+    RUNNING_UAGENTS,
     RUNNING_UAGENTS_LOCK,
-    BaseRegisterTool, 
-    BaseRegisterToolInput, 
-    ResponseMessage, 
-    create_text_chat,
-    cleanup_uagent,
+    BaseRegisterTool,
+    BaseRegisterToolInput,
+    ResponseMessage,
     cleanup_all_uagents,
+    create_text_chat,
 )
 
 # Flag to track if the cleanup handler is registered
 _CLEANUP_HANDLER_REGISTERED = False
 
+
 # Define message models for communication
 class QueryMessage(Model):
     query: str
+
 
 class StructuredOutputPrompt(Model):
     prompt: str
     output_schema: dict[str, Any]
 
+
 class StructuredOutputResponse(Model):
     output: dict[str, Any]
+
 
 # Initialize protocols
 chat_proto = Protocol(spec=chat_protocol_spec)
