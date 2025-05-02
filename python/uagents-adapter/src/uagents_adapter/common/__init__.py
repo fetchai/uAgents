@@ -13,11 +13,13 @@ import requests
 from langchain_core.callbacks import CallbackManagerForToolRun
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
-from uagents import Agent, Model
+from uagents import Agent, Context, Model, Protocol
 from uagents_core.contrib.protocols.chat import (
+    ChatAcknowledgement,
     ChatMessage,
     EndSessionContent,
     TextContent,
+    chat_protocol_spec,
 )
 
 # Dictionary to keep track of all running uAgents
@@ -26,6 +28,27 @@ RUNNING_UAGENTS_LOCK = Lock()
 
 # Event for signaling when an agent is ready
 AGENT_READY_EVENT = Event()
+
+# Export classes used in other modules
+__all__ = [
+    "Agent",
+    "Context",
+    "Model",
+    "Protocol",
+    "ChatAcknowledgement",
+    "ChatMessage",
+    "EndSessionContent",
+    "TextContent",
+    "chat_protocol_spec",
+    "ResponseMessage",
+    "create_text_chat",
+    "cleanup_uagent",
+    "cleanup_all_uagents",
+    "RUNNING_UAGENTS",
+    "RUNNING_UAGENTS_LOCK",
+    "BaseRegisterTool",
+    "BaseRegisterToolInput",
+]
 
 
 # Define message model for responses
