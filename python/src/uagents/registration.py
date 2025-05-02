@@ -25,7 +25,6 @@ from uagents.config import (
     ALMANAC_API_MAX_RETRIES,
     ALMANAC_API_TIMEOUT_SECONDS,
     ALMANAC_API_URL,
-    ALMANAC_CONTRACT_VERSION,
     ALMANAC_REGISTRATION_WAIT,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
 )
@@ -266,20 +265,6 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
     def poll_retry_delay(self, value: RetryDelayFunc | None) -> None:
         self._poll_retry_delay = value
 
-    def check_contract_version(self) -> None:
-        """
-        Check the version of the deployed Almanac contract and log a warning
-        if it is different from the supported version.
-        """
-        deployed_version = self._almanac_contract.get_contract_version()
-        if deployed_version != ALMANAC_CONTRACT_VERSION:
-            self._logger.warning(
-                "Mismatch in almanac contract versions: supported (%s), deployed (%s). "
-                "Update uAgents to the latest version for compatibility.",
-                ALMANAC_CONTRACT_VERSION,
-                deployed_version,
-            )
-
     async def register(
         self,
         agent_identifier: str,
@@ -292,8 +277,6 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         Register the agent on the Almanac contract if registration is about to expire or
         the registration data has changed.
         """
-        self.check_contract_version()
-
         _, _, agent_address = parse_identifier(agent_identifier)
 
         if (
