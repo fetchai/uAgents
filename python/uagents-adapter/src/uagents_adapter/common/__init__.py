@@ -6,7 +6,7 @@ import os
 import socket
 from datetime import datetime
 from threading import Event, Lock
-from typing import Any, Dict, Optional, Type
+from typing import Any, Dict, Type
 from uuid import uuid4
 
 import requests
@@ -101,8 +101,8 @@ class BaseRegisterToolInput(BaseModel):
         ..., description="Port to run on (defaults to a random port between 8000-9000)"
     )
     description: str = Field(..., description="Description of the agent")
-    api_token: Optional[str] = Field(None, description="API token for agentverse.ai")
-    ai_agent_address: Optional[str] = Field(
+    api_token: str | None = Field(None, description="API token for agentverse.ai")
+    ai_agent_address: str | None = Field(
         None, description="Address of the AI agent to forward messages to"
     )
     mailbox: bool = Field(
@@ -119,11 +119,11 @@ class BaseRegisterTool(BaseTool):
     args_schema: Type[BaseModel] = BaseRegisterToolInput
 
     # Track current agent info for easier access
-    _current_agent_info: Optional[Dict[str, Any]] = None
+    _current_agent_info: dict[str, Any] | None = None
 
     def _find_available_port(
         self,
-        preferred_port: Optional[int] = None,
+        preferred_port: int | None = None,
         start_range: int = 8000,
         end_range: int = 9000,
     ) -> int:
@@ -167,7 +167,7 @@ class BaseRegisterTool(BaseTool):
                 endpoint=[f"http://localhost:{port}/submit"],
             )
 
-    def _get_ai_agent_address(self, ai_agent_address: Optional[str] = None) -> str:
+    def _get_ai_agent_address(self, ai_agent_address: str | None = None) -> str:
         """Get AI agent address with fallback to environment variable."""
         if ai_agent_address:
             return ai_agent_address
@@ -201,7 +201,7 @@ class BaseRegisterTool(BaseTool):
 
     def _register_with_agentverse(
         self, agent_info: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Register agent with Agentverse API."""
         # Get API token from agent_info or environment
         api_token = agent_info.get("api_token")
@@ -239,7 +239,7 @@ class BaseRegisterTool(BaseTool):
             print(f"Error registering agent with Agentverse: {e}")
             return None
 
-    def get_agent_info(self) -> Optional[Dict[str, Any]]:
+    def get_agent_info(self) -> dict[str, Any] | None:
         """Get information about the current agent."""
         return self._current_agent_info
 
@@ -248,66 +248,27 @@ class BaseRegisterTool(BaseTool):
         name: str,
         port: int,
         description: str,
-        agent_info: Dict[str, Any],
-        api_token: Optional[str] = None,
+        api_token: str | None = None,
         return_dict: bool = False,
     ) -> Dict[str, Any] | str:
-        """Common run implementation to be used by derived classes."""
-        # Reset ready event
-        AGENT_READY_EVENT.clear()
-
-        # Add additional information to agent_info
-        if description:
-            agent_info["description"] = description
-        if api_token:
-            agent_info["api_token"] = api_token
-
-        # Store in module-level registry and instance variable
-        with RUNNING_UAGENTS_LOCK:
-            RUNNING_UAGENTS[name] = agent_info
-        self._current_agent_info = agent_info
-
-        # Start the agent in a separate thread using asyncio
-        import threading
-
-        agent_thread = threading.Thread(
-            target=self._start_uagent_with_asyncio,
-            args=(agent_info,),
-            daemon=True,
-        )
-        agent_thread.start()
-
-        # Wait for agent to be ready (or timeout)
-        AGENT_READY_EVENT.wait(timeout=15)
-
-        # Register with Agentverse if we have an API token
-        if api_token and agent_info.get("mailbox", True):
-            registration_result = self._register_with_agentverse(agent_info)
-            agent_info["registration_result"] = registration_result
-
-        # Return as requested format
-        if return_dict:
-            return agent_info
-
-        # Format a nice output message
-        address = agent_info.get("address", "unknown")
-        result = f"Created uAgent '{name}' with address {address} on port {port}"
-
-        if agent_info.get("registration_result"):
-            result += "\nRegistered with Agentverse successfully"
-
-        return result
+        """Base implementation for the run method."""
+        raise NotImplementedError("Subclasses must implement this method")
 
     async def _arun(
         self,
         name: str,
         port: int,
         description: str,
-        api_token: Optional[str] = None,
-        ai_agent_address: Optional[str] = None,
+        api_token: str | None = None,
+        ai_agent_address: str | None = None,
         mailbox: bool = True,
         *,
-        run_manager: Optional[CallbackManagerForToolRun] = None,
+        run_manager: CallbackManagerForToolRun | None = None,
     ) -> str:
-        """Async implementation to be overridden by subclasses."""
-        raise NotImplementedError("Subclasses must implement this method")
+        """Run the tool asynchronously."""
+        return self._run_base(
+            name=name,
+            port=port,
+            description=description,
+            api_token=api_token,
+        )

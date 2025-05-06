@@ -126,8 +126,8 @@ class LangchainRegisterTool(BaseRegisterTool):
         agent_obj: Any,
         agent_name: str,
         port: int,
-        description: Optional[str] = None,
-        ai_agent_address: Optional[str] = None,
+        description: str | None = None,
+        ai_agent_address: str | None = None,
         mailbox: bool = True,
     ) -> Dict[str, Any]:
         """Convert a Langchain agent to a uAgent."""
@@ -439,10 +439,10 @@ class LangchainRegisterTool(BaseRegisterTool):
 
             # Create README content with badges and input model
             readme_content = f"""# {name}
-{description}
-<br />
-<br />
 ![tag:innovationlab](https://img.shields.io/badge/innovationlab-3D8BD3)
+<br />
+<br />
+{description}
 <br />
 <br />
 **Input Data Model**
@@ -490,12 +490,12 @@ class ResponseMessage(Model):
         name: str,
         port: int,
         description: str,
-        api_token: Optional[str] = None,
-        ai_agent_address: Optional[str] = None,
+        api_token: str | None = None,
+        ai_agent_address: str | None = None,
         mailbox: bool = True,
         return_dict: bool = False,
         *,
-        run_manager: Optional[CallbackManagerForToolRun] = None,
+        run_manager: CallbackManagerForToolRun | None = None,
     ) -> Dict[str, Any] | str:
         """Run the tool."""
         # Special handling for test environments
@@ -599,12 +599,12 @@ class ResponseMessage(Model):
         name: str,
         port: int,
         description: str,
-        api_token: Optional[str] = None,
-        ai_agent_address: Optional[str] = None,
+        api_token: str | None = None,
+        ai_agent_address: str | None = None,
         mailbox: bool = True,
         return_dict: bool = False,
         *,
-        run_manager: Optional[CallbackManagerForToolRun] = None,
+        run_manager: CallbackManagerForToolRun | None = None,
     ) -> Dict[str, Any] | str:
         """Async implementation of the tool."""
         return self._run(
