@@ -445,7 +445,7 @@ class AlmanacContract(LedgerContract):
         broadcast_retry_delay: RetryDelayFunc | None = None,
         poll_retries: int | None = None,
         poll_retry_delay: RetryDelayFunc | None = None,
-    ) -> None:
+    ) -> TxResponse:
         """
         Register an agent with the Almanac contract.
 
@@ -456,6 +456,9 @@ class AlmanacContract(LedgerContract):
             protocols (list[str]): List of protocols.
             endpoints (list[dict[str, Any]]): List of endpoint dictionaries.
             signature (str): The agent's signature.
+
+        Returns:
+            TxResponse: The transaction response.
         """
         if not self.address:
             raise ValueError("Contract address not set")
@@ -509,7 +512,11 @@ class AlmanacContract(LedgerContract):
             poll_retry_delay=poll_retry_delay,
         )
         if status.code != 0:
-            raise RuntimeError("Registration transaction failed")
+            raise RuntimeError(
+                f"Registration transaction failed ({status.code}): {status.hash})"
+            )
+
+        return status
 
     async def register_batch(
         self,
@@ -521,7 +528,7 @@ class AlmanacContract(LedgerContract):
         broadcast_retry_delay: RetryDelayFunc | None = None,
         poll_retries: int | None = None,
         poll_retry_delay: RetryDelayFunc | None = None,
-    ) -> None:
+    ) -> TxResponse:
         """
         Register multiple agents with the Almanac contract.
 
@@ -529,6 +536,9 @@ class AlmanacContract(LedgerContract):
             ledger (LedgerClient): The Ledger client.
             wallet (LocalWallet): The wallet of the registration sender.
             agents (list[ALmanacContractRecord]): The list of signed agent records to register.
+
+        Returns:
+            TxResponse: The transaction response.
         """
         if not self.address:
             raise ValueError("Contract address not set")
@@ -589,7 +599,11 @@ class AlmanacContract(LedgerContract):
             poll_retry_delay=poll_retry_delay,
         )
         if status.code != 0:
-            raise RuntimeError("Registration transaction failed")
+            raise RuntimeError(
+                f"Registration transaction failed ({status.code}): {status.hash})"
+            )
+
+        return status
 
     def get_sequence(self, address: str) -> int:
         """
