@@ -366,7 +366,7 @@ class Dialogue(Protocol):
         if self.is_finished(ctx.session) or not outbound_messages:
             return True
         inbound_schema_digest = Model.build_schema_digest(msg_in)
-        outbound_message_content, outbound_schema_digest = outbound_messages[sender]
+        outbound_message_content, outbound_schema_digest = outbound_messages[sender][0]
         if not self.is_valid_reply(inbound_schema_digest, outbound_schema_digest):
             return False
 
