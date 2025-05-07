@@ -65,7 +65,9 @@ class ExternalStorage:
         }
         response = requests.put(url, json=payload, headers=headers)
         if response.status_code != 200:
-            raise RuntimeError(f"Upload failed: {response.status_code}, {response.text}")
+            raise RuntimeError(
+                f"Upload failed: {response.status_code}, {response.text}"
+            )
         return response
 
     def download(self, asset_id: str) -> str:
@@ -75,11 +77,19 @@ class ExternalStorage:
 
         response = requests.get(url, headers=headers)
         if response.status_code != 200:
-            raise RuntimeError(f"Download failed: {response.status_code}, {response.text}")
+            raise RuntimeError(
+                f"Download failed: {response.status_code}, {response.text}"
+            )
 
         return response
 
-    def create_asset(self, name: str, content: str, mime_type: str = "text/plain", lifetime_hours: int = 24) -> str:
+    def create_asset(
+        self,
+        name: str,
+        content: str,
+        mime_type: str = "text/plain",
+        lifetime_hours: int = 24,
+    ) -> str:
         if not self.api_token:
             raise RuntimeError("API token required to create assets")
         url = f"{self.storage_url}/assets/"
@@ -94,11 +104,15 @@ class ExternalStorage:
 
         response = requests.post(url, json=payload, headers=headers)
         if response.status_code != 201:
-            raise RuntimeError(f"Asset creation failed: {response.status_code}, {response.text}")
+            raise RuntimeError(
+                f"Asset creation failed: {response.status_code}, {response.text}"
+            )
 
         return response.json()["asset_id"]
 
-    def set_permissions(self, asset_id: str, agent_address: str, read: bool = True, write: bool = True):
+    def set_permissions(
+        self, asset_id: str, agent_address: str, read: bool = True, write: bool = True
+    ):
         if not self.api_token:
             raise RuntimeError("API token required to set permissions")
         url = f"{self.storage_url}/assets/{asset_id}/permissions/"
@@ -112,6 +126,8 @@ class ExternalStorage:
 
         response = requests.put(url, json=payload, headers=headers)
         if response.status_code != 200:
-            raise RuntimeError(f"Set permissions failed: {response.status_code}, {response.text}")
+            raise RuntimeError(
+                f"Set permissions failed: {response.status_code}, {response.text}"
+            )
 
         return response.json()
