@@ -75,6 +75,7 @@ class FakeLedgerClient:
         self._broadcast_failure_count = 0
         self._rpc_query_failure_count = 0
         self._query_failure_count = 0
+        self._height = 1000
 
     @property
     def broadcast_failure_count(self) -> int:
@@ -99,6 +100,9 @@ class FakeLedgerClient:
     @query_failure_count.setter
     def query_failure_count(self, value: int):
         self._query_failure_count = value
+
+    def query_height(self) -> int:
+        return self._height
 
     def query_bank_balance(self, address: Address, denom: str | None = None) -> int:
         return TESTNET_REGISTRATION_FEE + 1

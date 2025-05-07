@@ -49,6 +49,7 @@ _mainnet_ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
 RetryDelayFunc = Callable[[int], float]
 DEFAULT_BROADCAST_RETRIES = 5
 DEFAULT_POLL_RETRIES = 10
+DEFAULT_REGISTRATION_TIMEOUT_BLOCKS = 100
 
 
 def default_exp_backoff(retry: int) -> float:
@@ -445,6 +446,8 @@ class AlmanacContract(LedgerContract):
         broadcast_retry_delay: RetryDelayFunc | None = None,
         poll_retries: int | None = None,
         poll_retry_delay: RetryDelayFunc | None = None,
+        gas_limit: int | None = None,
+        timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
     ) -> TxResponse:
         """
         Register an agent with the Almanac contract.
@@ -456,6 +459,13 @@ class AlmanacContract(LedgerContract):
             protocols (list[str]): List of protocols.
             endpoints (list[dict[str, Any]]): List of endpoint dictionaries.
             signature (str): The agent's signature.
+            current_time (int): The current time in seconds since the epoch.
+            broadcast_retries (int, optional): The number of retries for broadcasting.
+            broadcast_retry_delay (RetryDelayFunc, optional): The delay function for retries.
+            poll_retries (int, optional): The number of retries for polling.
+            poll_retry_delay (RetryDelayFunc, optional): The delay function for polling.
+            gas_limit (int, optional): The gas limit for the transaction.
+            timeout_blocks (int, optional): The number of blocks to wait before timing out.
 
         Returns:
             TxResponse: The transaction response.
@@ -491,12 +501,18 @@ class AlmanacContract(LedgerContract):
         # attempt to broadcast the transaction to the network
         broadcast_delay_func = broadcast_retry_delay or default_exp_backoff
         num_broadcast_retries = broadcast_retries or DEFAULT_BROADCAST_RETRIES
+        timeout_height = ledger.query_height() + timeout_blocks
 
         tx: SubmittedTx | None = None
         for n in range(num_broadcast_retries):
             try:
                 tx = prepare_and_broadcast_basic_transaction(
-                    ledger, transaction, wallet, account=account
+                    ledger,
+                    transaction,
+                    wallet,
+                    account=account,
+                    gas_limit=gas_limit,
+                    timeout_height=timeout_height,
                 )
                 break
             except RuntimeError:
@@ -528,6 +544,8 @@ class AlmanacContract(LedgerContract):
         broadcast_retry_delay: RetryDelayFunc | None = None,
         poll_retries: int | None = None,
         poll_retry_delay: RetryDelayFunc | None = None,
+        gas_limit: int | None = None,
+        timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
     ) -> TxResponse:
         """
         Register multiple agents with the Almanac contract.
@@ -535,7 +553,13 @@ class AlmanacContract(LedgerContract):
         Args:
             ledger (LedgerClient): The Ledger client.
             wallet (LocalWallet): The wallet of the registration sender.
-            agents (list[ALmanacContractRecord]): The list of signed agent records to register.
+            agent_records (list[ALmanacContractRecord]): The list of agent records to register.
+            broadcast_retries (int, optional): The number of retries for broadcasting.
+            broadcast_retry_delay (RetryDelayFunc, optional): The delay function for retries.
+            poll_retries (int, optional): The number of retries for polling.
+            poll_retry_delay (RetryDelayFunc, optional): The delay function for polling.
+            gas_limit (int, optional): The gas limit for the transaction.
+            timeout_blocks (int, optional): The number of blocks to wait before timing out.
 
         Returns:
             TxResponse: The transaction response.
@@ -578,12 +602,18 @@ class AlmanacContract(LedgerContract):
         # attempt to broadcast the transaction to the network
         broadcast_delay_func = broadcast_retry_delay or default_exp_backoff
         num_broadcast_retries = broadcast_retries or DEFAULT_BROADCAST_RETRIES
+        timeout_height = ledger.query_height() + timeout_blocks
 
         tx: SubmittedTx | None = None
         for n in range(num_broadcast_retries):
             try:
                 tx = prepare_and_broadcast_basic_transaction(
-                    ledger, transaction, wallet, account=account
+                    ledger,
+                    transaction,
+                    wallet,
+                    account=account,
+                    gas_limit=gas_limit,
+                    timeout_height=timeout_height,
                 )
                 break
             except RuntimeError:
@@ -840,6 +870,8 @@ class NameServiceContract(LedgerContract):
         approval_token: str,
         duration: int = ANAME_REGISTRATION_SECONDS,
         overwrite: bool = True,
+        gas_limit: int | None = None,
+        timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
     ) -> None:
         """
         Register a name within a domain using the NameService contract.
@@ -856,6 +888,8 @@ class NameServiceContract(LedgerContract):
             overwrite (bool, optional): Specifies whether to overwrite any existing
                 addresses registered to the domain. If False, the address will be
                 appended to the previous records. Defaults to True.
+            gas_limit (int | None, optional): The gas limit for the transaction.
+            timeout_blocks (int, optional): The number of blocks to wait before timing out.
         """
         logger.info("Registering name...")
         chain_id = ledger.query_chain_id()
@@ -913,8 +947,13 @@ class NameServiceContract(LedgerContract):
                 f"Please select another name, {name} is owned by another address"
             )
             return
+        timeout_height = ledger.query_height() + timeout_blocks
         submitted_transaction: SubmittedTx = prepare_and_broadcast_basic_transaction(
-            client=ledger, tx=transaction, sender=wallet
+            client=ledger,
+            tx=transaction,
+            sender=wallet,
+            gas_limit=gas_limit,
+            timeout_height=timeout_height,
         )
         await wait_for_tx_to_complete(submitted_transaction.tx_hash, ledger)
         logger.info("Registering name...complete")
