@@ -371,14 +371,15 @@ class Protocol:
             self._unsigned_message_handlers[model_digest] = func
         else:
             self._signed_message_handlers[model_digest] = func
-        if replies is not None:
-            if not isinstance(replies, set):
-                replies = {replies}
-            if not self._locked:
-                self._spec.interactions[model] = replies
-            self._replies[model_digest] = {
-                Model.build_schema_digest(reply): reply for reply in replies
-            }
+        if replies is None:
+            replies = set()
+        if not isinstance(replies, set):
+            replies = {replies}
+        if not self._locked:
+            self._spec.interactions[model] = replies
+        self._replies[model_digest] = {
+            Model.build_schema_digest(reply): reply for reply in replies
+        }
 
     def manifest(self) -> dict[str, Any]:
         """
