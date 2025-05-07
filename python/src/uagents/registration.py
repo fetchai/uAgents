@@ -30,6 +30,7 @@ from uagents.config import (
 )
 from uagents.crypto import sign_registration
 from uagents.network import (
+    DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
     AlmanacContract,
     AlmanacContractRecord,
     InsufficientFundsError,
@@ -215,6 +216,8 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         almanac_contract: AlmanacContract,
         testnet: bool,
         *,
+        gas_limit: int | None = None,
+        timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
         logger: logging.Logger | None = None,
     ):
         self._wallet = wallet
@@ -228,6 +231,8 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         self._poll_retries: int | None = None
         self._poll_retry_delay: RetryDelayFunc | None = None
         self._last_successful_registration: datetime | None = None
+        self._timeout_blocks = timeout_blocks
+        self._gas_limit = gas_limit
 
     @property
     def last_successful_registration(self) -> datetime | None:
@@ -319,6 +324,8 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
                     broadcast_retry_delay=self._broadcast_retry_delay,
                     poll_retries=self._poll_retries,
                     poll_retry_delay=self._poll_retry_delay,
+                    gas_limit=self._gas_limit,
+                    timeout_blocks=self._timeout_blocks,
                 )
                 self._logger.info("Registering on almanac contract...complete")
                 self._last_successful_registration = datetime.now()
@@ -370,7 +377,10 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
         wallet: LocalWallet,
         almanac_contract: AlmanacContract,
         testnet: bool,
+        *,
         logger: logging.Logger | None = None,
+        gas_limit: int | None = None,
+        timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
     ):
         self._ledger = ledger
         self._wallet = wallet
@@ -386,6 +396,8 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
         self._poll_retries: int | None = None
         self._poll_retry_delay: RetryDelayFunc | None = None
         self._last_successful_registration: datetime | None = None
+        self._gas_limit: int | None = None
+        self._timeout_blocks = timeout_blocks
 
     @property
     def last_successful_registration(self) -> datetime | None:
@@ -466,6 +478,8 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
                 broadcast_retry_delay=self._broadcast_retry_delay,
                 poll_retries=self._poll_retries,
                 poll_retry_delay=self._poll_retry_delay,
+                gas_limit=self._gas_limit,
+                timeout_blocks=self._timeout_blocks,
             )
 
             self._logger.info("Registering agents on Almanac contract...complete")

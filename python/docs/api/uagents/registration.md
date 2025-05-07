@@ -46,17 +46,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy)
 
 
 
-#### check_contract_version[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L269)
-```python
-def check_contract_version() -> None
-```
-
-Check the version of the deployed Almanac contract and log a warning
-if it is different from the supported version.
-
-
-
-#### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L283)
+#### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L273)
 ```python
 async def register(agent_identifier: str,
                    identity: Identity,
