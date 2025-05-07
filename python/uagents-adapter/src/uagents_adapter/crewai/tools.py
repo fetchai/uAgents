@@ -1,18 +1,15 @@
 """Tool for converting a CrewAI agent into a uAgent and registering it on Agentverse."""
 
-import atexit
+import json
 import os
 import socket
 import threading
 import time
 from datetime import datetime
-from threading import Lock
 from typing import Any, Dict, List
-from uuid import uuid4
 
 import requests
 from langchain_core.callbacks import CallbackManagerForToolRun
-from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 from uagents import Agent, Context, Model, Protocol
 from uagents_core.contrib.protocols.chat import (
@@ -24,61 +21,51 @@ from uagents_core.contrib.protocols.chat import (
     chat_protocol_spec,
 )
 
-# Dictionary to keep track of all running uAgents
-RUNNING_UAGENTS = {}
-RUNNING_UAGENTS_LOCK = Lock()
+try:
+    from openai import OpenAI
 
+    has_openai = True
+except ImportError:
+    has_openai = False
 
-# Define message models for communication - will be created dynamically later
-class ResponseMessage(Model):
-    response: str
+from ..common import (
+    RUNNING_UAGENTS,
+    RUNNING_UAGENTS_LOCK,
+    BaseRegisterTool,
+    BaseRegisterToolInput,
+    ResponseMessage,
+    cleanup_uagent,
+    create_text_chat,
+)
 
-
-# Define chat helper functions
-def create_text_chat(text: str, end_session: bool = True) -> ChatMessage:
-    content = [TextContent(type="text", text=text)]
-    if end_session:
-        content.append(EndSessionContent(type="end-session"))
-    return ChatMessage(
-        timestamp=datetime.utcnow(),
-        msg_id=uuid4(),
-        content=content,
-    )
+# Initialize protocols
+chat_proto = Protocol(spec=chat_protocol_spec)
 
 
 # Helper function to extract parameters from text using OpenAI's GPT-4o model
-# with the Chat Completions API
 def extract_params_from_text(text: str, param_keys: List[str]) -> Dict[str, str]:
-    """
-    Extract parameters from text using OpenAI's GPT-4o model with the Chat Completions API
-    """
-    import json
-    import os
-
-    from openai import OpenAI
+    """Extract parameters from text using OpenAI's GPT-4o model."""
+    if not has_openai:
+        print("OpenAI package not installed. Parameter extraction will not work.")
+        return {key: "" for key in param_keys}
 
     # Initialize the client with your API key
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        print(
-            "ERROR: OPENAI_API_KEY not found in environment. Parameter extraction will not work."
-        )
-        print(
-            "Please set the OPENAI_API_KEY environment variable before running the application."
-        )
+        print("ERROR: OPENAI_API_KEY not found in environment.")
         return {key: "" for key in param_keys}
 
     client = OpenAI(api_key=api_key)
 
     # Create system message with instructions for parameter extraction
     system_message = (
-        f"You are helping to extract the following parameters from text: {', '.join(param_keys)}. "
+        f"Extract the following parameters from text: {', '.join(param_keys)}. "
         "Return only a JSON object with these parameters as keys. "
         "If a parameter isn't mentioned, use an empty string as its value."
     )
 
     try:
-        # Make the API call using the Chat Completions API
+        # Make the API call
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -109,55 +96,15 @@ def extract_params_from_text(text: str, param_keys: List[str]) -> Dict[str, str]
 
         return result
     except Exception as e:
-        print(f"Error extracting parameters using GPT-4o: {e}")
-        # Fall back to empty parameters
+        print(f"Error extracting parameters: {e}")
         return {key: "" for key in param_keys}
 
 
-# Initialize protocols
-chat_proto = Protocol(spec=chat_protocol_spec)
-
-
-# Cleanup functions for uAgents
-def cleanup_uagent(agent_name):
-    """Stop a specific uAgent"""
-    with RUNNING_UAGENTS_LOCK:
-        if agent_name in RUNNING_UAGENTS:
-            print(f"Marked agent '{agent_name}' for cleanup")
-            del RUNNING_UAGENTS[agent_name]
-            return True
-    return False
-
-
-def cleanup_all_uagents():
-    """Stop all uAgents"""
-    with RUNNING_UAGENTS_LOCK:
-        for agent_name in list(RUNNING_UAGENTS.keys()):
-            cleanup_uagent(agent_name)
-
-
-# Register cleanup handler at module level
-atexit.register(cleanup_all_uagents)
-
-
-class CrewAIRegisterToolInput(BaseModel):
-    """Input schema for CrewAIRegister tool."""
+class CrewaiRegisterToolInput(BaseRegisterToolInput):
+    """Input schema for Crewai register tool."""
 
     crew_obj: Any = Field(
         ..., description="The CrewAI crew object that will be converted to a uAgent"
-    )
-    name: str = Field(..., description="Name of the agent")
-    port: int = Field(
-        ..., description="Port to run on (defaults to a random port between 8000-9000)"
-    )
-    description: str = Field(..., description="Description of the agent")
-    api_token: str | None = Field(None, description="API token for agentverse.ai")
-    ai_agent_address: str | None = Field(
-        None, description="Address of the AI agent to forward messages to"
-    )
-    mailbox: bool = Field(
-        True,
-        description="Whether to use mailbox (True) or endpoint (False) for agent configuration",
     )
     query_params: Dict[str, Any] | None = Field(
         None, description="Parameters to dynamically create the QueryMessage model"
@@ -167,7 +114,7 @@ class CrewAIRegisterToolInput(BaseModel):
     )
 
 
-class CrewAIRegisterTool(BaseTool):
+class CrewaiRegisterTool(BaseRegisterTool):
     """Tool for converting a CrewAI crew into a uAgent and registering it on Agentverse.
 
     This tool takes a CrewAI crew and transforms it into a uAgent, which can
@@ -178,7 +125,7 @@ class CrewAIRegisterTool(BaseTool):
 
     name: str = "crewai_register"
     description: str = "Register a CrewAI crew as a uAgent on Agentverse"
-    args_schema: type[BaseModel] = CrewAIRegisterToolInput
+    args_schema: type[BaseModel] = CrewaiRegisterToolInput
 
     # Track current agent info for easier access
     _current_agent_info: dict[str, Any] | None = None
@@ -250,7 +197,7 @@ class CrewAIRegisterTool(BaseTool):
             ai_agent_address = os.getenv("AI_AGENT_ADDRESS")
             if not ai_agent_address:
                 ai_agent_address = (
-                    "agent1qtlpfshtlcxekgrfcpmv7m9zpajuwwu7d5jfyachvpa4u3dkt6k0uwwp2lct"
+                    "agent1q0h70caed8ax769shpemapzkyk65uscw4xwk6dc4t3emvp5jdcvqs9xs32y"
                 )
 
         # Store the agent for later cleanup
@@ -583,8 +530,9 @@ class CrewAIRegisterTool(BaseTool):
 
             # Create README content with badges and input model
             readme_content = f"""# {name}
+![tag:innovationlab](https://img.shields.io/badge/innovationlab-3D8BD3)<br />
+
 {description}
-![tag:innovationlab](https://img.shields.io/badge/innovationlab-3D8BD3)
 
 **Input Data Model**
 ```
