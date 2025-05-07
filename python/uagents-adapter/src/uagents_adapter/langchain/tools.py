@@ -6,13 +6,10 @@ import socket
 import threading
 import time
 from datetime import datetime
-from threading import Lock
-from typing import Any
-from uuid import uuid4
+from typing import Any, Dict, Optional
 
 import requests
 from langchain_core.callbacks import CallbackManagerForToolRun
-from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 from uagents import Agent, Context, Model, Protocol
 from uagents_core.contrib.protocols.chat import (
@@ -24,12 +21,18 @@ from uagents_core.contrib.protocols.chat import (
     chat_protocol_spec,
 )
 
+from ..common import (
+    RUNNING_UAGENTS,
+    RUNNING_UAGENTS_LOCK,
+    BaseRegisterTool,
+    BaseRegisterToolInput,
+    ResponseMessage,
+    cleanup_all_uagents,
+    create_text_chat,
+)
+
 # Flag to track if the cleanup handler is registered
 _CLEANUP_HANDLER_REGISTERED = False
-
-# Dictionary to keep track of all running uAgents
-RUNNING_UAGENTS = {}
-RUNNING_UAGENTS_LOCK = Lock()
 
 
 # Define message models for communication
@@ -37,23 +40,6 @@ class QueryMessage(Model):
     query: str
 
 
-class ResponseMessage(Model):
-    response: str
-
-
-# Define chat helper functions
-def create_text_chat(text: str, end_session: bool = True) -> ChatMessage:
-    content = [TextContent(type="text", text=text)]
-    if end_session:
-        content.append(EndSessionContent(type="end-session"))
-    return ChatMessage(
-        timestamp=datetime.utcnow(),
-        msg_id=uuid4(),
-        content=content,
-    )
-
-
-# Define model for structured output
 class StructuredOutputPrompt(Model):
     prompt: str
     output_schema: dict[str, Any]
@@ -70,46 +56,15 @@ struct_output_client_proto = Protocol(
 )
 
 
-# Cleanup functions for uAgents
-def cleanup_uagent(agent_name):
-    """Stop a specific uAgent"""
-    with RUNNING_UAGENTS_LOCK:
-        if agent_name in RUNNING_UAGENTS:
-            print(f"Marked agent '{agent_name}' for cleanup")
-            del RUNNING_UAGENTS[agent_name]
-            return True
-    return False
-
-
-def cleanup_all_uagents():
-    """Stop all uAgents"""
-    with RUNNING_UAGENTS_LOCK:
-        for agent_name in list(RUNNING_UAGENTS.keys()):
-            cleanup_uagent(agent_name)
-
-
-class UAgentRegisterToolInput(BaseModel):
-    """Input schema for UAgentRegister tool."""
+class LangchainRegisterToolInput(BaseRegisterToolInput):
+    """Input schema for Langchain register tool."""
 
     agent_obj: Any = Field(
         ..., description="The Langchain agent object that will be converted to a uAgent"
     )
-    name: str = Field(..., description="Name of the agent")
-    port: int = Field(
-        ..., description="Port to run on (defaults to a random port between 8000-9000)"
-    )
-    description: str = Field(..., description="Description of the agent")
-    api_token: str | None = Field(None, description="API token for agentverse.ai")
-    ai_agent_address: str | None = Field(
-        None, description="Address of the AI agent to forward messages to"
-    )
-    mailbox: bool = Field(
-        True,
-        description="Whether to use mailbox (True) or endpoint (False) for agent configuration",
-    )
 
 
-class UAgentRegisterTool(BaseTool):
+class LangchainRegisterTool(BaseRegisterTool):
     """Tool for converting a Langchain agent into a uAgent and registering it on Agentverse.
 
     This tool takes a Langchain agent and transforms it into a uAgent, which can
@@ -118,9 +73,9 @@ class UAgentRegisterTool(BaseTool):
     automatically register with Agentverse for discovery and access.
     """
 
-    name: str = "uagent_register"
+    name: str = "langchain_register"
     description: str = "Register a Langchain agent as a uAgent on Agentverse"
-    args_schema: type[BaseModel] = UAgentRegisterToolInput
+    args_schema: type[BaseModel] = LangchainRegisterToolInput
 
     # Track current agent info for easier access
     _current_agent_info: dict[str, Any] | None = None
@@ -168,13 +123,13 @@ class UAgentRegisterTool(BaseTool):
 
     def _langchain_to_uagent(
         self,
-        agent_obj,
-        agent_name,
-        port,
-        description=None,
-        ai_agent_address=None,
-        mailbox=True,
-    ):
+        agent_obj: Any,
+        agent_name: str,
+        port: int,
+        description: str | None = None,
+        ai_agent_address: str | None = None,
+        mailbox: bool = True,
+    ) -> Dict[str, Any]:
         """Convert a Langchain agent to a uAgent."""
         # Create the agent
         if mailbox:
@@ -197,7 +152,7 @@ class UAgentRegisterTool(BaseTool):
             ai_agent_address = os.getenv("AI_AGENT_ADDRESS")
             if not ai_agent_address:
                 ai_agent_address = (
-                    "agent1qtlpfshtlcxekgrfcpmv7m9zpajuwu7d5jfyachvpa4u3dkt6k0uwwp2lct"
+                    "agent1q0h70caed8ax769shpemapzkyk65uscw4xwk6dc4t3emvp5jdcvqs9xs32y"
                 )
 
         # Store the agent for later cleanup
@@ -206,9 +161,7 @@ class UAgentRegisterTool(BaseTool):
             "uagent": uagent,
             "port": port,
             "agent_obj": agent_obj,
-            "ai_agent_address": (
-                "agent1qtlpfshtlcxekgrfcpmv7m9zpajuwu7d5jfyachvpa4u3dkt6k0uwwp2lct"
-            ),
+            "ai_agent_address": ai_agent_address,
             "mailbox": mailbox,
         }
 
@@ -486,10 +439,10 @@ class UAgentRegisterTool(BaseTool):
 
             # Create README content with badges and input model
             readme_content = f"""# {name}
-{description}
-<br />
-<br />
 ![tag:innovationlab](https://img.shields.io/badge/innovationlab-3D8BD3)
+<br />
+<br />
+{description}
 <br />
 <br />
 **Input Data Model**
@@ -543,21 +496,8 @@ class ResponseMessage(Model):
         return_dict: bool = False,
         *,
         run_manager: CallbackManagerForToolRun | None = None,
-    ) -> dict[str, Any] | str:
-        """Convert a Langchain agent to a uAgent, register it on Agentverse, and start running it.
-        Args:
-            agent_obj: The Langchain agent object to convert
-            name: Name for the uAgent
-            port: Port to run the uAgent on
-            description: Description of the agent
-            api_token: Optional API token for agentverse.ai
-            ai_agent_address: Optional address of the AI agent to forward messages to
-            mailbox: Whether to use mailbox (True) or endpoint (False) for agent configuration
-            return_dict: If True, returns the agent_info dictionary directly
-            run_manager: Optional callback manager
-        Returns:
-            Dict containing agent information including address or a formatted string
-        """
+    ) -> Dict[str, Any] | str:
+        """Run the tool."""
         # Special handling for test environments
         if agent_obj == "langchain_agent_object":
             # This is a test case, just create a mock agent info object
@@ -665,8 +605,8 @@ class ResponseMessage(Model):
         return_dict: bool = False,
         *,
         run_manager: CallbackManagerForToolRun | None = None,
-    ) -> dict[str, Any] | str:
-        """Async version of _run."""
+    ) -> Dict[str, Any] | str:
+        """Async implementation of the tool."""
         return self._run(
             agent_obj=agent_obj,
             name=name,
