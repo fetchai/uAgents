@@ -2,13 +2,7 @@
 
 from importlib import metadata
 
-from .tools import (
-    QueryMessage,
-    ResponseMessage,
-    UAgentRegisterTool,
-    cleanup_all_uagents,
-    cleanup_uagent,
-)
+from .tools import LangchainRegisterTool, QueryMessage
 
 try:
     __version__ = metadata.version(__package__.split(".")[0])
@@ -19,10 +13,7 @@ del metadata  # optional, avoids polluting the results of dir(__package__)
 
 
 __all__ = [
-    "UAgentRegisterTool",
+    "LangchainRegisterTool",
     "QueryMessage",
-    "ResponseMessage",
-    "cleanup_uagent",
-    "cleanup_all_uagents",
     "__version__",
 ]

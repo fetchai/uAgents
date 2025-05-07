@@ -30,7 +30,7 @@ from langchain_core.agents import AgentExecutor, create_react_agent
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 
-from uagents_adapter.langchain import UAgentRegisterTool
+from uagents_adapter import LangchainRegisterTool
 
 # Create your LangChain agent
 llm = ChatOpenAI(model_name="gpt-4")
@@ -39,7 +39,7 @@ agent = create_react_agent(llm, tools)
 agent_executor = AgentExecutor(agent=agent, tools=tools)
 
 # Create uAgent register tool
-register_tool = UAgentRegisterTool()
+register_tool = LangchainRegisterTool()
 
 # Register the agent as a uAgent
 result = register_tool.invoke({
@@ -61,7 +61,7 @@ The CrewAI adapter allows you to convert any CrewAI crew into a uAgent.
 
 ```python
 from crewai import Crew, Agent, Task
-from uagents_adapter.crewai import CrewAIRegisterTool
+from uagents_adapter import CrewaiRegisterTool
 
 # Define your CrewAI crew
 agent1 = Agent(
@@ -84,7 +84,7 @@ crew = Crew(
 )
 
 # Create CrewAI register tool
-register_tool = CrewAIRegisterTool()
+register_tool = CrewaiRegisterTool()
 
 # Register the crew as a uAgent
 result = register_tool.invoke({
