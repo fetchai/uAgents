@@ -141,39 +141,39 @@ When an agent is registered with Agentverse:
 - You can monitor its usage and performance through the Agentverse dashboard
 
 Example of auto-generated README for LangChain agents:
-```
+```markdown
 # Agent Name
 Agent Description
 ![tag:innovationlab](https://img.shields.io/badge/innovationlab-3D8BD3)
 
 **Input Data Model**
-```
+```python
 class QueryMessage(Model):
     query: str
 ```
 
 **Output Data Model**
-```
+```python
 class ResponseMessage(Model):
     response: str
 ```
 ```
 
 Example of auto-generated README for CrewAI agents with parameters:
-```
+```markdown
 # Agent Name
 Agent Description
 ![tag:innovationlab](https://img.shields.io/badge/innovationlab-3D8BD3)
 
 **Input Data Model**
-```
+```python
 class ParameterMessage(Model):
     topic: str
-    max_results: int
+    max_results: int | None = None
 ```
 
 **Output Data Model**
-```
+```python
 class ResponseMessage(Model):
     response: str
 ```
