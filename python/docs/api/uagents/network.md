@@ -597,7 +597,8 @@ async def register(
         duration: int = ANAME_REGISTRATION_SECONDS,
         overwrite: bool = True,
         gas_limit: int | None = None,
-        timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS) -> None
+        timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS
+) -> TxResponse
 ```
 
 Register a name within a domain using the NameService contract.
@@ -617,10 +618,15 @@ Register a name within a domain using the NameService contract.
   appended to the previous records. Defaults to True.
 - `gas_limit` _int | None, optional_ - The gas limit for the transaction.
 - `timeout_blocks` _int, optional_ - The number of blocks to wait before timing out.
+  
+
+**Returns**:
+
+- `TxResponse` - The transaction response.
 
 
 
-#### unregister[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L961)
+#### unregister[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L966)
 ```python
 async def unregister(name: str, domain: str, wallet: LocalWallet) -> None
 ```
@@ -635,7 +641,7 @@ Unregister a name within a domain using the NameService contract.
 
 
 
-#### get_name_service_contract[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L999)
+#### get_name_service_contract[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L1004)
 ```python
 def get_name_service_contract(
         network: AgentNetwork = "testnet") -> NameServiceContract

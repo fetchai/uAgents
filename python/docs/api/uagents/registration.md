@@ -4,7 +4,7 @@
 
 
 
-#### coerce_metadata_to_str[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L50)
+#### coerce_metadata_to_str[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L51)
 ```python
 def coerce_metadata_to_str(
         metadata: dict[str, Any] | None
@@ -15,7 +15,7 @@ Step through the metadata and convert any non-string values to strings.
 
 
 
-#### extract_geo_metadata[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L67)
+#### extract_geo_metadata[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L68)
 ```python
 def extract_geo_metadata(
         metadata: dict[str, Any] | None) -> dict[str, Any] | None
@@ -25,7 +25,7 @@ Extract geo-location metadata from the metadata dictionary.
 
 
 
-#### almanac_api_post[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L74)
+#### almanac_api_post[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L75)
 ```python
 async def almanac_api_post(url: str,
                            data: BaseModel,
@@ -38,7 +38,7 @@ Send a POST request to the Almanac API.
 
 
 
-## LedgerBasedRegistrationPolicy Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L210)
+## LedgerBasedRegistrationPolicy Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L211)
 
 ```python
 class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy)
@@ -46,7 +46,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy)
 
 
 
-#### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L268)
+#### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L273)
 ```python
 async def register(agent_identifier: str,
                    identity: Identity,
