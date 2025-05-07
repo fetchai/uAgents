@@ -501,10 +501,10 @@ class AlmanacContract(LedgerContract):
         # attempt to broadcast the transaction to the network
         broadcast_delay_func = broadcast_retry_delay or default_exp_backoff
         num_broadcast_retries = broadcast_retries or DEFAULT_BROADCAST_RETRIES
-        timeout_height = ledger.query_height() + timeout_blocks
 
         tx: SubmittedTx | None = None
         for n in range(num_broadcast_retries):
+            timeout_height = ledger.query_height() + timeout_blocks
             try:
                 tx = prepare_and_broadcast_basic_transaction(
                     ledger,
@@ -872,7 +872,7 @@ class NameServiceContract(LedgerContract):
         overwrite: bool = True,
         gas_limit: int | None = None,
         timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
-    ) -> None:
+    ) -> TxResponse:
         """
         Register a name within a domain using the NameService contract.
 
@@ -890,6 +890,9 @@ class NameServiceContract(LedgerContract):
                 appended to the previous records. Defaults to True.
             gas_limit (int | None, optional): The gas limit for the transaction.
             timeout_blocks (int, optional): The number of blocks to wait before timing out.
+
+        Returns:
+            TxResponse: The transaction response.
         """
         logger.info("Registering name...")
         chain_id = ledger.query_chain_id()
@@ -910,18 +913,16 @@ class NameServiceContract(LedgerContract):
                 continue
             contract = get_almanac_contract(network)
             if not contract or not contract.is_registered(agent_address):
-                logger.warning(
+                raise RuntimeError(
                     "Address %s needs to be registered in almanac contract "
                     "to be registered in a domain.",
                     agent_address,
                 )
-                return
 
         if not self.is_domain_public(domain):
-            logger.warning(
+            raise RuntimeError(
                 f"Domain {domain} is not public, please select a public domain"
             )
-            return
 
         if not overwrite:
             previous_records = self.get_previous_records(name, domain)
@@ -943,10 +944,9 @@ class NameServiceContract(LedgerContract):
         )
 
         if transaction is None:
-            logger.error(
-                f"Please select another name, {name} is owned by another address"
+            raise RuntimeError(
+                f"Domain {name}.{domain} is not available or not owned by the wallet address."
             )
-            return
         timeout_height = ledger.query_height() + timeout_blocks
         submitted_transaction: SubmittedTx = prepare_and_broadcast_basic_transaction(
             client=ledger,
@@ -955,8 +955,13 @@ class NameServiceContract(LedgerContract):
             gas_limit=gas_limit,
             timeout_height=timeout_height,
         )
-        await wait_for_tx_to_complete(submitted_transaction.tx_hash, ledger)
+        status: TxResponse = await wait_for_tx_to_complete(
+            submitted_transaction.tx_hash, ledger
+        )
+        if status.code != 0:
+            raise RuntimeError(f"Transaction failed ({status.code}): {status.hash})")
         logger.info("Registering name...complete")
+        return status
 
     async def unregister(
         self,
