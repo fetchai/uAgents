@@ -2,8 +2,8 @@
 
 from importlib import metadata
 
-from .tools import LangchainRegisterTool, QueryMessage
 from .agent_utils import AgentManager
+from .tools import LangchainRegisterTool, QueryMessage
 
 try:
     __version__ = metadata.version(__package__.split(".")[0])
