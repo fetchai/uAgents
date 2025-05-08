@@ -3,6 +3,7 @@
 from importlib import metadata
 
 from .tools import LangchainRegisterTool, QueryMessage
+from .agent_utils import AgentManager
 
 try:
     __version__ = metadata.version(__package__.split(".")[0])
@@ -16,4 +17,5 @@ __all__ = [
     "LangchainRegisterTool",
     "QueryMessage",
     "__version__",
+    "AgentManager",
 ]
