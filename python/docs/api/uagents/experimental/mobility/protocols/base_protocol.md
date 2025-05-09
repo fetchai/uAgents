@@ -4,18 +4,17 @@
 
 
 
-## CheckIn Objects
+## CheckIn Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/experimental/mobility/protocols/base_protocol.py#L29)
 
 ```python
 class CheckIn(Model)
 ```
 
-Signal message to send to an agent once entering its area of s[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocols/base_protocol.py#L29)
-ervice
+Signal message to send to an agent once entering its area of service
 
 
 
-## CheckInResponse Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocols/base_protocol.py#L38)
+## CheckInResponse Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/experimental/mobility/protocols/base_protocol.py#L38)
 
 ```python
 class CheckInResponse(Model)
@@ -25,7 +24,7 @@ Information to return after receiving a check-in message
 
 
 
-## CheckOut Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocols/base_protocol.py#L51)
+## CheckOut Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/experimental/mobility/protocols/base_protocol.py#L51)
 
 ```python
 class CheckOut(Model)
@@ -35,7 +34,7 @@ Signal message to optionally send when leaving the service area of an agent
 
 
 
-## CheckOutResponse Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocols/base_protocol.py#L55)
+## CheckOutResponse Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/experimental/mobility/protocols/base_protocol.py#L55)
 
 ```python
 class CheckOutResponse(Model)
@@ -45,7 +44,7 @@ Checkout response to optionally include a summary regarding the "stay" in the se
 
 
 
-## StatusUpdate Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocols/base_protocol.py#L63)
+## StatusUpdate Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/experimental/mobility/protocols/base_protocol.py#L63)
 
 ```python
 class StatusUpdate(Model)
@@ -55,7 +54,7 @@ Message to signal an update to all checked in mobility agents
 
 
 
-## StatusUpdateResponse Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocols/base_protocol.py#L72)
+## StatusUpdateResponse Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/experimental/mobility/protocols/base_protocol.py#L72)
 
 ```python
 class StatusUpdateResponse(Model)
