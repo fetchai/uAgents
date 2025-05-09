@@ -55,33 +55,30 @@ class ExternalStorage:
         else:
             raise RuntimeError("No identity or API token available for authentication")
 
-    def upload(self, asset_id: str, asset_content: str):
+    def upload(self, asset_id: str, asset_content: str, mime_type: str = "text/plain") -> dict:
         url = f"{self.storage_url}/assets/{asset_id}/contents/"
         headers = self._get_auth_header()
         headers["Content-Type"] = "application/json"
         payload = {
             "contents": base64.b64encode(asset_content.encode()).decode(),
-            "mime_type": "text/plain",
+            "mime_type": mime_type,
         }
         response = requests.put(url, json=payload, headers=headers)
         if response.status_code != 200:
-            raise RuntimeError(
-                f"Upload failed: {response.status_code}, {response.text}"
-            )
-        return response
+            raise RuntimeError(f"Upload failed: {response.status_code}, {response.text}")
 
-    def download(self, asset_id: str) -> str:
+        return response.json()
+
+
+    def download(self, asset_id: str) -> dict:
         url = f"{self.storage_url}/assets/{asset_id}/contents/"
         headers = self._get_auth_header()
-        headers["accept"] = "text/plain"
 
         response = requests.get(url, headers=headers)
         if response.status_code != 200:
-            raise RuntimeError(
-                f"Download failed: {response.status_code}, {response.text}"
-            )
+            raise RuntimeError(f"Download failed: {response.status_code}, {response.text}")
 
-        return response
+        return response.json()
 
     def create_asset(
         self,
