@@ -2,6 +2,7 @@
 
 from importlib import metadata
 
+from .agent_utils import AgentManager
 from .tools import LangchainRegisterTool, QueryMessage
 
 try:
@@ -16,4 +17,5 @@ __all__ = [
     "LangchainRegisterTool",
     "QueryMessage",
     "__version__",
+    "AgentManager",
 ]

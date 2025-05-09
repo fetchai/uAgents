@@ -6,7 +6,7 @@ import socket
 import threading
 import time
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import requests
 from langchain_core.callbacks import CallbackManagerForToolRun
