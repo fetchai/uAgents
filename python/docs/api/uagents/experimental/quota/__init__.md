@@ -71,7 +71,7 @@ async def message_handler(ctx: Context, sender: str, msg: Message):
 
 
 
-## QuotaProtocol Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L105)
+## QuotaProtocol Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/experimental/quota/__init__.py#L105)
 
 ```python
 class QuotaProtocol(Protocol)
@@ -79,7 +79,7 @@ class QuotaProtocol(Protocol)
 
 
 
-#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L106)
+#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/experimental/quota/__init__.py#L106)
 ```python
 def __init__(storage_reference: StorageAPI,
              name: str | None = None,
@@ -100,7 +100,7 @@ Initialize a QuotaProtocol instance.
 
 
 
-#### on_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L129)
+#### on_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/experimental/quota/__init__.py#L129)
 ```python
 def on_message(
         model: type[Model],
@@ -128,7 +128,7 @@ including rate limiting.
 
 
 
-#### wrap[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L159)
+#### wrap[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/experimental/quota/__init__.py#L159)
 ```python
 def wrap(func: MessageCallback,
          rate_limit: RateLimit | None = None,
@@ -150,7 +150,7 @@ Decorator to wrap a function with rate limiting.
 
 
 
-#### add_request[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L227)
+#### add_request[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/experimental/quota/__init__.py#L227)
 ```python
 def add_request(agent_address: str, function_name: str,
                 window_size_minutes: int, max_requests: int) -> bool
