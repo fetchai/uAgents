@@ -76,10 +76,12 @@ async def almanac_api_post(
     url: str,
     data: BaseModel,
     *,
+    timeout: float | None = None,
     max_retries: int | None = None,
     retry_delay: RetryDelayFunc | None = None,
 ) -> bool:
     """Send a POST request to the Almanac API."""
+    timeout_seconds = timeout or ALMANAC_API_TIMEOUT_SECONDS
     num_retries = max_retries or ALMANAC_API_MAX_RETRIES
     retry_delay_func = retry_delay or default_exp_backoff
 
@@ -90,7 +92,7 @@ async def almanac_api_post(
                     url=url,
                     headers={"content-type": "application/json"},
                     data=data.model_dump_json(),
-                    timeout=aiohttp.ClientTimeout(total=ALMANAC_API_TIMEOUT_SECONDS),
+                    timeout=aiohttp.ClientTimeout(total=timeout_seconds),
                 ) as resp:
                     resp.raise_for_status()
                     return True
@@ -107,11 +109,13 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         self,
         *,
         almanac_api: str | None = None,
+        timeout: float | None = None,
         max_retries: int = ALMANAC_API_MAX_RETRIES,
         retry_delay: RetryDelayFunc | None = None,
         logger: logging.Logger | None = None,
     ):
         self._almanac_api = almanac_api or ALMANAC_API_URL
+        self._timeout = timeout or ALMANAC_API_TIMEOUT_SECONDS
         self._max_retries = max_retries
         self._logger = logger or logging.getLogger(__name__)
         self._retry_delay = retry_delay or default_exp_backoff
@@ -144,6 +148,7 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
             success = await almanac_api_post(
                 url=f"{self._almanac_api}/agents",
                 data=attestation,
+                timeout=self._timeout,
                 max_retries=self._max_retries,
                 retry_delay=self._retry_delay,
             )
@@ -161,12 +166,14 @@ class BatchAlmanacApiRegistrationPolicy(BatchRegistrationPolicy):
         self,
         almanac_api: str | None = None,
         logger: logging.Logger | None = None,
+        timeout: float | None = None,
         max_retries: int = ALMANAC_API_MAX_RETRIES,
         retry_delay: RetryDelayFunc | None = None,
     ):
         self._almanac_api = almanac_api or ALMANAC_API_URL
         self._attestations: list[AgentRegistrationAttestation] = []
         self._logger = logger or logging.getLogger(__name__)
+        self._timeout = timeout or ALMANAC_API_TIMEOUT_SECONDS
         self._max_retries = max_retries
         self._retry_delay = retry_delay or default_exp_backoff
         self._last_successful_registration: datetime | None = None
@@ -196,6 +203,7 @@ class BatchAlmanacApiRegistrationPolicy(BatchRegistrationPolicy):
             success = await almanac_api_post(
                 url=f"{self._almanac_api}/agents/batch",
                 data=attestations,
+                timeout=self._timeout,
                 max_retries=self._max_retries,
                 retry_delay=self._retry_delay,
             )
