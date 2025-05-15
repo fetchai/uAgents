@@ -30,6 +30,7 @@ Extract geo-location metadata from the metadata dictionary.
 async def almanac_api_post(url: str,
                            data: BaseModel,
                            *,
+                           timeout: float | None = None,
                            max_retries: int | None = None,
                            retry_delay: RetryDelayFunc | None = None) -> bool
 ```
@@ -38,7 +39,7 @@ Send a POST request to the Almanac API.
 
 
 
-## LedgerBasedRegistrationPolicy Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L211)
+## LedgerBasedRegistrationPolicy Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L219)
 
 ```python
 class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy)
@@ -46,7 +47,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy)
 
 
 
-#### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L273)
+#### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L281)
 ```python
 async def register(agent_identifier: str,
                    identity: Identity,
