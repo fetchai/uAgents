@@ -4,6 +4,7 @@ This package provides adapters for integrating [uAgents](https://github.com/fetc
 
 - **LangChain Adapter**: Convert LangChain agents to uAgents
 - **CrewAI Adapter**: Convert CrewAI crews to uAgents
+- **MCP Server Adapter**: Integrate Model Control Protocol (MCP) servers with uAgents
 
 ## Installation
 
@@ -17,8 +18,11 @@ pip install "uagents-adapter[langchain]"
 # Install with CrewAI support
 pip install "uagents-adapter[crewai]"
 
+# Install with MCP support
+pip install "uagents-adapter[mcp]"
+
 # Install with all extras
-pip install "uagents-adapter[langchain,crewai]"
+pip install "uagents-adapter[langchain,crewai,mcp]"
 ```
 
 ## LangChain Adapter
@@ -107,6 +111,39 @@ result = register_tool.invoke({
 
 print(f"Created uAgent '{result['agent_name']}' with address {result['agent_address']} on port {result['agent_port']}")
 ```
+
+## MCP Server Adapter
+
+The MCP Server Adapter allows you to host your MCP Servers on Agentverse and get discovered by ASI:One by enabling Chat Protocol.
+
+First, create a FastMCP server implementation in a `server.py` file that exposes the required `list_tools` and `call_tool` async methods. Then, in the following `agent.py`, import the MCP server instance and use it with the MCPServerAdapter:
+
+```python
+from uagents import Agent
+from uagents_adapter import MCPServerAdapter
+from server import mcp
+
+# Create an MCP adapter
+mcp_adapter = MCPServerAdapter(
+    mcp_server=mcp,
+    asi1_api_key="your_asi1_api_key",
+    model="asi1-mini"     # Model options: asi1-mini, asi1-extended, asi1-fast
+)
+
+# Create a uAgent
+agent = Agent()
+
+# Add the MCP adapter protocols to the agent
+for protocol in mcp_adapter.protocols:
+    agent.include(protocol)
+
+# Run the MCP adapter with the agent
+mcp_adapter.run(agent)
+```
+
+> **Important**: When creating MCP tools, always include detailed docstrings using triple quotes (`"""`) to describe what each tool does, when it should be used, and what parameters it expects. These descriptions are critical for ASI:One to understand when and how to use your tools.
+
+For more detailed instructions and advanced configuration options, see the [MCP Server Adapter Documentation](src/uagents_adapter/mcp/README.md).
 
 ## Agentverse Integration
 
