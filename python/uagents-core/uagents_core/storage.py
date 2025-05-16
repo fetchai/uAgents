@@ -56,13 +56,13 @@ class ExternalStorage:
             raise RuntimeError("No identity or API token available for authentication")
 
     def upload(
-        self, asset_id: str, asset_content: str, mime_type: str = "text/plain"
+        self, asset_id: str, asset_content: bytes, mime_type: str = "text/plain"
     ) -> dict:
         url = f"{self.storage_url}/assets/{asset_id}/contents/"
         headers = self._get_auth_header()
         headers["Content-Type"] = "application/json"
         payload = {
-            "contents": base64.b64encode(asset_content.encode()).decode(),
+            "contents": base64.b64encode(content).decode(),
             "mime_type": mime_type,
         }
         response = requests.put(url, json=payload, headers=headers)
@@ -88,7 +88,7 @@ class ExternalStorage:
     def create_asset(
         self,
         name: str,
-        content: str,
+        content: bytes,
         mime_type: str = "text/plain",
         lifetime_hours: int = 24,
     ) -> str:
@@ -100,7 +100,7 @@ class ExternalStorage:
         payload = {
             "name": name,
             "mime_type": mime_type,
-            "contents": base64.b64encode(content.encode()).decode(),
+            "contents": base64.b64encode(content).decode(),
             "lifetime_hours": lifetime_hours,
         }
 
