@@ -144,7 +144,7 @@ chitchat_dialogue = ChitChatDialogue(
 )
 ```
 
-For a more in depth example, see the [ChitChatDialogue](https://github.com/fetchai/uAgents/blob/main/integrations/fetch-ai-engine/examples/simple_agent.py) example.
+For a more in depth example, see the [ChitChatDialogue](https://github.com/fetchai/uAgents/blob/main/python/uagents-ai-engine/examples/simple_agent.py) example.
 
 ### 3. Extending Dialogue with Metadata
 
