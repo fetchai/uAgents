@@ -56,7 +56,7 @@ class ExternalStorage:
             raise RuntimeError("No identity or API token available for authentication")
 
     def upload(
-        self, asset_id: str, asset_content: bytes, mime_type: str = "text/plain"
+        self, asset_id: str, content: bytes, mime_type: str = "text/plain"
     ) -> dict:
         url = f"{self.storage_url}/assets/{asset_id}/contents/"
         headers = self._get_auth_header()
