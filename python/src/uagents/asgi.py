@@ -3,6 +3,7 @@ import json
 from datetime import datetime, timezone
 from logging import Logger
 from typing import Any
+from urllib.parse import parse_qs
 
 import uvicorn
 from pydantic import BaseModel, ValidationError
@@ -198,6 +199,7 @@ class ASGIServer:
         handlers: dict[str, RestHandlerDetails],
         send,
         receive,
+        scope,
     ):
         raw_contents = await _read_asgi_body(receive)
         received_request: Model | None = None
@@ -237,6 +239,27 @@ class ASGIServer:
             except ValidationErrorV1 as err:
                 e = dict(err.errors().pop())
                 self._logger.debug(f"Failed to validate REST request: {e}")
+                await self._asgi_send(send=send, status_code=400, body=e)
+                return
+        elif rest_handler.method == "GET" and rest_handler.request_model is not None:
+            # Handle GET request with query parameters
+            query_string = scope.get("query_string", b"").decode()
+            if not query_string:
+                await self._asgi_send(
+                    send=send, status_code=400, body={"error": "No query parameters found"}
+                )
+                return
+
+            try:
+                # Parse query parameters
+                query_params = parse_qs(query_string, keep_blank_values=True)
+                # Convert to flat dict (OAuth sends single values)
+                flat_params = {k: v[0] if v else "" for k, v in query_params.items()}
+                
+                received_request = rest_handler.request_model.model_validate(flat_params)
+            except ValidationErrorV1 as err:
+                e = dict(err.errors().pop())
+                self._logger.debug(f"Failed to validate REST query parameters: {e}")
                 await self._asgi_send(send=send, status_code=400, body=e)
                 return
 
@@ -304,7 +327,7 @@ class ASGIServer:
                     send=send, status_code=403, body={"error": "forbidden"}
                 )
                 return
-            await self._handle_rest(headers, handlers, send, receive)
+            await self._handle_rest(headers, handlers, send, receive, scope)
             return
 
         # check if the request is for agent communication and reject if not
