@@ -1,9 +1,9 @@
-"""LangChain integration for registering agents on Agentverse."""
+"""MCP (Model Control Protocol) integration for uAgents."""
 
 from importlib import metadata
 
-from .agent_utils import AgentManager
-from .tools import LangchainRegisterTool, QueryMessage
+from .adapter import MCPServerAdapter
+from .protocol import CallTool, CallToolResponse, ListTools, ListToolsResponse
 
 try:
     __version__ = metadata.version(__package__.split(".")[0])
@@ -14,8 +14,10 @@ del metadata  # optional, avoids polluting the results of dir(__package__)
 
 
 __all__ = [
-    "LangchainRegisterTool",
-    "QueryMessage",
+    "MCPServerAdapter",
+    "ListTools",
+    "ListToolsResponse",
+    "CallTool",
+    "CallToolResponse",
     "__version__",
-    "AgentManager",
 ]

@@ -49,6 +49,7 @@ _mainnet_ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
 RetryDelayFunc = Callable[[int], float]
 DEFAULT_BROADCAST_RETRIES = 5
 DEFAULT_POLL_RETRIES = 10
+DEFAULT_REGISTRATION_TIMEOUT_BLOCKS = 100
 
 
 def default_exp_backoff(retry: int) -> float:
@@ -265,13 +266,27 @@ class AlmanacContract(LedgerContract):
 
         return response["contract_version"]
 
-    def get_registration_fee(self) -> int:
+    def get_registration_fee(self, wallet_address: Address | None = None) -> int:
         """
         Get the registration fee for the contract.
 
         Returns:
             int: The registration fee.
         """
+
+        if wallet_address:
+            role_query_msg = {
+                "access_control": {
+                    "query_has_role": {
+                        "role": "clearing_registrar",
+                        "addr": str(wallet_address),
+                    }
+                }
+            }
+            role_response = self.query_contract(role_query_msg)
+            if role_response.get("has_role"):
+                return 0
+
         query_msg = {"query_contract_state": {}}
         response = self.query_contract(query_msg)
 
@@ -431,7 +446,9 @@ class AlmanacContract(LedgerContract):
         broadcast_retry_delay: RetryDelayFunc | None = None,
         poll_retries: int | None = None,
         poll_retry_delay: RetryDelayFunc | None = None,
-    ) -> None:
+        gas_limit: int | None = None,
+        timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
+    ) -> TxResponse:
         """
         Register an agent with the Almanac contract.
 
@@ -442,6 +459,16 @@ class AlmanacContract(LedgerContract):
             protocols (list[str]): List of protocols.
             endpoints (list[dict[str, Any]]): List of endpoint dictionaries.
             signature (str): The agent's signature.
+            current_time (int): The current time in seconds since the epoch.
+            broadcast_retries (int, optional): The number of retries for broadcasting.
+            broadcast_retry_delay (RetryDelayFunc, optional): The delay function for retries.
+            poll_retries (int, optional): The number of retries for polling.
+            poll_retry_delay (RetryDelayFunc, optional): The delay function for polling.
+            gas_limit (int, optional): The gas limit for the transaction.
+            timeout_blocks (int, optional): The number of blocks to wait before timing out.
+
+        Returns:
+            TxResponse: The transaction response.
         """
         if not self.address:
             raise ValueError("Contract address not set")
@@ -457,13 +484,14 @@ class AlmanacContract(LedgerContract):
         )
 
         denom = self._client.network_config.fee_denomination
-        fee = self.get_registration_fee()
+        fee = self.get_registration_fee(wallet.address())
+        funds = f"{fee}{denom}" if fee else None
         transaction.add_message(
             create_cosmwasm_execute_msg(
                 sender_address=wallet.address(),
                 contract_address=self.address,
                 args=almanac_msg,
-                funds=f"{fee}{denom}",
+                funds=funds,
             )
         )
 
@@ -476,9 +504,15 @@ class AlmanacContract(LedgerContract):
 
         tx: SubmittedTx | None = None
         for n in range(num_broadcast_retries):
+            timeout_height = ledger.query_height() + timeout_blocks
             try:
                 tx = prepare_and_broadcast_basic_transaction(
-                    ledger, transaction, wallet, account=account
+                    ledger,
+                    transaction,
+                    wallet,
+                    account=account,
+                    gas_limit=gas_limit,
+                    timeout_height=timeout_height,
                 )
                 break
             except RuntimeError:
@@ -494,7 +528,11 @@ class AlmanacContract(LedgerContract):
             poll_retry_delay=poll_retry_delay,
         )
         if status.code != 0:
-            raise RuntimeError("Registration transaction failed")
+            raise RuntimeError(
+                f"Registration transaction failed ({status.code}): {status.hash})"
+            )
+
+        return status
 
     async def register_batch(
         self,
@@ -506,14 +544,25 @@ class AlmanacContract(LedgerContract):
         broadcast_retry_delay: RetryDelayFunc | None = None,
         poll_retries: int | None = None,
         poll_retry_delay: RetryDelayFunc | None = None,
-    ) -> None:
+        gas_limit: int | None = None,
+        timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
+    ) -> TxResponse:
         """
         Register multiple agents with the Almanac contract.
 
         Args:
             ledger (LedgerClient): The Ledger client.
             wallet (LocalWallet): The wallet of the registration sender.
-            agents (list[ALmanacContractRecord]): The list of signed agent records to register.
+            agent_records (list[ALmanacContractRecord]): The list of agent records to register.
+            broadcast_retries (int, optional): The number of retries for broadcasting.
+            broadcast_retry_delay (RetryDelayFunc, optional): The delay function for retries.
+            poll_retries (int, optional): The number of retries for polling.
+            poll_retry_delay (RetryDelayFunc, optional): The delay function for polling.
+            gas_limit (int, optional): The gas limit for the transaction.
+            timeout_blocks (int, optional): The number of blocks to wait before timing out.
+
+        Returns:
+            TxResponse: The transaction response.
         """
         if not self.address:
             raise ValueError("Contract address not set")
@@ -536,13 +585,14 @@ class AlmanacContract(LedgerContract):
             )
 
             denom = self._client.network_config.fee_denomination
-            fee = self.get_registration_fee()
+            fee = self.get_registration_fee(wallet.address())
+            funds = f"{fee}{denom}" if fee else None
             transaction.add_message(
                 create_cosmwasm_execute_msg(
                     sender_address=wallet.address(),
                     contract_address=self.address,
                     args=almanac_msg,
-                    funds=f"{fee}{denom}",
+                    funds=funds,
                 )
             )
 
@@ -552,12 +602,18 @@ class AlmanacContract(LedgerContract):
         # attempt to broadcast the transaction to the network
         broadcast_delay_func = broadcast_retry_delay or default_exp_backoff
         num_broadcast_retries = broadcast_retries or DEFAULT_BROADCAST_RETRIES
+        timeout_height = ledger.query_height() + timeout_blocks
 
         tx: SubmittedTx | None = None
         for n in range(num_broadcast_retries):
             try:
                 tx = prepare_and_broadcast_basic_transaction(
-                    ledger, transaction, wallet, account=account
+                    ledger,
+                    transaction,
+                    wallet,
+                    account=account,
+                    gas_limit=gas_limit,
+                    timeout_height=timeout_height,
                 )
                 break
             except RuntimeError:
@@ -573,7 +629,11 @@ class AlmanacContract(LedgerContract):
             poll_retry_delay=poll_retry_delay,
         )
         if status.code != 0:
-            raise RuntimeError("Registration transaction failed")
+            raise RuntimeError(
+                f"Registration transaction failed ({status.code}): {status.hash})"
+            )
+
+        return status
 
     def get_sequence(self, address: str) -> int:
         """
@@ -810,7 +870,9 @@ class NameServiceContract(LedgerContract):
         approval_token: str,
         duration: int = ANAME_REGISTRATION_SECONDS,
         overwrite: bool = True,
-    ) -> None:
+        gas_limit: int | None = None,
+        timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
+    ) -> TxResponse:
         """
         Register a name within a domain using the NameService contract.
 
@@ -826,6 +888,11 @@ class NameServiceContract(LedgerContract):
             overwrite (bool, optional): Specifies whether to overwrite any existing
                 addresses registered to the domain. If False, the address will be
                 appended to the previous records. Defaults to True.
+            gas_limit (int | None, optional): The gas limit for the transaction.
+            timeout_blocks (int, optional): The number of blocks to wait before timing out.
+
+        Returns:
+            TxResponse: The transaction response.
         """
         logger.info("Registering name...")
         chain_id = ledger.query_chain_id()
@@ -846,18 +913,16 @@ class NameServiceContract(LedgerContract):
                 continue
             contract = get_almanac_contract(network)
             if not contract or not contract.is_registered(agent_address):
-                logger.warning(
+                raise RuntimeError(
                     "Address %s needs to be registered in almanac contract "
                     "to be registered in a domain.",
                     agent_address,
                 )
-                return
 
         if not self.is_domain_public(domain):
-            logger.warning(
+            raise RuntimeError(
                 f"Domain {domain} is not public, please select a public domain"
             )
-            return
 
         if not overwrite:
             previous_records = self.get_previous_records(name, domain)
@@ -879,15 +944,24 @@ class NameServiceContract(LedgerContract):
         )
 
         if transaction is None:
-            logger.error(
-                f"Please select another name, {name} is owned by another address"
+            raise RuntimeError(
+                f"Domain {name}.{domain} is not available or not owned by the wallet address."
             )
-            return
+        timeout_height = ledger.query_height() + timeout_blocks
         submitted_transaction: SubmittedTx = prepare_and_broadcast_basic_transaction(
-            client=ledger, tx=transaction, sender=wallet
+            client=ledger,
+            tx=transaction,
+            sender=wallet,
+            gas_limit=gas_limit,
+            timeout_height=timeout_height,
         )
-        await wait_for_tx_to_complete(submitted_transaction.tx_hash, ledger)
+        status: TxResponse = await wait_for_tx_to_complete(
+            submitted_transaction.tx_hash, ledger
+        )
+        if status.code != 0:
+            raise RuntimeError(f"Transaction failed ({status.code}): {status.hash})")
         logger.info("Registering name...complete")
+        return status
 
     async def unregister(
         self,

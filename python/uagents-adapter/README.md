@@ -4,6 +4,7 @@ This package provides adapters for integrating [uAgents](https://github.com/fetc
 
 - **LangChain Adapter**: Convert LangChain agents to uAgents
 - **CrewAI Adapter**: Convert CrewAI crews to uAgents
+- **MCP Server Adapter**: Integrate Model Control Protocol (MCP) servers with uAgents
 
 ## Installation
 
@@ -17,8 +18,11 @@ pip install "uagents-adapter[langchain]"
 # Install with CrewAI support
 pip install "uagents-adapter[crewai]"
 
+# Install with MCP support
+pip install "uagents-adapter[mcp]"
+
 # Install with all extras
-pip install "uagents-adapter[langchain,crewai]"
+pip install "uagents-adapter[langchain,crewai,mcp]"
 ```
 
 ## LangChain Adapter
@@ -30,7 +34,7 @@ from langchain_core.agents import AgentExecutor, create_react_agent
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 
-from uagents_adapter.langchain import UAgentRegisterTool
+from uagents_adapter import LangchainRegisterTool
 
 # Create your LangChain agent
 llm = ChatOpenAI(model_name="gpt-4")
@@ -39,7 +43,7 @@ agent = create_react_agent(llm, tools)
 agent_executor = AgentExecutor(agent=agent, tools=tools)
 
 # Create uAgent register tool
-register_tool = UAgentRegisterTool()
+register_tool = LangchainRegisterTool()
 
 # Register the agent as a uAgent
 result = register_tool.invoke({
@@ -61,7 +65,7 @@ The CrewAI adapter allows you to convert any CrewAI crew into a uAgent.
 
 ```python
 from crewai import Crew, Agent, Task
-from uagents_adapter.crewai import CrewAIRegisterTool
+from uagents_adapter import CrewaiRegisterTool
 
 # Define your CrewAI crew
 agent1 = Agent(
@@ -84,7 +88,7 @@ crew = Crew(
 )
 
 # Create CrewAI register tool
-register_tool = CrewAIRegisterTool()
+register_tool = CrewaiRegisterTool()
 
 # Register the crew as a uAgent
 result = register_tool.invoke({
@@ -107,6 +111,39 @@ result = register_tool.invoke({
 
 print(f"Created uAgent '{result['agent_name']}' with address {result['agent_address']} on port {result['agent_port']}")
 ```
+
+## MCP Server Adapter
+
+The MCP Server Adapter allows you to host your MCP Servers on Agentverse and get discovered by ASI:One by enabling Chat Protocol.
+
+First, create a FastMCP server implementation in a `server.py` file that exposes the required `list_tools` and `call_tool` async methods. Then, in the following `agent.py`, import the MCP server instance and use it with the MCPServerAdapter:
+
+```python
+from uagents import Agent
+from uagents_adapter import MCPServerAdapter
+from server import mcp
+
+# Create an MCP adapter
+mcp_adapter = MCPServerAdapter(
+    mcp_server=mcp,
+    asi1_api_key="your_asi1_api_key",
+    model="asi1-mini"     # Model options: asi1-mini, asi1-extended, asi1-fast
+)
+
+# Create a uAgent
+agent = Agent()
+
+# Add the MCP adapter protocols to the agent
+for protocol in mcp_adapter.protocols:
+    agent.include(protocol)
+
+# Run the MCP adapter with the agent
+mcp_adapter.run(agent)
+```
+
+> **Important**: When creating MCP tools, always include detailed docstrings using triple quotes (`"""`) to describe what each tool does, when it should be used, and what parameters it expects. These descriptions are critical for ASI:One to understand when and how to use your tools.
+
+For more detailed instructions and advanced configuration options, see the [MCP Server Adapter Documentation](src/uagents_adapter/mcp/README.md).
 
 ## Agentverse Integration
 
@@ -141,39 +178,39 @@ When an agent is registered with Agentverse:
 - You can monitor its usage and performance through the Agentverse dashboard
 
 Example of auto-generated README for LangChain agents:
-```
+```markdown
 # Agent Name
 Agent Description
 ![tag:innovationlab](https://img.shields.io/badge/innovationlab-3D8BD3)
 
 **Input Data Model**
-```
+```python
 class QueryMessage(Model):
     query: str
 ```
 
 **Output Data Model**
-```
+```python
 class ResponseMessage(Model):
     response: str
 ```
 ```
 
 Example of auto-generated README for CrewAI agents with parameters:
-```
+```markdown
 # Agent Name
 Agent Description
 ![tag:innovationlab](https://img.shields.io/badge/innovationlab-3D8BD3)
 
 **Input Data Model**
-```
+```python
 class ParameterMessage(Model):
     topic: str
-    max_results: int
+    max_results: int | None = None
 ```
 
 **Output Data Model**
-```
+```python
 class ResponseMessage(Model):
     response: str
 ```
