@@ -246,7 +246,9 @@ class ASGIServer:
             query_string = scope.get("query_string", b"").decode()
             if not query_string:
                 await self._asgi_send(
-                    send=send, status_code=400, body={"error": "No query parameters found"}
+                    send=send,
+                    status_code=400,
+                    body={"error": "No query parameters found"},
                 )
                 return
 
@@ -255,8 +257,10 @@ class ASGIServer:
                 query_params = parse_qs(query_string, keep_blank_values=True)
                 # Convert to flat dict (OAuth sends single values)
                 flat_params = {k: v[0] if v else "" for k, v in query_params.items()}
-                
-                received_request = rest_handler.request_model.model_validate(flat_params)
+
+                received_request = rest_handler.request_model.model_validate(
+                    flat_params
+                )
             except ValidationErrorV1 as err:
                 e = dict(err.errors().pop())
                 self._logger.debug(f"Failed to validate REST query parameters: {e}")
