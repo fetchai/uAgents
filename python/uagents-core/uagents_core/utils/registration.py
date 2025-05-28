@@ -51,8 +51,11 @@ def _send_post_request(
         response.raise_for_status()
         return True, response
     except requests.RequestException as e:
+        error_detail = getattr(e, "response", None)
+        if error_detail is not None:
+            error_detail = error_detail.text
         logger.error(
-            msg="Error submitting request",
+            msg=f"Error submitting request: {error_detail}",
             extra={"url": url, "data": data.model_dump_json()},
             exc_info=e,
         )
@@ -63,6 +66,7 @@ def register_in_almanac(
     identity: Identity,
     endpoints: list[str],
     protocol_digests: list[str],
+    metadata: dict[str, str | dict[str, str]] | None = None,
     *,
     agentverse_config: AgentverseConfig | None = None,
     timeout: int = DEFAULT_REQUEST_TIMEOUT,
@@ -115,7 +119,7 @@ def register_in_almanac(
         agent_identifier=agent_address,
         protocols=protocol_digests,
         endpoints=agent_endpoints,
-        metadata=None,
+        metadata=metadata,
     )
 
     logger.info(msg="Registering with Almanac API", extra=attestation.model_dump())
@@ -220,11 +224,6 @@ def register_in_agentverse(
                 extra=registration_metadata,
             )
             return False
-        if response.status_code == 409:
-            logger.info(
-                msg="Agent already registered with Agentverse",
-                extra=registration_metadata,
-            )
         else:
             registration_response = RegistrationResponse.model_validate_json(
                 response.text

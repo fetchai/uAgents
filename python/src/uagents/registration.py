@@ -25,12 +25,12 @@ from uagents.config import (
     ALMANAC_API_MAX_RETRIES,
     ALMANAC_API_TIMEOUT_SECONDS,
     ALMANAC_API_URL,
-    ALMANAC_CONTRACT_VERSION,
     ALMANAC_REGISTRATION_WAIT,
     REGISTRATION_UPDATE_INTERVAL_SECONDS,
 )
 from uagents.crypto import sign_registration
 from uagents.network import (
+    DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
     AlmanacContract,
     AlmanacContractRecord,
     InsufficientFundsError,
@@ -76,10 +76,12 @@ async def almanac_api_post(
     url: str,
     data: BaseModel,
     *,
+    timeout: float | None = None,
     max_retries: int | None = None,
     retry_delay: RetryDelayFunc | None = None,
 ) -> bool:
     """Send a POST request to the Almanac API."""
+    timeout_seconds = timeout or ALMANAC_API_TIMEOUT_SECONDS
     num_retries = max_retries or ALMANAC_API_MAX_RETRIES
     retry_delay_func = retry_delay or default_exp_backoff
 
@@ -90,7 +92,7 @@ async def almanac_api_post(
                     url=url,
                     headers={"content-type": "application/json"},
                     data=data.model_dump_json(),
-                    timeout=aiohttp.ClientTimeout(total=ALMANAC_API_TIMEOUT_SECONDS),
+                    timeout=aiohttp.ClientTimeout(total=timeout_seconds),
                 ) as resp:
                     resp.raise_for_status()
                     return True
@@ -107,11 +109,13 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         self,
         *,
         almanac_api: str | None = None,
+        timeout: float | None = None,
         max_retries: int = ALMANAC_API_MAX_RETRIES,
         retry_delay: RetryDelayFunc | None = None,
         logger: logging.Logger | None = None,
     ):
         self._almanac_api = almanac_api or ALMANAC_API_URL
+        self._timeout = timeout or ALMANAC_API_TIMEOUT_SECONDS
         self._max_retries = max_retries
         self._logger = logger or logging.getLogger(__name__)
         self._retry_delay = retry_delay or default_exp_backoff
@@ -144,6 +148,7 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
             success = await almanac_api_post(
                 url=f"{self._almanac_api}/agents",
                 data=attestation,
+                timeout=self._timeout,
                 max_retries=self._max_retries,
                 retry_delay=self._retry_delay,
             )
@@ -161,12 +166,14 @@ class BatchAlmanacApiRegistrationPolicy(BatchRegistrationPolicy):
         self,
         almanac_api: str | None = None,
         logger: logging.Logger | None = None,
+        timeout: float | None = None,
         max_retries: int = ALMANAC_API_MAX_RETRIES,
         retry_delay: RetryDelayFunc | None = None,
     ):
         self._almanac_api = almanac_api or ALMANAC_API_URL
         self._attestations: list[AgentRegistrationAttestation] = []
         self._logger = logger or logging.getLogger(__name__)
+        self._timeout = timeout or ALMANAC_API_TIMEOUT_SECONDS
         self._max_retries = max_retries
         self._retry_delay = retry_delay or default_exp_backoff
         self._last_successful_registration: datetime | None = None
@@ -196,6 +203,7 @@ class BatchAlmanacApiRegistrationPolicy(BatchRegistrationPolicy):
             success = await almanac_api_post(
                 url=f"{self._almanac_api}/agents/batch",
                 data=attestations,
+                timeout=self._timeout,
                 max_retries=self._max_retries,
                 retry_delay=self._retry_delay,
             )
@@ -216,19 +224,23 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         almanac_contract: AlmanacContract,
         testnet: bool,
         *,
+        gas_limit: int | None = None,
+        timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
         logger: logging.Logger | None = None,
     ):
         self._wallet = wallet
         self._ledger = ledger
         self._testnet = testnet
         self._almanac_contract = almanac_contract
-        self._registration_fee = almanac_contract.get_registration_fee()
+        self._registration_fee = almanac_contract.get_registration_fee(wallet.address())
         self._logger = logger or logging.getLogger(__name__)
         self._broadcast_retries: int | None = None
         self._broadcast_retry_delay: RetryDelayFunc | None = None
         self._poll_retries: int | None = None
         self._poll_retry_delay: RetryDelayFunc | None = None
         self._last_successful_registration: datetime | None = None
+        self._timeout_blocks = timeout_blocks
+        self._gas_limit = gas_limit
 
     @property
     def last_successful_registration(self) -> datetime | None:
@@ -266,20 +278,6 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
     def poll_retry_delay(self, value: RetryDelayFunc | None) -> None:
         self._poll_retry_delay = value
 
-    def check_contract_version(self) -> None:
-        """
-        Check the version of the deployed Almanac contract and log a warning
-        if it is different from the supported version.
-        """
-        deployed_version = self._almanac_contract.get_contract_version()
-        if deployed_version != ALMANAC_CONTRACT_VERSION:
-            self._logger.warning(
-                "Mismatch in almanac contract versions: supported (%s), deployed (%s). "
-                "Update uAgents to the latest version for compatibility.",
-                ALMANAC_CONTRACT_VERSION,
-                deployed_version,
-            )
-
     async def register(
         self,
         agent_identifier: str,
@@ -292,8 +290,6 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         Register the agent on the Almanac contract if registration is about to expire or
         the registration data has changed.
         """
-        self.check_contract_version()
-
         _, _, agent_address = parse_identifier(agent_identifier)
 
         if (
@@ -336,6 +332,8 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
                     broadcast_retry_delay=self._broadcast_retry_delay,
                     poll_retries=self._poll_retries,
                     poll_retry_delay=self._poll_retry_delay,
+                    gas_limit=self._gas_limit,
+                    timeout_blocks=self._timeout_blocks,
                 )
                 self._logger.info("Registering on almanac contract...complete")
                 self._last_successful_registration = datetime.now()
@@ -387,13 +385,16 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
         wallet: LocalWallet,
         almanac_contract: AlmanacContract,
         testnet: bool,
+        *,
         logger: logging.Logger | None = None,
+        gas_limit: int | None = None,
+        timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
     ):
         self._ledger = ledger
         self._wallet = wallet
         self._almanac_contract = almanac_contract
         self._testnet = testnet
-        self._registration_fee = almanac_contract.get_registration_fee()
+        self._registration_fee = almanac_contract.get_registration_fee(wallet.address())
         self._logger = logger or logging.getLogger(__name__)
         self._records: list[AlmanacContractRecord] = []
         self._identities: dict[str, Identity] = {}
@@ -403,6 +404,8 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
         self._poll_retries: int | None = None
         self._poll_retry_delay: RetryDelayFunc | None = None
         self._last_successful_registration: datetime | None = None
+        self._gas_limit: int | None = None
+        self._timeout_blocks = timeout_blocks
 
     @property
     def last_successful_registration(self) -> datetime | None:
@@ -483,6 +486,8 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
                 broadcast_retry_delay=self._broadcast_retry_delay,
                 poll_retries=self._poll_retries,
                 poll_retry_delay=self._poll_retry_delay,
+                gas_limit=self._gas_limit,
+                timeout_blocks=self._timeout_blocks,
             )
 
             self._logger.info("Registering agents on Almanac contract...complete")

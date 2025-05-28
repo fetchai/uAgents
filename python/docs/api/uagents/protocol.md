@@ -260,7 +260,7 @@ Decorator to register a message handler for the protocol.
 
 
 
-#### manifest[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L383)
+#### manifest[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L384)
 ```python
 def manifest() -> dict[str, Any]
 ```
@@ -274,7 +274,7 @@ protocol details and interface.
 
 
 
-#### verify[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L393)
+#### verify[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L394)
 ```python
 def verify() -> bool
 ```
@@ -287,7 +287,7 @@ Check if the protocol implements all interactions of its specification.
 
 
 
-#### compute_digest[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L423)
+#### compute_digest[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/protocol.py#L424)
 ```python
 @staticmethod
 def compute_digest(manifest: dict[str, Any]) -> str
