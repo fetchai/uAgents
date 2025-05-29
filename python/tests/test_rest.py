@@ -393,6 +393,7 @@ async def test_rest_bureau():
 @pytest.mark.order(8)
 async def test_rest_get_with_query_params_success():
     """Test GET request with query parameters using Request model"""
+
     @agent.on_rest_get("/test-params", Request)
     async def _(ctx: Context) -> Request:
         return Request(text="success")
@@ -406,7 +407,7 @@ async def test_rest_get_with_query_params_success():
                 "method": "GET",
                 "path": "/test-params",
                 "query_string": b"text=hello",
-                "client": ("127.0.0.1",1234),
+                "client": ("127.0.0.1", 1234),
             },
             receive=None,
             send=mock_send,
@@ -433,6 +434,7 @@ async def test_rest_get_with_query_params_success():
 @pytest.mark.order(9)
 async def test_rest_get_missing_required_params():
     """Test GET request with missing required parameters - currently allows empty params"""
+
     @agent.on_rest_get("/test-missing", Request)
     async def _(ctx: Context) -> Request:
         return Request(text="success")
@@ -446,7 +448,7 @@ async def test_rest_get_missing_required_params():
                 "method": "GET",
                 "path": "/test-missing",
                 "query_string": b"",  # Missing 'text' parameter
-                "client": ("127.0.0.1",1234),
+                "client": ("127.0.0.1", 1234),
             },
             receive=None,
             send=mock_send,
@@ -473,6 +475,7 @@ async def test_rest_get_missing_required_params():
 @pytest.mark.order(10)
 async def test_rest_get_url_encoded_params():
     """Test GET request with URL-encoded special characters"""
+
     @agent.on_rest_get("/test-encoded", Request)
     async def _(ctx: Context) -> Request:
         return Request(text="success")
@@ -486,7 +489,7 @@ async def test_rest_get_url_encoded_params():
                 "method": "GET",
                 "path": "/test-encoded",
                 "query_string": b"text=hello%20world",
-                "client": ("127.0.0.1",1234),
+                "client": ("127.0.0.1", 1234),
             },
             receive=None,
             send=mock_send,
