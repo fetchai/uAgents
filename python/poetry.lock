@@ -550,14 +550,14 @@ markers = {main = "platform_system == \"Windows\"", dev = "platform_system == \"
 
 [[package]]
 name = "cosmpy"
-version = "0.9.3"
+version = "0.11.0"
 description = "A library for interacting with the cosmos networks"
 optional = false
 python-versions = "<4.0,>=3.9"
 groups = ["main"]
 files = [
-    {file = "cosmpy-0.9.3-py3-none-any.whl", hash = "sha256:98008588c5289b01c8dc7877a692cd7c480eb59ceb02324ba223ecd231eb44c8"},
-    {file = "cosmpy-0.9.3.tar.gz", hash = "sha256:7d0769795864f92ac3da88cd27041feb0a3359561fb6b6d4784435cfbe0680b2"},
+    {file = "cosmpy-0.11.0-py3-none-any.whl", hash = "sha256:978fcd31115f3bec43f0b52351c6ce1fb106ced30bf45dd2c3c181f73493c4af"},
+    {file = "cosmpy-0.11.0.tar.gz", hash = "sha256:62e2b6365e61774525ff870335aa8e09c0e7a043875cbfb91f3acd859fd8d350"},
 ]
 
 [package.dependencies]
@@ -2581,4 +2581,4 @@ wallet = ["fetchai-babble"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4.0"
-content-hash = "b23173c8cbc795b68995f1fe9ca1b09ccec9303630eb0a1aa27cf8fdebe313d6"
+content-hash = "2d691c243c7ba21e504f35082d8e2b27d03123fe1ad42d2b80499ca8aad33d60"
