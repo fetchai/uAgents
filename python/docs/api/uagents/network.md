@@ -339,7 +339,7 @@ async def register(
         broadcast_retry_delay: RetryDelayFunc | None = None,
         poll_retries: int | None = None,
         poll_retry_delay: RetryDelayFunc | None = None,
-        gas_limit: int | None = None,
+        tx_fee: TxFee | None = None,
         timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS
 ) -> TxResponse
 ```
@@ -359,7 +359,7 @@ Register an agent with the Almanac contract.
 - `broadcast_retry_delay` _RetryDelayFunc, optional_ - The delay function for retries.
 - `poll_retries` _int, optional_ - The number of retries for polling.
 - `poll_retry_delay` _RetryDelayFunc, optional_ - The delay function for polling.
-- `gas_limit` _int, optional_ - The gas limit for the transaction.
+- `tx_fee` _TxFee, optional_ - The transaction fee to use.
 - `timeout_blocks` _int, optional_ - The number of blocks to wait before timing out.
   
 
@@ -380,7 +380,7 @@ async def register_batch(
         broadcast_retry_delay: RetryDelayFunc | None = None,
         poll_retries: int | None = None,
         poll_retry_delay: RetryDelayFunc | None = None,
-        gas_limit: int | None = None,
+        tx_fee: TxFee | None = None,
         timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS
 ) -> TxResponse
 ```
@@ -396,7 +396,7 @@ Register multiple agents with the Almanac contract.
 - `broadcast_retry_delay` _RetryDelayFunc, optional_ - The delay function for retries.
 - `poll_retries` _int, optional_ - The number of retries for polling.
 - `poll_retry_delay` _RetryDelayFunc, optional_ - The delay function for polling.
-- `gas_limit` _int, optional_ - The gas limit for the transaction.
+- `tx_fee` _TxFee, optional_ - The transaction fee to use.
 - `timeout_blocks` _int, optional_ - The number of blocks to wait before timing out.
   
 
@@ -596,7 +596,7 @@ async def register(
         approval_token: str,
         duration: int = ANAME_REGISTRATION_SECONDS,
         overwrite: bool = True,
-        gas_limit: int | None = None,
+        tx_fee: TxFee | None = None,
         timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS
 ) -> TxResponse
 ```
@@ -616,7 +616,7 @@ Register a name within a domain using the NameService contract.
 - `overwrite` _bool, optional_ - Specifies whether to overwrite any existing
   addresses registered to the domain. If False, the address will be
   appended to the previous records. Defaults to True.
-- `gas_limit` _int | None, optional_ - The gas limit for the transaction.
+- `tx_fee` _TxFee, optional_ - The transaction fee to use.
 - `timeout_blocks` _int, optional_ - The number of blocks to wait before timing out.
   
 

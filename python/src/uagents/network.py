@@ -17,7 +17,7 @@ from cosmpy.aerial.contract import LedgerContract
 from cosmpy.aerial.contract.cosmwasm import create_cosmwasm_execute_msg
 from cosmpy.aerial.exceptions import NotFoundError, QueryTimeoutError
 from cosmpy.aerial.faucet import FaucetApi
-from cosmpy.aerial.tx import Transaction
+from cosmpy.aerial.tx import Transaction, TxFee
 from cosmpy.aerial.tx_helpers import SubmittedTx, TxResponse
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
@@ -446,7 +446,7 @@ class AlmanacContract(LedgerContract):
         broadcast_retry_delay: RetryDelayFunc | None = None,
         poll_retries: int | None = None,
         poll_retry_delay: RetryDelayFunc | None = None,
-        gas_limit: int | None = None,
+        tx_fee: TxFee | None = None,
         timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
     ) -> TxResponse:
         """
@@ -464,7 +464,7 @@ class AlmanacContract(LedgerContract):
             broadcast_retry_delay (RetryDelayFunc, optional): The delay function for retries.
             poll_retries (int, optional): The number of retries for polling.
             poll_retry_delay (RetryDelayFunc, optional): The delay function for polling.
-            gas_limit (int, optional): The gas limit for the transaction.
+            tx_fee (TxFee, optional): The transaction fee to use.
             timeout_blocks (int, optional): The number of blocks to wait before timing out.
 
         Returns:
@@ -511,7 +511,7 @@ class AlmanacContract(LedgerContract):
                     transaction,
                     wallet,
                     account=account,
-                    gas_limit=gas_limit,
+                    fee=tx_fee,
                     timeout_height=timeout_height,
                 )
                 break
@@ -544,7 +544,7 @@ class AlmanacContract(LedgerContract):
         broadcast_retry_delay: RetryDelayFunc | None = None,
         poll_retries: int | None = None,
         poll_retry_delay: RetryDelayFunc | None = None,
-        gas_limit: int | None = None,
+        tx_fee: TxFee | None = None,
         timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
     ) -> TxResponse:
         """
@@ -558,7 +558,7 @@ class AlmanacContract(LedgerContract):
             broadcast_retry_delay (RetryDelayFunc, optional): The delay function for retries.
             poll_retries (int, optional): The number of retries for polling.
             poll_retry_delay (RetryDelayFunc, optional): The delay function for polling.
-            gas_limit (int, optional): The gas limit for the transaction.
+            tx_fee (TxFee, optional): The transaction fee to use.
             timeout_blocks (int, optional): The number of blocks to wait before timing out.
 
         Returns:
@@ -612,7 +612,7 @@ class AlmanacContract(LedgerContract):
                     transaction,
                     wallet,
                     account=account,
-                    gas_limit=gas_limit,
+                    fee=tx_fee,
                     timeout_height=timeout_height,
                 )
                 break
@@ -870,7 +870,7 @@ class NameServiceContract(LedgerContract):
         approval_token: str,
         duration: int = ANAME_REGISTRATION_SECONDS,
         overwrite: bool = True,
-        gas_limit: int | None = None,
+        tx_fee: TxFee | None = None,
         timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
     ) -> TxResponse:
         """
@@ -888,7 +888,7 @@ class NameServiceContract(LedgerContract):
             overwrite (bool, optional): Specifies whether to overwrite any existing
                 addresses registered to the domain. If False, the address will be
                 appended to the previous records. Defaults to True.
-            gas_limit (int | None, optional): The gas limit for the transaction.
+            tx_fee (TxFee, optional): The transaction fee to use.
             timeout_blocks (int, optional): The number of blocks to wait before timing out.
 
         Returns:
@@ -952,7 +952,7 @@ class NameServiceContract(LedgerContract):
             client=ledger,
             tx=transaction,
             sender=wallet,
-            gas_limit=gas_limit,
+            fee=tx_fee,
             timeout_height=timeout_height,
         )
         status: TxResponse = await wait_for_tx_to_complete(
