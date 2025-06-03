@@ -118,9 +118,15 @@ jobs:
           merge-multiple: true
           path: ./python
 
+      - id: count_files
+        uses: omagdy7/count_files@v1.0
+        with:
+          path: ${{ steps.download.outputs.download-path}}
+
       - name: Coverage comment
         id: coverage_comment
         uses: py-cov-action/python-coverage-comment-action@v3
+        if: steps.count_files.outputs.COUNT > 0
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MERGE_COVERAGE_FILES: true
