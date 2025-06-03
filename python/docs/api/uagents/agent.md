@@ -593,10 +593,10 @@ Decorator to register an event handler for a specific event type.
 
 #### on_rest_get
 ```python
-def on_rest_get(endpoint: str, response: type[Model])
+def on_rest_get(endpoint: str, request: type[Model] | None, response: type[Model])
 ```
 
-Add a handler for a GET REST endpoint.
+Add a handler for a GET REST endpoint with optional query parameter support.
 
 
 

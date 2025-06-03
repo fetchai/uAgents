@@ -433,7 +433,7 @@ class Agent(Sink):
         # define default rest message handlers if agent inspector is enabled
         if enable_agent_inspector:
 
-            @self.on_rest_get("/agent_info", AgentInfo)  # type: ignore
+            @self.on_rest_get("/agent_info", None, AgentInfo)  # type: ignore
             async def _handle_get_info(_ctx: Context) -> AgentInfo:
                 return AgentInfo(
                     address=self.address,
@@ -443,7 +443,7 @@ class Agent(Sink):
                     metadata=self.metadata,
                 )
 
-            @self.on_rest_get("/messages", EnvelopeHistoryResponse)  # type: ignore
+            @self.on_rest_get("/messages", None, EnvelopeHistoryResponse)  # type: ignore
             async def _handle_get_messages(
                 _ctx: Context,
             ) -> None | EnvelopeHistoryResponse:
@@ -946,9 +946,9 @@ class Agent(Sink):
 
         return decorator_on_rest
 
-    def on_rest_get(self, endpoint: str, response: type[Model]):
-        """Add a handler for a GET REST endpoint."""
-        return self._on_rest("GET", endpoint, None, response)
+    def on_rest_get(self, endpoint: str, request: type[Model] | None, response: type[Model]):
+        """Add a handler for a GET REST endpoint with optional query parameter support."""
+        return self._on_rest("GET", endpoint, request, response)
 
     def on_rest_post(self, endpoint: str, request: type[Model], response: type[Model]):
         """Add a handler for a POST REST endpoint."""

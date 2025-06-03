@@ -95,8 +95,8 @@ class TestAgent(unittest.TestCase):
         self.assertIsNone(self.agent._storage.get("shutdown"))
 
     def test_agent_on_rest_get(self):
-        @self.agent.on_rest_get("/get", Response)
-        def _(_ctx: Context):
+        @self.agent.on_rest_get("/get", None, Response)
+        async def _(ctx: Context) -> Response:
             return {}
 
         rest_handlers = self.agent._server._rest_handler_map
