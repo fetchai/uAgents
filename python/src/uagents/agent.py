@@ -946,7 +946,9 @@ class Agent(Sink):
 
         return decorator_on_rest
 
-    def on_rest_get(self, endpoint: str, request: type[Model] | None, response: type[Model]):
+    def on_rest_get(
+        self, endpoint: str, request: type[Model] | None, response: type[Model]
+    ):
         """Add a handler for a GET REST endpoint with optional query parameter support."""
         return self._on_rest("GET", endpoint, request, response)
 
