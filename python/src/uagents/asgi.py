@@ -244,19 +244,18 @@ class ASGIServer:
         elif rest_handler.method == "GET" and rest_handler.request_model is not None:
             # Handle GET request with query parameters
             query_string = scope.get("query_string", b"").decode()
-            if not query_string:
-                await self._asgi_send(
-                    send=send,
-                    status_code=400,
-                    body={"error": "No query parameters found"},
-                )
-                return
 
             try:
-                # Parse query parameters
-                query_params = parse_qs(query_string, keep_blank_values=True)
-                # Convert to flat dict (OAuth sends single values)
-                flat_params = {k: v[0] if v else "" for k, v in query_params.items()}
+                if query_string:
+                    # Parse query parameters
+                    query_params = parse_qs(query_string, keep_blank_values=True)
+                    # Convert to flat dict (OAuth sends single values)
+                    flat_params = {
+                        k: v[0] if v else "" for k, v in query_params.items()
+                    }
+                else:
+                    # No query parameters - let Pydantic validation handle missing required fields
+                    flat_params = {}
 
                 received_request = rest_handler.request_model.model_validate(
                     flat_params
