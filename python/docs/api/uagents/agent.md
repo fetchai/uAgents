@@ -593,10 +593,34 @@ Decorator to register an event handler for a specific event type.
 
 #### on_rest_get
 ```python
-def on_rest_get(endpoint: str, request: type[Model] | None, response: type[Model])
+def on_rest_get(endpoint: str, request_or_response, response=None)
 ```
 
 Add a handler for a GET REST endpoint with optional query parameter support.
+
+This method supports two signatures:
+- **2-parameter (backward compatible)**: `on_rest_get(endpoint, response)` - Simple GET endpoint without query parameters
+- **3-parameter (new feature)**: `on_rest_get(endpoint, request, response)` - GET endpoint with query parameter validation
+
+**Arguments**:
+
+- `endpoint` _str_ - The REST endpoint path.
+- `request_or_response` _type[Model] | None_ - In 2-parameter mode: the response model. In 3-parameter mode: the request model for query parameters (or None).
+- `response` _type[Model] | None_ - In 3-parameter mode: the response model. Not used in 2-parameter mode.
+
+**Examples**:
+
+```python
+# Simple GET endpoint (2-parameter)
+@agent.on_rest_get("/status", StatusResponse)
+async def get_status(ctx: Context) -> StatusResponse:
+    return StatusResponse(status="ok")
+
+# GET endpoint with query parameters (3-parameter)  
+@agent.on_rest_get("/oauth/callback", OAuthRequest, OAuthResponse)
+async def oauth_callback(ctx: Context, req: OAuthRequest) -> OAuthResponse:
+    return OAuthResponse(access_token=req.code)
+```
 
 
 

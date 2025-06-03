@@ -946,11 +946,14 @@ class Agent(Sink):
 
         return decorator_on_rest
 
-    def on_rest_get(
-        self, endpoint: str, request: type[Model] | None, response: type[Model]
-    ):
+    def on_rest_get(self, endpoint: str, request_or_response, response=None):
         """Add a handler for a GET REST endpoint with optional query parameter support."""
-        return self._on_rest("GET", endpoint, request, response)
+        if response is None:
+            # Old signature: on_rest_get(endpoint, response)
+            return self._on_rest("GET", endpoint, None, request_or_response)
+        else:
+            # New signature: on_rest_get(endpoint, request, response)
+            return self._on_rest("GET", endpoint, request_or_response, response)
 
     def on_rest_post(self, endpoint: str, request: type[Model], response: type[Model]):
         """Add a handler for a POST REST endpoint."""

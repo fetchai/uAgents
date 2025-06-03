@@ -392,8 +392,8 @@ async def test_rest_bureau():
 
 @pytest.mark.order(8)
 async def test_rest_get_with_query_params_success():
-    """Test GET request with query parameters using Request model"""
-
+    """Test GET request with query parameters - should parse and return params"""
+    
     @agent.on_rest_get("/get-params", Request, Response)
     async def _(ctx: Context, req: Request) -> Response:
         return Response(text=f"Received: {req.text}")
@@ -475,8 +475,8 @@ async def test_rest_get_missing_required_params():
 
 @pytest.mark.order(10)
 async def test_rest_get_url_encoded_params():
-    """Test GET request with URL-encoded special characters"""
-
+    """Test GET request with URL-encoded parameters - should decode properly"""
+    
     @agent.on_rest_get("/get-encoded", Request, Response)
     async def _(ctx: Context, req: Request) -> Response:
         return Response(text=f"Received: {req.text}")
