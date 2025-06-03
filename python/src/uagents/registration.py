@@ -9,6 +9,7 @@ from typing import Any
 import aiohttp
 import grpc
 from cosmpy.aerial.client import LedgerClient
+from cosmpy.aerial.tx import TxFee
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
 from pydantic import BaseModel
@@ -224,7 +225,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         almanac_contract: AlmanacContract,
         testnet: bool,
         *,
-        gas_limit: int | None = None,
+        tx_fee: TxFee | None = None,
         timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
         logger: logging.Logger | None = None,
     ):
@@ -240,7 +241,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         self._poll_retry_delay: RetryDelayFunc | None = None
         self._last_successful_registration: datetime | None = None
         self._timeout_blocks = timeout_blocks
-        self._gas_limit = gas_limit
+        self._tx_fee = tx_fee
 
     @property
     def last_successful_registration(self) -> datetime | None:
@@ -332,7 +333,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
                     broadcast_retry_delay=self._broadcast_retry_delay,
                     poll_retries=self._poll_retries,
                     poll_retry_delay=self._poll_retry_delay,
-                    gas_limit=self._gas_limit,
+                    tx_fee=self._tx_fee,
                     timeout_blocks=self._timeout_blocks,
                 )
                 self._logger.info("Registering on almanac contract...complete")
@@ -387,7 +388,7 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
         testnet: bool,
         *,
         logger: logging.Logger | None = None,
-        gas_limit: int | None = None,
+        tx_fee: TxFee | None = None,
         timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
     ):
         self._ledger = ledger
@@ -404,7 +405,7 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
         self._poll_retries: int | None = None
         self._poll_retry_delay: RetryDelayFunc | None = None
         self._last_successful_registration: datetime | None = None
-        self._gas_limit: int | None = None
+        self._tx_fee: TxFee | None = None
         self._timeout_blocks = timeout_blocks
 
     @property
@@ -486,7 +487,7 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
                 broadcast_retry_delay=self._broadcast_retry_delay,
                 poll_retries=self._poll_retries,
                 poll_retry_delay=self._poll_retry_delay,
-                gas_limit=self._gas_limit,
+                tx_fee=self._tx_fee,
                 timeout_blocks=self._timeout_blocks,
             )
 
