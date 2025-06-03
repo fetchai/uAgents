@@ -6,7 +6,6 @@ import urllib.parse
 
 import requests
 from pydantic import BaseModel
-from uagents.registration import AgentStatusUpdate
 
 from uagents_core.config import (
     DEFAULT_ALMANAC_API_PATH,
@@ -20,6 +19,7 @@ from uagents_core.logger import get_logger
 from uagents_core.protocol import is_valid_protocol_digest
 from uagents_core.registration import (
     AgentRegistrationAttestation,
+    AgentStatusUpdate,
     AgentUpdates,
     AgentverseConnectRequest,
     ChallengeRequest,
