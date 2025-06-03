@@ -107,3 +107,9 @@ class AgentUpdates(BaseModel):
     avatar_url: str | None = Field(default=None, max_length=4000)
     short_description: str | None = Field(default=None, max_length=300)
     agent_type: AgentType | None = "custom"
+
+
+class AgentStatusUpdate(VerifiableModel):
+    is_active: bool = Field(
+        ..., description="Indicates whether the agent is currently active"
+    )

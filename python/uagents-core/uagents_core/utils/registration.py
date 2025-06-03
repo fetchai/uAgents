@@ -6,6 +6,7 @@ import urllib.parse
 
 import requests
 from pydantic import BaseModel
+from uagents.registration import AgentStatusUpdate
 
 from uagents_core.config import (
     DEFAULT_ALMANAC_API_PATH,
@@ -269,3 +270,37 @@ def register_in_agentverse(
             exc_info=e,
         )
         return False
+
+
+def update_agent_status(active: bool, identity: Identity):
+    """
+    Update the agent's active/inactive status in the Almanac API.
+
+    Args:
+        active (bool): The status of the agent.
+        identity (Identity): The identity of the agent.
+    """
+    almanac_api = AgentverseConfig().url + DEFAULT_ALMANAC_API_PATH
+
+    status_update = AgentStatusUpdate(
+        agent_identifier=identity.address, is_active=active
+    )
+    status_update.sign(identity)
+
+    logger.debug(
+        msg="Updating agent status in Almanac API",
+        extra=status_update.model_dump(),
+    )
+
+    status, _ = _send_post_request(
+        url=f"{almanac_api}/agents/{identity.address}/status",
+        data=status_update,
+    )
+
+    if status:
+        logger.info(
+            msg=f"Agent status updated to {'active' if active else 'inactive'}",
+            extra={"agent_address": identity.address},
+        )
+
+    return status
