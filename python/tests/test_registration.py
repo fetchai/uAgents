@@ -47,8 +47,8 @@ def test_attestation_signature_with_metadata():
             {
                 "foo": "bar",
                 "baz": 3.17,
-                "categories": ["apple", "orange", 2],
                 "qux": {"a": "b", "c": 4, "d": 5.6},
+                "quux": ["corge", "grault", 2],
             }
         ),
     )
