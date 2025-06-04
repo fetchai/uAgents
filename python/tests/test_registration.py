@@ -44,7 +44,12 @@ def test_attestation_signature_with_metadata():
         protocols=TEST_PROTOCOLS,
         endpoints=TEST_ENDPOINTS,
         metadata=coerce_metadata_to_str(
-            {"foo": "bar", "baz": 3.17, "qux": {"a": "b", "c": 4, "d": 5.6}}
+            {
+                "foo": "bar",
+                "baz": 3.17,
+                "categories": ["apple", "orange", 2],
+                "qux": {"a": "b", "c": 4, "d": 5.6},
+            }
         ),
     )
 
