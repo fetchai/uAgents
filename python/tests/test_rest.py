@@ -23,7 +23,7 @@ bureau = Bureau()
 
 @pytest.mark.order(1)
 async def test_rest_get_success():
-    @agent.on_rest_get("/get-success", Response)
+    @agent.on_rest_get("/get-success", None, Response)
     async def _(_ctx: Context):
         return Response(text="Hi there!")
 
@@ -182,7 +182,7 @@ async def test_rest_post_fail_invalid_response():
     async def _(_ctx: Context, _req: Request):
         return wrong_response
 
-    @agent.on_rest_get("/get-body-wrong", Response)
+    @agent.on_rest_get("/get-body-wrong", None, Response)
     async def _(_ctx: Context):
         return wrong_response_model
 
@@ -281,9 +281,9 @@ async def test_inspector_rest_wrong_client():
 @pytest.mark.order(7)
 async def test_rest_bureau():
     # bureau has one agent and it should route to the agent without additional headers
-    @agent.on_rest_get("/get-bureau", Response)
+    @agent.on_rest_get("/get-bureau", None, Response)
     async def _(_ctx: Context):
-        return Response(text="Hi there!")
+        return Response(text="agent response")
 
     bureau.add(agent)
 
@@ -312,16 +312,16 @@ async def test_rest_bureau():
             call(
                 {
                     "type": "http.response.body",
-                    "body": b'{"text": "Hi there!"}',
+                    "body": b'{"text": "agent response"}',
                 }
             ),
         ]
     )
 
     # bureau adds second agent with same endpoint, should return 400
-    @bob.on_rest_get("/get-bureau", Response)
+    @bob.on_rest_get("/get-bureau", None, Response)
     async def _(_ctx: Context):
-        return Response(text="Hi too!")
+        return Response(text="bob response")
 
     bureau.add(bob)
 
@@ -383,7 +383,131 @@ async def test_rest_bureau():
             call(
                 {
                     "type": "http.response.body",
-                    "body": b'{"text": "Hi too!"}',
+                    "body": b'{"text": "bob response"}',
+                }
+            ),
+        ]
+    )
+
+
+@pytest.mark.order(8)
+async def test_rest_get_with_query_params_success():
+    """Test GET request with query parameters - should parse and return params"""
+
+    @agent.on_rest_get("/get-params", Request, Response)
+    async def _(ctx: Context, req: Request) -> Response:
+        return Response(text=f"Received: {req.text}")
+
+    mock_send = AsyncMock()
+    with patch("uagents.asgi._read_asgi_body") as mock_receive:
+        mock_receive.return_value = b""
+        await agent._server(
+            scope={
+                "type": "http",
+                "method": "GET",
+                "path": "/get-params",
+                "query_string": b"text=hello",
+                "client": ("127.0.0.1", 1234),
+            },
+            receive=None,
+            send=mock_send,
+        )
+    mock_send.assert_has_calls(
+        [
+            call(
+                {
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [[b"content-type", b"application/json"]],
+                }
+            ),
+            call(
+                {
+                    "type": "http.response.body",
+                    "body": b'{"text": "Received: hello"}',
+                }
+            ),
+        ]
+    )
+
+
+@pytest.mark.order(9)
+async def test_rest_get_missing_required_params():
+    """Test GET request with missing required parameters - should return 400"""
+
+    @agent.on_rest_get("/get-missing", Request, Response)
+    async def _(ctx: Context, req: Request) -> Response:
+        return Response(text=f"Received: {req.text}")
+
+    mock_send = AsyncMock()
+    with patch("uagents.asgi._read_asgi_body") as mock_receive:
+        mock_receive.return_value = b""
+        await agent._server(
+            scope={
+                "type": "http",
+                "method": "GET",
+                "path": "/get-missing",
+                "query_string": b"",  # Missing 'text' parameter
+                "client": ("127.0.0.1", 1234),
+            },
+            receive=None,
+            send=mock_send,
+        )
+    mock_send.assert_has_calls(
+        [
+            call(
+                {
+                    "type": "http.response.start",
+                    "status": 400,
+                    "headers": [[b"content-type", b"application/json"]],
+                }
+            ),
+            call(
+                {
+                    "type": "http.response.body",
+                    "body": b'{"loc": ["text"], "msg": "field required", '
+                    b'"type": "value_error.missing"}',
+                }
+            ),
+        ]
+    )
+
+
+@pytest.mark.order(10)
+async def test_rest_get_url_encoded_params():
+    """Test GET request with URL-encoded parameters - should decode properly"""
+
+    @agent.on_rest_get("/get-encoded", Request, Response)
+    async def _(ctx: Context, req: Request) -> Response:
+        return Response(text=f"Received: {req.text}")
+
+    mock_send = AsyncMock()
+    with patch("uagents.asgi._read_asgi_body") as mock_receive:
+        mock_receive.return_value = b""
+        await agent._server(
+            scope={
+                "type": "http",
+                "method": "GET",
+                "path": "/get-encoded",
+                "query_string": b"text=hello%20world",
+                "client": ("127.0.0.1", 1234),
+            },
+            receive=None,
+            send=mock_send,
+        )
+    mock_send.assert_has_calls(
+        [
+            call(
+                {
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [[b"content-type", b"application/json"]],
+                }
+            ),
+            call(
+                {
+                    "type": "http.response.body",
+                    "body": b'{"text": "Received: hello world"}',
                 }
             ),
         ]
