@@ -67,7 +67,7 @@ def register_in_almanac(
     identity: Identity,
     endpoints: list[str],
     protocol_digests: list[str],
-    metadata: dict[str, str | dict[str, str]] | None = None,
+    metadata: dict[str, str | list[str] | dict[str, str]] | None = None,
     *,
     agentverse_config: AgentverseConfig | None = None,
     timeout: int = DEFAULT_REQUEST_TIMEOUT,

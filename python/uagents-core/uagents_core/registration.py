@@ -70,7 +70,7 @@ class VerifiableModel(BaseModel):
 class AgentRegistrationAttestation(VerifiableModel):
     protocols: list[str]
     endpoints: list[AgentEndpoint]
-    metadata: dict[str, str | dict[str, str]] | None = None
+    metadata: dict[str, str | list[str] | dict[str, str]] | None = None
 
 
 # Agentverse related models
