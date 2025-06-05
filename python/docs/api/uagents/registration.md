@@ -7,8 +7,8 @@
 #### coerce_metadata_to_str[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L52)
 ```python
 def coerce_metadata_to_str(
-        metadata: dict[str, Any] | None
-) -> dict[str, str | dict[str, str]] | None
+    metadata: dict[str, Any] | None
+) -> dict[str, str | list[str] | dict[str, str]] | None
 ```
 
 Step through the metadata and convert any non-string values to strings.
