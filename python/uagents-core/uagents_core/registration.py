@@ -73,6 +73,17 @@ class AgentRegistrationAttestation(VerifiableModel):
     metadata: dict[str, str | list[str] | dict[str, str]] | None = None
 
 
+class AgentRegistrationAttestationBatch(VerifiableModel):
+    attestations: list[AgentRegistrationAttestation]
+
+
+class AgentRegistrationInput(BaseModel):
+    identity: Identity
+    endpoints: list[str]
+    protocol_digests: list[str]
+    metadata: dict[str, str | list[str] | dict[str, str]] | None = None
+
+
 # Agentverse related models
 class RegistrationRequest(BaseModel):
     address: str
