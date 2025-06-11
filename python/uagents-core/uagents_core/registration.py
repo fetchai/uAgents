@@ -73,7 +73,7 @@ class AgentRegistrationAttestation(VerifiableModel):
     metadata: dict[str, str | list[str] | dict[str, str]] | None = None
 
 
-class AgentRegistrationAttestationBatch(VerifiableModel):
+class AgentRegistrationAttestationBatch(BaseModel):
     attestations: list[AgentRegistrationAttestation]
 
 
