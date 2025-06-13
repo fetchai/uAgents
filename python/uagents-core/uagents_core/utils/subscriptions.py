@@ -1,3 +1,21 @@
+"""
+This module provides methods related to agent bases subscriptions.
+
+Example usage:
+```
+@protocol.on_message(ChatMessage)
+async def handle_message(ctx: Context, sender: str, msg: ChatMessage):
+    # verify that the sender has an ongoing subscription with our agent
+    if not is_subscription_valid(identity=ctx.agent.identity, requester_address=sender):
+        await ctx.send(sender, ErrorMessage(error="Subscription needed for this agent"))
+        return
+
+    # process the message
+    ...
+```
+
+"""
+
 from datetime import datetime
 from secrets import token_bytes
 
