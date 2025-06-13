@@ -7,6 +7,7 @@ DEFAULT_CHALLENGE_PATH = "/v1/auth/challenge"
 DEFAULT_MAILBOX_PATH = "/v1/submit"
 DEFAULT_PROXY_PATH = "/v1/proxy/submit"
 DEFAULT_STORAGE_PATH = "/v1/storage"
+DEFAULT_PAYMENTS_PATH = "/v1/payments"
 
 DEFAULT_MAX_ENDPOINTS = 10
 
@@ -35,3 +36,7 @@ class AgentverseConfig(BaseModel):
     @property
     def storage_endpoint(self) -> str:
         return f"{self.url}{DEFAULT_STORAGE_PATH}"
+
+    @property
+    def payments_endpoint(self) -> str:
+        return f"{self.url}{DEFAULT_PAYMENTS_PATH}"

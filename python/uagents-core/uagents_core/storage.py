@@ -2,7 +2,6 @@ import base64
 import struct
 from datetime import datetime
 from secrets import token_bytes
-from typing import Optional
 
 import requests
 
@@ -34,38 +33,57 @@ def compute_attestation(
 class ExternalStorage:
     def __init__(
         self,
-        identity: Optional[Identity] = None,
-        storage_url: Optional[str] = None,
-        api_token: Optional[str] = None,
+        *,
+        identity: Identity | None = None,
+        storage_url: str | None = None,
+        api_token: str | None = None,
     ):
         self.identity = identity
         self.api_token = api_token
+        if not (identity or api_token):
+            raise ValueError(
+                "Either an identity or an API token must be provided for authentication"
+            )
         self.storage_url = storage_url or AgentverseConfig().storage_endpoint
 
     def _make_attestation(self) -> str:
         nonce = token_bytes(32)
         now = datetime.now()
-        return compute_attestation(self.identity, now, 3600, nonce)
+        if not self.identity:
+            raise RuntimeError("No identity available to create attestation")
+        return compute_attestation(
+            identity=self.identity,
+            validity_start=now,
+            validity_secs=3600,
+            nonce=nonce,
+        )
 
     def _get_auth_header(self) -> dict:
         if self.api_token:
             return {"Authorization": f"Bearer {self.api_token}"}
-        elif self.identity:
+        if self.identity:
             return {"Authorization": f"Agent {self._make_attestation()}"}
-        else:
-            raise RuntimeError("No identity or API token available for authentication")
+        raise RuntimeError("No identity or API token available for authentication")
 
     def upload(
-        self, asset_id: str, content: bytes, mime_type: str = "text/plain"
+        self,
+        asset_id: str,
+        asset_content: bytes,
+        mime_type: str = "text/plain",
     ) -> dict:
         url = f"{self.storage_url}/assets/{asset_id}/contents/"
         headers = self._get_auth_header()
         headers["Content-Type"] = "application/json"
         payload = {
-            "contents": base64.b64encode(content).decode(),
+            "contents": base64.b64encode(asset_content).decode(),
             "mime_type": mime_type,
         }
-        response = requests.put(url, json=payload, headers=headers)
+        response = requests.put(
+            url=url,
+            json=payload,
+            headers=headers,
+            timeout=10,
+        )
         if response.status_code != 200:
             raise RuntimeError(
                 f"Upload failed: {response.status_code}, {response.text}"
@@ -76,8 +94,11 @@ class ExternalStorage:
     def download(self, asset_id: str) -> dict:
         url = f"{self.storage_url}/assets/{asset_id}/contents/"
         headers = self._get_auth_header()
-
-        response = requests.get(url, headers=headers)
+        response = requests.get(
+            url=url,
+            headers=headers,
+            timeout=10,
+        )
         if response.status_code != 200:
             raise RuntimeError(
                 f"Download failed: {response.status_code}, {response.text}"
@@ -104,7 +125,12 @@ class ExternalStorage:
             "lifetime_hours": lifetime_hours,
         }
 
-        response = requests.post(url, json=payload, headers=headers)
+        response = requests.post(
+            url=url,
+            json=payload,
+            headers=headers,
+            timeout=10,
+        )
         if response.status_code != 201:
             raise RuntimeError(
                 f"Asset creation failed: {response.status_code}, {response.text}"
@@ -114,7 +140,7 @@ class ExternalStorage:
 
     def set_permissions(
         self, asset_id: str, agent_address: str, read: bool = True, write: bool = True
-    ):
+    ) -> dict:
         if not self.api_token:
             raise RuntimeError("API token required to set permissions")
         url = f"{self.storage_url}/assets/{asset_id}/permissions/"
@@ -126,7 +152,12 @@ class ExternalStorage:
             "write": write,
         }
 
-        response = requests.put(url, json=payload, headers=headers)
+        response = requests.put(
+            url=url,
+            json=payload,
+            headers=headers,
+            timeout=10,
+        )
         if response.status_code != 200:
             raise RuntimeError(
                 f"Set permissions failed: {response.status_code}, {response.text}"
