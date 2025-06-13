@@ -151,9 +151,17 @@ def register_batch_in_almanac(
     *,
     agentverse_config: AgentverseConfig | None = None,
     timeout: int = DEFAULT_REQUEST_TIMEOUT,
-) -> bool:
+    validate_all_before_registration: bool = False,
+) -> tuple[bool, list[str]]:
     """
-    Register the multiple identities with the Almanac API to make them discoverable by other agents.
+    Register multiple identities with the Almanac API to make them discoverable by other agents.
+
+    The return value is a 2-tuple including:
+    * (bool) Whether the registration request was both attempted and successful.
+    * (list[str]) A list of addresses of identities that failed validation.
+
+    If `validate_all_before_registration` is `True`, no registration request will be sent
+    unless all identities pass validation.
 
     Args:
         items (list[AgentRegistrationInput]): The list of identities to register.
@@ -161,13 +169,17 @@ def register_batch_in_almanac(
         agentverse_config (AgentverseConfig): The configuration for the agentverse API
         timeout (int): The timeout for the request
     """
-    # check endpoints
+    invalid_identities: list[str] = []
+    attestations: list[AgentRegistrationAttestation] = []
+
     for item in items:
+        # check endpoints
         if not item.endpoints:
             logger.warning(
                 f"No endpoints provided for {item.identity.address}; skipping registration",
             )
-            return False
+            invalid_identities.append(item.identity.address)
+            continue
         for endpoint in item.endpoints:
             result = urllib.parse.urlparse(endpoint)
             if not all([result.scheme, result.netloc]):
@@ -176,7 +188,8 @@ def register_batch_in_almanac(
                     + "skipping registration",
                     extra={"endpoint": endpoint},
                 )
-                return False
+                invalid_identities.append(item.identity.address)
+                continue
 
         # check protocol digests
         for proto_digest in item.protocol_digests:
@@ -186,17 +199,21 @@ def register_batch_in_almanac(
                     + "skipping registration",
                     extra={"protocol_digest": proto_digest},
                 )
-                return False
+                invalid_identities.append(item.identity.address)
+                continue
+
+        attestations.append(_build_signed_attestation(item))
+
+    if validate_all_before_registration and invalid_identities:
+        return False, invalid_identities
 
     # get the almanac API endpoint
     agentverse_config = agentverse_config or AgentverseConfig()
     almanac_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_ALMANAC_API_PATH)
 
-    attestations = [_build_signed_attestation(item) for item in items]
-
     logger.info(
         msg="Bulk registering with Almanac API",
-        extra=[item.agent_identifier for item in attestations],
+        extra=[attestation.agent_identifier for attestation in attestations],
     )
     attestation_batch = AgentRegistrationAttestationBatch(
         attestations=attestations,
@@ -208,7 +225,7 @@ def register_batch_in_almanac(
         data=attestation_batch.model_dump_json(),
         timeout=timeout,
     )
-    return status
+    return status, invalid_identities
 
 
 # associate user account with your agent
