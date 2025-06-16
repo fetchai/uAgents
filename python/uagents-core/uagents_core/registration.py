@@ -77,13 +77,6 @@ class AgentRegistrationAttestationBatch(BaseModel):
     attestations: list[AgentRegistrationAttestation]
 
 
-class AgentRegistrationInput:
-    identity: Identity
-    endpoints: list[str]
-    protocol_digests: list[str]
-    metadata: dict[str, str | list[str] | dict[str, str]] | None = None
-
-
 # Agentverse related models
 class RegistrationRequest(BaseModel):
     address: str

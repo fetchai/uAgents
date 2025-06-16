@@ -20,7 +20,6 @@ from uagents_core.protocol import is_valid_protocol_digest
 from uagents_core.registration import (
     AgentRegistrationAttestation,
     AgentRegistrationAttestationBatch,
-    AgentRegistrationInput,
     AgentStatusUpdate,
     AgentUpdates,
     AgentverseConnectRequest,
@@ -32,6 +31,28 @@ from uagents_core.registration import (
 from uagents_core.types import AgentEndpoint
 
 logger = get_logger("uagents_core.utils.registration")
+
+
+class AgentRegistrationInput:
+    identity: Identity
+    prefix: str | None = None
+    endpoints: list[str]
+    protocol_digests: list[str]
+    metadata: dict[str, str | list[str] | dict[str, str]] | None = None
+
+    def __init__(
+        self,
+        identity: Identity,
+        endpoints: list[str],
+        protocol_digests: list[str],
+        prefix: str | None = None,
+        metadata: dict[str, str | list[str] | dict[str, str]] | None = None,
+    ):
+        self.identity = identity
+        self.prefix = prefix
+        self.endpoints = endpoints
+        self.protocol_digests = protocol_digests
+        self.metadata = metadata
 
 
 def _send_post_request(
@@ -73,7 +94,9 @@ def _build_signed_attestation(
     ]
 
     attestation = AgentRegistrationAttestation(
-        agent_identifier=item.identity.address,
+        agent_identifier=f"{item.prefix}://{item.identity.address}"
+        if item.prefix
+        else item.identity.address,
         protocols=item.protocol_digests,
         endpoints=agent_endpoints,
         metadata=item.metadata,
@@ -88,6 +111,7 @@ def register_in_almanac(
     endpoints: list[str],
     protocol_digests: list[str],
     metadata: dict[str, str | list[str] | dict[str, str]] | None = None,
+    prefix: str | None = None,
     *,
     agentverse_config: AgentverseConfig | None = None,
     timeout: int = DEFAULT_REQUEST_TIMEOUT,
@@ -131,6 +155,7 @@ def register_in_almanac(
     # create the attestation
     item = AgentRegistrationInput(
         identity=identity,
+        prefix=prefix,
         endpoints=endpoints,
         protocol_digests=protocol_digests,
         metadata=metadata,
@@ -179,7 +204,6 @@ def register_batch_in_almanac(
                 f"No endpoints provided for {item.identity.address}; skipping registration",
             )
             invalid_identities.append(item.identity.address)
-            continue
         for endpoint in item.endpoints:
             result = urllib.parse.urlparse(endpoint)
             if not all([result.scheme, result.netloc]):
@@ -189,7 +213,6 @@ def register_batch_in_almanac(
                     extra={"endpoint": endpoint},
                 )
                 invalid_identities.append(item.identity.address)
-                continue
 
         # check protocol digests
         for proto_digest in item.protocol_digests:
@@ -200,9 +223,13 @@ def register_batch_in_almanac(
                     extra={"protocol_digest": proto_digest},
                 )
                 invalid_identities.append(item.identity.address)
-                continue
 
-        attestations.append(_build_signed_attestation(item))
+    # Remove duplicates
+    invalid_identities = sorted(list(set(invalid_identities)))
+
+    for item in items:
+        if item.identity.address not in invalid_identities:
+            attestations.append(_build_signed_attestation(item))
 
     if validate_all_before_registration and invalid_identities:
         return False, invalid_identities
