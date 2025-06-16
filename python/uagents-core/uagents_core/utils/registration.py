@@ -28,7 +28,7 @@ from uagents_core.registration import (
     RegistrationRequest,
     RegistrationResponse,
 )
-from uagents_core.types import AgentEndpoint
+from uagents_core.types import AddressPrefix, AgentEndpoint
 
 logger = get_logger("uagents_core.utils.registration")
 
@@ -45,7 +45,7 @@ class AgentRegistrationInput:
         identity: Identity,
         endpoints: list[str],
         protocol_digests: list[str],
-        prefix: str | None = None,
+        prefix: AddressPrefix | None = None,
         metadata: dict[str, str | list[str] | dict[str, str]] | None = None,
     ):
         self.identity = identity
@@ -111,7 +111,7 @@ def register_in_almanac(
     endpoints: list[str],
     protocol_digests: list[str],
     metadata: dict[str, str | list[str] | dict[str, str]] | None = None,
-    prefix: str | None = None,
+    prefix: AddressPrefix | None = None,
     *,
     agentverse_config: AgentverseConfig | None = None,
     timeout: int = DEFAULT_REQUEST_TIMEOUT,
@@ -121,8 +121,7 @@ def register_in_almanac(
 
     Args:
         identity (Identity): The identity of the agent.
-        prefix (str | None): The Almanac contract where the agent will be registered.
-            If none is provided, the agent will be registered to the default contract.
+        prefix (AddressPrefix | None): The prefix for the agent identifier.
         endpoints (list[str]): The endpoints that the agent can be reached at.
         protocol_digests (list[str]): The digests of the protocol that the agent supports
         agentverse_config (AgentverseConfig): The configuration for the agentverse API
