@@ -213,7 +213,11 @@ def register_batch_in_almanac(
 
     logger.info(
         msg="Bulk registering with Almanac API",
-        extra=[attestation.agent_identifier for attestation in attestations],
+        extra={
+            "agent_addresses": [
+                attestation.agent_identifier for attestation in attestations
+            ]
+        },
     )
     attestation_batch = AgentRegistrationAttestationBatch(
         attestations=attestations,
@@ -222,7 +226,7 @@ def register_batch_in_almanac(
     # submit the attestation to the API
     status, _ = _send_post_request(
         url=f"{almanac_api}/agents/batch",
-        data=attestation_batch.model_dump_json(),
+        data=attestation_batch,
         timeout=timeout,
     )
     return status, invalid_identities

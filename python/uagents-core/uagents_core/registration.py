@@ -77,7 +77,7 @@ class AgentRegistrationAttestationBatch(BaseModel):
     attestations: list[AgentRegistrationAttestation]
 
 
-class AgentRegistrationInput(BaseModel):
+class AgentRegistrationInput:
     identity: Identity
     endpoints: list[str]
     protocol_digests: list[str]
