@@ -1,6 +1,6 @@
 [project]
 name = "uagents-adapter"
-version = "0.3.0"
+version = "0.4.0"
 description = "Adapters for uAgents to integrate with LangChain, CrewAI, and MCP"
 authors = [{ name = "Fetch.AI Limited" }]
 license = { text = "Apache 2.0" }
