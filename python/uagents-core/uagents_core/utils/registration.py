@@ -121,6 +121,8 @@ def register_in_almanac(
 
     Args:
         identity (Identity): The identity of the agent.
+        prefix (str | None): The Almanac contract where the agent will be registered.
+            If none is provided, the agent will be registered to the default contract.
         endpoints (list[str]): The endpoints that the agent can be reached at.
         protocol_digests (list[str]): The digests of the protocol that the agent supports
         agentverse_config (AgentverseConfig): The configuration for the agentverse API
