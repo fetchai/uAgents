@@ -10,3 +10,4 @@ dist/
 .env
 .history/*
 .coverage
+**/uagents_core.log
