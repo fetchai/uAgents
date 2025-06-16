@@ -188,15 +188,31 @@ class LangchainRegisterTool(BaseRegisterTool):
                 agent = agent_info["agent_obj"]
 
                 try:
-                    # Try .run() method first (most common with agents)
-                    if hasattr(agent, "run"):
-                        result = agent.run(msg.query)
-                    # Try .invoke() for newer agent versions
-                    elif hasattr(agent, "invoke"):
-                        result = agent.invoke(msg.query)
-                    # Fall back to direct call for chains
+                    result = None
+
+                    # Check if agent is a coroutine function (async function)
+                    import inspect
+
+                    if inspect.iscoroutinefunction(agent):
+                        # Agent is async, await it
+                        result = await agent(msg.query)
                     else:
-                        result = agent({"input": msg.query})
+                        # Try different sync methods
+                        if hasattr(agent, "arun"):
+                            # Try .arun() method first for async support
+                            result = await agent.arun(msg.query)
+                        elif hasattr(agent, "ainvoke"):
+                            # Try .ainvoke() for newer async agent versions
+                            result = await agent.ainvoke(msg.query)
+                        elif hasattr(agent, "run"):
+                            # Try .run() method (most common with agents)
+                            result = agent.run(msg.query)
+                        elif hasattr(agent, "invoke"):
+                            # Try .invoke() for newer agent versions
+                            result = agent.invoke(msg.query)
+                        else:
+                            # Fall back to direct call for chains
+                            result = agent({"input": msg.query})
 
                         # Handle different return types
                         if isinstance(result, dict):
@@ -249,7 +265,21 @@ class LangchainRegisterTool(BaseRegisterTool):
                             try:
                                 # Try to run the agent directly
                                 agent = agent_info["agent_obj"]
-                                if hasattr(agent, "invoke"):
+
+                                # Check if agent is a coroutine function (async function)
+                                import inspect
+
+                                if inspect.iscoroutinefunction(agent):
+                                    # Agent is async, await it
+                                    result = await agent(item.text)
+                                # Try different sync/async methods
+                                elif hasattr(agent, "arun"):
+                                    # Try .arun() method first for async support
+                                    result = await agent.arun(item.text)
+                                elif hasattr(agent, "ainvoke"):
+                                    # Try .ainvoke() for newer async agent versions
+                                    result = await agent.ainvoke(item.text)
+                                elif hasattr(agent, "invoke"):
                                     result = agent.invoke(item.text)
                                 elif hasattr(agent, "run"):
                                     result = agent.run(item.text)
@@ -326,7 +356,20 @@ class LangchainRegisterTool(BaseRegisterTool):
 
                 # Run the agent with the query
                 try:
-                    if hasattr(agent, "invoke"):
+                    # Check if agent is a coroutine function (async function)
+                    import inspect
+
+                    if inspect.iscoroutinefunction(agent):
+                        # Agent is async, await it
+                        result = await agent(query.query)
+                    # Try different sync/async methods
+                    elif hasattr(agent, "arun"):
+                        # Try .arun() method first for async support
+                        result = await agent.arun(query.query)
+                    elif hasattr(agent, "ainvoke"):
+                        # Try .ainvoke() for newer async agent versions
+                        result = await agent.ainvoke(query.query)
+                    elif hasattr(agent, "invoke"):
                         result = agent.invoke(query.query)
                     elif hasattr(agent, "run"):
                         result = agent.run(query.query)
