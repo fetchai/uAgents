@@ -74,7 +74,7 @@ You should see the results in your terminal.
 
 Please see the [official documentation](https://fetch.ai/docs) for full setup instructions and advanced features.
 
-- [👋 Introduction](https://fetch.ai/docs/concepts/agents/agents)
+- [👋 Introduction](https://fetch.ai/docs/concepts)
 - [💻 Installation](https://fetch.ai/docs/guides/agents/installing-uagent)
 - Tutorials
   - [🤖 Create an agent](https://fetch.ai/docs/guides/agents/create-a-uagent)
