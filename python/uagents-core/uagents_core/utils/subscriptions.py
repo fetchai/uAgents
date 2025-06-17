@@ -3,14 +3,21 @@ This module provides methods related to agent bases subscriptions.
 
 Example usage:
 ```
+from uagents_core.contrib.protocols.subscriptions import TierType
+
 @protocol.on_message(ChatMessage)
 async def handle_message(ctx: Context, sender: str, msg: ChatMessage):
-    # verify that the sender has an ongoing subscription with our agent
-    if not is_subscription_valid(identity=ctx.agent.identity, requester_address=sender):
-        await ctx.send(sender, ErrorMessage(error="Subscription needed for this agent"))
-        return
+    subscription_tier = get_subscription_tier(
+        identity=ctx.agent.identity,
+        requester_address=sender
+    )
 
-    # process the message
+    if subscription_tier == TierType.PLUS:
+        ...
+
+    if subscription_tier == TierType.PRO:
+        ...
+
     ...
 ```
 
@@ -22,19 +29,24 @@ from secrets import token_bytes
 import requests
 
 from uagents_core.config import AgentverseConfig
+from uagents_core.contrib.protocols.subscriptions import TierType
 from uagents_core.identity import Identity
+from uagents_core.logger import get_logger
 from uagents_core.storage import compute_attestation
 
+logger = get_logger("uagents_core.utils.subscriptions")
 
-def is_subscription_valid(
+
+def get_subscription_tier(
     identity: Identity,
     requester_address: str,
     agentverse_config: AgentverseConfig | None = None,
-) -> bool:
+) -> TierType:
     """
-    Check if the requester has a valid subscription with the agent.
-    This function is used to verify that the sender has an active subscription
-    before processing the message.
+    Get the subscription tier of the requester for a specific agent.
+
+    This function is used to verify the type of subscription before processing
+    an incoming message.
 
     Args:
         identity (Identity): The identity of the agent that is requested.
@@ -43,7 +55,7 @@ def is_subscription_valid(
             If not provided, defaults to a new instance of AgentverseConfig.
 
     Returns:
-        bool: True if the sender has a valid subscription, False otherwise.
+        TierType: The subscription tier type of the requester.
     """
     if not agentverse_config:
         agentverse_config = AgentverseConfig()
@@ -57,7 +69,14 @@ def is_subscription_valid(
         f"{agentverse_config.payments_endpoint}/subscriptions"
         + f"/{identity.address}/{requester_address}"
     )
-    headers = {"Authorization": f"Agent {attestation}"}
-    response = requests.get(url=url, headers=headers, timeout=10)
+    headers: dict[str, str] = {"Authorization": f"Agent {attestation}"}
 
-    return response.status_code == 200
+    try:
+        response = requests.get(url=url, headers=headers, timeout=10)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        logger.error(f"Failed to get subscription tier: {e}")
+        return TierType.FREE
+
+    data: dict = response.json()
+    return data.get("tier_type", TierType.FREE)
