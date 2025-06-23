@@ -72,20 +72,19 @@ You should see the results in your terminal.
 
 ## 📖 Documentation
 
-Please see the [official documentation](https://fetch.ai/docs) for full setup instructions and advanced features.
+Please see the [official documentation](https://uagents.fetch.ai/docs) for full setup instructions and advanced features.
 
-- [👋 Introduction](https://fetch.ai/docs/concepts)
-- [💻 Installation](https://fetch.ai/docs/guides/agents/installing-uagent)
+- [👋 Introduction](https://uagents.fetch.ai/docs)
+- [💻 Installation](https://uagents.fetch.ai/docs/getting-started/install)
 - Tutorials
-  - [🤖 Create an agent](https://fetch.ai/docs/guides/agents/create-a-uagent)
-  - [🛣️ Agent Communication](https://fetch.ai/docs/guides/agents/communicating-with-other-agents)
-  - [🍽️ Restaurant Booking Demo](https://fetch.ai/docs/guides/agents/booking-demo)
+  - [🤖 Create an Agent](https://uagents.fetch.ai/docs/getting-started/create)
+  - [🛣️ Agent Communication](https://uagents.fetch.ai/docs/guides/communication)
+  - [🍽️ ASI:One Compatible Agent](https://uagents.fetch.ai/docs/examples/asi-1)
 - Key Concepts:
-  - [📍Addresses](https://fetch.ai/docs/guides/agents/getting-uagent-address)
-  - [💾 Storage](https://fetch.ai/docs/guides/agents/storage-function)
-  - [📝 Interval Tasks](https://fetch.ai/docs/guides/agents/interval-task)
-  - [🌐 Agent Broadcast](https://fetch.ai/docs/guides/agents/broadcast)
-  - [⚙️ Almanac Contracts](https://fetch.ai/docs/guides/agents/register-in-almanac)
+  - [📍Addresses](https://uagents.fetch.ai/docs/getting-started/address)
+  - [💾 Storage](https://uagents.fetch.ai/docs/guides/storage)
+  - [📝 Synchronous Communication](https://uagents.fetch.ai/docs/guides/send_receive)
+  - [🌐 Agent Broadcast](https://uagents.fetch.ai/docs/guides/broadcast)
 
 ## 🌱 Examples and Integrations
 
