@@ -11,13 +11,14 @@ Usage examples:
 ```python
 from uagents.experimental.subscription import SubscribableProtocol
 
+protocol_spec = ProtocolSpecification(...) # Import or create any protocol specification
+
 # Initialize the SubscribableProtocol instance
 subs_protocol = SubscribableProtocol(
     storage_reference=agent.storage,
     identity=agent.identity,
     agentverse=agent.agentverse,
-    name="quota_proto",
-    version=agent._version,
+    spec=protocol_spec,
     # default_rate_limit=RateLimit(window_size_minutes=1, max_requests=3), # Optional
 )
 
