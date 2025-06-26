@@ -37,6 +37,7 @@ async def handle(ctx: Context, sender: str, msg: ExampleMessage2):
     ...
 """
 
+from uagents_core.protocol import ProtocolSpecification
 from uagents_core.utils.subscriptions import TierType, get_subscription_tier
 
 from uagents.config import AgentverseConfig
@@ -53,6 +54,8 @@ class SubscribableProtocol(QuotaProtocol):
         agentverse: AgentverseConfig,
         name: str | None = None,
         version: str | None = None,
+        spec: ProtocolSpecification | None = None,
+        role: str | None = None,
         default_rate_limit: RateLimit | None = None,
         default_acl: AccessControlList | None = None,
     ):
@@ -73,6 +76,8 @@ class SubscribableProtocol(QuotaProtocol):
         super().__init__(
             name=name,
             version=version,
+            spec=spec,
+            role=role,
             storage_reference=storage_reference,
             default_rate_limit=default_rate_limit,
             default_acl=default_acl,
@@ -86,12 +91,14 @@ class SubscribableProtocol(QuotaProtocol):
         max_requests: int,
     ) -> bool:
         """
-        Add a request to the rate limiter if the current time is still within the
-        time window since the beginning of the most recent time window. Otherwise,
-        reset the time window and add the request.
+        If the agent is on a paid tier, do not apply rate limiting. If the agent is
+        on the free tier, apply the rate limiting as specified by the QuotaProtocol.
 
         Args:
             agent_address: The address of the agent making the request.
+            function_name: The name of the function being called.
+            window_size_minutes: The size of the time window in minutes for rate limiting.
+            max_requests: The maximum number of requests allowed in the time window.
 
         Returns:
             False if the agent is on the free tier and the maximum number of requests

@@ -638,6 +638,16 @@ class Agent(Sink):
         return self._prefix + "://" + self._identity.address
 
     @property
+    def identity(self) -> Identity:
+        """
+        Get the identity of the agent.
+
+        Returns:
+            Identity: The agent's identity.
+        """
+        return self._identity
+
+    @property
     def wallet(self) -> LocalWallet:
         """
         Get the wallet of the agent.
