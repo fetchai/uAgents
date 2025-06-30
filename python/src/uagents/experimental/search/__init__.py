@@ -1,10 +1,10 @@
 from datetime import datetime
 from typing import Annotated, Literal
 
-import requests
 from pydantic import BaseModel, Field
 
 from uagents.config import AGENTVERSE_URL
+from uagents.http_client import http_client
 
 SEARCH_API_URL = AGENTVERSE_URL + "/v1/search/agents"
 
@@ -142,38 +142,42 @@ class AgentGeoSearchCriteria(AgentSearchCriteria):
     geo_filter: AgentGeoFilter
 
 
-def _geosearch_agents(criteria: AgentGeoSearchCriteria) -> list[Agent]:
+async def _geosearch_agents(criteria: AgentGeoSearchCriteria) -> list[Agent]:
     # NOTE: currently results will be returned based on radius overlap, i.e., results can
     # include agents that are farther away then the specified radius.
 
     # filter only for active agents
     criteria.filters = AgentFilters(state=["active"])
-    response = requests.post(
-        url=SEARCH_API_URL + "/geo",
-        json=criteria.model_dump(),
-        timeout=5,
-    )
-    if response.status_code == 200:
-        data = response.json()
-        agents = [Agent.model_validate(agent) for agent in data["agents"]]
-        return agents
+    try:
+        status_code, data = await http_client.post(
+            url=f"{SEARCH_API_URL}/geo",
+            json=criteria.model_dump(),
+            timeout=5,
+        )
+        if status_code == 200 and isinstance(data, dict):
+            agents = [Agent.model_validate(agent) for agent in data.get("agents", [])]
+            return agents
+    except Exception as e:
+        print(f"Error in _geosearch_agents: {e}")
     return []
 
 
-def _search_agents(criteria: AgentSearchCriteria) -> list[Agent]:
-    response = requests.post(
-        url=SEARCH_API_URL,
-        json=criteria.model_dump(),
-        timeout=5,
-    )
-    if response.status_code == 200:
-        data = response.json()
-        agents = [Agent.model_validate(agent) for agent in data["agents"]]
-        return agents
+async def _search_agents(criteria: AgentSearchCriteria) -> list[Agent]:
+    try:
+        status_code, data = await http_client.post(
+            url=SEARCH_API_URL,
+            json=criteria.model_dump(),
+            timeout=5,
+        )
+        if status_code == 200 and isinstance(data, dict):
+            agents = [Agent.model_validate(agent) for agent in data.get("agents", [])]
+            return agents
+    except Exception as e:
+        print(f"Error in _search_agents: {e}")
     return []
 
 
-def geosearch_agents_by_proximity(
+async def geosearch_agents_by_proximity(
     latitude: float,
     longitude: float,
     radius: float,
@@ -188,10 +192,10 @@ def geosearch_agents_by_proximity(
         ),
         limit=limit,
     )
-    return _geosearch_agents(criteria)
+    return await _geosearch_agents(criteria)
 
 
-def geosearch_agents_by_protocol(
+async def geosearch_agents_by_protocol(
     latitude: float,
     longitude: float,
     radius: float,
@@ -207,7 +211,7 @@ def geosearch_agents_by_protocol(
         ),
         limit=limit,
     )
-    unfiltered_geoagents = _geosearch_agents(criteria)
+    unfiltered_geoagents = await _geosearch_agents(criteria)
     filtered_agents = [
         agent
         for agent in unfiltered_geoagents
@@ -216,7 +220,7 @@ def geosearch_agents_by_protocol(
     return filtered_agents
 
 
-def geosearch_agents_by_text(
+async def geosearch_agents_by_text(
     latitude: float, longitude: float, radius: float, search_text: str, limit: int = 30
 ) -> list[Agent]:
     """
@@ -229,17 +233,19 @@ def geosearch_agents_by_text(
         limit=limit,
         search_text=search_text,
     )
-    return _geosearch_agents(criteria)
+    return await _geosearch_agents(criteria)
 
 
-def search_agents_by_protocol(protocol_digest: str, limit: int = 30) -> list[Agent]:
+async def search_agents_by_protocol(
+    protocol_digest: str, limit: int = 30
+) -> list[Agent]:
     """Return all agents that match the given search criteria"""
     criteria = AgentSearchCriteria(
         filters=AgentFilters(state=["active"]),
         search_text=protocol_digest,
         limit=limit,
     )
-    unfiltered_geoagents = _search_agents(criteria)
+    unfiltered_geoagents = await _search_agents(criteria)
     filtered_agents = [
         agent
         for agent in unfiltered_geoagents
@@ -248,11 +254,11 @@ def search_agents_by_protocol(protocol_digest: str, limit: int = 30) -> list[Age
     return filtered_agents
 
 
-def search_agents_by_text(search_text: str, limit: int = 30) -> list[Agent]:
+async def search_agents_by_text(search_text: str, limit: int = 30) -> list[Agent]:
     """Return all agents that match the given search_text"""
     criteria = AgentSearchCriteria(
         filters=AgentFilters(state=["active"]),
         search_text=search_text,
         limit=limit,
     )
-    return _search_agents(criteria)
+    return await _search_agents(criteria)
