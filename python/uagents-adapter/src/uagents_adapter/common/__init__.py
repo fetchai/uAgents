@@ -17,6 +17,7 @@ from uagents import Agent, Context, Model, Protocol
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
     ChatMessage,
+    EndSessionContent,
     TextContent,
     chat_protocol_spec,
 )
@@ -36,6 +37,7 @@ __all__ = [
     "Protocol",
     "ChatAcknowledgement",
     "ChatMessage",
+    "EndSessionContent",
     "TextContent",
     "chat_protocol_spec",
     "ResponseMessage",
@@ -57,9 +59,11 @@ class ResponseMessage(Model):
 
 
 # Chat helper functions
-def create_text_chat(text: str, end_session: bool = True) -> ChatMessage:
+def create_text_chat(text: str, end_session: bool = False) -> ChatMessage:
     """Create a text chat message with optional end session marker."""
     content = [TextContent(type="text", text=text)]
+    if end_session:
+        content.append(EndSessionContent(type="end-session"))
     return ChatMessage(
         timestamp=datetime.utcnow(),
         msg_id=uuid4(),
