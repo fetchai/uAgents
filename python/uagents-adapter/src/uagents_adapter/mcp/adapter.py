@@ -4,7 +4,7 @@ import json
 import logging
 import threading
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any
 from uuid import uuid4
 
 import requests
@@ -22,20 +22,54 @@ from .protocol import (
     CallToolResponse,
     ListTools,
     ListToolsResponse,
+    ResetTools,
+    ResetToolsResponse,
     mcp_protocol_spec,
 )
 
 
-def serialize_messages(messages: List[Dict[str, Any]]) -> str:
+def serialize_messages(messages: list[dict[str, Any]]) -> str:
     """Serialize messages to JSON string."""
     return json.dumps(messages, default=str)
 
 
-def deserialize_messages(messages_str: str) -> List[Dict[str, Any]]:
+def deserialize_messages(messages_str: str) -> list[dict[str, Any]]:
     """Deserialize messages from JSON string."""
     if not messages_str:
         return []
     return json.loads(messages_str)
+
+
+def validate_args(args: dict[str, Any], schema: dict[str, Any]) -> bool:
+    """Validate tool arguments against the tool's inputSchema."""
+    if not schema or not isinstance(schema, dict):
+        return True  # No schema provided, assume valid
+    required = schema.get("required", [])
+    properties = schema.get("properties", {})
+
+    # Check for required fields
+    for req in required:
+        if req not in args:
+            return False
+
+    # Check that provided args match schema types
+    for key, value in args.items():
+        if key in properties:
+            expected_type = properties[key].get("type")
+            if (
+                expected_type == "string"
+                and not isinstance(value, str)
+                or expected_type == "number"
+                and not isinstance(value, (int, float))
+                or expected_type == "boolean"
+                and not isinstance(value, bool)
+                or expected_type == "array"
+                and not isinstance(value, list)
+                or expected_type == "object"
+                and not isinstance(value, dict)
+            ):
+                return False
+    return True
 
 
 class MCPServerAdapter:
@@ -80,7 +114,7 @@ class MCPServerAdapter:
 
         @self.mcp_proto.on_message(model=ListTools)
         async def list_tools(ctx: Context, sender: str, msg: ListTools):
-            ctx.logger.info("Received ListTools request")
+            ctx.logger.info(f"Received ListTools request for session: {msg.session_id}")
             try:
                 tools = await self.mcp.list_tools()
                 for tool in tools:
@@ -106,8 +140,29 @@ class MCPServerAdapter:
 
         @self.mcp_proto.on_message(model=CallTool)
         async def call_tool(ctx: Context, sender: str, msg: CallTool):
-            ctx.logger.info(f"Calling tool: {msg.tool} with args: {msg.args}")
+            ctx.logger.info(
+                f"Calling tool: {msg.tool} with args: {msg.args} "
+                f"for request_id: {msg.request_id}, session_id: {msg.session_id}"
+            )
             try:
+                # Validate session_id matches ctx.session if provided
+                if msg.session_id and msg.session_id != str(ctx.session):
+                    error = f"Invalid session_id: {msg.session_id} does not match current session"
+                    ctx.logger.error(error)
+                    await ctx.send(sender, CallToolResponse(result=None, error=error))
+                    return
+
+                # Validate args against tool's inputSchema
+                tools = await self.mcp.list_tools()
+                tool_schema = next(
+                    (t.inputSchema for t in tools if t.name == msg.tool), None
+                )
+                if tool_schema and not validate_args(msg.args, tool_schema):
+                    error = f"Invalid arguments for tool {msg.tool}"
+                    ctx.logger.error(error)
+                    await ctx.send(sender, CallToolResponse(result=None, error=error))
+                    return
+
                 output = await self.mcp.call_tool(msg.tool, msg.args)
                 result = (
                     "\n".join(str(r) for r in output)
@@ -119,6 +174,32 @@ class MCPServerAdapter:
                 error = f"Error: Failed to call tool {msg.tool}"
                 ctx.logger.error(f"{error}: {str(e)}")
                 await ctx.send(sender, CallToolResponse(result=None, error=error))
+
+        @self.mcp_proto.on_message(model=ResetTools)
+        async def reset_tools(ctx: Context, sender: str, msg: ResetTools):
+            ctx.logger.info(
+                f"Received ResetTools request for session: {msg.session_id}"
+            )
+            try:
+                if msg.session_id:
+                    messages_key = f"messages-{msg.session_id}"
+                    ctx.storage.set(
+                        messages_key, json.dumps([])
+                    )  # Clear message history
+                # Reset mcp_server state if supported
+                try:
+                    await self.mcp.reset_state(
+                        msg.session_id
+                    )  # Assumes mcp_server has reset_state
+                except AttributeError:
+                    ctx.logger.info("mcp_server does not support reset_state method")
+                await ctx.send(sender, ResetToolsResponse(success=True, error=None))
+            except Exception as e:
+                error_msg = f"Error resetting tools: {str(e)}"
+                ctx.logger.error(error_msg)
+                await ctx.send(
+                    sender, ResetToolsResponse(success=False, error=error_msg)
+                )
 
     def _setup_chat_protocol_handlers(self):
         """Set up handlers for chat protocol messages."""
@@ -133,6 +214,9 @@ class MCPServerAdapter:
             for item in msg.content:
                 if isinstance(item, StartSessionContent):
                     ctx.logger.info(f"Got a start session message from {sender}")
+                    # Clear message history for new session
+                    messages_key = f"messages-{str(ctx.session)}"
+                    ctx.storage.set(messages_key, json.dumps([]))
                     continue
                 elif isinstance(item, TextContent):
                     ctx.logger.info(f"Got a message from {sender}: {item.text}")
@@ -149,6 +233,12 @@ class MCPServerAdapter:
                             ctx.logger.error(f"Error loading message history: {str(e)}")
                             messages = []
 
+                        # Filter out tool messages to prevent stale tool call data
+                        messages = [
+                            m
+                            for m in messages
+                            if m.get("role") not in ["system", "tool"]
+                        ]
                         system_prompt = {
                             "role": "system",
                             "content": (
@@ -164,7 +254,6 @@ class MCPServerAdapter:
                             ),
                         }
 
-                        messages = [m for m in messages if m.get("role") != "system"]
                         messages.insert(0, system_prompt)
 
                         user_message = {"role": "user", "content": item.text.strip()}
@@ -293,6 +382,32 @@ class MCPServerAdapter:
                                     )
 
                                     try:
+                                        # Validate tool arguments
+                                        tool_schema = next(
+                                            (
+                                                t.inputSchema
+                                                for t in tools
+                                                if t.name == selected_tool
+                                            ),
+                                            None,
+                                        )
+                                        if tool_schema and not validate_args(
+                                            tool_args, tool_schema
+                                        ):
+                                            response_text = (
+                                                f"Invalid arguments "
+                                                f"for tool {selected_tool}"
+                                            )
+                                            ctx.logger.error(response_text)
+                                            messages.append(
+                                                {
+                                                    "role": "tool",
+                                                    "tool_call_id": tool_call["id"],
+                                                    "content": response_text,
+                                                }
+                                            )
+                                            continue
+
                                         tool_results = await self.mcp.call_tool(
                                             selected_tool, tool_args
                                         )
@@ -310,10 +425,6 @@ class MCPServerAdapter:
                                         ctx.logger.error(
                                             f"Error calling tool {selected_tool}: {str(e)}"
                                         )
-
-                                    ctx.logger.info(
-                                        f"Tool '{selected_tool}' response: {response_text}"
-                                    )
 
                                     messages.append(
                                         {
