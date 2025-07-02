@@ -1,6 +1,6 @@
 """Protocol definitions for MCP (Model Control Protocol)."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from uagents import Model
 from uagents_core.protocol import ProtocolSpecification
@@ -9,34 +9,53 @@ from uagents_core.protocol import ProtocolSpecification
 class ListTools(Model):
     """Request to list available tools."""
 
-    pass
+    session_id: str | None = None  # Add session ID
 
 
 class ListToolsResponse(Model):
     """Response containing available tools or error."""
 
-    tools: Optional[List[Dict[str, Any]]] = None
-    error: Optional[str] = None
+    tools: list[dict[str, Any]] | None = None
+    error: str | None = None
 
 
 class CallTool(Model):
     """Request to call a specific tool with arguments."""
 
+    request_id: str  # Unique request ID
+    session_id: str | None = None  # Add session ID
     tool: str
-    args: Dict[str, Any]
+    args: dict[str, Any]
 
 
 class CallToolResponse(Model):
     """Response from a tool call containing result or error."""
 
-    result: Optional[str] = None
-    error: Optional[str] = None
+    result: str | None = None
+    error: str | None = None
+
+
+class ResetTools(Model):
+    """Request to reset tool state for a session or globally."""
+
+    session_id: str | None = None  # Optional session ID for targeted reset
+
+
+class ResetToolsResponse(Model):
+    """Response indicating whether the reset was successful."""
+
+    success: bool
+    error: str | None = None
 
 
 # Protocol specification for MCP
 mcp_protocol_spec = ProtocolSpecification(
     name="MCPProtocol",
-    version="0.1.0",
-    interactions={ListTools: {ListToolsResponse}, CallTool: {CallToolResponse}},
-    roles={"client": set(), "server": {ListTools, CallTool}},
+    version="0.2.0",  # Updated version
+    interactions={
+        ListTools: {ListToolsResponse},
+        CallTool: {CallToolResponse},
+        ResetTools: {ResetToolsResponse},
+    },
+    roles={"client": set(), "server": {ListTools, CallTool, ResetTools}},
 )

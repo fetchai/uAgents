@@ -3,7 +3,14 @@
 from importlib import metadata
 
 from .adapter import MCPServerAdapter
-from .protocol import CallTool, CallToolResponse, ListTools, ListToolsResponse
+from .protocol import (
+    CallTool,
+    CallToolResponse,
+    ListTools,
+    ListToolsResponse,
+    ResetTools,
+    ResetToolsResponse,
+)
 
 try:
     __version__ = metadata.version(__package__.split(".")[0])
@@ -19,5 +26,7 @@ __all__ = [
     "ListToolsResponse",
     "CallTool",
     "CallToolResponse",
+    "ResetTools",
+    "ResetToolsResponse",
     "__version__",
 ]
