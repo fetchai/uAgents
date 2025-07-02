@@ -59,7 +59,7 @@ class ResponseMessage(Model):
 
 
 # Chat helper functions
-def create_text_chat(text: str, end_session: bool = True) -> ChatMessage:
+def create_text_chat(text: str, end_session: bool = False) -> ChatMessage:
     """Create a text chat message with optional end session marker."""
     content = [TextContent(type="text", text=text)]
     if end_session:
