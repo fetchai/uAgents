@@ -5,7 +5,6 @@ import random
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 
-import requests
 from dateutil import parser
 from uagents_core.helpers import weighted_random_sample
 from uagents_core.identity import parse_identifier
@@ -16,6 +15,7 @@ from uagents.config import (
     MAINNET_PREFIX,
     TESTNET_PREFIX,
 )
+from uagents.http_client import http_client
 from uagents.network import (
     AlmanacContract,
     get_almanac_contract,
@@ -232,27 +232,25 @@ class AlmanacApiResolver(Resolver):
         """
         try:
             _, _, address = parse_identifier(destination)
-            response = requests.get(
-                url=f"{self._almanac_api_url}/agents/{address}", timeout=5
-            )
+            url = f"{self._almanac_api_url}/agents/{address}"
 
-            if response.status_code != 200:
-                if response.status_code != 404:
+            status_code, response_data = await http_client.get(url)
+
+            if status_code != 200:
+                if status_code != 404:
                     LOGGER.debug(
                         f"Failed to resolve agent {address} from {self._almanac_api_url}, "
                         "resolving via Almanac contract..."
                     )
                 return None, []
 
-            agent = response.json()
-
-            expiry_str = agent.get("expiry", None)
+            expiry_str = response_data.get("expiry")
             if expiry_str is None:
                 return None, []
 
             expiry = parser.parse(expiry_str)
             current_time = datetime.now(timezone.utc)
-            endpoint_list = agent.get("endpoints", [])
+            endpoint_list = response_data.get("endpoints", [])
 
             if len(endpoint_list) > 0 and expiry > current_time:
                 endpoints = [val.get("url") for val in endpoint_list]
@@ -264,7 +262,8 @@ class AlmanacApiResolver(Resolver):
                 )
         except Exception as e:
             LOGGER.error(
-                f"Error in AlmanacApiResolver when resolving {destination}: {e}"
+                f"Error in AlmanacApiResolver when resolving {destination}: {e}",
+                exc_info=True,
             )
 
         return None, []
