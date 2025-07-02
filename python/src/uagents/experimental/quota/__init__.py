@@ -74,6 +74,7 @@ from collections.abc import Callable
 
 from pydantic import BaseModel
 from uagents_core.models import ErrorMessage
+from uagents_core.protocol import ProtocolSpecification
 
 from uagents import Context, Model, Protocol
 from uagents.storage import StorageAPI
@@ -108,6 +109,8 @@ class QuotaProtocol(Protocol):
         storage_reference: StorageAPI,
         name: str | None = None,
         version: str | None = None,
+        spec: ProtocolSpecification | None = None,
+        role: str | None = None,
         default_rate_limit: RateLimit | None = None,
         default_acl: AccessControlList | None = None,
     ):
@@ -121,7 +124,7 @@ class QuotaProtocol(Protocol):
             default_rate_limit (RateLimit | None): The default rate limit. Defaults to None.
             default_acl (AccessControlList | None): The access control list. Defaults to None.
         """
-        super().__init__(name=name, version=version)
+        super().__init__(name=name, version=version, spec=spec, role=role)
         self.storage_ref = storage_reference
         self.default_rate_limit = default_rate_limit
         self.default_acl = default_acl
