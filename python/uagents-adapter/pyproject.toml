@@ -16,7 +16,7 @@ dependencies = [
 
 [project.optional-dependencies]
 mcp = ["mcp (>=1.8.1)"]
-a2a-sdk-all = ["a2a-sdk[all] (>=0.2.11)"]
+a2a-sdk-all = ["a2a-sdk[all]>=0.2.11"]
 
 
 [tool.poetry]

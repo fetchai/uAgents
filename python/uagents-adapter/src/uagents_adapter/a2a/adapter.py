@@ -1,4 +1,5 @@
 import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -7,11 +8,18 @@ from uuid import uuid4
 import httpx
 import requests
 import uvicorn
-from a2a.server.agent_execution import AgentExecutor
+from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.apps import A2AStarletteApplication
+from a2a.server.events import EventQueue
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryTaskStore
-from a2a.types import AgentCapabilities, AgentCard, AgentSkill
+from a2a.types import (
+    AgentCapabilities,
+    AgentCard,
+    AgentSkill,
+    Part,
+    TextPart,
+)
 from pydantic import BaseModel
 from uagents import Agent, Context, Protocol
 from uagents_core.contrib.protocols.chat import (
@@ -62,7 +70,7 @@ class ResponseMessage(BaseModel):
     """Output message model for A2A agent."""
     response: str
 
-class A2AAdapter:
+class SingleA2AAdapter:
     """Original A2A Adapter for backward compatibility."""
 
     def __init__(self,
@@ -224,11 +232,8 @@ class A2AAdapter:
     async def _call_executor_directly(self, message: str) -> str:
         """Call the agent executor directly as fallback."""
         try:
-            from a2a.server.agent_execution import RequestContext
-            from a2a.server.events import EventQueue
-            from a2a.types import AgentMessage, Part, TextPart
 
-            agent_message = AgentMessage(
+            agent_message = ChatMessage(
                 role="user",
                 parts=[Part(root=TextPart(type="text", text=message))],
                 messageId=uuid4().hex
@@ -307,7 +312,6 @@ class A2AAdapter:
 
         self.server_thread = threading.Thread(target=run_server, daemon=True)
         self.server_thread.start()
-        import time
         time.sleep(2)
 
     def run(self):
@@ -322,7 +326,7 @@ class A2AAdapter:
         # Run uAgent (this will block)
         self.uagent.run()
 
-class A2AAdapter:
+class MultiA2AAdapter:
 
     def __init__(
         self,
@@ -624,20 +628,18 @@ class A2AAdapter:
 
             agents_text = "\n".join(agent_descriptions)
 
-            # Create the prompt for agent selection
-            prompt = f"""You are an intelligent query router. Given a user query and a list of available AI agents, select the most suitable agent to handle the query.
-
-Available Agents:
-{agents_text}
-
-User Query: "{query}"
-
-Instructions:
-1. Analyze the query to understand what type of task it requires
-2. Match the query requirements with the agent specialties
-3. Return ONLY the number (1, 2, 3, or 4) of the best agent
-
-Response format: Just return the number (e.g., "2")"""
+            prompt = (
+                f"You are an intelligent query router. "
+                f"Given a user query and a list of available AI agents, "
+                f"select the most suitable agent to handle the query."
+                f"Available Agents: {agents_text}"
+                f"User Query: {query}"
+                f"Instructions: "
+                f"1. Analyze the query to understand what type of task it requires"
+                f"2. Match the query requirements with the agent specialties"
+                f"3. Return ONLY the number (1, 2, 3, or 4) of the best agent"
+                f"Response format: Just return the number (e.g., '2')"
+            )
 
             # Call ASI API
             url = "https://api.asi1.ai/v1/chat/completions"
@@ -790,12 +792,9 @@ Response format: Just return the number (e.g., "2")"""
     async def _call_fallback_executor(self, message: str) -> str:
         """Call the fallback executor if no suitable agent is found."""
         try:
-            from a2a.server.agent_execution import RequestContext
-            from a2a.server.events import EventQueue
-            from a2a.types import AgentMessage, Part, TextPart
 
             # Create a mock request context
-            agent_message = AgentMessage(
+            agent_message = ChatMessage(
                 role="user",
                 parts=[Part(root=TextPart(type="text", text=message))],
                 messageId=uuid4().hex
@@ -846,4 +845,3 @@ Response format: Just return the number (e.g., "2")"""
         for config in self.agent_configs:
             print(f"   • {config.name}: {', '.join(config.specialties or [])}")
         self.uagent.run()
-

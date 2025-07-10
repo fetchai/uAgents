@@ -55,7 +55,7 @@ pip install "uagents-adapter[a2a]"
 ### Single Agent Setup
 
 ```python
-from uagents_adapter import A2AAdapter
+from uagents_adapter import SingleA2AAdapter
 from your_agent_executor import YourAgentExecutor  # Replace with your executor
 
 def main():
@@ -63,7 +63,7 @@ def main():
     executor = YourAgentExecutor()
 
     # Create and run the adapter
-    adapter = A2AAdapter(
+    adapter = SingleA2AAdapter(
         agent_executor=executor,
         name="MyAgent",
         description="A helpful AI assistant",
@@ -76,7 +76,7 @@ def main():
 ### Multi-Agent Setup
 
 ```python
-from uagents_adapter import A2AAdapter, A2AAgentConfig
+from uagents_adapter import MultiA2AAdapter, A2AAgentConfig
 
 # Configure multiple agents
 agent_configs = [
@@ -98,7 +98,7 @@ agent_configs = [
 ]
 
 # Create multi-agent adapter
-adapter = A2AAdapter(
+adapter = MultiA2AAdapter(
     name="MultiAgentSystem",
     description="Coordinated AI agent system",
     asi_api_key='your_asi_api_key',
@@ -264,20 +264,135 @@ flowchart LR
 
 ```python
 import asyncio
-from uagents_adapter import A2AAdapter
+import threading
+import time
+from typing import Dict, List
+from dataclasses import dataclass
+
+from uagents_adapter import SingleA2AAdapter
 from brave.agent import BraveSearchAgentExecutor
 
+
+@dataclass
+class AgentConfig:
+    name: str
+    description: str
+    port: int
+    a2a_port: int
+    specialties: List[str]
+    executor_class: str
+
+
+class SingleAgent:
+    def __init__(self):
+        self.coordinator: SingleA2AAdapter = None
+        self.agent_configs: List[AgentConfig] = []
+        self.executors: Dict[str, any] = {}
+        self.running = False
+
+    def setup_agents(self):
+        print("🔧 Setting up A2A SingleAgent System\n" + "=" * 60)
+        self.agent_configs = [
+            AgentConfig(
+                name="brave_search",
+                description="AI Search Agent powered by Brave Search API",
+                port=8100,
+                a2a_port=10020,
+                specialties=["web search", "local search", "information retrieval", "news search", "business lookup"],
+                executor_class="BraveSearchAgentExecutor"
+            ),
+        ]
+        self.executors = {"BraveSearchAgentExecutor": BraveSearchAgentExecutor()}
+        for config in self.agent_configs:
+            print(f"✅ {config.name}: {', '.join(config.specialties)}")
+
+    def start_individual_a2a_servers(self):
+        from a2a.server.apps import A2AStarletteApplication
+        from a2a.server.request_handlers import DefaultRequestHandler
+        from a2a.server.tasks import InMemoryTaskStore
+        from a2a.types import AgentCapabilities, AgentCard, AgentSkill
+        import uvicorn
+
+        def start_server(config: AgentConfig, executor):
+            try:
+                skill = AgentSkill(
+                    id=f"{config.name.lower()}_skill",
+                    name=config.name.replace("_", " ").title(),
+                    description=config.description,
+                    tags=config.specialties,
+                    examples=[f"Search for {s.lower()}" for s in config.specialties[:3]],
+                )
+                agent_card = AgentCard(
+                    name=config.name.replace("_", " ").title(),
+                    description=config.description,
+                    url=f"http://localhost:{config.a2a_port}/",
+                    version="1.0.0",
+                    defaultInputModes=["text"],
+                    defaultOutputModes=["text"],
+                    capabilities=AgentCapabilities(),
+                    skills=[skill],
+                )
+                server = A2AStarletteApplication(
+                    agent_card=agent_card,
+                    http_handler=DefaultRequestHandler(
+                        agent_executor=executor,
+                        task_store=InMemoryTaskStore()
+                    )
+                )
+                print(f"🚀 Starting {config.name} on port {config.a2a_port}")
+                uvicorn.run(server.build(), host="0.0.0.0", port=config.a2a_port, timeout_keep_alive=10, log_level="info")
+            except Exception as e:
+                print(f"❌ Error starting {config.name}: {e}")
+
+        print("\n🔄 Starting A2A servers...")
+        for config in self.agent_configs:
+            executor = self.executors[config.executor_class]
+            threading.Thread(target=start_server, args=(config, executor), daemon=True).start()
+            time.sleep(1)
+        print("⏳ Initializing servers..."), time.sleep(5), print("✅ All A2A servers started!")
+
+    def create_coordinator(self):
+        print("\n🤖 Creating Coordinator...")
+        self.coordinator = SingleA2AAdapter(
+            agent_executor=self.executors["BraveSearchAgentExecutor"],
+            name="bravedahuahuah",
+            description="Routes queries to Brave Search AI specialists",
+            port=8200,
+            a2a_port=10030  
+        )
+        print(f"✅ Coordinator on port {self.coordinator.port}")
+        return self.coordinator
+
+    def start_system(self):
+        print("🚀 Starting A2A System\n" + "=" * 70)
+        try:
+            self.setup_agents()
+            self.start_individual_a2a_servers()
+            coordinator = self.create_coordinator()
+            print(f"\n🎯 Running coordinator on port {coordinator.port}...\nPress Ctrl+C to stop\n")
+            self.running = True
+            coordinator.run()
+        except KeyboardInterrupt:
+            print("\n👋 System shutdown...")
+            self.running = False
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            self.running = False
+
+
+def create_brave_search_agent_system():
+    return SingleAgent()
+
+
 def main():
-    executor = BraveSearchAgentExecutor()
-    adapter = A2AAdapter(
-        agent_executor=executor,
-        name="brave_search",
-        description="AI Search Agent powered by Brave Search API",
-        asi_api_key='your_asi_api_key'
-        port=8200,
-        a2a_port=10020
-    )
-    adapter.run()
+    try:
+        system = create_brave_search_agent_system()
+        system.start_system()
+    except KeyboardInterrupt:
+        print("\n👋 Shutdown complete!")
+    except Exception as e:
+        print(f"\n❌ Error: {e}")
+
 
 if __name__ == "__main__":
     main()
@@ -291,7 +406,7 @@ import threading
 import time
 from typing import Dict, List
 from dataclasses import dataclass
-from uagents_adapter import A2AAdapter, A2AAgentConfig
+from uagents_adapter import MultiA2AAdapter, A2AAgentConfig
 from agents.research_agent import ResearchAgentExecutor
 from agents.coding_agent import CodingAgentExecutor
 from agents.analysis_agent import AnalysisAgentExecutor
@@ -402,7 +517,7 @@ class MultiAgentOrchestrator:
                 priority=3 if "research" in config.specialties or "coding" in config.specialties else 2
             ) for config in self.agent_configs
         ]
-        self.coordinator = A2AAdapter(
+        self.coordinator = MultiA2AAdapter(
             name="coordinator",
             description="Routes queries to AI specialists",
             asi_api_key='your_asi_api_key',
@@ -490,6 +605,5 @@ The adapter includes comprehensive error handling:
 - **Network Timeouts**: Configurable timeout settings with graceful degradation
 - **Invalid Responses**: Fallback to error messages or alternative agents
 - **Health Check Failures**: Automatic agent exclusion and retry logic
-
 
 
