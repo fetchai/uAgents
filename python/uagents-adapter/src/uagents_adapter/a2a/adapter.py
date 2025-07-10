@@ -17,9 +17,8 @@ from a2a.types import (
     AgentCapabilities,
     AgentCard,
     AgentSkill,
-    Part,
-    TextPart,
 )
+from a2a.utils import new_agent_text_message
 from pydantic import BaseModel
 from uagents import Agent, Context, Protocol
 from uagents_core.contrib.protocols.chat import (
@@ -233,11 +232,7 @@ class SingleA2AAdapter:
         """Call the agent executor directly as fallback."""
         try:
 
-            agent_message = ChatMessage(
-                role="user",
-                parts=[Part(root=TextPart(type="text", text=message))],
-                messageId=uuid4().hex
-            )
+            agent_message = new_agent_text_message(message)
 
             context = RequestContext(
                 message=agent_message,
@@ -794,11 +789,7 @@ class MultiA2AAdapter:
         try:
 
             # Create a mock request context
-            agent_message = ChatMessage(
-                role="user",
-                parts=[Part(root=TextPart(type="text", text=message))],
-                messageId=uuid4().hex
-            )
+            agent_message = new_agent_text_message(message)
 
             context = RequestContext(
                 message=agent_message,

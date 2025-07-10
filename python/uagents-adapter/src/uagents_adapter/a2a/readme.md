@@ -48,6 +48,7 @@ The A2A uAgent Adapter provides a seamless bridge between A2A agents and the uAg
 
 ```shell
 pip install "uagents-adapter[a2a]"
+pip install "a2a-sdk[all]"
 ```
 
 ## Quick Start
