@@ -6,18 +6,13 @@ from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 import httpx
-import requests
 import uvicorn
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.apps import A2AStarletteApplication
 from a2a.server.events import EventQueue
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryTaskStore
-from a2a.types import (
-    AgentCapabilities,
-    AgentCard,
-    AgentSkill,
-)
+from a2a.types import AgentCapabilities, AgentCard, AgentSkill
 from a2a.utils import new_agent_text_message
 from pydantic import BaseModel
 from uagents import Agent, Context, Protocol
@@ -80,7 +75,6 @@ class SingleA2AAdapter:
                  a2a_port: int = 9999,
                  mailbox: bool = True,
                  seed: Optional[str] = None,
-                 known_agents: Optional[List[Dict[str, Any]]] = None,
                  agent_ports: Optional[List[int]] = None
     ):
         self.agent_executor = agent_executor
@@ -92,9 +86,7 @@ class SingleA2AAdapter:
         self.seed = seed or f"{name}_seed"
         self.a2a_server = None
         self.server_thread = None
-        self.known_agents = known_agents or []
         self.agent_ports = agent_ports or []
-
         # Create uAgent
         self.uagent = Agent(
             name=name,
@@ -163,7 +155,7 @@ class SingleA2AAdapter:
 
     async def _send_to_a2a_agent(self, message: str, a2a_url: str) -> str:
         """Send message to A2A agent and get response."""
-        async with httpx.AsyncClient(timeout=60.0) as httpx_client:
+        async with httpx.AsyncClient() as httpx_client:
             try:
                 # Try the correct A2A endpoint format
                 payload = {
@@ -182,47 +174,38 @@ class SingleA2AAdapter:
                     }
                 }
 
-                # Try different possible endpoints
-                endpoints_to_try = [
-                    "/send-message",
-                    "/",
-                    "/message",
-                    "/chat"
-                ]
+                # Send to A2A agent endpoint
+                try:
+                    response = await httpx_client.post(
+                        f"{a2a_url}/",
+                        json=payload,
+                        headers={"Content-Type": "application/json"}
+                    )
 
-                for endpoint in endpoints_to_try:
-                    try:
-                        response = await httpx_client.post(
-                            f"{a2a_url}{endpoint}",
-                            json=payload,
-                            headers={"Content-Type": "application/json"}
-                        )
+                    if response.status_code == 200:
+                        result = response.json()
+                        if "result" in result:
+                            result_data = result["result"]
+                            if "artifacts" in result_data:
+                                artifacts = result_data["artifacts"]
+                                full_text = ""
+                                for artifact in artifacts:
+                                    if "parts" in artifact:
+                                        for part in artifact["parts"]:
+                                            if part.get("kind") == "text":
+                                                full_text += part.get("text", "")
+                                if full_text.strip():
+                                    return full_text.strip()
+                            elif "parts" in result_data and len(result_data["parts"]) > 0:
+                                response_text = result_data["parts"][0].get("text", "")
+                                if response_text:
+                                    return response_text.strip()
+                            return "✅ Response received from A2A agent"
+                    else:
+                        return f"A2A agent returned HTTP {response.status_code}"
+                except Exception as e:
+                    return f"❌ Error communicating with A2A agent: {str(e)}"
 
-                        if response.status_code == 200:
-                            result = response.json()
-                            if "result" in result:
-                                result_data = result["result"]
-                                if "artifacts" in result_data:
-                                    artifacts = result_data["artifacts"]
-                                    full_text = ""
-                                    for artifact in artifacts:
-                                        if "parts" in artifact:
-                                            for part in artifact["parts"]:
-                                                if part.get("kind") == "text":
-                                                    full_text += part.get("text", "")
-                                    if full_text.strip():
-                                        return full_text.strip()
-                                elif "parts" in result_data and len(result_data["parts"]) > 0:
-                                    response_text = result_data["parts"][0].get("text", "")
-                                    if response_text:
-                                        return response_text.strip()
-                                return "✅ Response received from A2A agent"
-                        elif response.status_code == 404:
-                            continue
-                        else:
-                            return f"A2A agent returned HTTP {response.status_code} at {endpoint}"
-                    except Exception:
-                        continue
                 return await self._call_executor_directly(message)
 
             except Exception as e:
@@ -328,23 +311,27 @@ class MultiA2AAdapter:
         name: str,
         description: str,
         *,
-        asi_api_key: str,
+        llm_api_key: str,
         port: int = 8000,
         mailbox: bool = True,
         seed: Optional[str] = None,
         agent_configs: Optional[List[A2AAgentConfig]] = None,
         fallback_executor: Optional[AgentExecutor] = None,
         routing_strategy: str = "keyword_match",
+        model: str = "asi1-mini",
+        base_url: str = "https://api.asi1.ai/v1/chat/completions",
     ):
         self.name = name
         self.description = description
-        self.asi_api_key = asi_api_key
+        self.llm_api_key = llm_api_key
         self.port = port
         self.mailbox = mailbox
         self.seed = seed or f"{name}_seed"
         self.agent_configs = agent_configs or []
         self.fallback_executor = fallback_executor
         self.routing_strategy = routing_strategy
+        self.model = model
+        self.base_url = base_url
 
         # Runtime agent discovery
         self.discovered_agents: Dict[str, Dict[str, Any]] = {}
@@ -443,7 +430,7 @@ class MultiA2AAdapter:
         self.discovered_agents = {}
         self.agent_health = {}
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient() as client:
             for config in self.agent_configs:
                 try:
                     card_url = f"{config.url}/.well-known/agent.json"
@@ -527,6 +514,8 @@ class MultiA2AAdapter:
             return llm_selected_agent
         ctx.logger.info("🔄 LLM routing failed, falling back to keyword matching")
 
+        query_words = set(query_lower.split())
+
         for agent in agents:
             score = 0
             agent_name = agent.get("name", "unknown")
@@ -549,7 +538,6 @@ class MultiA2AAdapter:
 
                 # Check for word overlap in specialties
                 specialty_words = set(specialty_lower.split())
-                query_words = set(query_lower.split())
                 common_words = query_words.intersection(specialty_words)
                 if common_words:
                     word_score = len(common_words) * 8
@@ -557,7 +545,6 @@ class MultiA2AAdapter:
                     ctx.logger.info(
                         f" {agent_name}: specialty words {common_words} matched (+{word_score})"
                     )
-
 
             # Check skills (medium priority)
             skills = agent.get("skills", [])
@@ -569,7 +556,6 @@ class MultiA2AAdapter:
 
                 # Check for word overlap in skills
                 skill_words = set(skill_lower.split())
-                query_words = set(query_lower.split())
                 common_words = query_words.intersection(skill_words)
                 if common_words:
                     word_score = len(common_words) * 4
@@ -637,9 +623,9 @@ class MultiA2AAdapter:
             )
 
             # Call ASI API
-            url = "https://api.asi1.ai/v1/chat/completions"
+            url = self.base_url
             payload = {
-                "model": "asi1-mini",
+                "model": self.model,
                 "messages": [
                     {
                         "role": "user",
@@ -654,10 +640,11 @@ class MultiA2AAdapter:
             headers = {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                'Authorization': f'Bearer {self.asi_api_key}'
+                'Authorization': f'Bearer {self.llm_api_key}'
             }
 
-            response = requests.post(url, headers=headers, json=payload, timeout=10)
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, headers=headers, json=payload, timeout=10)
 
             if response.status_code == 200:
                 result = response.json()
@@ -713,7 +700,7 @@ class MultiA2AAdapter:
 
     async def _send_to_a2a_agent(self, message: str, a2a_url: str) -> str:
         """Send message to a specific A2A agent and get response."""
-        async with httpx.AsyncClient(timeout=60.0) as httpx_client:
+        async with httpx.AsyncClient() as httpx_client:
             try:
                 # Prepare A2A message payload
                 payload = {
@@ -732,53 +719,44 @@ class MultiA2AAdapter:
                     }
                 }
 
-                # Try different possible endpoints
-                endpoints_to_try = [
-                    "/send-message",
-                    "/",
-                    "/message",
-                    "/chat"
-                ]
+                # Send to A2A agent endpoint
+                try:
+                    response = await httpx_client.post(
+                        f"{a2a_url}/",
+                        json=payload,
+                        headers={"Content-Type": "application/json"},
+                        timeout=60
+                    )
 
-                for endpoint in endpoints_to_try:
-                    try:
-                        response = await httpx_client.post(
-                            f"{a2a_url}{endpoint}",
-                            json=payload,
-                            headers={"Content-Type": "application/json"}
-                        )
+                    if response.status_code == 200:
+                        result = response.json()
+                        # Extract the response content from A2A format
+                        if "result" in result:
+                            result_data = result["result"]
+                            # Handle artifacts format (streaming responses)
+                            if "artifacts" in result_data:
+                                artifacts = result_data["artifacts"]
+                                full_text = ""
+                                for artifact in artifacts:
+                                    if "parts" in artifact:
+                                        for part in artifact["parts"]:
+                                            if part.get("kind") == "text":
+                                                full_text += part.get("text", "")
+                                if full_text.strip():
+                                    return full_text.strip()
+                            # Handle standard parts format
+                            elif "parts" in result_data and len(result_data["parts"]) > 0:
+                                response_text = result_data["parts"][0].get("text", "")
+                                if response_text:
+                                    return response_text.strip()
+                            # Fallback: return success message
+                            return "✅ Response received from A2A agent"
+                    else:
+                        return f"A2A agent returned HTTP {response.status_code}"
+                except Exception as e:
+                    return f"❌ Error communicating with A2A agent: {str(e)}"
 
-                        if response.status_code == 200:
-                            result = response.json()
-                            # Extract the response content from A2A format
-                            if "result" in result:
-                                result_data = result["result"]
-                                # Handle artifacts format (streaming responses)
-                                if "artifacts" in result_data:
-                                    artifacts = result_data["artifacts"]
-                                    full_text = ""
-                                    for artifact in artifacts:
-                                        if "parts" in artifact:
-                                            for part in artifact["parts"]:
-                                                if part.get("kind") == "text":
-                                                    full_text += part.get("text", "")
-                                    if full_text.strip():
-                                        return full_text.strip()
-                                # Handle standard parts format
-                                elif "parts" in result_data and len(result_data["parts"]) > 0:
-                                    response_text = result_data["parts"][0].get("text", "")
-                                    if response_text:
-                                        return response_text.strip()
-                                # Fallback: return success message
-                                return "✅ Response received from A2A agent"
-                        elif response.status_code == 404:
-                            continue  # Try next endpoint
-                        else:
-                            return f"A2A agent returned HTTP {response.status_code} at {endpoint}"
-                    except Exception:
-                        continue  # Try next endpoint
-
-                # If all endpoints failed
+                # If endpoint failed
                 return f"❌ Could not communicate with A2A agent at {a2a_url}"
 
             except Exception as e:
@@ -801,7 +779,10 @@ class MultiA2AAdapter:
             event_queue = EventQueue()
 
             # Execute the fallback agent
-            await self.fallback_executor.execute(context, event_queue)
+            if self.fallback_executor is not None:
+                await self.fallback_executor.execute(context, event_queue)
+            else:
+                return "❌ No fallback executor is configured."
 
             # Get the response from the event queue
             events = []
@@ -836,3 +817,57 @@ class MultiA2AAdapter:
         for config in self.agent_configs:
             print(f"   • {config.name}: {', '.join(config.specialties or [])}")
         self.uagent.run()
+
+
+def a2a_servers (agent_configs: List[A2AAgentConfig], executors: Dict[str, AgentExecutor]):
+    """
+    Start individual A2A servers for each agent config and executor.
+    Each server runs in a separate thread.
+    Args:
+        agent_configs: List of A2AAgentConfig objects.
+        executors: Dict mapping agent name to its AgentExecutor instance.
+    """
+    def start_server(config: A2AAgentConfig, executor: AgentExecutor):
+        try:
+            skill = AgentSkill(
+                id=f"{config.name}_skill",
+                name=config.name.title(),
+                description=config.description,
+                tags=config.specialties,
+                examples=[f"Help with {s.lower()}" for s in config.specialties[:3]],
+            )
+            agent_card = AgentCard(
+                name=config.name.title(),
+                description=config.description,
+                url=f"http://localhost:{config.port}/",
+                version="1.0.0",
+                defaultInputModes=["text"],
+                defaultOutputModes=["text"],
+                capabilities=AgentCapabilities(),
+                skills=[skill]
+            )
+            server = A2AStarletteApplication(
+                agent_card=agent_card,
+                http_handler=DefaultRequestHandler(
+                    agent_executor=executor,
+                    task_store=InMemoryTaskStore()
+                )
+            )
+            print(f"🚀 Starting {config.name} on port {config.port}")
+            uvicorn.run(
+                server.build(),
+                host="0.0.0.0",
+                port=config.port,
+                timeout_keep_alive=10,
+                log_level="info"
+            )
+        except Exception as e:
+            print(f"❌ Error starting {config.name}: {e}")
+
+    for config in agent_configs:
+        executor = executors[config.name]
+        threading.Thread(target=start_server, args=(config, executor), daemon=True).start()
+        time.sleep(1)
+    print("⏳ Initializing servers...")
+    time.sleep(5)
+    print("✅ All A2A servers started!")

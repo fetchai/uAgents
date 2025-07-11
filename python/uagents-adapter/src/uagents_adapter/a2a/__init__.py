@@ -2,7 +2,7 @@
 
 from importlib import metadata
 
-from .adapter import A2AAgentConfig, MultiA2AAdapter, SingleA2AAdapter
+from .adapter import A2AAgentConfig, MultiA2AAdapter, SingleA2AAdapter, a2a_servers
 
 try:
     __version__ = metadata.version(__package__.split(".")[0])
@@ -16,6 +16,7 @@ __all__ = [
     "A2AAgentConfig",
     "SingleA2AAdapter",
     "MultiA2AAdapter",
+    "a2a_servers",
     "__version__",
 ]
 

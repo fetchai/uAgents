@@ -2,7 +2,7 @@
 
 from importlib import metadata
 
-from .a2a import A2AAgentConfig, MultiA2AAdapter, SingleA2AAdapter
+from .a2a import A2AAgentConfig, MultiA2AAdapter, SingleA2AAdapter, a2a_servers
 from .common import ResponseMessage, cleanup_all_uagents, cleanup_uagent
 from .crewai import CrewaiRegisterTool
 from .langchain import LangchainRegisterTool
@@ -23,6 +23,7 @@ __all__ = [
     "ResponseMessage",
     "A2AAgentConfig",
     "MultiA2AAdapter",
+    "a2a_servers",
     "SingleA2AAdapter",
     "cleanup_uagent",
     "cleanup_all_uagents",
