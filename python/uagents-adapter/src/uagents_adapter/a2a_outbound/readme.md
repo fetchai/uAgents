@@ -27,7 +27,7 @@ A comprehensive Python module for integrating A2A (Agent-to-Agent) systems with 
 ## 3. Installation
 
 ```shell
-pip install "uagents-adapter[a2a]"
+pip install "uagents-adapter[a2a-outbound]"
 pip install "a2a-sdk[all]"
 ```
 
@@ -64,7 +64,7 @@ config = A2AAgentConfig(
 4. Create and run a `SingleA2AAdapter`
 
 ```python
-from uagent_a2a_adapter import SingleA2AAdapter, A2AAgentConfig, a2a_servers
+from uagent_adapter import SingleA2AAdapter, A2AAgentConfig, a2a_servers
 from brave.agent import BraveSearchAgentExecutor
 
 def main():
@@ -99,7 +99,7 @@ if __name__ == "__main__":
 4. Create and run a `MultiA2AAdapter`
 
 ```python
-from uagent_a2a_adapter import MultiA2AAdapter, A2AAgentConfig, a2a_servers
+from uagent_adapter import MultiA2AAdapter, A2AAgentConfig, a2a_servers
 from agents.research_agent import ResearchAgentExecutor
 from agents.coding_agent import CodingAgentExecutor
 from agents.analysis_agent import AnalysisAgentExecutor
@@ -206,7 +206,6 @@ The adapter includes comprehensive error handling:
 - Start A2A servers with `a2a_servers` for manifest and server management
 - Use `SingleA2AAdapter` or `MultiA2AAdapter` for orchestration and chat integration
 - After starting, inspect manifest URLs at `http://localhost:{port}/.well-known/agent.json`
-- Deprecated: old `AgentConfig` dataclass and manual threading-based server startup
 
 ---
 
@@ -217,7 +216,7 @@ Please add your [A2A Agents](https://a2aproject.github.io/A2A/latest/) in the ag
 
 ```python
 from typing import Dict, List
-from uagent_a2a_adapter import SingleA2AAdapter, A2AAgentConfig, a2a_servers
+from uagent_adapter import SingleA2AAdapter, A2AAgentConfig, a2a_servers
 from brave.agent import BraveSearchAgentExecutor  
 
 class BraveSearchAgent:
@@ -306,7 +305,7 @@ Please add your [A2A Agents](https://a2aproject.github.io/A2A/latest/) in the ag
 
 ```python
 from typing import Dict, List
-from uagent_a2a_adapter import MultiA2AAdapter, A2AAgentConfig, a2a_servers
+from uagent_adapter import MultiA2AAdapter, A2AAgentConfig, a2a_servers
 from agents.research_agent import ResearchAgentExecutor
 from agents.coding_agent import CodingAgentExecutor
 from agents.analysis_agent import AnalysisAgentExecutor
