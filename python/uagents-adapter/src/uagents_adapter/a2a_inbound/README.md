@@ -452,6 +452,6 @@ python -m uagents_adapter.a2a_inbound.cli \
 
 For issues and questions:
 
-1. Check the [main uagents-adapter documentation](../../README.md)
+1. Check the [main uagents-adapter documentation](https://github.com/rajashekarcs2023/uAgents/tree/feat/a2aInboundAdapter/python/uagents-adapter)
 2. Review the [uAgents documentation](https://github.com/fetchai/uAgents)
 3. Visit the [Agentverse platform](https://agentverse.ai) for agent management
