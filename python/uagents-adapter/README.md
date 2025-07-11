@@ -5,6 +5,7 @@ This package provides adapters for integrating [uAgents](https://github.com/fetc
 - **LangChain Adapter**: Convert LangChain agents to uAgents
 - **CrewAI Adapter**: Convert CrewAI crews to uAgents
 - **MCP Server Adapter**: Integrate Model Control Protocol (MCP) servers with uAgents
+- **A2A Inbound Adapter**: Bridge Agentverse agents to A2A protocol for AI assistants
 
 ## Installation
 
@@ -21,8 +22,11 @@ pip install "uagents-adapter[crewai]"
 # Install with MCP support
 pip install "uagents-adapter[mcp]"
 
+# Install with A2A Inbound support
+pip install "uagents-adapter[a2a-inbound]"
+
 # Install with all extras
-pip install "uagents-adapter[langchain,crewai,mcp]"
+pip install "uagents-adapter[langchain,crewai,mcp,a2a-inbound]"
 ```
 
 ## LangChain Adapter
@@ -144,6 +148,53 @@ mcp_adapter.run(agent)
 > **Important**: When creating MCP tools, always include detailed docstrings using triple quotes (`"""`) to describe what each tool does, when it should be used, and what parameters it expects. These descriptions are critical for ASI:One to understand when and how to use your tools.
 
 For more detailed instructions and advanced configuration options, see the [MCP Server Adapter Documentation](src/uagents_adapter/mcp/README.md).
+
+## A2A Inbound Adapter
+
+The A2A Inbound Adapter allows you to bridge any existing Agentverse agent to the A2A (Agent-to-Agent) ecosystem, making your uAgents accessible through the A2A protocol for AI assistants and other applications.
+
+```python
+from uagents_adapter import A2ARegisterTool
+
+# Create A2A register tool
+register_tool = A2ARegisterTool()
+
+# Choose the agent you want to use from Agentverse.ai, copy its address in the config, add agent details or create a custom agent yourself and add its address in the config
+# Configure your agent bridge
+config = {
+    "agent_address": "agent1qv4zyd9sta4f5ksyhjp900k8kenp9vczlwqvr00xmmqmj2yetdt4se9ypat",
+    "name": "Finance Analysis Agent", 
+    "description": "Financial analysis and market insights agent",
+    "skill_tags": ["finance", "analysis", "markets", "investment"],
+    "skill_examples": ["Analyze AAPL stock performance", "Compare crypto portfolios"],
+    "port": 8001,
+    "host": "127.0.0.1"
+}
+
+# Start the A2A bridge server
+result = register_tool.invoke(config)
+
+print(f"A2A server running on {config['host']}:{config['port']}")
+print(f"Bridging to Agentverse agent: {config['agent_address']}")
+```
+
+For CLI usage:
+
+```bash
+# Set unique bridge seed for production
+export UAGENTS_BRIDGE_SEED="your_unique_production_seed_2024"
+
+# Start the A2A bridge
+python -m uagents_adapter.a2a_inbound.cli \
+  --agent-address agent1qv4zyd9sta4f5ksyhjp900k8kenp9vczlwqvr00xmmqmj2yetdt4se9ypat \
+  --agent-name "Finance Agent" \
+  --skill-tags "finance,analysis,markets" \
+  --port 8001
+```
+
+> **Security Note**: Always set `UAGENTS_BRIDGE_SEED` environment variable for production deployments to ensure consistent bridge agent addresses across restarts and prevent conflicts.
+
+For more detailed instructions and configuration options, see the [A2A Inbound Adapter Documentation](src/uagents_adapter/a2a_inbound/README.md).
 
 ## Agentverse Integration
 
