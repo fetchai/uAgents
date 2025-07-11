@@ -15,7 +15,7 @@ The A2A Inbound Adapter provides:
 ## Installation
 
 ```bash
-# Install with A2A Inbound support
+# Install with A2A Inbound support (includes all required dependencies)
 pip install "uagents-adapter[a2a-inbound]"
 ```
 
