@@ -26,10 +26,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class MissingParameterError(Exception):
-    """Exception for missing required parameters."""
-
-
 @click.command()
 @click.option("--host", "host", default="localhost", help="Host to bind the server to")
 @click.option("--port", "port", default=10000, help="Port to bind the server to")
@@ -190,7 +186,7 @@ def main(
                 # Construct the inspector link
                 bridge_address = bridge_executor.bridge_agent.address
                 encoded_uri = urllib.parse.quote(
-                    f"http://127.0.0.1:{bridge_port}", safe=""
+                    f"http://{host}:{bridge_port}", safe=""
                 )
                 inspector_link = f"https://agentverse.ai/inspect/?uri={encoded_uri}&address={bridge_address}"
 
@@ -221,9 +217,6 @@ def main(
 
         uvicorn.run(app, host=host, port=port)
 
-    except MissingParameterError as e:
-        logger.error(f"Error: {e}")
-        sys.exit(1)
     except Exception as e:
         logger.error(f"An error occurred during server startup: {e}")
         sys.exit(1)

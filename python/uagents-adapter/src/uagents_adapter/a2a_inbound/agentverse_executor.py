@@ -122,12 +122,12 @@ class AgentverseAgentExecutor(AgentExecutor):
                 if isinstance(content, TextContent):
                     response_text += content.text
 
-            logger.info(f"🔍 DEBUG: Received response from sender: {sender}")
-            logger.info(
+            logger.debug(f"🔍 DEBUG: Received response from sender: {sender}")
+            logger.debug(
                 f"🔍 DEBUG: Pending requests: {list(self.pending_requests.keys())}"
             )
             for req_id, req_info in self.pending_requests.items():
-                logger.info(
+                logger.debug(
                     f"🔍 DEBUG: Request {req_id} target: {req_info.get('target')}"
                 )
 

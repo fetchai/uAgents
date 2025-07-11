@@ -159,10 +159,6 @@ class A2ARegisterTool(BaseModel):
 
             # Start server in background thread with proper shutdown handling
             # Run server directly in main thread (blocks like CLI)
-            logging.info(f"🚀 A2A server starting on {host}:{port}")
-            logging.info(f"🔗 Bridging to Agentverse agent: {agent_address}")
-            logging.info(f"📋 Agent name: {name}")
-            logging.info(f"🏷️  Tags: {', '.join(skill_tags)}")
 
             try:
                 uvicorn.run(server.build(), host=host, port=port)
