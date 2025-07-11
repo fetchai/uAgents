@@ -167,8 +167,9 @@ config = {
     "description": "Financial analysis and market insights agent",
     "skill_tags": ["finance", "analysis", "markets", "investment"],
     "skill_examples": ["Analyze AAPL stock performance", "Compare crypto portfolios"],
-    "port": 8001,
-    "host": "127.0.0.1"
+    "port": 10000,  # A2A server port (default)
+    "bridge_port": 9000,  # Optional: bridge port (auto-derived if not set)
+    "host": "localhost"  # Default host
 }
 
 # Start the A2A bridge server
@@ -189,7 +190,7 @@ python -m uagents_adapter.a2a_inbound.cli \
   --agent-address agent1qv4zyd9sta4f5ksyhjp900k8kenp9vczlwqvr00xmmqmj2yetdt4se9ypat \
   --agent-name "Finance Agent" \
   --skill-tags "finance,analysis,markets" \
-  --port 8001
+  --port 10000
 ```
 
 > **Security Note**: Always set `UAGENTS_BRIDGE_SEED` environment variable for production deployments to ensure consistent bridge agent addresses across restarts and prevent conflicts.

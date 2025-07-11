@@ -20,6 +20,7 @@ class A2ARegisterTool(BaseModel):
                 - description (str): Optional - Agent description
                 - host (str): Optional - Host to bind to (default: "localhost")
                 - port (int): Optional - Port to bind to (default: 10000)
+                - bridge_port (int): Optional - Bridge port (default: auto-derived from port)
                 - skill_tags (List[str]): Optional - List of skill tags
                 - skill_examples (List[str]): Optional - List of skill examples
                 - return_dict (bool): Optional - Return dict instead of string (default: True)
@@ -40,6 +41,9 @@ class A2ARegisterTool(BaseModel):
             )
             host = params.get("host", "localhost")
             port = params.get("port", 10000)
+            bridge_port = params.get(
+                "bridge_port"
+            )  # Optional - will auto-derive if None
             skill_tags = params.get("skill_tags", ["general", "assistance"])
             skill_examples = params.get("skill_examples", ["Help me with my query"])
             # return_dict = params.get("return_dict", True)  # Currently unused
@@ -57,6 +61,7 @@ class A2ARegisterTool(BaseModel):
                 description=description,
                 host=host,
                 port=port,
+                bridge_port=bridge_port,
                 skill_tags=skill_tags,
                 skill_examples=skill_examples,
             )
@@ -75,8 +80,9 @@ class A2ARegisterTool(BaseModel):
         description: str,
         host: str,
         port: int,
-        skill_tags: List[str],
-        skill_examples: List[str],
+        bridge_port: int = None,
+        skill_tags: List[str] = None,
+        skill_examples: List[str] = None,
     ) -> Dict[str, Any]:
         """Start the A2A server with the given parameters."""
 
@@ -116,13 +122,16 @@ class A2ARegisterTool(BaseModel):
                 skills=[skill],
             )
 
-            # Auto-derive bridge port (main_port - 1000) to avoid conflicts
-            bridge_port = port - 1000
-            # Ensure bridge port is in valid range
-            if bridge_port < 1024:
-                bridge_port = port + 1000
-
-            logging.info(f"🔗 Using bridge port: {bridge_port}")
+            # Handle bridge port - use provided or auto-derive
+            if bridge_port is None:
+                # Auto-derive bridge port (main_port - 1000) to avoid conflicts
+                bridge_port = port - 1000
+                # Ensure bridge port is in valid range
+                if bridge_port < 1024:
+                    bridge_port = port + 1000
+                logging.info(f"🔗 Auto-derived bridge port: {bridge_port}")
+            else:
+                logging.info(f"🔗 Using provided bridge port: {bridge_port}")
 
             # Create the bridge executor with the target agent address
             bridge_executor = AgentverseAgentExecutor(

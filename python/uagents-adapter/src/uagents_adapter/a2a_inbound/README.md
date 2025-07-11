@@ -56,8 +56,9 @@ config = {
     "description": "Financial analysis and market insights agent",  # What your agent does
     "skill_tags": ["finance", "analysis", "markets", "investment"],  # Match your agent's capabilities
     "skill_examples": ["Analyze AAPL stock performance", "Compare crypto portfolios"],  # Example queries your agent can handle
-    "port": 8001,  # Port for the A2A server
-    "host": "127.0.0.1"  # Host to bind the server
+    "port": 10000,  # Port for the A2A server (default)
+    "bridge_port": 9000,  # Optional: bridge port (auto-derived if not set)
+    "host": "localhost"  # Host to bind the server
 }
 
 # Start the A2A bridge server
@@ -89,7 +90,7 @@ def main():
         "name": "Finance Q&A Agent",
         "description": "AI-powered financial advisor and Q&A assistant for investment, budgeting, and financial planning guidance",
         "skill_tags": ["finance", "investment", "budgeting", "financial_planning", "assistance"],
-        "port": 9009,
+        "port": 10000,
         "host": "localhost"
     }
     
@@ -135,7 +136,7 @@ You can also run the adapter directly from the command line:
 python -m uagents_adapter.a2a_inbound.cli \
   --agent-address agent1qv4zyd9sta4f5ksyhjp900k8kenp9vczlwqvr00xmmqmj2yetdt4se9ypat \
   --agent-name "Finance Agent" \
-  --port 8001
+  --port 10000
 
 # Advanced configuration
 python -m uagents_adapter.a2a_inbound.cli \
@@ -145,7 +146,7 @@ python -m uagents_adapter.a2a_inbound.cli \
   --skill-tags "airbnb,vacation,rental,travel,accommodation,booking" \
   --skill-examples "Find Airbnb in San Francisco,Compare vacation rentals" \
   --host 0.0.0.0 \
-  --port 8001 \
+  --port 10000 \
   --bridge-port 7001
 ```
 
@@ -163,10 +164,10 @@ When you start the A2A Inbound Adapter, you'll see:
 2. **Server Startup**:
    ```
    ✅ A2A Adapter Started Successfully!
-   🌐 Endpoint: http://localhost:9001
+   🌐 Endpoint: http://localhost:10000
    
    🧪 Test with cURL:
-   curl -X POST http://localhost:9001 \
+   curl -X POST http://localhost:10000 \
      -H "Content-Type: application/json" \
      -d '{
        "jsonrpc": "2.0",
@@ -220,7 +221,7 @@ This is **normal** - the bridge automatically refreshes its connection to Agentv
 ### 1. Check Agent Info Endpoint
 
 ```bash
-curl -X GET http://localhost:9001/agent_info
+curl -X GET http://localhost:10000/agent_info
 ```
 
 **Expected Response:**
@@ -236,7 +237,7 @@ curl -X GET http://localhost:9001/agent_info
 ### 2. Send a Test Query
 
 ```bash
-curl -X POST http://localhost:9001 \
+curl -X POST http://localhost:10000 \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
@@ -271,14 +272,14 @@ curl -X POST http://localhost:9001 \
 ### 3. Health Check
 
 ```bash
-curl -X GET http://localhost:9001/health
+curl -X GET http://localhost:10000/health
 ```
 
 ## A2A Client Discovery
 
 Once running, **A2A clients can discover your agent** by:
 
-1. **Scanning your server** on the configured port (e.g., `localhost:9001`)
+1. **Scanning your server** on the configured port (e.g., `localhost:10000`)
 2. **Fetching agent card** from `/agent_info` endpoint
 3. **Seeing your agent's capabilities**:
    - Name and description
@@ -331,8 +332,8 @@ AGENT_NAME=Finance Analysis Agent
 AGENT_DESCRIPTION=Financial analysis and market insights agent
 
 # Server Configuration  
-A2A_HOST=127.0.0.1
-A2A_PORT=8001
+A2A_HOST=localhost
+A2A_PORT=10000
 ```
 
 Then load it in your code:
@@ -370,6 +371,60 @@ adapter = A2ARegisterTool()
 |----------|-------------|----------|
 | `UAGENTS_BRIDGE_SEED` | Seed for consistent bridge agent addresses | Recommended |
 
+### Bridge Port Configuration
+
+**NEW: Explicit Bridge Port Support** 🆕
+
+The A2A adapter now supports explicit bridge port configuration through both the programmatic API and CLI. This gives you full control over which ports are used.
+
+#### Auto-Derived Bridge Port (Default Behavior)
+
+By default, the bridge port is automatically derived from the main A2A server port:
+
+- **Formula**: `bridge_port = main_port - 1000`
+- **Fallback**: If the result is < 1024, then `bridge_port = main_port + 1000`
+
+```python
+# Example: main port 10000 → bridge port 9000
+config = {
+    "port": 10000,  # A2A server port
+    # bridge_port automatically becomes 9000
+}
+```
+
+```bash
+# CLI example: main port 10000 → bridge port 9000
+python -m uagents_adapter.a2a_inbound.cli --port 10000
+# Bridge will auto-derive to port 9000
+```
+
+#### Explicit Bridge Port (New Feature)
+
+You can now explicitly specify the bridge port:
+
+```python
+# Programmatic API with explicit bridge port
+config = {
+    "port": 10000,        # A2A server port
+    "bridge_port": 8500,  # Explicit bridge port
+}
+```
+
+```bash
+# CLI with explicit bridge port
+python -m uagents_adapter.a2a_inbound.cli \
+  --port 10000 \
+  --bridge-port 8500
+```
+
+**Benefits of Explicit Bridge Port:**
+- Avoid port conflicts in complex environments
+- Better control for containerized deployments
+- Easier firewall and network configuration
+- Support for non-standard port arrangements
+
+**Backward Compatibility:** All existing code continues to work unchanged. The `bridge_port` parameter is completely optional.
+
 ## Architecture
 
 The A2A Inbound Adapter creates two components:
@@ -378,7 +433,7 @@ The A2A Inbound Adapter creates two components:
 2. **Bridge uAgent**: Internal agent that communicates with your Agentverse agent
 
 ```
-A2A Client → HTTP Server (:8001) → Bridge Agent (:7001) → Agentverse Agent
+A2A Client → HTTP Server (:10000) → Bridge Agent (:9000) → Agentverse Agent
 ```
 
 ## Security Considerations
@@ -418,8 +473,8 @@ If messages aren't reaching your Agentverse agent:
 
 If you encounter port binding errors:
 
-1. Check if ports are already in use: `lsof -i :8001`
-2. Use different ports: `--port 8002 --bridge-port 7002`
+1. Check if ports are already in use: `lsof -i :10000`
+2. Use different ports: `--port 10001 --bridge-port 9001`
 3. Ensure bridge-port doesn't conflict with main port
 
 ## Example Agents
@@ -433,7 +488,7 @@ python -m uagents_adapter.a2a_inbound.cli \
   --agent-description "Financial analysis and investment advice" \
   --skill-tags "finance,stocks,crypto,analysis,investment" \
   --skill-examples "Analyze AAPL stock,Compare crypto portfolios,Market trends" \
-  --port 8001
+  --port 10000
 ```
 
 ### Travel Agent
@@ -445,13 +500,7 @@ python -m uagents_adapter.a2a_inbound.cli \
   --agent-description "Travel planning and booking assistance" \
   --skill-tags "travel,hotels,flights,vacation,booking" \
   --skill-examples "Find hotels in Paris,Book flights to Tokyo,Plan weekend trip" \
-  --port 8002
+  --port 10001
 ```
 
-## Support
 
-For issues and questions:
-
-1. Check the [main uagents-adapter documentation](https://github.com/rajashekarcs2023/uAgents/tree/feat/a2aInboundAdapter/python/uagents-adapter)
-2. Review the [uAgents documentation](https://github.com/fetchai/uAgents)
-3. Visit the [Agentverse platform](https://agentverse.ai) for agent management
