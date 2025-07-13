@@ -8,7 +8,6 @@ from collections.abc import Callable
 from time import time
 from typing import TYPE_CHECKING, Any
 
-import requests
 from cosmpy.aerial.client import LedgerClient
 from pydantic.v1 import ValidationError
 from uagents_core.envelope import Envelope
@@ -23,6 +22,7 @@ from uagents.config import (
     DEFAULT_SEARCH_LIMIT,
 )
 from uagents.dispatch import dispatcher
+from uagents.http_client import http_client
 from uagents.resolver import Resolver
 from uagents.storage import KeyValueStore
 from uagents.types import EnvelopeHistory, EnvelopeHistoryEntry, JsonStr, MsgInfo
@@ -340,15 +340,14 @@ class InternalContext(Context):
             return None
         return self._message_history.get_session_messages(self._session)
 
-    def get_agents_by_protocol(
+    async def get_agents_by_protocol(
         self,
         protocol_digest: str,
         limit: int = DEFAULT_SEARCH_LIMIT,
         logger: logging.Logger | None = None,
     ) -> list[str]:
-        if not isinstance(protocol_digest, str) or not protocol_digest.startswith(
-            "proto:"
-        ):
+        log = logger.log if logger else self._logger.info
+        if not protocol_digest.startswith("proto:"):
             log(logger, logging.ERROR, f"Invalid protocol digest: {protocol_digest}")
             return []
         almanac_api_url = getattr(
@@ -356,15 +355,22 @@ class InternalContext(Context):
             "_almanac_api_url",
             ALMANAC_API_URL,
         )
-        response = requests.post(
-            url=almanac_api_url + "/search",
-            json={"text": protocol_digest[6:]},
-            timeout=DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
-        )
-        if response.status_code == 200:
-            data = response.json()
-            agents = [agent["address"] for agent in data if agent["status"] == "active"]
-            return agents[:limit]
+        url = f"{almanac_api_url}/search"
+        try:
+            status_code, data = await http_client.post(
+                url=url,
+                json={"text": protocol_digest[6:]},
+                timeout=DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+            )
+            if status_code == 200:
+                agents = [
+                    agent["address"]
+                    for agent in data
+                    if agent.get("status") == "active"
+                ]
+                return agents[:limit]
+        except Exception as e:
+            log(logger, logging.ERROR, f"Error searching for agents by protocol: {e}")
         return []
 
     async def broadcast(
@@ -374,7 +380,7 @@ class InternalContext(Context):
         limit: int = DEFAULT_SEARCH_LIMIT,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> list[MsgStatus]:
-        agents = self.get_agents_by_protocol(
+        agents = await self.get_agents_by_protocol(
             destination_protocol, limit=limit, logger=self.logger
         )
         if not agents:
