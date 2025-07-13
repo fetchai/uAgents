@@ -5,6 +5,8 @@ This package provides adapters for integrating [uAgents](https://github.com/fetc
 - **LangChain Adapter**: Convert LangChain agents to uAgents
 - **CrewAI Adapter**: Convert CrewAI crews to uAgents
 - **MCP Server Adapter**: Integrate Model Control Protocol (MCP) servers with uAgents
+- **A2A Outbound Adapter**: Bridges uAgents and A2A servers 
+- **A2A Inbound Adapter**: Bridge Agentverse agents to A2A protocol for AI assistants
 
 ## Installation
 
@@ -21,8 +23,11 @@ pip install "uagents-adapter[crewai]"
 # Install with MCP support
 pip install "uagents-adapter[mcp]"
 
+# Install with A2A Inbound support
+pip install "uagents-adapter[a2a-inbound]"
+
 # Install with all extras
-pip install "uagents-adapter[langchain,crewai,mcp]"
+pip install "uagents-adapter[langchain,crewai,mcp,a2a-outbound,"a2a-inbound"]"
 ```
 
 ## LangChain Adapter
@@ -144,6 +149,105 @@ mcp_adapter.run(agent)
 > **Important**: When creating MCP tools, always include detailed docstrings using triple quotes (`"""`) to describe what each tool does, when it should be used, and what parameters it expects. These descriptions are critical for ASI:One to understand when and how to use your tools.
 
 For more detailed instructions and advanced configuration options, see the [MCP Server Adapter Documentation](src/uagents_adapter/mcp/README.md).
+
+## A2A Outbound Adapter
+
+The A2A Outbound Adapter allows you to connect your uAgents with Chat Protocol to Google A2A Servers.
+
+First, create your A2A servers in a directory named `agents` and then import the Agent Executors in your `agent.py` (uagent) file along with the SingleA2AAdapter or MultiA2AAdapter depending on whether you want to connect to a single Google A2A Server or Multiple A2A Servers. You will have to provide the Agent card to the Adapter and the Adapter will run the servers and enable the uagent with Chat Protocol so that it becomes discoverable through ASI:One and you can start interacting with any A2A Server using the A2A Outbound Adapter.
+
+```python
+from uagent_adapter import SingleA2AAdapter, A2AAgentConfig, a2a_servers
+
+#Import A2A Server executor from your A2A Server code 
+from brave.agent import BraveSearchAgentExecutor
+
+def main():
+
+    #Add details of your A2A Server
+    agent_config = A2AAgentConfig(  
+        name="brave_search_specialist",             #Name of A2A Server 
+        description="AI Agent for web and news search using Brave Search API",       #Description of A2A Server 
+        url="http://localhost:10020",               #Endpoint where the A2A Server should be running
+        port=10020,                                 #port where the A2A Server should be running
+        specialties=["web search", "news", "information retrieval", "local business", "site-specific lookup"],
+        priority=3                                  
+    )
+    executor = BraveSearchAgentExecutor()
+    a2a_servers([agent_config], {agent_config.name: executor})
+    print(f"AgentCard manifest URL: http://localhost:{agent_config.port}/.well-known/agent.json")
+    adapter = SingleA2AAdapter(
+        agent_executor=executor,                #Your A2A Server Executor
+        name="brave",                           #Name of uAgent 
+        description="Routes queries to Brave Search AI specialists",    #Description of uAgent 
+        port=8200,                              #Port where the uAgent should be running
+        a2a_port=10020                          #Port where the A2A server should be running
+    )
+    adapter.run()
+
+if __name__ == "__main__":
+    main()
+```
+
+#### Notes
+- Use `A2AAgentConfig` for all agent configuration
+- Start A2A servers with `a2a_servers` for manifest and server management
+- Use `SingleA2AAdapter` or `MultiA2AAdapter` for orchestration and chat integration
+- After starting, inspect manifest URLs at `http://localhost:{port}/.well-known/agent.json`
+
+
+
+
+For more detailed instructions and advanced configuration options, see the [A2A Outbound Adapter Documentation](src/uagents_adapter/a2a-outbound-documentation/README.md).
+
+
+## A2A Inbound Adapter
+
+The A2A Inbound Adapter allows you to bridge any existing Agentverse agent to the A2A (Agent-to-Agent) ecosystem, making your uAgents accessible through the A2A protocol for AI assistants and other applications.
+
+```python
+from uagents_adapter import A2ARegisterTool
+
+# Create A2A register tool
+register_tool = A2ARegisterTool()
+
+# Choose the agent you want to use from Agentverse.ai, copy its address in the config, add agent details or create a custom agent yourself and add its address in the config
+# Configure your agent bridge
+config = {
+    "agent_address": "agent1qv4zyd9sta4f5ksyhjp900k8kenp9vczlwqvr00xmmqmj2yetdt4se9ypat",
+    "name": "Finance Analysis Agent", 
+    "description": "Financial analysis and market insights agent",
+    "skill_tags": ["finance", "analysis", "markets", "investment"],
+    "skill_examples": ["Analyze AAPL stock performance", "Compare crypto portfolios"],
+    "port": 10000,  # A2A server port (default)
+    "bridge_port": 9000,  # Optional: bridge port (auto-derived if not set)
+    "host": "localhost"  # Default host
+}
+
+# Start the A2A bridge server
+result = register_tool.invoke(config)
+
+print(f"A2A server running on {config['host']}:{config['port']}")
+print(f"Bridging to Agentverse agent: {config['agent_address']}")
+```
+
+For CLI usage:
+
+```bash
+# Set unique bridge seed for production
+export UAGENTS_BRIDGE_SEED="your_unique_production_seed_2024"
+
+# Start the A2A bridge
+python -m uagents_adapter.a2a_inbound.cli \
+  --agent-address agent1qv4zyd9sta4f5ksyhjp900k8kenp9vczlwqvr00xmmqmj2yetdt4se9ypat \
+  --agent-name "Finance Agent" \
+  --skill-tags "finance,analysis,markets" \
+  --port 10000
+```
+
+> **Security Note**: Always set `UAGENTS_BRIDGE_SEED` environment variable for production deployments to ensure consistent bridge agent addresses across restarts and prevent conflicts.
+
+For more detailed instructions and configuration options, see the [A2A Inbound Adapter Documentation](src/uagents_adapter/a2a_inbound/README.md).
 
 ## Agentverse Integration
 

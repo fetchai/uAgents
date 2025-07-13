@@ -1,11 +1,11 @@
 [project]
 name = "uagents-adapter"
-version = "0.4.1"
-description = "Adapters for uAgents to integrate with LangChain, CrewAI, and MCP"
+version = "0.5.0"
+description = "Adapters for uAgents to integrate with LangChain, CrewAI, MCP, and A2A"
 authors = [{ name = "Fetch.AI Limited" }]
 license = { text = "Apache 2.0" }
 readme = "README.md"
-keywords = ["uagents", "agents", "langchain", "crewai", "mcp", "fetch.ai"]
+keywords = ["uagents", "agents", "langchain", "crewai", "mcp", "a2a", "fetch.ai"]
 requires-python = ">=3.10,<4.0"
 dependencies = [
     "uagents (>=0.22.3)",
@@ -16,6 +16,9 @@ dependencies = [
 
 [project.optional-dependencies]
 mcp = ["mcp (>=1.8.1)"]
+a2a-outbound = ["a2a-sdk[all,sqlite,sql]>=0.2.11"]
+
+a2a-inbound = ["a2a-sdk[all,sqlite]>=0.2.11", "uvicorn>=0.27.0", "httpx>=0.25.0", "click>=8.0.0", "python-dotenv>=1.0.0"]
 
 [tool.poetry]
 # install from src/uagents_adapter folder
