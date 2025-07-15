@@ -1,6 +1,7 @@
 """Agent dispatch of exchange envelopes and synchronous messages."""
 
 import asyncio
+import json
 import logging
 import uuid
 from time import time
@@ -146,7 +147,14 @@ async def send_exchange_envelope(
                             endpoint=endpoint,
                             session=envelope.session,
                         )
-                errors.append(await resp.text())
+                    body = await resp.text()
+                    try:
+                        error_json = json.loads(body)
+                        detail = error_json.get("detail", body)
+                    except json.JSONDecodeError:
+                        detail = body
+
+                errors.append(f"{resp.status}: {detail}")
         except aiohttp.ClientConnectorError as ex:
             errors.append(f"Failed to connect: {ex}")
         except ValidationError as ex:

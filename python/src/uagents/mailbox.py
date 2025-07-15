@@ -256,7 +256,7 @@ class MailboxClient:
                                 "Access token expired: a new one should be retrieved automatically"
                             )
                         else:
-                            self._logger.debug(
+                            self._logger.error(
                                 f"Failed to retrieve messages: {resp.status}:{(await resp.text())}"
                             )
             except ClientConnectorError as ex:
