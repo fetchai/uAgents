@@ -9,7 +9,6 @@ import requests
 from dateutil import parser
 from uagents_core.helpers import weighted_random_sample
 from uagents_core.identity import parse_identifier
-from uagents_core.types import Resolver
 
 from uagents.config import (
     ALMANAC_API_URL,
@@ -106,6 +105,20 @@ def get_agent_address(name: str, network: AgentNetwork) -> str | None:
             return selected_address
     return None
 
+
+class Resolver(ABC):
+    @abstractmethod
+    async def resolve(self, destination: str) -> tuple[str | None, list[str]]:
+        """
+        Resolve the destination to an address and endpoint.
+
+        Args:
+            destination (str): The destination name or address to resolve.
+
+        Returns:
+            tuple[str | None, list[str]]: The address (if available) and resolved endpoints.
+        """
+        raise NotImplementedError
 
 
 class GlobalResolver(Resolver):
