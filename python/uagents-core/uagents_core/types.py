@@ -1,7 +1,7 @@
 import uuid
+from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Literal
-from abc import ABC, abstractmethod
 
 from pydantic import BaseModel
 
@@ -68,7 +68,7 @@ class Resolver(ABC):
     @abstractmethod
     def sync_resolve(self, destination: str) -> list[str]:
         """
-        Resolve the destination to an address and endpoint.
+        Resolve the destination to a list of endpoints.
 
         Args:
             destination (str): The destination name or address to resolve.

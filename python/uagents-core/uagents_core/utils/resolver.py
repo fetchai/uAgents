@@ -13,8 +13,8 @@ from uagents_core.config import (
 )
 from uagents_core.helpers import weighted_random_sample
 from uagents_core.identity import parse_identifier
-from uagents_core.types import Resolver
 from uagents_core.logger import get_logger
+from uagents_core.types import Resolver
 
 logger = get_logger("uagents_core.utils.resolver")
 

@@ -14,9 +14,8 @@ from uagents_core.helpers import weighted_random_sample
 from uagents_core.identity import Identity
 from uagents_core.logger import get_logger
 from uagents_core.models import Model
-from uagents_core.types import DeliveryStatus, MsgStatus
+from uagents_core.types import DeliveryStatus, MsgStatus, Resolver
 from uagents_core.utils.resolver import AlmanacResolver
-from uagents_core.types import Resolver
 
 logger = get_logger("uagents_core.utils.messages")
 
