@@ -15,7 +15,8 @@ from uagents_core.identity import Identity
 from uagents_core.logger import get_logger
 from uagents_core.models import Model
 from uagents_core.types import DeliveryStatus, MsgStatus
-from uagents_core.utils.resolver import lookup_endpoint_for_agent
+from uagents_core.utils.resolver import AlmanacResolver
+from uagents_core.types import Resolver
 
 logger = get_logger("uagents_core.utils.messages")
 
@@ -89,6 +90,7 @@ def send_message_to_agent(
     session_id: UUID | None = None,
     strategy: Literal["first", "random", "all"] = "first",
     agentverse_config: AgentverseConfig | None = None,
+    resolver: Resolver | None = None,
 ) -> list[MsgStatus]:
     """
     Send a message to an agent with default settings.
@@ -103,9 +105,12 @@ def send_message_to_agent(
         agentverse_config (AgentverseConfig, optional): The configuration for the agentverse.
     """
     agentverse_config = agentverse_config or AgentverseConfig()
-    endpoints = lookup_endpoint_for_agent(
-        agent_identifier=destination, agentverse_config=agentverse_config
-    )
+
+    if not resolver:
+        resolver = AlmanacResolver(
+            agentverse_config=agentverse_config,
+        )
+    endpoints = resolver.sync_resolve(destination)
     if not endpoints:
         logger.error("No endpoints found for agent", extra={"destination": destination})
         return []

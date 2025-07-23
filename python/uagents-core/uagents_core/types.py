@@ -1,6 +1,7 @@
 import uuid
 from enum import Enum
 from typing import Any, Literal
+from abc import ABC, abstractmethod
 
 from pydantic import BaseModel
 
@@ -48,3 +49,31 @@ class MsgStatus(BaseModel):
     destination: str
     endpoint: str
     session: uuid.UUID | None = None
+
+
+class Resolver(ABC):
+    @abstractmethod
+    async def resolve(self, destination: str) -> tuple[str | None, list[str]]:
+        """
+        Resolve the destination to an address and endpoint.
+
+        Args:
+            destination (str): The destination name or address to resolve.
+
+        Returns:
+            tuple[str | None, list[str]]: The address (if available) and resolved endpoints.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def sync_resolve(self, destination: str) -> list[str]:
+        """
+        Resolve the destination to an address and endpoint.
+
+        Args:
+            destination (str): The destination name or address to resolve.
+
+        Returns:
+            list[str]: The resolved endpoints.
+        """
+        raise NotImplementedError
