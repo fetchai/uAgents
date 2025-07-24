@@ -17,7 +17,6 @@ from uagents.config import (
     TESTNET_PREFIX,
 )
 from uagents.network import (
-    AlmanacContract,
     get_almanac_contract,
     get_name_service_contract,
 )
@@ -58,26 +57,27 @@ def parse_prefix(prefix: str) -> AgentNetwork:
     raise ValueError(f"Invalid prefix: {prefix}")
 
 
-def query_record(agent_address: str, service: str, network: AgentNetwork) -> dict:
+def query_record(agent_address: str, network: AgentNetwork) -> dict:
     """
-    Query a record from the Almanac contract.
+    Query an agent record from the Almanac contract.
 
     Args:
         agent_address (str): The address of the agent.
-        service (str): The type of service to query.
         network (AgentNetwork): The network to query (mainnet or testnet).
 
     Returns:
         dict: The query result.
     """
-    contract: AlmanacContract | None = get_almanac_contract(network)
-    if not contract:
-        raise ValueError("Almanac contract not found.")
+
     query_msg = {
-        "query_record": {"agent_address": agent_address, "record_type": service}
+        "query_record": {"agent_address": agent_address, "record_type": "service"}
     }
-    result = contract.query(query_msg)
-    return result
+
+    contract = get_almanac_contract(network)
+    if not contract:
+        raise ValueError(f"Almanac contract not found for {network}.")
+
+    return contract.query(query_msg)
 
 
 def get_agent_address(name: str, network: AgentNetwork) -> str | None:
@@ -183,8 +183,21 @@ class AlmanacContractResolver(Resolver):
             tuple[str | None, list[str]]: The address and resolved endpoints.
         """
         prefix, _, address = parse_identifier(destination)
-        network = parse_prefix(prefix)
-        result = query_record(agent_address=address, service="service", network=network)
+
+        if prefix == MAINNET_PREFIX:
+            result = query_record(agent_address=address, network="mainnet")
+        elif prefix == TESTNET_PREFIX:
+            result = query_record(agent_address=address, network="testnet")
+        elif prefix == "":
+            for network in ["mainnet", "testnet"]:
+                try:
+                    result = query_record(agent_address=address, network="mainnet")
+                    if result is not None:
+                        break
+                except ValueError:
+                    if network == "testnet":
+                        raise
+
         if result is not None:
             record = result.get("record") or {}
             endpoint_list = (
@@ -310,10 +323,22 @@ class NameServiceResolver(Resolver):
             tuple[str | None, list[str]]: The address (if available) and resolved endpoints.
         """
         prefix, name, _ = parse_identifier(destination)
-        network = parse_prefix(prefix)
-        address = get_agent_address(name, network)
+
+        if prefix == MAINNET_PREFIX:
+            address = get_agent_address(name, "mainnet")
+        elif prefix == TESTNET_PREFIX:
+            address = get_agent_address(name, "testnet")
+        elif prefix == "":
+            for network in ["mainnet", "testnet"]:
+                address = get_agent_address(name, network)  # type: ignore
+                if address is not None:
+                    break
+        else:
+            raise ValueError(f"Invalid prefix: {prefix}")
+
         if address is not None:
             return await self._almanac_api_resolver.resolve(address)
+
         return None, []
 
 
