@@ -1,14 +1,20 @@
 """
-This module contains the protocol specification for the agent chat protocol.
+This module contains the protocol specification for the agent chat protocol,
+plus a ready‐to‐use Protocol instance and message‐building helpers.
 """
 
 from datetime import datetime
-from typing import Literal, TypedDict
+from datetime import timezone as _timezone
+from typing import Literal, TypedDict, Union
+from uuid import uuid4
 
 from pydantic.v1 import UUID4
+from uagents import Context, Protocol
 
 from uagents_core.models import Model
 from uagents_core.protocol import ProtocolSpecification
+
+# --- Original content models & spec ---------------------------------------
 
 
 class Metadata(TypedDict):
@@ -22,41 +28,28 @@ class Metadata(TypedDict):
 
 class TextContent(Model):
     type: Literal["text"]
-
-    # The text of the content. The format of this field is UTF-8 encoded strings. Additionally,
-    # markdown based formatting can be used and will be supported by most clients
+    # The text of the content. UTF‑8 encoded; markdown formatting is supported.
     text: str
 
 
 class Resource(Model):
     # the uri of the resource
     uri: str
-
-    # the set of metadata for this resource, for more detailed description of the set of
-    # fields see `docs/metadata.md`
+    # metadata for this resource; see `docs/metadata.md`
     metadata: dict[str, str]
 
 
 class ResourceContent(Model):
     type: Literal["resource"]
-
     # The resource id
     resource_id: UUID4
-
-    # The resource or list of resource for this content. typically only a single
-    # resource will be sent, however, if there are accompanying resources like
-    # thumbnails and audio tracks these can be additionally referenced
-    #
-    # In the case of the a list of resources, the first element of the list is always
-    # considered the primary resource
+    # The primary resource (or list of them)
     resource: Resource | list[Resource]
 
 
 class MetadataContent(Model):
     type: Literal["metadata"]
-
-    # the set of metadata for this content, for more detailed description of the set of
-    # fields see `docs/metadata.md`
+    # metadata dictionary; see `docs/metadata.md`
     metadata: dict[str, str]
 
 
@@ -70,13 +63,11 @@ class EndSessionContent(Model):
 
 class StartStreamContent(Model):
     type: Literal["start-stream"]
-
     stream_id: UUID4
 
 
 class EndStreamContent(Model):
     type: Literal["end-stream"]
-
     stream_id: UUID4
 
 
@@ -93,24 +84,20 @@ AgentContent = (
 
 
 class ChatMessage(Model):
-    # the timestamp for the message, should be in UTC
+    # the timestamp for the message, in UTC
     timestamp: datetime
-
-    # a unique message id that is generated from the message instigator
+    # a unique message id
     msg_id: UUID4
-
-    # the list of content elements in the chat
+    # the list of content elements
     content: list[AgentContent]
 
 
 class ChatAcknowledgement(Model):
-    # the timestamp for the message, should be in UTC
+    # the timestamp for the acknowledgement, in UTC
     timestamp: datetime
-
-    # the msg id that is being acknowledged
+    # the msg_id being acknowledged
     acknowledged_msg_id: UUID4
-
-    # optional acknowledgement metadata
+    # optional extra metadata
     metadata: dict[str, str] | None = None
 
 
@@ -122,3 +109,71 @@ chat_protocol_spec = ProtocolSpecification(
         ChatAcknowledgement: set(),
     },
 )
+
+
+# --- Ready‐to‐use Protocol instance & helpers -----------------------------
+
+# A Protocol instance preconfigured with the chat spec and a default ACK handler.
+chat_proto = Protocol(spec=chat_protocol_spec)
+
+
+@chat_proto.on_message(ChatAcknowledgement)
+async def _default_handle_ack(ctx: Context, sender: str, msg: ChatAcknowledgement):
+    ctx.logger.info(
+        f"Got an acknowledgement from {sender} for {msg.acknowledged_msg_id}"
+    )
+
+
+class ChatObjects:
+    """
+    Utility class for constructing ChatMessage objects with common content types.
+    """
+
+    @classmethod
+    def text(cls, text: str, end_session: bool = False) -> ChatMessage:
+        """
+        Create a ChatMessage with TextContent.
+        Pass end_session=True to append an EndSessionContent.
+        """
+        contents: list[AgentContent] = [TextContent(type="text", text=text)]
+        if end_session:
+            contents.append(EndSessionContent(type="end-session"))
+        return ChatMessage(
+            timestamp=datetime.now(_timezone.utc),
+            msg_id=uuid4(),
+            content=contents,
+        )
+
+    @classmethod
+    def end_session(cls) -> ChatMessage:
+        """
+        Create a ChatMessage that signals end of session.
+        """
+        return ChatMessage(
+            timestamp=datetime.now(_timezone.utc),
+            msg_id=uuid4(),
+            content=[EndSessionContent(type="end-session")],
+        )
+
+    @classmethod
+    def resource(
+        cls,
+        asset_id: Union[str, UUID4],
+        uri: str,
+        mime_type: str = "image/png",
+        role: str = "generated-resource",
+    ) -> ChatMessage:
+        """
+        Create a ChatMessage carrying a ResourceContent (e.g. image/file).
+        """
+        res_id = UUID4(asset_id) if isinstance(asset_id, str) else asset_id
+        rc = ResourceContent(
+            type="resource",
+            resource_id=res_id,
+            resource=Resource(uri=uri, metadata={"mime_type": mime_type, "role": role}),
+        )
+        return ChatMessage(
+            timestamp=datetime.now(_timezone.utc),
+            msg_id=uuid4(),
+            content=[rc],
+        )
