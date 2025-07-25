@@ -131,6 +131,7 @@ chat_protocol_spec = ProtocolSpecification(
 
 # --- Helper Class for simplifying Chat Protocol -----------------------------
 
+
 class ChatObjects:
     """
     Utility class for constructing ChatMessage objects with common content types.
