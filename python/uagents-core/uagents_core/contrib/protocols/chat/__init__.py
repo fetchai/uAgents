@@ -9,7 +9,6 @@ from typing import Literal, TypedDict, Union
 from uuid import uuid4
 
 from pydantic.v1 import UUID4
-from uagents import Context, Protocol
 
 from uagents_core.models import Model
 from uagents_core.protocol import ProtocolSpecification
@@ -130,18 +129,7 @@ chat_protocol_spec = ProtocolSpecification(
 )
 
 
-# --- Ready‐to‐use Protocol instance & helpers -----------------------------
-
-# A Protocol instance preconfigured with the chat spec and a default ACK handler.
-chat_proto = Protocol(spec=chat_protocol_spec)
-
-
-@chat_proto.on_message(ChatAcknowledgement)
-async def _default_handle_ack(ctx: Context, sender: str, msg: ChatAcknowledgement):
-    ctx.logger.info(
-        f"Got an acknowledgement from {sender} for {msg.acknowledged_msg_id}"
-    )
-
+# --- Helper Class for simplifying Chat Protocol -----------------------------
 
 class ChatObjects:
     """
