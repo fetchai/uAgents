@@ -10,9 +10,12 @@ from uuid import UUID, uuid4
 import requests
 from pydantic import ValidationError
 
-from uagents_core.config import DEFAULT_REQUEST_TIMEOUT, AgentverseConfig
+from uagents_core.config import (
+    DEFAULT_MAX_ENDPOINTS,
+    DEFAULT_REQUEST_TIMEOUT,
+    AgentverseConfig,
+)
 from uagents_core.envelope import Envelope
-from uagents_core.helpers import weighted_random_sample
 from uagents_core.identity import Identity
 from uagents_core.logger import get_logger
 from uagents_core.models import Model
@@ -90,6 +93,39 @@ def send_message(
     return response
 
 
+def parse_sync_response(
+    env_json: JsonStr,
+    response_type: type[Model] | set[type[Model]] | None = None,
+) -> Model | JsonStr:
+    """
+    Parse the response from a synchronous message.
+
+    Args:
+        env_json (JsonStr): The JSON string of the response envelope.
+        response_type (type[Model] | set[type[Model]] | None, optional):
+            The expected response type(s) for a sync message.
+
+    Returns:
+        Model | JsonStr: The parsed response model or JSON string.
+    """
+
+    env = Envelope.model_validate_json(env_json)
+
+    response_json = env.decode_payload()
+
+    response_msg: Model | None = None
+    if response_type:
+        response_types = (
+            {response_type} if isinstance(response_type, type) else response_type
+        )
+
+        for r_type in response_types:
+            with contextlib.suppress(ValidationError):
+                response_msg = r_type.parse_raw(response_json)
+
+    return response_msg or response_json
+
+
 def send_message_to_agent(
     destination: str,
     msg: Model,
@@ -101,7 +137,7 @@ def send_message_to_agent(
     resolver: Resolver | None = None,
     sync: bool = False,
     response_type: type[Model] | set[type[Model]] | None = None,
-) -> list[MsgStatus] | Model | JsonStr:
+) -> Model | JsonStr:
     """
     Send a message to an agent with default settings.
 
@@ -114,7 +150,7 @@ def send_message_to_agent(
             selecting an endpoint.
         agentverse_config (AgentverseConfig, optional): The configuration for the agentverse.
         resolver (Resolver, optional): The resolver to use for finding endpoints.
-        sync (bool, optional): Whether to send the message synchronously.
+        sync (bool, optional): Whether to send the message synchronously and wait for a response.
         response_type (type[Model] | set[type[Model]] | None, optional):
             The expected response type(s) for a sync message.
 
@@ -125,7 +161,9 @@ def send_message_to_agent(
     agentverse_config = agentverse_config or AgentverseConfig()
 
     if not resolver:
+        max_endpoints = 1 if strategy in ["first", "random"] else DEFAULT_MAX_ENDPOINTS
         resolver = AlmanacResolver(
+            max_endpoints=max_endpoints,
             agentverse_config=agentverse_config,
         )
     endpoints = resolver.sync_resolve(destination)
@@ -140,46 +178,21 @@ def send_message_to_agent(
         sender=sender,
         session_id=session_id,
     )
-    match strategy:
-        case "first":
-            endpoints = endpoints[:1]
-        case "random":
-            endpoints = weighted_random_sample(endpoints)
-
-    endpoints: list[str] = endpoints if strategy == "all" else endpoints[:1]
 
     status_result: list[MsgStatus] = []
     for endpoint in endpoints:
         try:
-            response = send_message(endpoint, env, sync=sync)
-            logger.info("Sent message to agent", extra={"agent_endpoint": endpoint})
-            if sync:
-                env = Envelope.model_validate_json(response.text)
-                response_json = env.decode_payload()
-
-                response_msg: Model | None = None
-                if response_type:
-                    response_types = (
-                        {response_type}
-                        if isinstance(response_type, type)
-                        else response_type
-                    )
-
-                    for r_type in response_types:
-                        with contextlib.suppress(ValidationError):
-                            response_msg = r_type.parse_raw(response_json)
-
-                return response_msg or response_json
-
+            response = send_message(endpoint, env, sync=True)
             status_result.append(
                 MsgStatus(
                     status=DeliveryStatus.SENT,
-                    detail=response.text,
+                    detail="Message sent successfully",
                     destination=destination,
                     endpoint=endpoint,
-                    session=env.session,
+                    session=session_id,
                 )
             )
+            break
         except requests.RequestException as e:
             logger.error("Failed to send message to agent", extra={"error": str(e)})
             status_result.append(
@@ -191,17 +204,16 @@ def send_message_to_agent(
                     session=env.session,
                 )
             )
+
+    logger.info("Sent message to agent", extra={"agent_endpoint": endpoint})
+
+    if sync:
+        try:
+            return parse_sync_response(response.text, response_type)
         except ValidationError as e:
             logger.error(
-                "Failed to validate response envelope", extra={"error": str(e)}
+                "Received invalid response envelope",
+                extra={"error": str(e), "response": response.text},
             )
-            status_result.append(
-                MsgStatus(
-                    status=DeliveryStatus.SENT,
-                    detail="Received invalid response to sync message",
-                    destination=destination,
-                    endpoint=endpoint,
-                    session=env.session,
-                )
-            )
+
     return status_result
