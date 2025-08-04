@@ -137,7 +137,7 @@ def send_message_to_agent(
     resolver: Resolver | None = None,
     sync: bool = False,
     response_type: type[Model] | set[type[Model]] | None = None,
-) -> Model | JsonStr:
+) -> list[MsgStatus] | Model | JsonStr:
     """
     Send a message to an agent with default settings.
 
