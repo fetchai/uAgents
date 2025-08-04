@@ -2,11 +2,13 @@
 This module provides methods to enable an identity to interact with other agents.
 """
 
+import contextlib
 import json
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
 import requests
+from pydantic import ValidationError
 
 from uagents_core.config import DEFAULT_REQUEST_TIMEOUT, AgentverseConfig
 from uagents_core.envelope import Envelope
@@ -14,7 +16,7 @@ from uagents_core.helpers import weighted_random_sample
 from uagents_core.identity import Identity
 from uagents_core.logger import get_logger
 from uagents_core.models import Model
-from uagents_core.types import DeliveryStatus, MsgStatus, Resolver
+from uagents_core.types import DeliveryStatus, JsonStr, MsgStatus, Resolver
 from uagents_core.utils.resolver import AlmanacResolver
 
 logger = get_logger("uagents_core.utils.messages")
@@ -58,7 +60,10 @@ def generate_message_envelope(
 
 
 def send_message(
-    endpoint: str, envelope: Envelope, timeout: int = DEFAULT_REQUEST_TIMEOUT
+    endpoint: str,
+    envelope: Envelope,
+    timeout: int = DEFAULT_REQUEST_TIMEOUT,
+    sync: bool = False,
 ) -> requests.Response:
     """
     A helper function to send a message to an agent.
@@ -67,13 +72,17 @@ def send_message(
         endpoint (str): The endpoint to send the message to.
         envelope (Envelope): The envelope containing the message.
         timeout (int, optional): Requests timeout. Defaults to DEFAULT_REQUEST_TIMEOUT.
+        sync (bool, optional): Whether to send the message synchronously. Defaults to False.
 
     Returns:
         requests.Response: Response object from the request.
     """
+    headers = {"content-type": "application/json"}
+    if sync:
+        headers["x-uagents-connection"] = "sync"
     response = requests.post(
         url=endpoint,
-        headers={"content-type": "application/json"},
+        headers=headers,
         data=envelope.model_dump_json(),
         timeout=timeout,
     )
@@ -90,7 +99,9 @@ def send_message_to_agent(
     strategy: Literal["first", "random", "all"] = "first",
     agentverse_config: AgentverseConfig | None = None,
     resolver: Resolver | None = None,
-) -> list[MsgStatus]:
+    sync: bool = False,
+    response_type: type[Model] | set[type[Model]] | None = None,
+) -> list[MsgStatus] | Model | JsonStr:
     """
     Send a message to an agent with default settings.
 
@@ -102,6 +113,14 @@ def send_message_to_agent(
         strategy (Literal["first", "random", "all"], optional): The strategy to use when
             selecting an endpoint.
         agentverse_config (AgentverseConfig, optional): The configuration for the agentverse.
+        resolver (Resolver, optional): The resolver to use for finding endpoints.
+        sync (bool, optional): Whether to send the message synchronously.
+        response_type (type[Model] | set[type[Model]] | None, optional):
+            The expected response type(s) for a sync message.
+
+    Returns:
+        list[MsgStatus] | Model | JsonStr: A list of message statuses
+            or the response model or json string if sync is True.
     """
     agentverse_config = agentverse_config or AgentverseConfig()
 
@@ -129,12 +148,30 @@ def send_message_to_agent(
 
     endpoints: list[str] = endpoints if strategy == "all" else endpoints[:1]
 
-    result: list[MsgStatus] = []
+    status_result: list[MsgStatus] = []
     for endpoint in endpoints:
         try:
-            response = send_message(endpoint, env)
+            response = send_message(endpoint, env, sync=sync)
             logger.info("Sent message to agent", extra={"agent_endpoint": endpoint})
-            result.append(
+            if sync:
+                env = Envelope.model_validate_json(response.text)
+                response_json = env.decode_payload()
+
+                response_msg: Model | None = None
+                if response_type:
+                    response_types = (
+                        {response_type}
+                        if isinstance(response_type, type)
+                        else response_type
+                    )
+
+                    for r_type in response_types:
+                        with contextlib.suppress(ValidationError):
+                            response_msg = r_type.parse_raw(response_json)
+
+                return response_msg or response_json
+
+            status_result.append(
                 MsgStatus(
                     status=DeliveryStatus.SENT,
                     detail=response.text,
@@ -145,7 +182,7 @@ def send_message_to_agent(
             )
         except requests.RequestException as e:
             logger.error("Failed to send message to agent", extra={"error": str(e)})
-            result.append(
+            status_result.append(
                 MsgStatus(
                     status=DeliveryStatus.FAILED,
                     detail=str(e),
@@ -154,4 +191,17 @@ def send_message_to_agent(
                     session=env.session,
                 )
             )
-    return result
+        except ValidationError as e:
+            logger.error(
+                "Failed to validate response envelope", extra={"error": str(e)}
+            )
+            status_result.append(
+                MsgStatus(
+                    status=DeliveryStatus.SENT,
+                    detail="Received invalid response to sync message",
+                    destination=destination,
+                    endpoint=endpoint,
+                    session=env.session,
+                )
+            )
+    return status_result
