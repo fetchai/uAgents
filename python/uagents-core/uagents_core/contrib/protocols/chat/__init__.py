@@ -28,8 +28,8 @@ class TextContent(Model):
     # markdown based formatting can be used and will be supported by most clients
     text: str
 
-    def __init__(self, text: str):
-        super().__init__(type="text", text=text)
+    def __init__(self, text: str, type: str = "text"):
+        super().__init__(type=type, text=text)
 
 
 class Resource(Model):
@@ -58,8 +58,13 @@ class ResourceContent(Model):
     # considered the primary resource
     resource: Resource | list[Resource]
 
-    def __init__(self, resource_id: UUID4, resource: Resource | list[Resource]):
-        super().__init__(type="resource", resource_id=resource_id, resource=resource)
+    def __init__(
+        self,
+        resource_id: UUID4,
+        resource: Resource | list[Resource],
+        type: str = "resource",
+    ):
+        super().__init__(type=type, resource_id=resource_id, resource=resource)
 
 
 class MetadataContent(Model):
@@ -69,22 +74,22 @@ class MetadataContent(Model):
     # fields see `docs/metadata.md`
     metadata: dict[str, str]
 
-    def __init__(self, metadata: dict[str, str]):
-        super().__init__(type="metadata", metadata=metadata)
+    def __init__(self, metadata: dict[str, str], type: str = "metadata"):
+        super().__init__(type=type, metadata=metadata)
 
 
 class StartSessionContent(Model):
     type: Literal["start-session"]
 
-    def __init__(self):
-        super().__init__(type="start-session")
+    def __init__(self, type: str = "start-session"):
+        super().__init__(type=type)
 
 
 class EndSessionContent(Model):
     type: Literal["end-session"]
 
-    def __init__(self):
-        super().__init__(type="end-session")
+    def __init__(self, type: str = "end-session"):
+        super().__init__(type=type)
 
 
 class StartStreamContent(Model):
@@ -92,8 +97,8 @@ class StartStreamContent(Model):
 
     stream_id: UUID4
 
-    def __init__(self, stream_id: UUID4):
-        super().__init__(type="start-stream", stream_id=stream_id)
+    def __init__(self, stream_id: UUID4, type: str = "start-stream"):
+        super().__init__(type=type, stream_id=stream_id)
 
 
 class EndStreamContent(Model):
@@ -101,8 +106,8 @@ class EndStreamContent(Model):
 
     stream_id: UUID4
 
-    def __init__(self, stream_id: UUID4):
-        super().__init__(type="end-stream", stream_id=stream_id)
+    def __init__(self, stream_id: UUID4, type: str = "end-stream"):
+        super().__init__(type=type, stream_id=stream_id)
 
 
 # The combined agent content types
