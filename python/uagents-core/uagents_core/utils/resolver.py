@@ -75,17 +75,24 @@ def lookup_endpoint_for_agent(
 
 
 class AlmanacResolver(Resolver):
-    def __init__(self, agentverse_config: AgentverseConfig | None = None):
+    def __init__(
+        self, max_endpoints: int = 1, agentverse_config: AgentverseConfig | None = None
+    ):
         self.agentverse_config = agentverse_config or AgentverseConfig()
+        self.max_endpoints = max_endpoints
 
     async def resolve(self, destination: str) -> tuple[str | None, list[str]]:
         endpoints = lookup_endpoint_for_agent(
-            agent_identifier=destination, agentverse_config=self.agentverse_config
+            agent_identifier=destination,
+            max_endpoints=self.max_endpoints,
+            agentverse_config=self.agentverse_config,
         )
         return None, endpoints
 
     def sync_resolve(self, destination: str) -> list[str]:
         endpoints = lookup_endpoint_for_agent(
-            agent_identifier=destination, agentverse_config=self.agentverse_config
+            agent_identifier=destination,
+            max_endpoints=self.max_endpoints,
+            agentverse_config=self.agentverse_config,
         )
         return endpoints
