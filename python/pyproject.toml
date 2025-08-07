@@ -1,6 +1,6 @@
 [project]
 name = "uagents"
-version = "0.22.5"
+version = "0.22.6"
 description = "Lightweight framework for rapid agent-based development"
 authors = [
     { name = "Ed FitzGerald", email = "edward.fitzgerald@fetch.ai" },
@@ -12,7 +12,7 @@ license = { text = "Apache 2.0" }
 readme = "README.md"
 requires-python = ">=3.10,<4.0"
 dependencies = [
-    "uagents_core (>=0.3.4)",
+    "uagents_core (>=0.3.6)",
     "pydantic (>=2.8,<3.0)",
     "uvicorn (>=0.30.1,<1.0)",
     "aiohttp (>=3.8.3,<4.0)",

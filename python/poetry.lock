@@ -2254,14 +2254,14 @@ files = [
 
 [[package]]
 name = "uagents-core"
-version = "0.3.4"
+version = "0.3.6"
 description = "Core components for agent based systems"
 optional = false
 python-versions = "<4.0,>=3.10"
 groups = ["main"]
 files = [
-    {file = "uagents_core-0.3.4-py3-none-any.whl", hash = "sha256:ba6e93e2595536467abe480dcffcbfa9329f3f611ec35adbcac382c99fd072ed"},
-    {file = "uagents_core-0.3.4.tar.gz", hash = "sha256:817c6a8bf77c933385f17bdba0cddc8f49baf355650d722a56e08838732e807b"},
+    {file = "uagents_core-0.3.6-py3-none-any.whl", hash = "sha256:e5b33f92913b9a694b0066f378aa20710d58d689e42bef9757a260034da1d4e5"},
+    {file = "uagents_core-0.3.6.tar.gz", hash = "sha256:25829166605f22c8d5c5d3c24b96cd7b0b3c1952cf6661d536f0a3607eafdd3e"},
 ]
 
 [package.dependencies]
@@ -2581,4 +2581,4 @@ wallet = ["fetchai-babble"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4.0"
-content-hash = "6cb0149078959fdb314a871cee7215f2c59e5dfd63bbf880be53c5982d9f2973"
+content-hash = "bc311fa449a6f5c4e2faa1c3767784e247c6ee6e457a14c67190237ea48d1451"
