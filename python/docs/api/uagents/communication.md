@@ -6,7 +6,7 @@ Agent dispatch of exchange envelopes and synchronous messages.
 
 
 
-## Dispenser Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L29)
+## Dispenser Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L30)
 
 ```python
 class Dispenser()
@@ -16,7 +16,7 @@ Dispenses messages externally.
 
 
 
-#### add_envelope[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L38)
+#### add_envelope[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L39)
 ```python
 def add_envelope(envelope: Envelope,
                  endpoints: list[str],
@@ -35,7 +35,7 @@ Add an envelope to the dispenser.
 
 
 
-#### run[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L56)
+#### run[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L57)
 ```python
 async def run() -> NoReturn
 ```
@@ -44,7 +44,7 @@ Run the dispenser routine.
 
 
 
-#### dispatch_local_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L77)
+#### dispatch_local_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L78)
 ```python
 async def dispatch_local_message(sender: str, destination: str,
                                  schema_digest: str, message: JsonStr,
@@ -55,7 +55,7 @@ Process a message locally.
 
 
 
-#### send_exchange_envelope[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L101)
+#### send_exchange_envelope[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L102)
 ```python
 async def send_exchange_envelope(envelope: Envelope,
                                  endpoints: list[str],
@@ -77,7 +77,7 @@ Method to send an exchange envelope.
 
 
 
-#### dispatch_sync_response_envelope[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L168)
+#### dispatch_sync_response_envelope[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L176)
 ```python
 async def dispatch_sync_response_envelope(
         env: Envelope, endpoint: str) -> MsgStatus | Envelope
@@ -87,7 +87,7 @@ Dispatch a synchronous response envelope locally.
 
 
 
-#### send_message_raw[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L190)
+#### send_message_raw[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L198)
 ```python
 async def send_message_raw(
         destination: str,
@@ -123,7 +123,7 @@ Standalone function to send a message to an agent.
 
 
 
-#### send_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L269)
+#### send_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L277)
 ```python
 async def send_message(
         destination: str,
@@ -157,7 +157,7 @@ Standalone function to send a message to an agent.
 
 
 
-#### send_sync_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L308)
+#### send_sync_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L316)
 ```python
 async def send_sync_message(
     destination: str,
@@ -191,7 +191,7 @@ Standalone function to send a synchronous message to an agent.
 
 
 
-#### enclose_response[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L345)
+#### enclose_response[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L353)
 ```python
 def enclose_response(message: Model,
                      sender: str,
@@ -215,7 +215,7 @@ Enclose a response message within an envelope.
 
 
 
-#### enclose_response_raw[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L370)
+#### enclose_response_raw[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L378)
 ```python
 def enclose_response_raw(json_message: JsonStr,
                          schema_digest: str,
