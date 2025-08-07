@@ -1,6 +1,6 @@
 [project]
 name = "uagents"
-version = "0.22.5"
+version = "0.22.6"
 description = "Lightweight framework for rapid agent-based development"
 authors = [
     { name = "Ed FitzGerald", email = "edward.fitzgerald@fetch.ai" },
