@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 import requests
 from dateutil import parser
+from pydantic import BaseModel
 from uagents_core.helpers import weighted_random_sample
 from uagents_core.identity import parse_identifier
 
@@ -24,6 +25,16 @@ from uagents.types import AgentNetwork
 from uagents.utils import get_logger
 
 LOGGER: logging.Logger = get_logger("resolver", logging.WARNING)
+
+
+class AgentRecord(BaseModel):
+    address: str
+    weight: float
+
+
+class DomainRecord(BaseModel):
+    name: str
+    agents: list[AgentRecord]
 
 
 def is_valid_prefix(prefix: str) -> bool:
@@ -82,7 +93,7 @@ def query_record(agent_address: str, network: AgentNetwork) -> dict:
 
 def get_agent_address(name: str, network: AgentNetwork) -> str | None:
     """
-    Get the agent address associated with the provided name from the name service contract.
+    Get the agent address associated with the provided domain from the name service contract.
 
     Args:
         name (str): The name to query.
@@ -137,7 +148,7 @@ class GlobalResolver(Resolver):
             max_endpoints=self._max_endpoints, almanac_api_url=almanac_api_url
         )
         self._name_service_resolver = NameServiceResolver(
-            max_endpoints=self._max_endpoints
+            max_endpoints=self._max_endpoints, almanac_api_url=almanac_api_url
         )
 
     async def resolve(self, destination: str) -> tuple[str | None, list[str]]:
@@ -302,7 +313,9 @@ class AlmanacApiResolver(Resolver):
 
 
 class NameServiceResolver(Resolver):
-    def __init__(self, max_endpoints: int | None = None):
+    def __init__(
+        self, max_endpoints: int | None = None, almanac_api_url: str | None = None
+    ):
         """
         Initialize the NameServiceResolver.
 
@@ -310,7 +323,47 @@ class NameServiceResolver(Resolver):
             max_endpoints (int | None): The maximum number of endpoints to return.
         """
         self._max_endpoints = max_endpoints or DEFAULT_MAX_ENDPOINTS
-        self._almanac_api_resolver = AlmanacApiResolver(self._max_endpoints)
+        self._almanac_api_url = almanac_api_url
+        self._almanac_api_resolver = AlmanacApiResolver(
+            almanac_api_url=almanac_api_url, max_endpoints=self._max_endpoints
+        )
+
+    async def _api_resolve(self, domain: str) -> tuple[str | None, list[str]]:
+        """
+        Resolve the domain using the Alamanac API.
+
+        Args:
+            domain (str): The domain to resolve.
+
+        Returns:
+            Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
+        """
+        try:
+            response = requests.get(f"{self._almanac_api_url}/domains/{domain}")
+
+            if response.status_code != 200:
+                if response.status_code != 404:
+                    LOGGER.debug(
+                        f"Failed to resolve name {domain} from {self._almanac_api_url}: "
+                        f"{response.status_code}: {response.text}"
+                    )
+                return None
+
+            domain_record = DomainRecord.model_validate(response.json())
+            agent_records = domain_record.agents
+            if len(agent_records) == 0:
+                return None
+            elif len(agent_records) == 1:
+                return agent_records[0].address
+            else:
+                addresses = [val.address for val in agent_records]
+                weights = [val.weight for val in agent_records]
+                return weighted_random_sample(addresses, weights=weights, k=1)[0]
+
+        except Exception as ex:
+            LOGGER.error(f"Error when resolving {domain}: {ex}")
+
+        return None
 
     async def resolve(self, destination: str) -> tuple[str | None, list[str]]:
         """
@@ -323,6 +376,11 @@ class NameServiceResolver(Resolver):
             tuple[str | None, list[str]]: The address (if available) and resolved endpoints.
         """
         prefix, name, _ = parse_identifier(destination)
+
+        api_result = await self._api_resolve(name)
+
+        if api_result:
+            return api_result
 
         if prefix == MAINNET_PREFIX:
             address = get_agent_address(name, "mainnet")
