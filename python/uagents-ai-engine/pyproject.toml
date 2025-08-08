@@ -1,0 +1,20 @@
+[project]
+name = "uagents-ai-engine"
+version = "0.10.0"
+description = "Integrating AI-Engine with UAgents"
+authors = [{ name = "Fetch.AI Limited" }]
+license = "Apache 2.0"
+readme = "README.md"
+keywords = ["uagents", "agents", "ai", "ai-engine", "fetch.ai"]
+requires-python = ">=3.10,<4.0"
+dependencies = [
+    "uagents (>=0.22.0, < 1.0.0)",
+    "pydantic (>=2.8,<3.0)",
+]
+
+[tool.poetry]
+packages = [{include = "ai_engine", from = "src" }]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

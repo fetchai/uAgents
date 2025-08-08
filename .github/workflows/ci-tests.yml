@@ -35,12 +35,12 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
         include:
           - os: macos-latest
-            python-version: "3.11"
+            python-version: "3.12"
           - os: windows-latest
-            python-version: "3.11"
+            python-version: "3.12"
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -78,54 +78,63 @@ jobs:
         name: Run tests
         run: |
           source $VENV
-          poetry run pytest
+          poetry run coverage run -m pytest
+        env:
+          COVERAGE_FILE: "${{ runner.temp }}/.coverage.${{ runner.os }}.${{ matrix.python-version }}"
+      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+        name: Store coverage file
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ runner.os }}-${{ matrix.python-version }}
+          path: ${{ runner.temp }}/.coverage.${{ runner.os }}.${{ matrix.python-version }}
+          if-no-files-found: error
+          include-hidden-files: true
 
   linting:
     name: Lint & Formatting
-    needs: check-if-files-changed
-
-    defaults:
-      run:
-        shell: bash
-        working-directory: ./python
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.10"]
-
     steps:
-      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
-        uses: actions/checkout@v4
-
-      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
-        name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v1
         with:
-          python-version: ${{ matrix.python-version }}
+          src: "python"
+          args: "format --check"
+          changed-files: "true"
 
-      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
-        uses: snok/install-poetry@v1
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    needs: tests
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        id: download
         with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
+          pattern: coverage-*
+          merge-multiple: true
+          path: ./python
 
-      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
-        name: Load cached venv
-        id: cached-poetry-dependencies
-        uses: actions/cache@v4
+      - id: count_files
+        uses: omagdy7/count_files@v1.0
         with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
-      - if: ${{
-          needs.check-if-files-changed.outputs.uagents == 'true' &&
-          steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-          }}
-        name: Install dependencies
-        run: poetry install -E all --no-interaction --no-root
+          path: ${{ steps.download.outputs.download-path}}
 
-      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
-        run: poetry install -E all --no-interaction
-      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
-        run: poetry run ruff check .
-      - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
-        run: poetry run ruff format --check .
+      - name: Coverage comment
+        id: coverage_comment
+        uses: py-cov-action/python-coverage-comment-action@v3
+        if: steps.count_files.outputs.COUNT > 0
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MERGE_COVERAGE_FILES: true
+          COVERAGE_PATH: ./python
+
+      - name: Store Pull Request comment to be posted
+        uses: actions/upload-artifact@v4
+        if: steps.coverage_comment.outputs.COMMENT_FILE_WRITTEN == 'true'
+        with:
+          name: python-coverage-comment-action
+          path: python-coverage-comment-action.txt

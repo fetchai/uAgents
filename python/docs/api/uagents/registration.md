@@ -1,69 +1,59 @@
-<a id="src.uagents.registration"></a>
+
 
 # src.uagents.registration
 
-<a id="src.uagents.registration.generate_backoff_time"></a>
 
-#### generate`_`backoff`_`time
 
-```python
-def generate_backoff_time(retry: int) -> float
-```
-
-Generate a backoff time starting from 0.128 seconds and limited to ~131 seconds
-
-<a id="src.uagents.registration.coerce_metadata_to_str"></a>
-
-#### coerce`_`metadata`_`to`_`str
-
+#### coerce_metadata_to_str[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L52)
 ```python
 def coerce_metadata_to_str(
-    metadata: Optional[Dict[str, Any]]
-) -> Optional[Dict[str, Union[str, Dict[str, str]]]]
+    metadata: dict[str, Any] | None
+) -> dict[str, str | list[str] | dict[str, str]] | None
 ```
 
 Step through the metadata and convert any non-string values to strings.
 
-<a id="src.uagents.registration.extract_geo_metadata"></a>
 
-#### extract`_`geo`_`metadata
 
+#### extract_geo_metadata[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L69)
 ```python
 def extract_geo_metadata(
-        metadata: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]
+        metadata: dict[str, Any] | None) -> dict[str, Any] | None
 ```
 
 Extract geo-location metadata from the metadata dictionary.
 
-<a id="src.uagents.registration.LedgerBasedRegistrationPolicy"></a>
 
-## LedgerBasedRegistrationPolicy Objects
+
+#### almanac_api_post[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L76)
+```python
+async def almanac_api_post(url: str,
+                           data: BaseModel,
+                           *,
+                           timeout: float | None = None,
+                           max_retries: int | None = None,
+                           retry_delay: RetryDelayFunc | None = None) -> bool
+```
+
+Send a POST request to the Almanac API.
+
+
+
+## LedgerBasedRegistrationPolicy Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L220)
 
 ```python
 class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy)
 ```
 
-<a id="src.uagents.registration.LedgerBasedRegistrationPolicy.check_contract_version"></a>
 
-#### check`_`contract`_`version
 
-```python
-def check_contract_version()
-```
-
-Check the version of the deployed Almanac contract and log a warning
-if it is different from the supported version.
-
-<a id="src.uagents.registration.LedgerBasedRegistrationPolicy.register"></a>
-
-#### register
-
+#### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L282)
 ```python
 async def register(agent_identifier: str,
                    identity: Identity,
-                   protocols: List[str],
-                   endpoints: List[AgentEndpoint],
-                   metadata: Optional[Dict[str, Any]] = None)
+                   protocols: list[str],
+                   endpoints: list[AgentEndpoint],
+                   metadata: dict[str, Any] | None = None) -> None
 ```
 
 Register the agent on the Almanac contract if registration is about to expire or

@@ -1,18 +1,20 @@
-<a id="src.uagents.query"></a>
+
 
 # src.uagents.query
 
 Query Envelopes.
 
-<a id="src.uagents.query.query"></a>
 
-#### query
 
+#### query[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/query.py#L13)
 ```python
+@deprecated(
+    "Query is deprecated and will be removed in a future release, use send_sync_message instead."
+)
 async def query(destination: str,
                 message: Model,
-                resolver: Optional[Resolver] = None,
-                timeout: int = 30) -> Union[MsgStatus, Envelope]
+                resolver: Resolver | None = None,
+                timeout: int = 30) -> MsgStatus | Envelope
 ```
 
 Query a remote agent with a message and retrieve the response envelope.
@@ -21,12 +23,12 @@ Query a remote agent with a message and retrieve the response envelope.
 
 - `destination` _str_ - The destination address of the remote agent.
 - `message` _Model_ - The message to send.
-- `resolver` _Optional[Resolver], optional_ - The resolver to use for endpoint resolution.
+- `resolver` _Resolver | None_ - The resolver to use for endpoint resolution.
   Defaults to GlobalResolver.
 - `timeout` _int_ - The timeout for the query in seconds. Defaults to 30.
   
 
 **Returns**:
 
-  Union[MsgStatus, Envelope]: The response envelope if successful, otherwise MsgStatus.
+  MsgStatus | Envelope: The response envelope if successful, otherwise MsgStatus.
 

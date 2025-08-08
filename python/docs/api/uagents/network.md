@@ -1,12 +1,31 @@
-<a id="src.uagents.network"></a>
+
 
 # src.uagents.network
 
 Network and Contracts.
 
-<a id="src.uagents.network.InsufficientFundsError"></a>
 
-## InsufficientFundsError Objects
+
+#### default_exp_backoff[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L55)
+```python
+def default_exp_backoff(retry: int) -> float
+```
+
+Generate a backoff time starting from 0.64 seconds and limited to ~32 seconds
+
+
+
+#### block_polling_exp_backoff[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L62)
+```python
+def block_polling_exp_backoff(retry: int) -> float
+```
+
+Generate an exponential backoff that is designed for block polling. We keep the
+same default exponential backoff, but it is clamped to the default query interval.
+
+
+
+## InsufficientFundsError Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L71)
 
 ```python
 class InsufficientFundsError(Exception)
@@ -14,29 +33,37 @@ class InsufficientFundsError(Exception)
 
 Raised when an agent has insufficient funds for a transaction.
 
-<a id="src.uagents.network.get_ledger"></a>
 
-#### get`_`ledger
+
+## BroadcastTimeoutError Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L75)
 
 ```python
-def get_ledger(test: bool = True) -> LedgerClient
+class BroadcastTimeoutError(RuntimeError)
+```
+
+Raised when a transaction broadcast fails due to a timeout.
+
+
+
+#### get_ledger[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L98)
+```python
+def get_ledger(network: AgentNetwork = "testnet") -> LedgerClient
 ```
 
 Get the Ledger client.
 
 **Arguments**:
 
-- `test` _bool_ - Whether to use the testnet or mainnet. Defaults to True.
+- `network` _AgentNetwork, optional_ - The network to use. Defaults to "testnet".
   
 
 **Returns**:
 
 - `LedgerClient` - The Ledger client instance.
 
-<a id="src.uagents.network.get_faucet"></a>
 
-#### get`_`faucet
 
+#### get_faucet[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L111)
 ```python
 def get_faucet() -> FaucetApi
 ```
@@ -47,12 +74,11 @@ Get the Faucet API instance.
 
 - `FaucetApi` - The Faucet API instance.
 
-<a id="src.uagents.network.add_testnet_funds"></a>
 
-#### add`_`testnet`_`funds
 
+#### add_testnet_funds[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L121)
 ```python
-def add_testnet_funds(wallet_address: str)
+def add_testnet_funds(wallet_address: str) -> None
 ```
 
 Add testnet funds to the provided wallet address.
@@ -61,32 +87,31 @@ Add testnet funds to the provided wallet address.
 
 - `wallet_address` _str_ - The wallet address to add funds to.
 
-<a id="src.uagents.network.parse_record_config"></a>
 
-#### parse`_`record`_`config
 
+#### parse_record_config[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L133)
 ```python
 def parse_record_config(
-    record: Optional[Union[str, List[str], Dict[str, dict]]]
-) -> Optional[List[Dict[str, Any]]]
+    record: str | list[str] | dict[str, dict] | None
+) -> list[dict[str, Any]] | None
 ```
 
 Parse the user-provided record configuration.
 
 **Returns**:
 
-  Optional[List[Dict[str, Any]]]: The parsed record configuration in correct format.
+  list[dict[str, Any]] | None: The parsed record configuration in correct format.
 
-<a id="src.uagents.network.wait_for_tx_to_complete"></a>
 
-#### wait`_`for`_`tx`_`to`_`complete
 
+#### wait_for_tx_to_complete[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L156)
 ```python
 async def wait_for_tx_to_complete(
         tx_hash: str,
         ledger: LedgerClient,
-        timeout: Optional[timedelta] = None,
-        poll_period: Optional[timedelta] = None) -> TxResponse
+        *,
+        poll_retries: int | None = None,
+        poll_retry_delay: RetryDelayFunc | None = None) -> TxResponse
 ```
 
 Wait for a transaction to complete on the Ledger.
@@ -95,18 +120,18 @@ Wait for a transaction to complete on the Ledger.
 
 - `tx_hash` _str_ - The hash of the transaction to monitor.
 - `ledger` _LedgerClient_ - The Ledger client to poll.
-- `timeout` _Optional[timedelta], optional_ - The maximum time to wait.
-  the transaction to complete. Defaults to None.
-- `poll_period` _Optional[timedelta], optional_ - The time interval to poll
+- `poll_retries` _int, optional_ - The maximum number of retry attempts.
+- `poll_retry_delay` _RetryDelayFunc, optional_ - The retry delay function,
+  if not provided the default exponential backoff will be used.
   
 
 **Returns**:
 
 - `TxResponse` - The response object containing the transaction details.
 
-<a id="src.uagents.network.AlmanacContract"></a>
 
-## AlmanacContract Objects
+
+## AlmanacContract Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L195)
 
 ```python
 class AlmanacContract(LedgerContract)
@@ -118,10 +143,9 @@ This class provides methods to interact with the Almanac contract, including
 checking if an agent is registered, retrieving the expiry height of an agent's
 registration, and getting the endpoints associated with an agent's registration.
 
-<a id="src.uagents.network.AlmanacContract.check_version"></a>
 
-#### check`_`version
 
+#### check_version[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L204)
 ```python
 def check_version() -> bool
 ```
@@ -133,19 +157,18 @@ deployed version.
 
 - `bool` - True if the contract version is supported, False otherwise.
 
-<a id="src.uagents.network.AlmanacContract.query_contract"></a>
 
-#### query`_`contract
 
+#### query_contract[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L234)
 ```python
-def query_contract(query_msg: Dict[str, Any]) -> Any
+def query_contract(query_msg: dict[str, Any]) -> Any
 ```
 
 Execute a query with additional checks and error handling.
 
 **Arguments**:
 
-- `query_msg` _Dict[str, Any]_ - The query message.
+- `query_msg` _dict[str, Any]_ - The query message.
   
 
 **Returns**:
@@ -157,10 +180,9 @@ Execute a query with additional checks and error handling.
 
 - `RuntimeError` - If the contract address is not set or the query fails.
 
-<a id="src.uagents.network.AlmanacContract.get_contract_version"></a>
 
-#### get`_`contract`_`version
 
+#### get_contract_version[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L257)
 ```python
 def get_contract_version() -> str
 ```
@@ -171,10 +193,22 @@ Get the version of the contract.
 
 - `str` - The version of the contract.
 
-<a id="src.uagents.network.AlmanacContract.is_registered"></a>
 
-#### is`_`registered
 
+#### get_registration_fee[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L269)
+```python
+def get_registration_fee(wallet_address: Address | None = None) -> int
+```
+
+Get the registration fee for the contract.
+
+**Returns**:
+
+- `int` - The registration fee.
+
+
+
+#### is_registered[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L295)
 ```python
 def is_registered(address: str) -> bool
 ```
@@ -190,13 +224,12 @@ Check if an agent is registered in the Almanac contract.
 
 - `bool` - True if the agent is registered, False otherwise.
 
-<a id="src.uagents.network.AlmanacContract.registration_needs_update"></a>
 
-#### registration`_`needs`_`update
 
+#### registration_needs_update[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L310)
 ```python
-def registration_needs_update(address: str, endpoints: List[AgentEndpoint],
-                              protocols: List[str],
+def registration_needs_update(address: str, endpoints: list[AgentEndpoint],
+                              protocols: list[str],
                               min_seconds_left: int) -> bool
 ```
 
@@ -205,8 +238,8 @@ Check if an agent's registration needs to be updated.
 **Arguments**:
 
 - `address` _str_ - The agent's address.
-- `endpoints` _List[AgentEndpoint]_ - The agent's endpoints.
-- `protocols` _List[str]_ - The agent's protocols.
+- `endpoints` _list[AgentEndpoint]_ - The agent's endpoints.
+- `protocols` _list[str]_ - The agent's protocols.
 - `min_time_left` _int_ - The minimum time left before the agent's registration expires
   
 
@@ -215,13 +248,12 @@ Check if an agent's registration needs to be updated.
 - `bool` - True if the agent's registration needs to be updated or will expire sooner
   than the specified minimum time, False otherwise.
 
-<a id="src.uagents.network.AlmanacContract.query_agent_record"></a>
 
-#### query`_`agent`_`record
 
+#### query_agent_record[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L340)
 ```python
 def query_agent_record(
-        address: str) -> Tuple[int, List[AgentEndpoint], List[str]]
+        address: str) -> tuple[int, list[AgentEndpoint], list[str]]
 ```
 
 Get the records associated with an agent's registration.
@@ -233,13 +265,12 @@ Get the records associated with an agent's registration.
 
 **Returns**:
 
-  Tuple[int, List[AgentEndpoint], List[str]]: The expiry height of the agent's
+  tuple[int, list[AgentEndpoint], list[str]]: The expiry height of the agent's
   registration, the agent's endpoints, and the agent's protocols.
 
-<a id="src.uagents.network.AlmanacContract.get_expiry"></a>
 
-#### get`_`expiry
 
+#### get_expiry[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L377)
 ```python
 def get_expiry(address: str) -> int
 ```
@@ -255,12 +286,11 @@ Get the approximate seconds to expiry of an agent's registration.
 
 - `int` - The approximate seconds to expiry of the agent's registration.
 
-<a id="src.uagents.network.AlmanacContract.get_endpoints"></a>
 
-#### get`_`endpoints
 
+#### get_endpoints[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L389)
 ```python
-def get_endpoints(address: str) -> List[AgentEndpoint]
+def get_endpoints(address: str) -> list[AgentEndpoint]
 ```
 
 Get the endpoints associated with an agent's registration.
@@ -272,14 +302,13 @@ Get the endpoints associated with an agent's registration.
 
 **Returns**:
 
-- `List[AgentEndpoint]` - The agent's registered endpoints.
+- `list[AgentEndpoint]` - The agent's registered endpoints.
 
-<a id="src.uagents.network.AlmanacContract.get_protocols"></a>
 
-#### get`_`protocols
 
+#### get_protocols[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L401)
 ```python
-def get_protocols(address: str) -> List[str]
+def get_protocols(address: str) -> list[str]
 ```
 
 Get the protocols associated with an agent's registration.
@@ -291,17 +320,28 @@ Get the protocols associated with an agent's registration.
 
 **Returns**:
 
-- `List[str]` - The agent's registered protocols.
+- `list[str]` - The agent's registered protocols.
 
-<a id="src.uagents.network.AlmanacContract.register"></a>
 
-#### register
 
+#### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L435)
 ```python
-async def register(ledger: LedgerClient, wallet: LocalWallet,
-                   agent_address: str, protocols: List[str],
-                   endpoints: List[AgentEndpoint], signature: str,
-                   current_time: int)
+async def register(
+        ledger: LedgerClient,
+        wallet: LocalWallet,
+        agent_address: str,
+        protocols: list[str],
+        endpoints: list[AgentEndpoint],
+        signature: str,
+        current_time: int,
+        *,
+        broadcast_retries: int | None = None,
+        broadcast_retry_delay: RetryDelayFunc | None = None,
+        poll_retries: int | None = None,
+        poll_retry_delay: RetryDelayFunc | None = None,
+        tx_fee: TxFee | None = None,
+        timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS
+) -> TxResponse
 ```
 
 Register an agent with the Almanac contract.
@@ -311,17 +351,38 @@ Register an agent with the Almanac contract.
 - `ledger` _LedgerClient_ - The Ledger client.
 - `wallet` _LocalWallet_ - The agent's wallet.
 - `agent_address` _str_ - The agent's address.
-- `protocols` _List[str]_ - List of protocols.
-- `endpoints` _List[Dict[str, Any]]_ - List of endpoint dictionaries.
+- `protocols` _list[str]_ - List of protocols.
+- `endpoints` _list[dict[str, Any]]_ - List of endpoint dictionaries.
 - `signature` _str_ - The agent's signature.
+- `current_time` _int_ - The current time in seconds since the epoch.
+- `broadcast_retries` _int, optional_ - The number of retries for broadcasting.
+- `broadcast_retry_delay` _RetryDelayFunc, optional_ - The delay function for retries.
+- `poll_retries` _int, optional_ - The number of retries for polling.
+- `poll_retry_delay` _RetryDelayFunc, optional_ - The delay function for polling.
+- `tx_fee` _TxFee, optional_ - The transaction fee to use.
+- `timeout_blocks` _int, optional_ - The number of blocks to wait before timing out.
+  
 
-<a id="src.uagents.network.AlmanacContract.register_batch"></a>
+**Returns**:
 
-#### register`_`batch
+- `TxResponse` - The transaction response.
 
+
+
+#### register_batch[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L537)
 ```python
-async def register_batch(ledger: LedgerClient, wallet: LocalWallet,
-                         agent_records: List[AlmanacContractRecord])
+async def register_batch(
+        ledger: LedgerClient,
+        wallet: LocalWallet,
+        agent_records: list[AlmanacContractRecord],
+        *,
+        broadcast_retries: int | None = None,
+        broadcast_retry_delay: RetryDelayFunc | None = None,
+        poll_retries: int | None = None,
+        poll_retry_delay: RetryDelayFunc | None = None,
+        tx_fee: TxFee | None = None,
+        timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS
+) -> TxResponse
 ```
 
 Register multiple agents with the Almanac contract.
@@ -330,12 +391,22 @@ Register multiple agents with the Almanac contract.
 
 - `ledger` _LedgerClient_ - The Ledger client.
 - `wallet` _LocalWallet_ - The wallet of the registration sender.
-- `agents` _List[ALmanacContractRecord]_ - The list of signed agent records to register.
+- `agent_records` _list[ALmanacContractRecord]_ - The list of agent records to register.
+- `broadcast_retries` _int, optional_ - The number of retries for broadcasting.
+- `broadcast_retry_delay` _RetryDelayFunc, optional_ - The delay function for retries.
+- `poll_retries` _int, optional_ - The number of retries for polling.
+- `poll_retry_delay` _RetryDelayFunc, optional_ - The delay function for polling.
+- `tx_fee` _TxFee, optional_ - The transaction fee to use.
+- `timeout_blocks` _int, optional_ - The number of blocks to wait before timing out.
+  
 
-<a id="src.uagents.network.AlmanacContract.get_sequence"></a>
+**Returns**:
 
-#### get`_`sequence
+- `TxResponse` - The transaction response.
 
+
+
+#### get_sequence[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L638)
 ```python
 def get_sequence(address: str) -> int
 ```
@@ -351,28 +422,28 @@ Get the agent's sequence number for Almanac registration.
 
 - `int` - The agent's sequence number.
 
-<a id="src.uagents.network.get_almanac_contract"></a>
 
-#### get`_`almanac`_`contract
 
+#### get_almanac_contract[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L662)
 ```python
-def get_almanac_contract(test: bool = True) -> Optional[AlmanacContract]
+def get_almanac_contract(
+        network: AgentNetwork = "testnet") -> AlmanacContract | None
 ```
 
 Get the AlmanacContract instance.
 
 **Arguments**:
 
-- `test` _bool_ - Whether to use the testnet or mainnet. Defaults to True.
+- `network` _AgentNetwork_ - The network to use. Defaults to "testnet".
   
 
 **Returns**:
 
-- `AlmanacContract` - The AlmanacContract instance if version is supported.
+  AlmanacContract | None: The AlmanacContract instance if version is supported.
 
-<a id="src.uagents.network.NameServiceContract"></a>
 
-## NameServiceContract Objects
+
+## NameServiceContract Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L679)
 
 ```python
 class NameServiceContract(LedgerContract)
@@ -384,19 +455,18 @@ This class provides methods to interact with the NameService contract, including
 checking name availability, checking ownership, querying domain public status,
 obtaining registration transaction details, and registering a name within a domain.
 
-<a id="src.uagents.network.NameServiceContract.query_contract"></a>
 
-#### query`_`contract
 
+#### query_contract[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L688)
 ```python
-def query_contract(query_msg: Dict[str, Any]) -> Any
+def query_contract(query_msg: dict[str, Any]) -> Any
 ```
 
 Execute a query with additional checks and error handling.
 
 **Arguments**:
 
-- `query_msg` _Dict[str, Any]_ - The query message.
+- `query_msg` _dict[str, Any]_ - The query message.
   
 
 **Returns**:
@@ -406,12 +476,11 @@ Execute a query with additional checks and error handling.
 
 **Raises**:
 
-- `RuntimeError` - If the contract address is not set or the query fails.
+- `ValueError` - If the response from contract is not a dict.
 
-<a id="src.uagents.network.NameServiceContract.is_name_available"></a>
 
-#### is`_`name`_`available
 
+#### is_name_available[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L717)
 ```python
 def is_name_available(name: str, domain: str) -> bool
 ```
@@ -428,10 +497,9 @@ Check if a name is available within a domain.
 
 - `bool` - True if the name is available, False otherwise.
 
-<a id="src.uagents.network.NameServiceContract.is_owner"></a>
 
-#### is`_`owner
 
+#### is_owner[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L731)
 ```python
 def is_owner(name: str, domain: str, wallet_address: str) -> bool
 ```
@@ -449,10 +517,9 @@ Check if the provided wallet address is the owner of a name within a domain.
 
 - `bool` - True if the wallet address is the owner, False otherwise.
 
-<a id="src.uagents.network.NameServiceContract.is_domain_public"></a>
 
-#### is`_`domain`_`public
 
+#### is_domain_public[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L752)
 ```python
 def is_domain_public(domain: str) -> bool
 ```
@@ -468,10 +535,9 @@ Check if a domain is public.
 
 - `bool` - True if the domain is public, False otherwise.
 
-<a id="src.uagents.network.NameServiceContract.get_previous_records"></a>
 
-#### get`_`previous`_`records
 
+#### get_previous_records[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L769)
 ```python
 def get_previous_records(name: str, domain: str)
 ```
@@ -489,14 +555,14 @@ Retrieve the previous records for a given name within a specified domain.
   A list of dictionaries, where each dictionary contains
   details of a record associated with the given name.
 
-<a id="src.uagents.network.NameServiceContract.get_registration_tx"></a>
 
-#### get`_`registration`_`tx
 
+#### get_registration_tx[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L787)
 ```python
 def get_registration_tx(name: str, wallet_address: Address,
-                        agent_records: Union[List[Dict[str, Any]],
-                                             str], domain: str, test: bool)
+                        agent_records: list[dict[str, Any]] | str, domain: str,
+                        duration: int, network: AgentNetwork,
+                        approval_token: str) -> Transaction | None
 ```
 
 Get the registration transaction for registering a name within a domain.
@@ -507,26 +573,32 @@ Get the registration transaction for registering a name within a domain.
 - `wallet_address` _str_ - The wallet address initiating the registration.
 - `agent_address` _str_ - The address of the agent.
 - `domain` _str_ - The domain in which the name is registered.
-- `test` _bool_ - The agent type
+- `duration` _int_ - The duration in seconds for which the name is to be registered.
+- `network` _AgentNetwork_ - The network in which the transaction is executed.
+- `approval_token` _str_ - The approval token required for registration.
   
 
 **Returns**:
 
-- `Optional[Transaction]` - The registration transaction, or None if the name is not
+  Transaction | None: The registration transaction, or None if the name is not
   available or not owned by the wallet address.
 
-<a id="src.uagents.network.NameServiceContract.register"></a>
 
-#### register
 
+#### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L863)
 ```python
-async def register(ledger: LedgerClient,
-                   wallet: LocalWallet,
-                   agent_records: Optional[Union[str, List[str], Dict[str,
-                                                                      dict]]],
-                   name: str,
-                   domain: str,
-                   overwrite: bool = True)
+async def register(
+        ledger: LedgerClient,
+        wallet: LocalWallet,
+        agent_records: str | list[str] | dict[str, dict] | None,
+        name: str,
+        domain: str,
+        approval_token: str,
+        duration: int = ANAME_REGISTRATION_SECONDS,
+        overwrite: bool = True,
+        tx_fee: TxFee | None = None,
+        timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS
+) -> TxResponse
 ```
 
 Register a name within a domain using the NameService contract.
@@ -535,19 +607,28 @@ Register a name within a domain using the NameService contract.
 
 - `ledger` _LedgerClient_ - The Ledger client.
 - `wallet` _LocalWallet_ - The wallet of the agent.
-- `agent_address` _str_ - The address of the agent.
+- `agent_records` _str | list[str] | dict[str, dict] | None_ - The agent records
+  to be registered.
 - `name` _str_ - The name to be registered.
 - `domain` _str_ - The domain in which the name is registered.
+- `duration` _int_ - The duration in seconds for which the name is to be registered.
+- `approval_token` _str_ - The approval token required for registration.
 - `overwrite` _bool, optional_ - Specifies whether to overwrite any existing
   addresses registered to the domain. If False, the address will be
   appended to the previous records. Defaults to True.
+- `tx_fee` _TxFee, optional_ - The transaction fee to use.
+- `timeout_blocks` _int, optional_ - The number of blocks to wait before timing out.
+  
 
-<a id="src.uagents.network.NameServiceContract.unregister"></a>
+**Returns**:
 
-#### unregister
+- `TxResponse` - The transaction response.
 
+
+
+#### unregister[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L966)
 ```python
-async def unregister(name: str, domain: str, wallet: LocalWallet)
+async def unregister(name: str, domain: str, wallet: LocalWallet) -> None
 ```
 
 Unregister a name within a domain using the NameService contract.
@@ -558,19 +639,19 @@ Unregister a name within a domain using the NameService contract.
 - `domain` _str_ - The domain in which the name is registered.
 - `wallet` _LocalWallet_ - The wallet of the agent.
 
-<a id="src.uagents.network.get_name_service_contract"></a>
 
-#### get`_`name`_`service`_`contract
 
+#### get_name_service_contract[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/network.py#L1004)
 ```python
-def get_name_service_contract(test: bool = True) -> NameServiceContract
+def get_name_service_contract(
+        network: AgentNetwork = "testnet") -> NameServiceContract
 ```
 
 Get the NameServiceContract instance.
 
 **Arguments**:
 
-- `test` _bool_ - Whether to use the testnet or mainnet. Defaults to True.
+- `network` _AgentNetwork, optional_ - The network to use. Defaults to "testnet".
   
 
 **Returns**:

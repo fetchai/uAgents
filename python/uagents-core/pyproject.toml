@@ -1,0 +1,62 @@
+[project]
+name = "uagents-core"
+version = "0.3.6"
+description = "Core components for agent based systems"
+authors = [
+    { name = "Ed FitzGerald", email = "edward.fitzgerald@fetch.ai" },
+    { name = "James Riehl", email = "james.riehl@fetch.ai" },
+    { name = "Alejandro Morales", email = "alejandro.madrigal@fetch.ai" },
+    { name = "Florian Wilde", email = "florian.wilde@fetch.ai" },
+    { name = "Attila Bagoly", email = "attila.bagoly@fetch.ai" },
+]
+license = { text = "Apache 2.0" }
+readme = "README.md"
+requires-python = ">=3.10,<4.0"
+dependencies = [
+    "pydantic (>=2.8,<3.0)",
+    "bech32 (>=1.2.0,<2.0)",
+    "ecdsa (>=0.19.0,<1.0)",
+    "requests (>=2.32.3,<3.0)",
+]
+
+[project.urls]
+homepage = "https://fetch.ai"
+repository = "https://github.com/fetchai/uAgents"
+documentation = "https://fetch.ai/docs"
+
+[tool.poetry]
+packages = [{ include = "uagents_core" }]
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.11.0"
+pre-commit = "^4.1.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle (Errors, Warnings)
+    "E",
+    "W",
+    # Pyflakes
+    "F",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # pep8-naming
+    "N",
+    # pylint
+    "PL",
+]
+ignore = ["PLR0913", "PLR0912", "PLR0911", "PLR2004", "PLR0915"]
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 100

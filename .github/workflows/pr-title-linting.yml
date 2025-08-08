@@ -29,7 +29,9 @@ jobs:
             revert
           # core scope should be replaced by language specific scopes later
           scopes: |
+            uagents
             core
+            libs
             example
             integration
             experimental

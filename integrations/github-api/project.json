@@ -1,6 +1,0 @@
-{
-    "title": "GitHub Repository Fetcher",
-    "description": "This integration helps user to get all the github repositories in an organisation.",
-    "categories":    ["Github"] ,
-    "deltav": true
-}

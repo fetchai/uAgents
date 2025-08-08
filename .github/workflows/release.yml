@@ -39,10 +39,25 @@ jobs:
       env:
         PYPI_USERNAME: __token__
         PYPI_PASSWORD: ${{secrets.FETCHBOT_PYPI_TOKEN}}
+        PYPI_PASSWORD_FOR_CORE: ${{ secrets.FETCHBOT_PYPI_TOKEN_FOR_CORE }}
+        PYPI_PASSWORD_FOR_ADAPTER: ${{ secrets.FETCHBOT_PYPI_TOKEN_FOR_ADAPTER }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GH_TOKEN: ${{ github.token }}
       run: |
-        pip install tomli packaging poetry
+        pip install tomli packaging poetry pydantic pydantic-settings
         git config --global user.email "ci-bot@fetch.ai"
         git config --global user.name "CI BOT"
+
+        if [[ "${{ github.event.pull_request.head.ref }}" == release/core@* ]]; then
+          export PACKAGE="core"
+          unset PYPI_PASSWORD
+          export PYPI_PASSWORD=$PYPI_PASSWORD_FOR_CORE
+        fi
+
+        if [[ "${{ github.event.pull_request.head.ref }}" == release/adapter@* ]]; then
+          export PACKAGE="adapter"
+          unset PYPI_PASSWORD
+          export PYPI_PASSWORD=$PYPI_PASSWORD_FOR_ADAPTER
+        fi
+
         python3 ./scripts/do_release.py

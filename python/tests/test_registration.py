@@ -1,8 +1,7 @@
 import unittest
 
-import pytest
-from aiohttp import ClientResponseError
 from aioresponses import aioresponses
+from uagents_core.types import AgentEndpoint
 
 from uagents.crypto import Identity
 from uagents.registration import (
@@ -10,7 +9,6 @@ from uagents.registration import (
     AlmanacApiRegistrationPolicy,
     coerce_metadata_to_str,
 )
-from uagents.types import AgentEndpoint
 
 TEST_PROTOCOLS = ["foo", "bar", "baz"]
 TEST_ENDPOINTS = [
@@ -46,7 +44,12 @@ def test_attestation_signature_with_metadata():
         protocols=TEST_PROTOCOLS,
         endpoints=TEST_ENDPOINTS,
         metadata=coerce_metadata_to_str(
-            {"foo": "bar", "baz": 3.17, "qux": {"a": "b", "c": 4, "d": 5.6}}
+            {
+                "foo": "bar",
+                "baz": 3.17,
+                "qux": {"a": "b", "c": 4, "d": 5.6},
+                "quux": ["corge", "grault", 2],
+            }
         ),
     )
 
@@ -101,29 +104,30 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             protocols=TEST_PROTOCOLS,
             endpoints=TEST_ENDPOINTS,
         )
+        self.assertIsNotNone(self.policy.last_successful_registration)
 
     @aioresponses()
     async def test_registration_failure(self, mocked_responses):
         # Mock the HTTP POST request with a status code and response content
         mocked_responses.post(f"{self.MOCKED_ALMANAC_API}/agents", status=400)
 
-        with pytest.raises(ClientResponseError):
-            await self.policy.register(
-                agent_identifier=self.identity.address,
-                identity=self.identity,
-                protocols=TEST_PROTOCOLS,
-                endpoints=TEST_ENDPOINTS,
-            )
+        await self.policy.register(
+            agent_identifier=self.identity.address,
+            identity=self.identity,
+            protocols=TEST_PROTOCOLS,
+            endpoints=TEST_ENDPOINTS,
+        )
+        self.assertIsNone(self.policy.last_successful_registration)
 
     @aioresponses()
     async def test_registration_server_failure(self, mocked_responses):
         # Mock the HTTP POST request with a status code and response content
         mocked_responses.post(f"{self.MOCKED_ALMANAC_API}/agents", status=500)
 
-        with pytest.raises(ClientResponseError):
-            await self.policy.register(
-                agent_identifier=self.identity.address,
-                identity=self.identity,
-                protocols=TEST_PROTOCOLS,
-                endpoints=TEST_ENDPOINTS,
-            )
+        await self.policy.register(
+            agent_identifier=self.identity.address,
+            identity=self.identity,
+            protocols=TEST_PROTOCOLS,
+            endpoints=TEST_ENDPOINTS,
+        )
+        self.assertIsNone(self.policy.last_successful_registration)

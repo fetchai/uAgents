@@ -1,20 +1,21 @@
 # uAgents: AI Agent Framework
 
-[![Official Website](https://img.shields.io/badge/Official%20Website-fetch.ai-blue?style=flat&logo=world&logoColor=white)](https://fetch.ai) [![Unit Tests](https://img.shields.io/github/actions/workflow/status/Fetchai/uAgents/ci-tests.yml?label=unit%20tests)](https://github.com/Fetchai/uAgents/actions/workflows/ci-tests.yml) [![GitHub Repo stars](https://img.shields.io/github/stars/Fetchai/uAgents?style=social)](https://github.com/Fetchai/uAgents/stargazers) [![Twitter Follow](https://img.shields.io/twitter/follow/fetch_ai?style=social)](https://twitter.com/fetch_ai)
+[![Official Website](https://img.shields.io/badge/Official%20Website-fetch.ai-blue?style=flat&logo=world&logoColor=white)](https://fetch.ai) [![GitHub Repo stars](https://img.shields.io/github/stars/Fetchai/uAgents?style=social)](https://github.com/Fetchai/uAgents/stargazers) [![Twitter Follow](https://img.shields.io/twitter/follow/fetch_ai?style=social)](https://twitter.com/fetch_ai)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![Tests](https://img.shields.io/github/actions/workflow/status/Fetchai/uAgents/ci-tests.yml?label=Tests)](https://github.com/Fetchai/uAgents/actions/workflows/ci-tests.yml) [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/uagents)](https://pypi.org/project/uagents/)
 
 uAgents is a library developed by Fetch.ai that allows for creating autonomous AI agents in Python. With simple and expressive decorators, you can have an agent that performs various tasks on a schedule or takes action on various events.
 
 ## 🚀 Features
 
 - 🤖 **Easy creation and management**: Create any type of agent you can think of and implement it in code.
-- 🔗 **Connected**: On startup, each agent automatically joins the fast growing network of uAgents by registering on the Almanac, a smart contract deployed on the Fetch.ai blockchain.
+- 🔗 **Connected**: On startup, each agent automatically joins the fast-growing network of uAgents by registering on the Almanac, a smart contract deployed on the Fetch.ai blockchain.
 - 🔒 **Secure**: uAgent messages and wallets are cryptographically secured, so their identities and assets are protected.
 
 ## ⚡ Quickstart
 
 ### Installation
 
-Get started with uAgents by installing it for Python 3.9 to 3.12:
+Get started with uAgents by installing it for Python 3.10 to 3.13:
 
     pip install uagents
 
@@ -71,32 +72,31 @@ You should see the results in your terminal.
 
 ## 📖 Documentation
 
-Please see the [official documentation](https://fetch.ai/docs) for full setup instructions and advanced features.
+Please see the [official documentation](https://uagents.fetch.ai/docs) for full setup instructions and advanced features.
 
-- [👋 Introduction](https://fetch.ai/docs/concepts/agents/agents)
-- [💻 Installation](https://fetch.ai/docs/guides/agents/installing-uagent)
+- [👋 Introduction](https://uagents.fetch.ai/docs)
+- [💻 Installation](https://uagents.fetch.ai/docs/getting-started/install)
 - Tutorials
-  - [🤖 Create an agent](https://fetch.ai/docs/guides/agents/create-a-uagent)
-  - [🛣️ Agent Communication](https://fetch.ai/docs/guides/agents/communicating-with-other-agents)
-  - [🍽️ Restaurant Booking Demo](https://fetch.ai/docs/guides/agents/booking-demo)
+  - [🤖 Create an Agent](https://uagents.fetch.ai/docs/getting-started/create)
+  - [🛣️ Agent Communication](https://uagents.fetch.ai/docs/guides/communication)
+  - [🍽️ ASI:One Compatible Agent](https://uagents.fetch.ai/docs/examples/asi-1)
 - Key Concepts:
-  - [📍Addresses](https://fetch.ai/docs/guides/agents/getting-uagent-address)
-  - [💾 Storage](https://fetch.ai/docs/guides/agents/storage-function)
-  - [📝 Interval Tasks](https://fetch.ai/docs/guides/agents/interval-task)
-  - [🌐 Agent Broadcast](https://fetch.ai/docs/guides/agents/broadcast)
-  - [⚙️ Almanac Contracts](https://fetch.ai/docs/guides/agents/register-in-almanac)
+  - [📍Addresses](https://uagents.fetch.ai/docs/getting-started/address)
+  - [💾 Storage](https://uagents.fetch.ai/docs/guides/storage)
+  - [📝 Synchronous Communication](https://uagents.fetch.ai/docs/guides/send_receive)
+  - [🌐 Agent Broadcast](https://uagents.fetch.ai/docs/guides/broadcast)
 
-## 🌱 Examples
+## 🌱 Examples and Integrations
 
-The [`examples`](https://github.com/fetchai/uAgents/tree/main/python/examples) folder contains several examples of how to create and run various types of agents.
-
-## 🌲 Integrations
-
-The [`integrations`](https://github.com/fetchai/uAgents/tree/main/integrations) folder contains examples that provide a more in depth use of the uAgents library.
+The [`uAgent-Examples`](https://github.com/fetchai/uAgent-Examples) repository contains several examples of how to create and run various types of agents as well as more intricate integrations. This is the official place for internal and community open source applications built on uAgents.
 
 ## Python Library
 
 Go to the [`python`](https://github.com/fetchai/uAgents/tree/main/python) folder for details on the Python uAgents library.
+
+## uAgents Core
+
+The [`uagents-core`](https://github.com/fetchai/uAgents/tree/main/python/uagents-core) folder contains core definitions and functionalities to build 'agent' like software which can interact and integrate with Fetch.ai ecosystem and agent marketplace.
 
 ## ✨ Contributing
 

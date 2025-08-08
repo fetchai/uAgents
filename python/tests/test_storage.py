@@ -26,7 +26,7 @@ class TestStorage(unittest.TestCase):
         self.assertEqual(os.path.isfile(self.filename), True, "file should exist now")
         self.assertEqual(storage.get(key), value)
 
-        with open(self.filename, "r", encoding="utf-8") as file:
+        with open(self.filename, encoding="utf-8") as file:
             data = json.load(file)
         self.assertEqual(data, store)
 

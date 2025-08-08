@@ -1,17 +1,18 @@
 """Exchange Protocol"""
 
-import copy
 import functools
-import hashlib
-import json
-from typing import Any, Dict, List, Optional, Set, Tuple, Type, Union
+from collections.abc import Awaitable, Callable
+from logging import Logger
+from typing import Any
 
-from apispec import APISpec
+from typing_extensions import deprecated
+from uagents_core.models import Model
+from uagents_core.protocol import ProtocolSpecification
 
-from uagents.models import Model
+from uagents.config import get_logger
 from uagents.types import IntervalCallback, MessageCallback
 
-OPENAPI_VERSION = "3.0.2"
+logger: Logger = get_logger("protocol")
 
 
 class Protocol:
@@ -20,127 +21,134 @@ class Protocol:
     It typically relates to the exchange of messages between agents for executing some task.
     It includes the message (model) types it supports, the allowed replies, and the
     interval message handlers that define the logic of the protocol.
-
     """
 
-    def __init__(self, name: Optional[str] = None, version: Optional[str] = None):
+    def __init__(
+        self,
+        name: str | None = None,
+        version: str | None = None,
+        spec: ProtocolSpecification | None = None,
+        role: str | None = None,
+    ) -> None:
         """
         Initialize a Protocol instance.
 
         Args:
-            name (Optional[str], optional): The name of the protocol. Defaults to None.
-            version (Optional[str], optional): The version of the protocol. Defaults to None.
+            name (str | None): The name of the protocol. Defaults to None.
+            version (str | None): The version of the protocol. Defaults to None.
+            spec (ProtocolSpecification | None): The protocol specification. Defaults to None.
+            role (str | None): The role that the protocol will implement. Defaults to None.
         """
-        self._interval_handlers: List[Tuple[IntervalCallback, float]] = []
-        self._interval_messages: Set[str] = set()
-        self._signed_message_handlers: Dict[str, MessageCallback] = {}
-        self._unsigned_message_handlers: Dict[str, MessageCallback] = {}
-        self._models: Dict[str, Type[Model]] = {}
-        self._replies: Dict[str, Dict[str, Type[Model]]] = {}
-        self._name = name or ""
-        self._version = version or "0.1.0"
-        self._canonical_name = f"{self._name}:{self._version}"
+        self._interval_handlers: list[tuple[IntervalCallback, float]] = []
+        self._interval_messages: set[str] = set()
+        self._signed_message_handlers: dict[str, MessageCallback] = {}
+        self._unsigned_message_handlers: dict[str, MessageCallback] = {}
+        self._models: dict[str, type[Model]] = {}
+        self._replies: dict[str, dict[str, type[Model]]] = {}
         self._digest = ""
+        self._role: str | None = None
+        self._locked = False
 
-        self.spec = APISpec(
-            title=self._name,
-            version=self._version,
-            openapi_version=OPENAPI_VERSION,
-        )
+        if spec:
+            self._init_from_spec(spec, role, name, version)
+        else:
+            self._spec = ProtocolSpecification(
+                name=name or "", version=version or "0.1.0", interactions={}
+            )
 
     @property
-    def intervals(self):
+    def intervals(self) -> list[tuple[IntervalCallback, float]]:
         """
         Property to access the interval handlers.
 
         Returns:
-            List[Tuple[IntervalCallback, float]]: List of interval handlers and their periods.
+            list[tuple[IntervalCallback, float]]: List of interval handlers and their periods.
         """
         return self._interval_handlers
 
     @property
-    def models(self):
+    def models(self) -> dict[str, type[Model]]:
         """
         Property to access the registered models.
 
         Returns:
-            Dict[str, Type[Model]]: Dictionary of registered models with schema digests as keys.
+            dict[str, type[Model]]: Dictionary of registered models with schema digests as keys.
         """
         return self._models
 
     @property
-    def replies(self):
+    def replies(self) -> dict[str, dict[str, type[Model]]]:
         """
         Property to access the registered replies.
 
         Returns:
-            Dict[str, Dict[str, Type[Model]]]: Dictionary mapping message schema digests to their
+            dict[str, dict[str, type[Model]]]: Dictionary mapping message schema digests to their
             allowed replies.
         """
         return self._replies
 
     @property
-    def interval_messages(self):
+    def interval_messages(self) -> set[str]:
         """
         Property to access the interval message digests.
 
         Returns:
-            Set[str]: Set of message digests that may be sent by interval handlers.
+            set[str]: Set of message digests that may be sent by interval handlers.
         """
         return self._interval_messages
 
     @property
-    def signed_message_handlers(self):
+    def signed_message_handlers(self) -> dict[str, MessageCallback]:
         """
         Property to access the signed message handlers.
 
         Returns:
-            Dict[str, MessageCallback]: Dictionary mapping message schema digests to their handlers.
+            dict[str, MessageCallback]: Dictionary mapping message schema digests to their handlers.
         """
         return self._signed_message_handlers
 
     @property
-    def unsigned_message_handlers(self):
+    def unsigned_message_handlers(self) -> dict[str, MessageCallback]:
         """
         Property to access the unsigned message handlers.
 
         Returns:
-            Dict[str, MessageCallback]: Dictionary mapping message schema digests to their handlers.
+            dict[str, MessageCallback]: Dictionary mapping message schema digests to their handlers.
         """
         return self._unsigned_message_handlers
 
     @property
-    def name(self):
+    def name(self) -> str:
         """
         Property to access the protocol name.
 
         Returns:
             str: The protocol name.
         """
-        return self._name
+        return self._spec.name
 
     @property
-    def version(self):
+    def version(self) -> str:
         """
         Property to access the protocol version.
 
         Returns:
             str: The protocol version.
         """
-        return self._version
+        return self._spec.version
 
     @property
-    def canonical_name(self):
+    def canonical_name(self) -> str:
         """
         Property to access the canonical name of the protocol ('name:version').
 
         Returns:
             str: The canonical name of the protocol.
         """
-        return self._canonical_name
+        return f"{self.name}:{self.version}"
 
     @property
-    def digest(self):
+    def digest(self) -> str:
         """
         Property to access the digest of the protocol's manifest.
 
@@ -149,18 +157,93 @@ class Protocol:
         """
         return self.manifest()["metadata"]["digest"]
 
+    @property
+    def spec(self) -> ProtocolSpecification:
+        """
+        Property to access the protocol specification.
+
+        Returns:
+            ProtocolSpecification: The protocol specification.
+        """
+        return self._spec
+
+    def _init_from_spec(
+        self,
+        spec: ProtocolSpecification,
+        role: str | None,
+        name: str | None,
+        version: str | None,
+    ) -> None:
+        """
+        Initialize the protocol interactions from a specification.
+
+        Args:
+            spec (ProtocolSpecification): The protocol specification.
+            role (str | None): The role that the protocol will implement.
+            name (str | None): The name of the protocol.
+            version (str | None): The version of the protocol.
+        """
+        if name and spec.name and name != spec.name:
+            logger.warning(
+                f"Protocol specification name '{spec.name}' overrides given protocol name '{name}'"
+            )
+        if version and spec.version and version != spec.version:
+            logger.warning(
+                f"Protocol specification version '{spec.version}' "
+                f"overrides given protocol version '{version}'"
+            )
+        spec.name = spec.name or name or ""
+        spec.version = spec.version or version or "0.1.0"
+
+        if spec.roles:
+            if role is None:
+                raise ValueError("Role must be specified for a protocol with roles")
+            if role not in spec.roles:
+                raise ValueError(f"Role '{role}' not found in protocol roles")
+            self._role = role
+            interactions = {
+                model: replies
+                for model, replies in spec.interactions.items()
+                if model in spec.roles[role]
+            }
+        else:
+            interactions = spec.interactions
+
+        for model, replies in interactions.items():
+            self._add_interaction(model, replies)
+
+        self._spec = spec
+        self._locked = True
+
+    def _add_interaction(
+        self, model: type[Model], replies: set[type[Model]] | None = None
+    ) -> None:
+        """
+        Add a message model to the protocol along with replies if specified.
+
+        Args:
+            model (type[Model]): The message model type.
+            replies (set[type[Model]] | None): The associated reply types. Defaults to None.
+        """
+        model_digest = Model.build_schema_digest(model)
+        self._models[model_digest] = model
+
+        if replies is not None:
+            self.replies[model_digest] = {
+                Model.build_schema_digest(reply): reply for reply in replies
+            }
+
     def on_interval(
         self,
         period: float,
-        messages: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
-    ):
+        messages: type[Model] | set[type[Model]] | None = None,
+    ) -> Callable:
         """
         Decorator to register an interval handler for the protocol.
 
         Args:
             period (float): The interval period in seconds.
-            messages (Optional[Union[Type[Model], Set[Type[Model]]]], optional): The associated
-            message types. Defaults to None.
+            messages (type[Model] | set[type[Model]] | None): The associated message types.
 
         Returns:
             Callable: The decorator to register the interval handler.
@@ -168,7 +251,7 @@ class Protocol:
 
         def decorator_on_interval(func: IntervalCallback):
             @functools.wraps(func)
-            def handler(*args, **kwargs):
+            def handler(*args, **kwargs) -> Awaitable[None]:
                 return func(*args, **kwargs)
 
             self._add_interval_handler(period, func, messages)
@@ -181,15 +264,15 @@ class Protocol:
         self,
         period: float,
         func: IntervalCallback,
-        messages: Optional[Union[Type[Model], Set[Type[Model]]]],
-    ):
+        messages: type[Model] | set[type[Model]] | None,
+    ) -> None:
         """
         Add an interval handler to the protocol.
 
         Args:
             period (float): The interval period in seconds.
             func (IntervalCallback): The interval handler function.
-            messages (Optional[Union[Type[Model], Set[Type[Model]]]]): The associated message types.
+            messages (type[Model] | set[type[Model]] | None): The associated message types.
         """
         # store the interval handler for later
         self._interval_handlers.append((func, period))
@@ -202,18 +285,20 @@ class Protocol:
                 message_digest = Model.build_schema_digest(message)
                 self._interval_messages.add(message_digest)
 
+    @deprecated(
+        "on_query is deprecated and will be removed in a future release, use on_rest instead."
+    )
     def on_query(
         self,
-        model: Type[Model],
-        replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
-    ):
+        model: type[Model],
+        replies: type[Model] | set[type[Model]] | None = None,
+    ) -> Callable:
         """
         Decorator to register a query handler for the protocol.
 
         Args:
-            model (Type[Model]): The message model type.
-            replies (Optional[Union[Type[Model], Set[Type[Model]]]], optional): The associated
-            reply types. Defaults to None.
+            model (type[Model]): The message model type.
+            replies (type[Model] | set[type[Model]] | None): The associated reply types.
 
         Returns:
             Callable: The decorator to register the query handler.
@@ -222,23 +307,34 @@ class Protocol:
 
     def on_message(
         self,
-        model: Type[Model],
-        replies: Optional[Union[Type[Model], Set[Type[Model]]]] = None,
-        allow_unverified: Optional[bool] = False,
-    ):
+        model: type[Model],
+        replies: type[Model] | set[type[Model]] | None = None,
+        allow_unverified: bool = False,
+    ) -> Callable:
         """
         Decorator to register a message handler for the protocol.
 
         Args:
-            model (Type[Model]): The message model type.
-            replies (Optional[Union[Type[Model], Set[Type[Model]]]], optional): The associated
-            reply types. Defaults to None.
-            allow_unverified (Optional[bool], optional): Whether to allow unverified messages.
-            Defaults to False.
+            model (type[Model]): The message model type.
+            replies (type[Model] | set[type[Model]] | None): The associated reply types.
+            allow_unverified (bool, optional): Whether to allow unverified messages.
 
         Returns:
             Callable: The decorator to register the message handler.
         """
+        if self._locked:
+            if model not in self._models.values():
+                raise ValueError(
+                    f"Cannot add interaction '{model.__name__}' "
+                    f"to locked protocol {self.canonical_name}"
+                )
+            model_digest = Model.build_schema_digest(model)
+            if replies is not None and replies != self._replies.get(model_digest):
+                raise ValueError(
+                    f"Specified replies for '{model.__name__}' ({replies}) "
+                    f"do not match the replies defined in the protocol specification "
+                    f"for {self.canonical_name}: {self._replies.get(model_digest)}"
+                )
 
         def decorator_on_message(func: MessageCallback):
             @functools.wraps(func)
@@ -253,20 +349,19 @@ class Protocol:
 
     def _add_message_handler(
         self,
-        model: Type[Model],
+        model: type[Model],
         func: MessageCallback,
-        replies: Optional[Union[Type[Model], Set[Type[Model]]]],
-        allow_unverified: Optional[bool] = False,
+        replies: type[Model] | set[type[Model]] | None,
+        allow_unverified: bool = False,
     ):
         """
         Add a message handler to the protocol.
 
         Args:
-            model (Type[Model]): The message model type.
+            model (type[Model]): The message model type.
             func (MessageCallback): The message handler function.
-            replies (Optional[Union[Type[Model], Set[Type[Model]]]]): The associated reply types.
-            allow_unverified (Optional[bool], optional): Whether to allow unverified messages.
-            Defaults to False.
+            replies (type[Model] | set[type[Model]] | None): The associated reply types.
+            allow_unverified (bool, optional): Whether to allow unverified messages.
         """
         model_digest = Model.build_schema_digest(model)
 
@@ -276,90 +371,65 @@ class Protocol:
             self._unsigned_message_handlers[model_digest] = func
         else:
             self._signed_message_handlers[model_digest] = func
-        if replies is not None:
-            if not isinstance(replies, set):
-                replies = {replies}
-            self._replies[model_digest] = {
-                Model.build_schema_digest(reply): reply for reply in replies
-            }
+        if replies is None:
+            replies = set()
+        if not isinstance(replies, set):
+            replies = {replies}
+        if not self._locked:
+            self._spec.interactions[model] = replies
+        self._replies[model_digest] = {
+            Model.build_schema_digest(reply): reply for reply in replies
+        }
 
-    def manifest(self) -> Dict[str, Any]:
+    def manifest(self) -> dict[str, Any]:
         """
         Generate the protocol's manifest, a long-form machine readable description of the
         protocol details and interface.
 
         Returns:
-            Dict[str, Any]: The protocol's manifest.
+            dict[str, Any]: The protocol's manifest.
         """
-        metadata = {
-            "name": self._name,
-            "version": self._version,
-        }
+        return self._spec.manifest(role=self._role)
 
-        manifest = {
-            "version": "1.0",
-            "metadata": {},
-            "models": [],
-            "interactions": [],
-        }
+    def verify(self) -> bool:
+        """
+        Check if the protocol implements all interactions of its specification.
 
-        all_models: Dict[str, Type[Model]] = {}
+        Returns:
+            bool: True if the protocol implements the role, False otherwise.
+        """
+        if not self._locked:
+            # No specification to verify against
+            return True
 
-        for schema_digest, model in self._models.items():
-            if schema_digest not in all_models:
-                all_models[schema_digest] = model
+        message_handlers: dict[str, MessageCallback] = (
+            self._signed_message_handlers | self._unsigned_message_handlers
+        )
 
-        for _, replies in self._replies.items():
-            for schema_digest, model in replies.items():
-                if schema_digest not in all_models:
-                    all_models[schema_digest] = model
+        result = True
+        # verify that all models required by the role are implemented
+        for digest, model in self._models.items():
+            if digest not in message_handlers:
+                logger.error(
+                    f"Protocol {self.canonical_name} does not implement "
+                    f"a handler for the model '{model.__name__}'"
+                    + f" required for the role '{self._role}'"
+                    if self._role
+                    else ""
+                )
+                result = False
 
-        for schema_digest, model in all_models.items():
-            manifest["models"].append(
-                {"digest": schema_digest, "schema": model.schema()}
-            )
-
-        for request, responses in self._replies.items():
-            assert (
-                request in self._unsigned_message_handlers
-                or request in self._signed_message_handlers
-            )
-
-            manifest["interactions"].append(
-                {
-                    "type": "query"
-                    if request in self._unsigned_message_handlers
-                    else "normal",
-                    "request": request,
-                    "responses": list(responses.keys()),
-                }
-            )
-
-        encoded = json.dumps(manifest, indent=None, sort_keys=True).encode("utf8")
-        metadata["digest"] = f"proto:{hashlib.sha256(encoded).digest().hex()}"
-
-        final_manifest: Dict[str, Any] = copy.deepcopy(manifest)
-        final_manifest["metadata"] = metadata
-
-        return final_manifest
+        return result
 
     @staticmethod
-    def compute_digest(manifest: Dict[str, Any]) -> str:
+    def compute_digest(manifest: dict[str, Any]) -> str:
         """
         Compute the digest of a given manifest.
 
         Args:
-            manifest (Dict[str, Any]): The manifest to compute the digest for.
+            manifest (dict[str, Any]): The manifest to compute the digest for.
 
         Returns:
             str: The computed digest.
         """
-        cleaned_manifest = copy.deepcopy(manifest)
-        if "metadata" in cleaned_manifest:
-            del cleaned_manifest["metadata"]
-        cleaned_manifest["metadata"] = {}
-
-        encoded = json.dumps(cleaned_manifest, indent=None, sort_keys=True).encode(
-            "utf8"
-        )
-        return f"proto:{hashlib.sha256(encoded).digest().hex()}"
+        return ProtocolSpecification.compute_digest(manifest)

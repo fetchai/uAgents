@@ -1,9 +1,8 @@
 import logging
-from typing import Dict, List, Optional, Union
 
-from pydantic import BaseModel
+from uagents_core.config import AgentverseConfig
+from uagents_core.types import AgentEndpoint
 
-from uagents.types import AgentEndpoint
 from uagents.utils import get_logger
 
 AGENT_PREFIX = "agent"
@@ -26,19 +25,25 @@ MAINNET_CONTRACT_NAME_SERVICE = (
 TESTNET_CONTRACT_NAME_SERVICE = (
     "fetch1kewgfwxwtuxcnppr547wj6sd0e5fkckyp48dazsh89hll59epgpspmh0tn"
 )
-REGISTRATION_FEE = 500000000000000000
+TESTNET_REGISTRATION_FEE = 500000000000000000
 REGISTRATION_UPDATE_INTERVAL_SECONDS = 3600
 REGISTRATION_RETRY_INTERVAL_SECONDS = 60
 AVERAGE_BLOCK_INTERVAL = 6
 DEFAULT_LEDGER_TX_WAIT_SECONDS = 30
-ALMANAC_CONTRACT_VERSION = "2.0.0"
+ALMANAC_CONTRACT_VERSION = "2.2.0"
 
-AGENTVERSE_URL = "https://agentverse.ai"
+AGENTVERSE_BASE_URL = "agentverse.ai"
+AGENTVERSE_HTTP_PREFIX = "https"
+AGENTVERSE_URL = AGENTVERSE_HTTP_PREFIX + "://" + AGENTVERSE_BASE_URL
 ALMANAC_API_URL = AGENTVERSE_URL + "/v1/almanac"
+
 ALMANAC_API_TIMEOUT_SECONDS = 1.0
 ALMANAC_API_MAX_RETRIES = 10
 ALMANAC_REGISTRATION_WAIT = 100
 MAILBOX_POLL_INTERVAL_SECONDS = 1.0
+
+ORACLE_AGENT_DOMAIN = "verify.fetch.ai"
+ANAME_REGISTRATION_SECONDS = 5184000
 
 WALLET_MESSAGING_POLL_INTERVAL_SECONDS = 2.0
 
@@ -47,38 +52,30 @@ DEFAULT_ENVELOPE_TIMEOUT_SECONDS = 30
 DEFAULT_MAX_ENDPOINTS = 10
 DEFAULT_SEARCH_LIMIT = 100
 
-
-class AgentverseConfig(BaseModel):
-    base_url: str = AGENTVERSE_URL
-    protocol: str = "https"
-    http_prefix: str = "https"
-
-    @property
-    def url(self) -> str:
-        return f"{self.http_prefix}://{self.base_url}"
+MESSAGE_HISTORY_MESSAGE_LIMIT = 1000
+MESSAGE_HISTORY_RETENTION_SECONDS = 86400
 
 
 def parse_endpoint_config(
-    endpoint: Optional[Union[str, List[str], Dict[str, dict]]],
+    endpoint: str | list[str] | dict[str, dict] | None,
     agentverse: AgentverseConfig,
     mailbox: bool = False,
     proxy: bool = False,
-    logger: Optional[logging.Logger] = None,
-) -> List[AgentEndpoint]:
+    logger: logging.Logger | None = None,
+) -> list[AgentEndpoint]:
     """
     Parse the user-provided endpoint configuration.
 
     Args:
-        endpoint (Optional[Union[str, List[str], Dict[str, dict]]]): The endpoint configuration.
+        endpoint (str | list[str] | dict[str, dict] | None): The endpoint configuration.
         agentverse (AgentverseConfig): The agentverse configuration.
         mailbox (bool): Whether to use the mailbox endpoint.
         proxy (bool): Whether to use the proxy endpoint.
-        logger (Optional[logging.Logger]): The logger to use.
+        logger (logging.Logger | None): The logger to use.
 
     Returns:
-        Optional[List[AgentEndpoint]: The parsed endpoint configuration.
+        [list[AgentEndpoint]: The parsed endpoint configuration.
     """
-
     logger = logger or get_logger("config")
 
     if endpoint:
@@ -114,7 +111,7 @@ def parse_endpoint_config(
 
 
 def parse_agentverse_config(
-    config: Optional[Union[str, Dict[str, str]]] = None,
+    config: str | dict[str, str] | None = None,
 ) -> AgentverseConfig:
     """
     Parse the user-provided agentverse configuration.
@@ -122,9 +119,10 @@ def parse_agentverse_config(
     Returns:
         AgentverseConfig: The parsed agentverse configuration.
     """
-    base_url = AGENTVERSE_URL
+    base_url = AGENTVERSE_BASE_URL
     protocol = None
     protocol_override = None
+
     if isinstance(config, str):
         if config.count("@") == 1:
             _, base_url = config.split("@")
@@ -132,14 +130,14 @@ def parse_agentverse_config(
             base_url = config
     elif isinstance(config, dict):
         base_url = config.get("base_url") or base_url
-        protocol_override = config.get("protocol")
+        proto = config.get("protocol")
+        protocol_override = proto if proto in {"http", "https"} else None
+
     if "://" in base_url:
         protocol, base_url = base_url.split("://")
-    protocol = protocol_override or protocol or "https"
-    http_prefix = "https" if protocol in {"wss", "https"} else "http"
+    http_prefix = protocol_override or protocol or "https"
 
     return AgentverseConfig(
         base_url=base_url,
-        protocol=protocol,
         http_prefix=http_prefix,
     )

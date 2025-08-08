@@ -2,12 +2,13 @@
 
 import asyncio
 import time
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple, Union
+from collections.abc import Callable
+from logging import Logger
+from typing import Any
 
 from cosmpy.aerial.client import (
     DEFAULT_QUERY_INTERVAL_SECS,
-    DEFAULT_QUERY_TIMEOUT_SECS,
+    Account,
     LedgerClient,
     NetworkConfig,
     prepare_and_broadcast_basic_transaction,
@@ -16,65 +17,95 @@ from cosmpy.aerial.contract import LedgerContract
 from cosmpy.aerial.contract.cosmwasm import create_cosmwasm_execute_msg
 from cosmpy.aerial.exceptions import NotFoundError, QueryTimeoutError
 from cosmpy.aerial.faucet import FaucetApi
-from cosmpy.aerial.tx import Transaction
-from cosmpy.aerial.tx_helpers import TxResponse
+from cosmpy.aerial.tx import Transaction, TxFee
+from cosmpy.aerial.tx_helpers import SubmittedTx, TxResponse
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
+from uagents_core.identity import Identity
+from uagents_core.types import AgentEndpoint, AgentInfo
 
 from uagents.config import (
     ALMANAC_CONTRACT_VERSION,
     ALMANAC_REGISTRATION_WAIT,
+    ANAME_REGISTRATION_SECONDS,
     AVERAGE_BLOCK_INTERVAL,
-    DEFAULT_LEDGER_TX_WAIT_SECONDS,
     MAINNET_CONTRACT_ALMANAC,
     MAINNET_CONTRACT_NAME_SERVICE,
-    REGISTRATION_FEE,
-    TESTNET_CHAINID,
+    ORACLE_AGENT_DOMAIN,
     TESTNET_CONTRACT_ALMANAC,
     TESTNET_CONTRACT_NAME_SERVICE,
 )
-from uagents.crypto import Identity
-from uagents.types import AgentEndpoint, AgentInfo
+from uagents.crypto import sign_registration
+from uagents.types import AgentNetwork
 from uagents.utils import get_logger
 
-logger = get_logger("network")
+logger: Logger = get_logger("network")
 
 
 _faucet_api = FaucetApi(NetworkConfig.fetchai_stable_testnet())
 _testnet_ledger = LedgerClient(NetworkConfig.fetchai_stable_testnet())
 _mainnet_ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
 
+RetryDelayFunc = Callable[[int], float]
+DEFAULT_BROADCAST_RETRIES = 5
+DEFAULT_POLL_RETRIES = 10
+DEFAULT_REGISTRATION_TIMEOUT_BLOCKS = 100
+
+
+def default_exp_backoff(retry: int) -> float:
+    """
+    Generate a backoff time starting from 0.64 seconds and limited to ~32 seconds
+    """
+    return (2 ** (min(retry, 9) + 6)) / 1000
+
+
+def block_polling_exp_backoff(retry: int) -> float:
+    """
+    Generate an exponential backoff that is designed for block polling. We keep the
+    same default exponential backoff, but it is clamped to the default query interval.
+    """
+    back_off = default_exp_backoff(retry)
+    return max(back_off, DEFAULT_QUERY_INTERVAL_SECS)
+
 
 class InsufficientFundsError(Exception):
     """Raised when an agent has insufficient funds for a transaction."""
 
 
+class BroadcastTimeoutError(RuntimeError):
+    """Raised when a transaction broadcast fails due to a timeout."""
+
+    def __init__(self):
+        super().__init__("Broadcast timeout error")
+
+
 class AlmanacContractRecord(AgentInfo):
     contract_address: str
     sender_address: str
-    timestamp: Optional[int] = None
-    signature: Optional[str] = None
+    timestamp: int | None = None
+    signature: str | None = None
 
-    def sign(self, identity: Identity):
+    def sign(self, identity: Identity) -> None:
         self.timestamp = int(time.time()) - ALMANAC_REGISTRATION_WAIT
-        self.signature = identity.sign_registration(
-            self.contract_address, self.timestamp, self.sender_address
+        self.signature = sign_registration(
+            identity=identity,
+            contract_address=self.contract_address,
+            timestamp=self.timestamp,
+            wallet_address=self.sender_address,
         )
 
 
-def get_ledger(test: bool = True) -> LedgerClient:
+def get_ledger(network: AgentNetwork = "testnet") -> LedgerClient:
     """
     Get the Ledger client.
 
     Args:
-        test (bool): Whether to use the testnet or mainnet. Defaults to True.
+        network (AgentNetwork, optional): The network to use. Defaults to "testnet".
 
     Returns:
         LedgerClient: The Ledger client instance.
     """
-    if test:
-        return _testnet_ledger
-    return _mainnet_ledger
+    return _mainnet_ledger if network == "mainnet" else _testnet_ledger
 
 
 def get_faucet() -> FaucetApi:
@@ -87,7 +118,7 @@ def get_faucet() -> FaucetApi:
     return _faucet_api
 
 
-def add_testnet_funds(wallet_address: str):
+def add_testnet_funds(wallet_address: str) -> None:
     """
     Add testnet funds to the provided wallet address.
 
@@ -100,13 +131,13 @@ def add_testnet_funds(wallet_address: str):
 
 
 def parse_record_config(
-    record: Optional[Union[str, List[str], Dict[str, dict]]],
-) -> Optional[List[Dict[str, Any]]]:
+    record: str | list[str] | dict[str, dict] | None,
+) -> list[dict[str, Any]] | None:
     """
     Parse the user-provided record configuration.
 
     Returns:
-        Optional[List[Dict[str, Any]]]: The parsed record configuration in correct format.
+        list[dict[str, Any]] | None: The parsed record configuration in correct format.
     """
     if isinstance(record, dict):
         records = [
@@ -125,8 +156,9 @@ def parse_record_config(
 async def wait_for_tx_to_complete(
     tx_hash: str,
     ledger: LedgerClient,
-    timeout: Optional[timedelta] = None,
-    poll_period: Optional[timedelta] = None,
+    *,
+    poll_retries: int | None = None,
+    poll_retry_delay: RetryDelayFunc | None = None,
 ) -> TxResponse:
     """
     Wait for a transaction to complete on the Ledger.
@@ -134,29 +166,30 @@ async def wait_for_tx_to_complete(
     Args:
         tx_hash (str): The hash of the transaction to monitor.
         ledger (LedgerClient): The Ledger client to poll.
-        timeout (Optional[timedelta], optional): The maximum time to wait.
-        the transaction to complete. Defaults to None.
-        poll_period (Optional[timedelta], optional): The time interval to poll
+        poll_retries (int, optional): The maximum number of retry attempts.
+        poll_retry_delay (RetryDelayFunc, optional): The retry delay function,
+            if not provided the default exponential backoff will be used.
 
     Returns:
         TxResponse: The response object containing the transaction details.
     """
-    if timeout is None:
-        timeout = timedelta(seconds=DEFAULT_QUERY_TIMEOUT_SECS)
-    if poll_period is None:
-        poll_period = timedelta(seconds=DEFAULT_QUERY_INTERVAL_SECS)
-    start = datetime.now()
-    while True:
+    delay_func = poll_retry_delay or block_polling_exp_backoff
+    response: TxResponse | None = None
+    for n in range(poll_retries or DEFAULT_POLL_RETRIES):
         try:
-            return ledger.query_tx(tx_hash)
+            response = ledger.query_tx(tx_hash)
+            break
         except NotFoundError:
             pass
+        except Exception:
+            pass
 
-        delta = datetime.now() - start
-        if delta >= timeout:
-            raise QueryTimeoutError()
+        await asyncio.sleep(delay_func(n))
 
-        await asyncio.sleep(poll_period.total_seconds())
+    if response is None:
+        raise QueryTimeoutError()
+
+    return response
 
 
 class AlmanacContract(LedgerContract):
@@ -178,7 +211,12 @@ class AlmanacContract(LedgerContract):
         """
         try:
             deployed_version = self.get_contract_version()
-            if deployed_version != ALMANAC_CONTRACT_VERSION:
+
+            # parse major and minor versions
+            deployed_major_version = deployed_version.split(".")[0]
+            supported_major_version = ALMANAC_CONTRACT_VERSION.split(".")[0]
+
+            if supported_major_version != deployed_major_version:
                 logger.warning(
                     f"The deployed version of the Almanac Contract is {deployed_version} "
                     f"and you are using version {ALMANAC_CONTRACT_VERSION}. "
@@ -193,12 +231,12 @@ class AlmanacContract(LedgerContract):
             return False
         return True
 
-    def query_contract(self, query_msg: Dict[str, Any]) -> Any:
+    def query_contract(self, query_msg: dict[str, Any]) -> Any:
         """
         Execute a query with additional checks and error handling.
 
         Args:
-            query_msg (Dict[str, Any]): The query message.
+            query_msg (dict[str, Any]): The query message.
 
         Returns:
             Any: The query response.
@@ -228,6 +266,32 @@ class AlmanacContract(LedgerContract):
 
         return response["contract_version"]
 
+    def get_registration_fee(self, wallet_address: Address | None = None) -> int:
+        """
+        Get the registration fee for the contract.
+
+        Returns:
+            int: The registration fee.
+        """
+
+        if wallet_address:
+            role_query_msg = {
+                "access_control": {
+                    "query_has_role": {
+                        "role": "clearing_registrar",
+                        "addr": str(wallet_address),
+                    }
+                }
+            }
+            role_response = self.query_contract(role_query_msg)
+            if role_response.get("has_role"):
+                return 0
+
+        query_msg = {"query_contract_state": {}}
+        response = self.query_contract(query_msg)
+
+        return int(response["state"]["register_stake_amount"])
+
     def is_registered(self, address: str) -> bool:
         """
         Check if an agent is registered in the Almanac contract.
@@ -246,8 +310,8 @@ class AlmanacContract(LedgerContract):
     def registration_needs_update(
         self,
         address: str,
-        endpoints: List[AgentEndpoint],
-        protocols: List[str],
+        endpoints: list[AgentEndpoint],
+        protocols: list[str],
         min_seconds_left: int,
     ) -> bool:
         """
@@ -255,13 +319,13 @@ class AlmanacContract(LedgerContract):
 
         Args:
             address (str): The agent's address.
-            endpoints (List[AgentEndpoint]): The agent's endpoints.
-            protocols (List[str]): The agent's protocols.
+            endpoints (list[AgentEndpoint]): The agent's endpoints.
+            protocols (list[str]): The agent's protocols.
             min_time_left (int): The minimum time left before the agent's registration expires
 
         Returns:
             bool: True if the agent's registration needs to be updated or will expire sooner
-            than the specified minimum time, False otherwise.
+                than the specified minimum time, False otherwise.
         """
         seconds_to_expiry, registered_endpoints, registered_protocols = (
             self.query_agent_record(address)
@@ -275,7 +339,7 @@ class AlmanacContract(LedgerContract):
 
     def query_agent_record(
         self, address: str
-    ) -> Tuple[int, List[AgentEndpoint], List[str]]:
+    ) -> tuple[int, list[AgentEndpoint], list[str]]:
         """
         Get the records associated with an agent's registration.
 
@@ -283,14 +347,14 @@ class AlmanacContract(LedgerContract):
             address (str): The agent's address.
 
         Returns:
-            Tuple[int, List[AgentEndpoint], List[str]]: The expiry height of the agent's
+            tuple[int, list[AgentEndpoint], list[str]]: The expiry height of the agent's
             registration, the agent's endpoints, and the agent's protocols.
         """
         query_msg = {"query_records": {"agent_address": address}}
         response = self.query_contract(query_msg)
 
         if not response.get("record"):
-            return []
+            return 0, [], []
 
         if not response.get("record"):
             contract_state = self.query_contract({"query_contract_state": {}})
@@ -322,7 +386,7 @@ class AlmanacContract(LedgerContract):
         """
         return self.query_agent_record(address)[0]
 
-    def get_endpoints(self, address: str) -> List[AgentEndpoint]:
+    def get_endpoints(self, address: str) -> list[AgentEndpoint]:
         """
         Get the endpoints associated with an agent's registration.
 
@@ -330,11 +394,11 @@ class AlmanacContract(LedgerContract):
             address (str): The agent's address.
 
         Returns:
-            List[AgentEndpoint]: The agent's registered endpoints.
+            list[AgentEndpoint]: The agent's registered endpoints.
         """
         return self.query_agent_record(address)[1]
 
-    def get_protocols(self, address: str) -> List[str]:
+    def get_protocols(self, address: str) -> list[str]:
         """
         Get the protocols associated with an agent's registration.
 
@@ -342,18 +406,18 @@ class AlmanacContract(LedgerContract):
             address (str): The agent's address.
 
         Returns:
-            List[str]: The agent's registered protocols.
+            list[str]: The agent's registered protocols.
         """
         return self.query_agent_record(address)[2]
 
     def get_registration_msg(
         self,
-        protocols: List[str],
-        endpoints: List[AgentEndpoint],
+        protocols: list[str],
+        endpoints: list[AgentEndpoint],
         signature: str,
         sequence: int,
         address: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         return {
             "register": {
                 "record": {
@@ -373,11 +437,18 @@ class AlmanacContract(LedgerContract):
         ledger: LedgerClient,
         wallet: LocalWallet,
         agent_address: str,
-        protocols: List[str],
-        endpoints: List[AgentEndpoint],
+        protocols: list[str],
+        endpoints: list[AgentEndpoint],
         signature: str,
         current_time: int,
-    ):
+        *,
+        broadcast_retries: int | None = None,
+        broadcast_retry_delay: RetryDelayFunc | None = None,
+        poll_retries: int | None = None,
+        poll_retry_delay: RetryDelayFunc | None = None,
+        tx_fee: TxFee | None = None,
+        timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
+    ) -> TxResponse:
         """
         Register an agent with the Almanac contract.
 
@@ -385,9 +456,19 @@ class AlmanacContract(LedgerContract):
             ledger (LedgerClient): The Ledger client.
             wallet (LocalWallet): The agent's wallet.
             agent_address (str): The agent's address.
-            protocols (List[str]): List of protocols.
-            endpoints (List[Dict[str, Any]]): List of endpoint dictionaries.
+            protocols (list[str]): List of protocols.
+            endpoints (list[dict[str, Any]]): List of endpoint dictionaries.
             signature (str): The agent's signature.
+            current_time (int): The current time in seconds since the epoch.
+            broadcast_retries (int, optional): The number of retries for broadcasting.
+            broadcast_retry_delay (RetryDelayFunc, optional): The delay function for retries.
+            poll_retries (int, optional): The number of retries for polling.
+            poll_retry_delay (RetryDelayFunc, optional): The delay function for polling.
+            tx_fee (TxFee, optional): The transaction fee to use.
+            timeout_blocks (int, optional): The number of blocks to wait before timing out.
+
+        Returns:
+            TxResponse: The transaction response.
         """
         if not self.address:
             raise ValueError("Contract address not set")
@@ -403,34 +484,85 @@ class AlmanacContract(LedgerContract):
         )
 
         denom = self._client.network_config.fee_denomination
+        fee = self.get_registration_fee(wallet.address())
+        funds = f"{fee}{denom}" if fee else None
         transaction.add_message(
             create_cosmwasm_execute_msg(
-                wallet.address(),
-                self.address,
-                almanac_msg,
-                funds=f"{REGISTRATION_FEE}{denom}",
+                sender_address=wallet.address(),
+                contract_address=self.address,
+                args=almanac_msg,
+                funds=funds,
             )
         )
 
-        transaction = prepare_and_broadcast_basic_transaction(
-            ledger, transaction, wallet
+        # cache the account details
+        account: Account = ledger.query_account(wallet.address())
+
+        # attempt to broadcast the transaction to the network
+        broadcast_delay_func = broadcast_retry_delay or default_exp_backoff
+        num_broadcast_retries = broadcast_retries or DEFAULT_BROADCAST_RETRIES
+
+        tx: SubmittedTx | None = None
+        for n in range(num_broadcast_retries):
+            timeout_height = ledger.query_height() + timeout_blocks
+            try:
+                tx = prepare_and_broadcast_basic_transaction(
+                    ledger,
+                    transaction,
+                    wallet,
+                    account=account,
+                    fee=tx_fee,
+                    timeout_height=timeout_height,
+                )
+                break
+            except RuntimeError:
+                await asyncio.sleep(broadcast_delay_func(n))
+
+        if tx is None:
+            raise BroadcastTimeoutError()
+
+        status: TxResponse = await wait_for_tx_to_complete(
+            tx_hash=tx.tx_hash,
+            ledger=ledger,
+            poll_retries=poll_retries,
+            poll_retry_delay=poll_retry_delay,
         )
-        timeout = timedelta(seconds=DEFAULT_LEDGER_TX_WAIT_SECONDS)
-        await wait_for_tx_to_complete(transaction.tx_hash, ledger, timeout=timeout)
+        if status.code != 0:
+            raise RuntimeError(
+                f"Registration transaction failed ({status.code}): {status.hash})"
+            )
+
+        return status
 
     async def register_batch(
         self,
         ledger: LedgerClient,
         wallet: LocalWallet,
-        agent_records: List[AlmanacContractRecord],
-    ):
+        agent_records: list[AlmanacContractRecord],
+        *,
+        broadcast_retries: int | None = None,
+        broadcast_retry_delay: RetryDelayFunc | None = None,
+        poll_retries: int | None = None,
+        poll_retry_delay: RetryDelayFunc | None = None,
+        tx_fee: TxFee | None = None,
+        timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
+    ) -> TxResponse:
         """
         Register multiple agents with the Almanac contract.
 
         Args:
             ledger (LedgerClient): The Ledger client.
             wallet (LocalWallet): The wallet of the registration sender.
-            agents (List[ALmanacContractRecord]): The list of signed agent records to register.
+            agent_records (list[ALmanacContractRecord]): The list of agent records to register.
+            broadcast_retries (int, optional): The number of retries for broadcasting.
+            broadcast_retry_delay (RetryDelayFunc, optional): The delay function for retries.
+            poll_retries (int, optional): The number of retries for polling.
+            poll_retry_delay (RetryDelayFunc, optional): The delay function for polling.
+            tx_fee (TxFee, optional): The transaction fee to use.
+            timeout_blocks (int, optional): The number of blocks to wait before timing out.
+
+        Returns:
+            TxResponse: The transaction response.
         """
         if not self.address:
             raise ValueError("Contract address not set")
@@ -453,20 +585,55 @@ class AlmanacContract(LedgerContract):
             )
 
             denom = self._client.network_config.fee_denomination
+            fee = self.get_registration_fee(wallet.address())
+            funds = f"{fee}{denom}" if fee else None
             transaction.add_message(
                 create_cosmwasm_execute_msg(
-                    wallet.address(),
-                    self.address,
-                    almanac_msg,
-                    funds=f"{REGISTRATION_FEE}{denom}",
+                    sender_address=wallet.address(),
+                    contract_address=self.address,
+                    args=almanac_msg,
+                    funds=funds,
                 )
             )
 
-        transaction = prepare_and_broadcast_basic_transaction(
-            ledger, transaction, wallet
+        # cache the account details
+        account: Account = ledger.query_account(wallet.address())
+
+        # attempt to broadcast the transaction to the network
+        broadcast_delay_func = broadcast_retry_delay or default_exp_backoff
+        num_broadcast_retries = broadcast_retries or DEFAULT_BROADCAST_RETRIES
+        timeout_height = ledger.query_height() + timeout_blocks
+
+        tx: SubmittedTx | None = None
+        for n in range(num_broadcast_retries):
+            try:
+                tx = prepare_and_broadcast_basic_transaction(
+                    ledger,
+                    transaction,
+                    wallet,
+                    account=account,
+                    fee=tx_fee,
+                    timeout_height=timeout_height,
+                )
+                break
+            except RuntimeError:
+                await asyncio.sleep(broadcast_delay_func(n))
+
+        if tx is None:
+            raise BroadcastTimeoutError()
+
+        status: TxResponse = await wait_for_tx_to_complete(
+            tx_hash=tx.tx_hash,
+            ledger=ledger,
+            poll_retries=poll_retries,
+            poll_retry_delay=poll_retry_delay,
         )
-        timeout = timedelta(seconds=DEFAULT_LEDGER_TX_WAIT_SECONDS)
-        await wait_for_tx_to_complete(transaction.tx_hash, ledger, timeout=timeout)
+        if status.code != 0:
+            raise RuntimeError(
+                f"Registration transaction failed ({status.code}): {status.hash})"
+            )
+
+        return status
 
     def get_sequence(self, address: str) -> int:
         """
@@ -492,22 +659,20 @@ _testnet_almanac_contract = AlmanacContract(
 )
 
 
-def get_almanac_contract(test: bool = True) -> Optional[AlmanacContract]:
+def get_almanac_contract(network: AgentNetwork = "testnet") -> AlmanacContract | None:
     """
     Get the AlmanacContract instance.
 
     Args:
-        test (bool): Whether to use the testnet or mainnet. Defaults to True.
+        network (AgentNetwork): The network to use. Defaults to "testnet".
 
     Returns:
-        AlmanacContract: The AlmanacContract instance if version is supported.
+        AlmanacContract | None: The AlmanacContract instance if version is supported.
     """
-    if test:
-        if _testnet_almanac_contract.check_version():
-            return _testnet_almanac_contract
-        return None
-    if _mainnet_almanac_contract.check_version():
+    if network == "mainnet" and _mainnet_almanac_contract.check_version():
         return _mainnet_almanac_contract
+    if _testnet_almanac_contract.check_version():
+        return _testnet_almanac_contract
     return None
 
 
@@ -520,12 +685,12 @@ class NameServiceContract(LedgerContract):
     obtaining registration transaction details, and registering a name within a domain.
     """
 
-    def query_contract(self, query_msg: Dict[str, Any]) -> Any:
+    def query_contract(self, query_msg: dict[str, Any]) -> Any:
         """
         Execute a query with additional checks and error handling.
 
         Args:
-            query_msg (Dict[str, Any]): The query message.
+            query_msg (dict[str, Any]): The query message.
 
         Returns:
             Any: The query response.
@@ -543,6 +708,12 @@ class NameServiceContract(LedgerContract):
             logger.debug(e)
             raise
 
+    def get_oracle_agent_address(self):
+        query_msg = {"query_domain_record": {"domain": ORACLE_AGENT_DOMAIN}}
+        return self.query_contract(query_msg)["record"]["records"][0]["agent_address"][
+            "records"
+        ][0]["address"]
+
     def is_name_available(self, name: str, domain: str) -> bool:
         """
         Check if a name is available within a domain.
@@ -554,7 +725,7 @@ class NameServiceContract(LedgerContract):
         Returns:
             bool: True if the name is available, False otherwise.
         """
-        query_msg = {"domain_record": {"domain": f"{name}.{domain}"}}
+        query_msg = {"query_domain_record": {"domain": f"{name}.{domain}"}}
         return self.query_contract(query_msg)["is_available"]
 
     def is_owner(self, name: str, domain: str, wallet_address: str) -> bool:
@@ -570,7 +741,7 @@ class NameServiceContract(LedgerContract):
             bool: True if the wallet address is the owner, False otherwise.
         """
         query_msg = {
-            "permissions": {
+            "query_domain_permissions": {
                 "domain": f"{name}.{domain}",
                 "owner": wallet_address,
             }
@@ -607,7 +778,7 @@ class NameServiceContract(LedgerContract):
             A list of dictionaries, where each dictionary contains
             details of a record associated with the given name.
         """
-        query_msg = {"domain_record": {"domain": f"{name}.{domain}"}}
+        query_msg = {"query_domain_record": {"domain": f"{name}.{domain}"}}
         result = self.query_contract(query_msg)
         if result["record"] is not None:
             return result["record"]["records"][0]["agent_address"]["records"]
@@ -617,10 +788,12 @@ class NameServiceContract(LedgerContract):
         self,
         name: str,
         wallet_address: Address,
-        agent_records: Union[List[Dict[str, Any]], str],
+        agent_records: list[dict[str, Any]] | str,
         domain: str,
-        test: bool,
-    ):
+        duration: int,
+        network: AgentNetwork,
+        approval_token: str,
+    ) -> Transaction | None:
         """
         Get the registration transaction for registering a name within a domain.
 
@@ -629,44 +802,60 @@ class NameServiceContract(LedgerContract):
             wallet_address (str): The wallet address initiating the registration.
             agent_address (str): The address of the agent.
             domain (str): The domain in which the name is registered.
-            test (bool): The agent type
+            duration (int): The duration in seconds for which the name is to be registered.
+            network (AgentNetwork): The network in which the transaction is executed.
+            approval_token (str): The approval token required for registration.
 
         Returns:
-            Optional[Transaction]: The registration transaction, or None if the name is not
+            Transaction | None: The registration transaction, or None if the name is not
             available or not owned by the wallet address.
         """
         transaction = Transaction()
 
         contract = Address(
-            TESTNET_CONTRACT_NAME_SERVICE if test else MAINNET_CONTRACT_NAME_SERVICE
+            MAINNET_CONTRACT_NAME_SERVICE
+            if network == "mainnet"
+            else TESTNET_CONTRACT_NAME_SERVICE
         )
 
         if self.is_name_available(name, domain):
-            price_per_second = self.query_contract({"contract_state": {}})[
+            price_per_second = self.query_contract({"query_contract_state": {}})[
                 "price_per_second"
             ]
-            amount = int(price_per_second["amount"]) * 86400
+            amount = int(price_per_second["amount"]) * duration
             denom = price_per_second["denom"]
 
-            registration_msg = {"register": {"domain": f"{name}.{domain}"}}
+            registration_msg = {
+                "register_domain": {
+                    "domain": f"{name}.{domain}",
+                    "approval_token": approval_token,
+                }
+            }
 
             transaction.add_message(
                 create_cosmwasm_execute_msg(
-                    wallet_address, contract, registration_msg, funds=f"{amount}{denom}"
+                    sender_address=wallet_address,
+                    contract_address=contract,
+                    args=registration_msg,
+                    funds=f"{amount}{denom}",
                 )
             )
         elif not self.is_owner(name, domain, str(wallet_address)):
             return None
 
         record_msg = {
-            "update_record": {
+            "update_domain_record": {
                 "domain": f"{name}.{domain}",
                 "agent_records": agent_records,
             }
         }
 
         transaction.add_message(
-            create_cosmwasm_execute_msg(wallet_address, contract, record_msg)
+            create_cosmwasm_execute_msg(
+                sender_address=wallet_address,
+                contract_address=contract,
+                args=record_msg,
+            )
         )
 
         return transaction
@@ -675,26 +864,43 @@ class NameServiceContract(LedgerContract):
         self,
         ledger: LedgerClient,
         wallet: LocalWallet,
-        agent_records: Optional[Union[str, List[str], Dict[str, dict]]],
+        agent_records: str | list[str] | dict[str, dict] | None,
         name: str,
         domain: str,
+        approval_token: str,
+        duration: int = ANAME_REGISTRATION_SECONDS,
         overwrite: bool = True,
-    ):
+        tx_fee: TxFee | None = None,
+        timeout_blocks: int = DEFAULT_REGISTRATION_TIMEOUT_BLOCKS,
+    ) -> TxResponse:
         """
         Register a name within a domain using the NameService contract.
 
         Args:
             ledger (LedgerClient): The Ledger client.
             wallet (LocalWallet): The wallet of the agent.
-            agent_address (str): The address of the agent.
+            agent_records (str | list[str] | dict[str, dict] | None): The agent records
+                to be registered.
             name (str): The name to be registered.
             domain (str): The domain in which the name is registered.
+            duration (int): The duration in seconds for which the name is to be registered.
+            approval_token (str): The approval token required for registration.
             overwrite (bool, optional): Specifies whether to overwrite any existing
                 addresses registered to the domain. If False, the address will be
                 appended to the previous records. Defaults to True.
+            tx_fee (TxFee, optional): The transaction fee to use.
+            timeout_blocks (int, optional): The number of blocks to wait before timing out.
+
+        Returns:
+            TxResponse: The transaction response.
         """
         logger.info("Registering name...")
         chain_id = ledger.query_chain_id()
+        network = (
+            "mainnet"
+            if chain_id == NetworkConfig.fetchai_mainnet().chain_id
+            else "testnet"
+        )
 
         records = parse_record_config(agent_records)
         if not records:
@@ -702,21 +908,21 @@ class NameServiceContract(LedgerContract):
         agent_addresses = [val.get("address") for val in records]
 
         for agent_address in agent_addresses:
-            if not get_almanac_contract(chain_id == "dorado-1").is_registered(
-                agent_address  # type: ignore
-            ):
-                logger.warning(
+            if not isinstance(agent_address, str):
+                logger.warning("Invalid agent address")
+                continue
+            contract = get_almanac_contract(network)
+            if not contract or not contract.is_registered(agent_address):
+                raise RuntimeError(
                     "Address %s needs to be registered in almanac contract "
                     "to be registered in a domain.",
                     agent_address,
                 )
-                return
 
         if not self.is_domain_public(domain):
-            logger.warning(
+            raise RuntimeError(
                 f"Domain {domain} is not public, please select a public domain"
             )
-            return
 
         if not overwrite:
             previous_records = self.get_previous_records(name, domain)
@@ -727,31 +933,42 @@ class NameServiceContract(LedgerContract):
                 }.values()
             )
 
-        transaction = self.get_registration_tx(
-            name,
-            wallet.address(),
-            records,
-            domain,
-            chain_id == TESTNET_CHAINID,
+        transaction: Transaction | None = self.get_registration_tx(
+            name=name,
+            wallet_address=wallet.address(),
+            agent_records=records,
+            domain=domain,
+            duration=duration,
+            network=network,
+            approval_token=approval_token,
         )
 
         if transaction is None:
-            logger.error(
-                f"Please select another name, {name} is owned by another address"
+            raise RuntimeError(
+                f"Domain {name}.{domain} is not available or not owned by the wallet address."
             )
-            return
-        transaction = prepare_and_broadcast_basic_transaction(
-            ledger, transaction, wallet
+        timeout_height = ledger.query_height() + timeout_blocks
+        submitted_transaction: SubmittedTx = prepare_and_broadcast_basic_transaction(
+            client=ledger,
+            tx=transaction,
+            sender=wallet,
+            fee=tx_fee,
+            timeout_height=timeout_height,
         )
-        await wait_for_tx_to_complete(transaction.tx_hash, ledger)
+        status: TxResponse = await wait_for_tx_to_complete(
+            submitted_transaction.tx_hash, ledger
+        )
+        if status.code != 0:
+            raise RuntimeError(f"Transaction failed ({status.code}): {status.hash})")
         logger.info("Registering name...complete")
+        return status
 
     async def unregister(
         self,
         name: str,
         domain: str,
         wallet: LocalWallet,
-    ):
+    ) -> None:
         """
         Unregister a name within a domain using the NameService contract.
 
@@ -784,16 +1001,16 @@ _testnet_name_service_contract = NameServiceContract(
 )
 
 
-def get_name_service_contract(test: bool = True) -> NameServiceContract:
+def get_name_service_contract(network: AgentNetwork = "testnet") -> NameServiceContract:
     """
     Get the NameServiceContract instance.
 
     Args:
-        test (bool): Whether to use the testnet or mainnet. Defaults to True.
+        network (AgentNetwork, optional): The network to use. Defaults to "testnet".
 
     Returns:
         NameServiceContract: The NameServiceContract instance.
     """
-    if test:
-        return _testnet_name_service_contract
-    return _mainnet_name_service_contract
+    if network == "mainnet":
+        return _mainnet_name_service_contract
+    return _testnet_name_service_contract

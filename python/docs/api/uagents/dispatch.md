@@ -1,10 +1,10 @@
-<a id="src.uagents.dispatch"></a>
+
 
 # src.uagents.dispatch
 
-<a id="src.uagents.dispatch.Sink"></a>
 
-## Sink Objects
+
+## Sink Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dispatch.py#L14)
 
 ```python
 class Sink(ABC)
@@ -12,9 +12,9 @@ class Sink(ABC)
 
 Abstract base class for sinks that handle messages.
 
-<a id="src.uagents.dispatch.Dispatcher"></a>
 
-## Dispatcher Objects
+
+## Dispatcher Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dispatch.py#L32)
 
 ```python
 class Dispatcher()

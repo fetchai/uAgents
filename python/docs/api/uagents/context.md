@@ -1,12 +1,12 @@
-<a id="src.uagents.context"></a>
+
 
 # src.uagents.context
 
 Agent Context and Message Handling
 
-<a id="src.uagents.context.Context"></a>
 
-## Context Objects
+
+## Context Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L37)
 
 ```python
 class Context(ABC)
@@ -27,18 +27,18 @@ session (uuid.UUID): The session UUID associated with the context.
   using a specific protocol digest.
   broadcast(destination_protocol, message, limit, timeout): Broadcast a message
   to agents with a specific protocol.
+- `session_history` - Get the message history associated with the context session.
   send(destination, message, timeout): Send a message to a destination.
   send_raw(destination, json_message, schema_digest, message_type, timeout):
   Send a message with the provided schema digest to a destination.
 
-<a id="src.uagents.context.Context.agent"></a>
 
-#### agent
 
+#### agent[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L59)
 ```python
 @property
 @abstractmethod
-def agent() -> AgentRepresentation
+def agent() -> "AgentRepresentation"
 ```
 
 Get the agent representation associated with the context.
@@ -47,10 +47,9 @@ Get the agent representation associated with the context.
 
 - `AgentRepresentation` - The agent representation.
 
-<a id="src.uagents.context.Context.storage"></a>
 
-#### storage
 
+#### storage[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L70)
 ```python
 @property
 @abstractmethod
@@ -63,10 +62,9 @@ Get the key-value store associated with the context.
 
 - `KeyValueStore` - The key-value store.
 
-<a id="src.uagents.context.Context.ledger"></a>
 
-#### ledger
 
+#### ledger[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L81)
 ```python
 @property
 @abstractmethod
@@ -79,10 +77,9 @@ Get the ledger client associated with the context.
 
 - `LedgerClient` - The ledger client.
 
-<a id="src.uagents.context.Context.logger"></a>
 
-#### logger
 
+#### logger[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L92)
 ```python
 @property
 @abstractmethod
@@ -95,10 +92,9 @@ Get the logger instance associated with the context.
 
 - `logging.Logger` - The logger instance.
 
-<a id="src.uagents.context.Context.session"></a>
 
-#### session
 
+#### session[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L103)
 ```python
 @property
 @abstractmethod
@@ -111,16 +107,14 @@ Get the session UUID associated with the context.
 
 - `uuid.UUID` - The session UUID.
 
-<a id="src.uagents.context.Context.get_agents_by_protocol"></a>
 
-#### get`_`agents`_`by`_`protocol
 
+#### get_agents_by_protocol[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L114)
 ```python
 @abstractmethod
-def get_agents_by_protocol(
-        protocol_digest: str,
-        limit: int = DEFAULT_SEARCH_LIMIT,
-        logger: Optional[logging.Logger] = None) -> List[str]
+def get_agents_by_protocol(protocol_digest: str,
+                           limit: int = DEFAULT_SEARCH_LIMIT,
+                           logger: logging.Logger | None = None) -> list[str]
 ```
 
 Retrieve a list of agent addresses using a specific protocol digest.
@@ -137,19 +131,18 @@ limited to a specified number of addresses.
 
 **Returns**:
 
-- `List[str]` - A list of agent addresses using the specified protocol digest.
+- `list[str]` - A list of agent addresses using the specified protocol digest.
 
-<a id="src.uagents.context.Context.broadcast"></a>
 
-#### broadcast
 
+#### broadcast[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L136)
 ```python
 @abstractmethod
 async def broadcast(
         destination_protocol: str,
         message: Model,
         limit: int = DEFAULT_SEARCH_LIMIT,
-        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS) -> List[MsgStatus]
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS) -> list[MsgStatus]
 ```
 
 Broadcast a message to agents with a specific protocol.
@@ -168,17 +161,29 @@ The schema digest of the message is used for verification.
 
 **Returns**:
 
-- `List[MsgStatus]` - A list of message delivery statuses.
+- `list[MsgStatus]` - A list of message delivery statuses.
 
-<a id="src.uagents.context.Context.send"></a>
 
-#### send
 
+#### session_history[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L161)
+```python
+@abstractmethod
+def session_history() -> list[EnvelopeHistoryEntry] | None
+```
+
+Get the message history associated with the context session.
+
+**Returns**:
+
+  list[EnvelopeHistoryEntry] | None: The message history.
+
+
+
+#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L171)
 ```python
 @abstractmethod
 async def send(destination: str,
                message: Model,
-               sync: bool = False,
                timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS) -> MsgStatus
 ```
 
@@ -188,18 +193,16 @@ Send a message to the specified destination.
 
 - `destination` _str_ - The destination address to send the message to.
 - `message` _Model_ - The message to be sent.
-- `sync` _bool_ - Whether to send the message synchronously or asynchronously.
-- `timeout` _Optional[int]_ - The optional timeout for sending the message, in seconds.
+- `timeout` _int, optional_ - The timeout for sending the message, in seconds.
   
 
 **Returns**:
 
 - `MsgStatus` - The delivery status of the message.
 
-<a id="src.uagents.context.Context.send_raw"></a>
 
-#### send`_`raw
 
+#### send_raw[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L191)
 ```python
 @abstractmethod
 async def send_raw(
@@ -207,9 +210,10 @@ async def send_raw(
         message_schema_digest: str,
         message_body: JsonStr,
         sync: bool = False,
+        wait_for_response: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
-        protocol_digest: Optional[str] = None,
-        queries: Optional[Dict[str, asyncio.Future]] = None) -> MsgStatus
+        protocol_digest: str | None = None,
+        queries: dict[str, asyncio.Future] | None = None) -> MsgStatus
 ```
 
 Send a message to the specified destination where the message body and
@@ -221,19 +225,48 @@ message schema digest are sent separately.
 - `message_schema_digest` _str_ - The schema digest of the message to be sent.
 - `message_body` _JsonStr_ - The JSON-encoded message body to be sent.
 - `sync` _bool_ - Whether to send the message synchronously or asynchronously.
-- `timeout` _Optional[int]_ - The optional timeout for sending the message, in seconds.
-- `protocol_digest` _Optional[str]_ - The protocol digest of the message to be sent.
-- `queries` _Optional[Dict[str, asyncio.Future]]_ - The dictionary of queries to resolve.
+- `wait_for_response` _bool_ - Whether to wait for a response to the message.
+- `timeout` _int, optional_ - The optional timeout for sending the message, in seconds.
+- `protocol_digest` _str, optional_ - The protocol digest of the message to be sent.
+- `queries` _dict[str, asyncio.Future] | None_ - The dictionary of queries to resolve.
   
 
 **Returns**:
 
 - `MsgStatus` - The delivery status of the message.
 
-<a id="src.uagents.context.Context.send_wallet_message"></a>
 
-#### send`_`wallet`_`message
 
+#### send_and_receive[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L222)
+```python
+@abstractmethod
+async def send_and_receive(
+    destination: str,
+    message: Model,
+    response_type: type[Model] | set[type[Model]],
+    sync: bool = False,
+    timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS
+) -> tuple[Model | None, MsgStatus]
+```
+
+Send a message to the specified destination and receive a response.
+
+**Arguments**:
+
+- `destination` _str_ - The destination address to send the message to.
+- `message` _Model_ - The message to be sent.
+- `response_type` _type[Model] | set[type[Model]]_ - The type(s) of the response message.
+- `sync` _bool_ - Whether to send the message synchronously or asynchronously.
+- `timeout` _int_ - The timeout for sending the message, in seconds.
+  
+
+**Returns**:
+
+  tuple[Model | None, MsgStatus]: The response message if received and delivery status
+
+
+
+#### send_wallet_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L246)
 ```python
 @abstractmethod
 async def send_wallet_message(destination: str, text: str, msg_type: int = 1)
@@ -252,9 +285,9 @@ Send a message to the wallet of the specified destination.
 
   None
 
-<a id="src.uagents.context.InternalContext"></a>
 
-## InternalContext Objects
+
+## InternalContext Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L267)
 
 ```python
 class InternalContext(Context)
@@ -262,10 +295,9 @@ class InternalContext(Context)
 
 Represents the agent internal context for proactive behaviour.
 
-<a id="src.uagents.context.InternalContext.session"></a>
 
-#### session
 
+#### session[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L311)
 ```python
 @property
 def session() -> uuid.UUID
@@ -277,47 +309,39 @@ Get the session UUID associated with the context.
 
 - `uuid.UUID` - The session UUID.
 
-<a id="src.uagents.context.InternalContext.outbound_messages"></a>
 
-#### outbound`_`messages
 
+#### outbound_messages[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L321)
 ```python
 @property
-def outbound_messages() -> Dict[str, Tuple[JsonStr, str]]
+def outbound_messages() -> dict[str, list[tuple[JsonStr, str]]]
 ```
 
 Get the dictionary of outbound messages associated with the context.
 
 **Returns**:
 
-  Dict[str, Tuple[JsonStr, str]]: The dictionary of outbound messages.
+  dict[str, list[tuple[JsonStr, str]]]: The dictionary of outbound messages.
 
-<a id="src.uagents.context.InternalContext.address"></a>
 
-#### address
 
+#### session_history[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L331)
 ```python
-@property
-@deprecated("Please use `ctx.agent.address` instead.")
-def address() -> str
+def session_history() -> list[EnvelopeHistoryEntry] | None
 ```
 
-Get the agent address associated with the context.
-This is a deprecated property and will be removed in a future release.
-Please use the `ctx.agent.address` property instead.
+Get the message history associated with the context session.
 
 **Returns**:
 
-- `str` - The agent address.
+  list[EnvelopeHistoryEntry] | None: The session history.
 
-<a id="src.uagents.context.InternalContext.send"></a>
 
-#### send
 
+#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L417)
 ```python
 async def send(destination: str,
                message: Model,
-               sync: bool = False,
                timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS) -> MsgStatus
 ```
 
@@ -326,9 +350,37 @@ on_interval methods. In these methods, interval messages are set but
 we don't have access properties that are only necessary in re-active
 contexts, like 'replies', 'message_received', or 'protocol'.
 
-<a id="src.uagents.context.ExternalContext"></a>
 
-## ExternalContext Objects
+
+#### send_and_receive[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L593)
+```python
+async def send_and_receive(
+    destination: str,
+    message: Model,
+    response_type: type[Model] | set[type[Model]],
+    sync: bool = False,
+    timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS
+) -> tuple[Model | None, MsgStatus]
+```
+
+Send a message to the specified destination and receive a response.
+
+**Arguments**:
+
+- `destination` _str_ - The destination address to send the message to.
+- `message` _Model_ - The message to be sent.
+- `response_type` _type[Model] | set[type[Model]]_ - The type(s) of the response message.
+- `sync` _bool_ - Whether to send the message synchronously or asynchronously.
+- `timeout` _int_ - The timeout for sending the message, in seconds.
+  
+
+**Returns**:
+
+  tuple[Model | None, MsgStatus]: The response message if received and delivery status
+
+
+
+## ExternalContext Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L693)
 
 ```python
 class ExternalContext(InternalContext)
@@ -338,23 +390,22 @@ Represents the reactive context in which messages are handled and processed.
 
 **Attributes**:
 
-- `_queries` _Dict[str, asyncio.Future]_ - Dictionary mapping query senders to their
+- `_message_received` _MsgInfo_ - The received message.
+- `_queries` _dict[str, asyncio.Future] | None_ - dictionary mapping query senders to their
   response Futures.
-- `_replies` _Optional[Dict[str, Dict[str, Type[Model]]]]_ - Dictionary of allowed reply digests
+- `_replies` _dict[str, dict[str, type[Model]]] | None_ - Dictionary of allowed reply digests
   for each type of incoming message.
-- `_message_received` _Optional[MsgDigest]_ - The message digest received.
-- `_protocol` _Optional[Tuple[str, Protocol]]_ - The supported protocol digest
+- `_protocol` _tuple[str, Protocol] | None_ - The supported protocol digest
   and the corresponding protocol.
 
-<a id="src.uagents.context.ExternalContext.__init__"></a>
 
-#### `__`init`__`
 
+#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L707)
 ```python
-def __init__(message_received: MsgDigest,
-             queries: Optional[Dict[str, asyncio.Future]] = None,
-             replies: Optional[Dict[str, Dict[str, Type[Model]]]] = None,
-             protocol: Optional[Tuple[str, Protocol]] = None,
+def __init__(message_received: MsgInfo,
+             queries: dict[str, asyncio.Future] | None = None,
+             replies: dict[str, dict[str, type[Model]]] | None = None,
+             protocol: tuple[str, "Protocol"] | None = None,
              **kwargs)
 ```
 
@@ -362,21 +413,32 @@ Initialize the ExternalContext instance and attributes needed from the InternalC
 
 **Arguments**:
 
-- `message_received` _MsgDigest_ - The optional message digest received.
-- `queries` _Dict[str, asyncio.Future]_ - Dictionary mapping query senders to their
+- `message_received` _MsgInfo_ - Information about the received message.
+- `queries` _dict[str, asyncio.Future]_ - Dictionary mapping query senders to their
   response Futures.
-- `replies` _Optional[Dict[str, Dict[str, Type[Model]]]]_ - Dictionary of allowed replies
+- `replies` _dict[str, dict[str, type[Model]]] | None_ - Dictionary of allowed replies
   for each type of incoming message.
-- `protocol` _Optional[Tuple[str, Protocol]]_ - The optional Tuple of protocols.
+- `protocol` _tuple[str, Protocol] | None_ - The optional tuple of protocols.
 
-<a id="src.uagents.context.ExternalContext.send"></a>
 
-#### send
 
+#### validate_replies[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L732)
+```python
+def validate_replies(message_type: type[Model]) -> None
+```
+
+If the context specifies replies, ensure that a valid reply was sent.
+
+**Arguments**:
+
+- `message_type` _type[Model]_ - The type of the received message.
+
+
+
+#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L773)
 ```python
 async def send(destination: str,
                message: Model,
-               sync: bool = False,
                timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS) -> MsgStatus
 ```
 
@@ -386,8 +448,7 @@ Send a message to the specified destination.
 
 - `destination` _str_ - The destination address to send the message to.
 - `message` _Model_ - The message to be sent.
-- `sync` _bool_ - Whether to send the message synchronously or asynchronously.
-- `timeout` _Optional[int]_ - The optional timeout for sending the message, in seconds.
+- `timeout` _int | None_ - The optional timeout for sending the message, in seconds.
   
 
 **Returns**:

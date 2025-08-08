@@ -1,12 +1,12 @@
-<a id="src.uagents.experimental.dialogues.__init__"></a>
 
-# src.uagents.experimental.dialogues.`__`init`__`
+
+# src.uagents.experimental.dialogues.__init__
 
 Dialogue class aka. blueprint for protocols.
 
-<a id="src.uagents.experimental.dialogues.__init__.Node"></a>
 
-## Node Objects
+
+## Node Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L22)
 
 ```python
 class Node()
@@ -14,9 +14,9 @@ class Node()
 
 A node represents a state in the dialogue.
 
-<a id="src.uagents.experimental.dialogues.__init__.Edge"></a>
 
-## Edge Objects
+
+## Edge Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L37)
 
 ```python
 class Edge()
@@ -24,40 +24,38 @@ class Edge()
 
 An edge represents a transition between two states in the dialogue.
 
-<a id="src.uagents.experimental.dialogues.__init__.Edge.model"></a>
 
-#### model
 
+#### model[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L57)
 ```python
 @property
-def model() -> Optional[Type[Model]]
+def model() -> type[Model] | None
 ```
 
 The message model type that is associated with the edge.
 
-<a id="src.uagents.experimental.dialogues.__init__.Edge.model"></a>
+
 
 #### model
 
 ```python
 @model.setter
-def model(model: Type[Model]) -> None
+def model(model: type[Model]) -> None
 ```
 
 Set the message model type for the edge.
 
-<a id="src.uagents.experimental.dialogues.__init__.Edge.func"></a>
 
-#### func
 
+#### func[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L67)
 ```python
 @property
-def func() -> Optional[MessageCallback]
+def func() -> MessageCallback | None
 ```
 
 The message handler that is associated with the edge.
 
-<a id="src.uagents.experimental.dialogues.__init__.Edge.func"></a>
+
 
 #### func
 
@@ -68,42 +66,39 @@ def func(func: MessageCallback) -> None
 
 Set the message handler that will be called when a message is received.
 
-<a id="src.uagents.experimental.dialogues.__init__.Edge.efunc"></a>
 
-#### efunc
 
+#### efunc[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L77)
 ```python
 @property
-def efunc() -> Optional[MessageCallback]
+def efunc() -> MessageCallback | None
 ```
 
 The edge handler that is associated with the edge.
 
-<a id="src.uagents.experimental.dialogues.__init__.Edge.set_edge_handler"></a>
 
-#### set`_`edge`_`handler
 
+#### set_edge_handler[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L82)
 ```python
-def set_edge_handler(model: Type[Model], func: MessageCallback)
+def set_edge_handler(model: type[Model], func: MessageCallback) -> None
 ```
 
 Set the edge handler that will be called when a message is received
 This handler can not be overwritten by a decorator.
 
-<a id="src.uagents.experimental.dialogues.__init__.Edge.set_message_handler"></a>
 
-#### set`_`message`_`handler
 
+#### set_message_handler[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L92)
 ```python
-def set_message_handler(model: Type[Model], func: MessageCallback)
+def set_message_handler(model: type[Model], func: MessageCallback) -> None
 ```
 
 Set the default message handler for the edge that will be overwritten if
 a decorator defines a new function to be called.
 
-<a id="src.uagents.experimental.dialogues.__init__.Dialogue"></a>
 
-## Dialogue Objects
+
+## Dialogue Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L103)
 
 ```python
 class Dialogue(Protocol)
@@ -133,7 +128,7 @@ A common practice is to add additional decorators to the pattern definition
 to simplify the usage of the dialogue class. This can be done by creating
 creating additional decorators that call the _on_state_transition method.
 Ex.:
-    def on_init(model: Type[Model]):
+    def on_init(model: type[Model]):
         return super()._on_state_transition("edge_name", model)
 
 and then use it like this:
@@ -149,39 +144,36 @@ The current features include:
 - Sessions will automatically be deleted after a certain amount of time.
 - Access to the dialogue history through ctx.dialogue (see Context class).
 
-<a id="src.uagents.experimental.dialogues.__init__.Dialogue.rules"></a>
 
-#### rules
 
+#### rules[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L197)
 ```python
 @property
-def rules() -> Dict[str, List[str]]
+def rules() -> dict[str, list[str]]
 ```
 
 Property to access the rules of the dialogue.
 
 **Returns**:
 
-  Dict[str, List[str]]: Dictionary of rules represented by edges.
+  dict[str, list[str]]: Dictionary of rules represented by edges.
 
-<a id="src.uagents.experimental.dialogues.__init__.Dialogue.get_overview"></a>
 
-#### get`_`overview
 
+#### get_overview[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L215)
 ```python
-def get_overview() -> Dict
+def get_overview() -> dict
 ```
 
 Get an overview of the dialogue structure.
 
 **Returns**:
 
-- `Dict` - Manifest like representation of the dialogue structure.
+- `dict` - Manifest like representation of the dialogue structure.
 
-<a id="src.uagents.experimental.dialogues.__init__.Dialogue.is_starter"></a>
 
-#### is`_`starter
 
+#### is_starter[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L315)
 ```python
 def is_starter(digest: str) -> bool
 ```
@@ -189,10 +181,9 @@ def is_starter(digest: str) -> bool
 Return True if the digest is the starting message of the dialogue.
 False otherwise.
 
-<a id="src.uagents.experimental.dialogues.__init__.Dialogue.is_ender"></a>
 
-#### is`_`ender
 
+#### is_ender[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L322)
 ```python
 def is_ender(digest: str) -> bool
 ```
@@ -200,20 +191,18 @@ def is_ender(digest: str) -> bool
 Return True if the digest is one of the last messages of the dialogue.
 False otherwise.
 
-<a id="src.uagents.experimental.dialogues.__init__.Dialogue.get_current_state"></a>
 
-#### get`_`current`_`state
 
+#### get_current_state[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L329)
 ```python
 def get_current_state(session_id: UUID) -> str
 ```
 
 Get the current state of the dialogue for a given session.
 
-<a id="src.uagents.experimental.dialogues.__init__.Dialogue.is_finished"></a>
 
-#### is`_`finished
 
+#### is_finished[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L333)
 ```python
 def is_finished(session_id: UUID) -> bool
 ```
@@ -221,10 +210,9 @@ def is_finished(session_id: UUID) -> bool
 Return True if the current state is (one of) the ending state(s).
 False otherwise.
 
-<a id="src.uagents.experimental.dialogues.__init__.Dialogue.update_state"></a>
 
-#### update`_`state
 
+#### update_state[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L427)
 ```python
 def update_state(digest: str, session_id: UUID) -> None
 ```
@@ -237,20 +225,18 @@ if it does not exist.
 - `digest` _str_ - The digest of the message to update the state with.
 - `session_id` _UUID_ - The ID of the session to update the state for.
 
-<a id="src.uagents.experimental.dialogues.__init__.Dialogue.cleanup_conversation"></a>
 
-#### cleanup`_`conversation
 
+#### cleanup_conversation[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L444)
 ```python
 def cleanup_conversation(session_id: UUID) -> None
 ```
 
 Removes all messages related with the given session from the dialogue instance.
 
-<a id="src.uagents.experimental.dialogues.__init__.Dialogue.add_message"></a>
 
-#### add`_`message
 
+#### add_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L449)
 ```python
 def add_message(session_id: UUID, message_type: str, schema_digest: str,
                 sender: str, receiver: str, content: JsonStr,
@@ -259,13 +245,12 @@ def add_message(session_id: UUID, message_type: str, schema_digest: str,
 
 Add a message to the conversation of the given session within the dialogue instance.
 
-<a id="src.uagents.experimental.dialogues.__init__.Dialogue.get_conversation"></a>
 
-#### get`_`conversation
 
+#### get_conversation[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L478)
 ```python
 def get_conversation(session_id: UUID,
-                     message_filter: Optional[str] = None) -> List[Any]
+                     message_filter: str | None = None) -> list[Any]
 ```
 
 Return the message history of the given session from the dialogue instance as
@@ -275,7 +260,7 @@ This includes both sent and received messages.
 **Arguments**:
 
 - `session_id` _UUID_ - The ID of the session to get the conversation for.
-- `message_filter` _str_ - The name of the message type to filter for
+- `message_filter` _str | None_ - The name of the message type to filter for
   
 
 **Returns**:
@@ -284,20 +269,18 @@ This includes both sent and received messages.
 - `list(DialogueMessage)` - Only messages of type 'message_filter' (Model.__name__)
   from the given session
 
-<a id="src.uagents.experimental.dialogues.__init__.Dialogue.get_edge"></a>
 
-#### get`_`edge
 
+#### get_edge[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L505)
 ```python
 def get_edge(edge_name: str) -> Edge
 ```
 
 Return an edge from the dialogue instance.
 
-<a id="src.uagents.experimental.dialogues.__init__.Dialogue.is_valid_message"></a>
 
-#### is`_`valid`_`message
 
+#### is_valid_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L513)
 ```python
 def is_valid_message(session_id: UUID, msg_digest: str) -> bool
 ```
@@ -312,13 +295,11 @@ Check if an incoming message is valid for a given session.
 
 **Returns**:
 
-- `bool` - True if the message is valid,
-  False otherwise.
+- `bool` - True if the message is valid, False otherwise.
 
-<a id="src.uagents.experimental.dialogues.__init__.Dialogue.is_valid_reply"></a>
 
-#### is`_`valid`_`reply
 
+#### is_valid_reply[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L533)
 ```python
 def is_valid_reply(in_msg: str, out_msg: str) -> bool
 ```
@@ -335,10 +316,9 @@ Check if a reply is valid for a given message.
 
 - `bool` - True if the reply is valid, False otherwise.
 
-<a id="src.uagents.experimental.dialogues.__init__.Dialogue.is_included"></a>
 
-#### is`_`included
 
+#### is_included[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L548)
 ```python
 def is_included(msg_digest: str) -> bool
 ```
@@ -354,24 +334,22 @@ Check if a message is included in the dialogue.
 
 - `bool` - True if the message is included, False otherwise.
 
-<a id="src.uagents.experimental.dialogues.__init__.Dialogue.manifest"></a>
 
-#### manifest
 
+#### manifest[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L614)
 ```python
-def manifest() -> Dict[str, Any]
+def manifest() -> dict[str, Any]
 ```
 
 This method will add the dialogue structure to the original manifest
 and recalculate the digest.
 
-<a id="src.uagents.experimental.dialogues.__init__.Dialogue.start_dialogue"></a>
 
-#### start`_`dialogue
 
+#### start_dialogue[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L638)
 ```python
 async def start_dialogue(ctx: Context, destination: str,
-                         message: Model) -> List[MsgStatus]
+                         message: Model) -> list[MsgStatus]
 ```
 
 Start a dialogue with a message.
@@ -387,10 +365,9 @@ Start a dialogue with a message.
 
 - `ValueError` - If the dialogue is not started with the specified starting message.
 
-<a id="src.uagents.experimental.dialogues.__init__.Dialogue.initialise_cleanup_task"></a>
 
-#### initialise`_`cleanup`_`task
 
+#### initialise_cleanup_task[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/dialogues/__init__.py#L685)
 ```python
 def initialise_cleanup_task(interval: int = 1) -> None
 ```

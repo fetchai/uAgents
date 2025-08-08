@@ -1,18 +1,17 @@
 import json
 import os
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Tuple
+from typing import Any
 
 from cosmpy.aerial.wallet import PrivateKey
-
-from uagents.crypto import Identity
+from uagents_core.identity import Identity
 
 
 class StorageAPI(ABC):
     """Interface for a key-value like storage system."""
 
     @abstractmethod
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         raise NotImplementedError
 
     @abstractmethod
@@ -20,15 +19,15 @@ class StorageAPI(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def set(self, key: str, value: Any):
+    def set(self, key: str, value: Any) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def remove(self, key: str):
+    def remove(self, key: str) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def clear(self):
+    def clear(self) -> None:
         raise NotImplementedError
 
 
@@ -50,17 +49,15 @@ class KeyValueStore(StorageAPI):
         clear: Clear all data from the store.
         _load: Load data from the file into the store.
         _save: Save the store data to the file.
-
     """
 
-    def __init__(self, name: str, cwd: Optional[str] = None):
+    def __init__(self, name: str, cwd: str | None = None):
         """
         Initialize the KeyValueStore instance.
 
         Args:
             name (str): The name associated with the store.
-            cwd (str, optional): The current working directory. Defaults to None.
-
+            cwd (str | None): The current working directory. Defaults to None.
         """
         self._data = {}
         self._name = name or "my"
@@ -71,30 +68,30 @@ class KeyValueStore(StorageAPI):
         if os.path.isfile(self._path):
             self._load()
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         return self._data.get(key)
 
     def has(self, key: str) -> bool:
         return key in self._data
 
-    def set(self, key: str, value: Any):
+    def set(self, key: str, value: Any) -> None:
         self._data[key] = value
         self._save()
 
-    def remove(self, key: str):
+    def remove(self, key: str) -> None:
         if key in self._data:
             del self._data[key]
             self._save()
 
-    def clear(self):
+    def clear(self) -> None:
         self._data.clear()
         self._save()
 
-    def _load(self):
+    def _load(self) -> None:
         with open(self._path, encoding="utf-8") as file:
             self._data = json.load(file)
 
-    def _save(self):
+    def _save(self) -> None:
         with open(self._path, "w", encoding="utf-8") as file:
             json.dump(self._data, file, ensure_ascii=False, indent=4)
 
@@ -105,7 +102,6 @@ def load_all_keys() -> dict:
 
     Returns:
         dict: A dictionary containing loaded private keys.
-
     """
     private_keys_path = os.path.join(os.getcwd(), "private_keys.json")
     if os.path.exists(private_keys_path):
@@ -114,7 +110,7 @@ def load_all_keys() -> dict:
     return {}
 
 
-def save_private_keys(name: str, identity_key: str, wallet_key: str):
+def save_private_keys(name: str, identity_key: str, wallet_key: str) -> None:
     """
     Save private keys to the private keys file.
 
@@ -122,7 +118,6 @@ def save_private_keys(name: str, identity_key: str, wallet_key: str):
         name (str): The name associated with the private keys.
         identity_key (str): The identity private key.
         wallet_key (str): The wallet private key.
-
     """
     private_keys = load_all_keys()
     private_keys[name] = {"identity_key": identity_key, "wallet_key": wallet_key}
@@ -132,7 +127,7 @@ def save_private_keys(name: str, identity_key: str, wallet_key: str):
         json.dump(private_keys, write_file, indent=4)
 
 
-def get_or_create_private_keys(name: str) -> Tuple[str, str]:
+def get_or_create_private_keys(name: str) -> tuple[str, str]:
     """
     Get or create private keys associated with a name.
 
@@ -140,8 +135,7 @@ def get_or_create_private_keys(name: str) -> Tuple[str, str]:
         name (str): The name associated with the private keys.
 
     Returns:
-        Tuple[str, str]: A tuple containing the identity key and wallet key.
-
+        tuple[str, str]: A tuple containing the identity key and wallet key.
     """
     keys = load_all_keys()
     if name in keys:

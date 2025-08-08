@@ -1,11 +1,10 @@
-<a id="src.uagents.mailbox"></a>
+
 
 # src.uagents.mailbox
 
-<a id="src.uagents.mailbox.is_mailbox_agent"></a>
 
-#### is`_`mailbox`_`agent
 
+#### is_mailbox_agent[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L65)
 ```python
 def is_mailbox_agent(endpoints: list[AgentEndpoint],
                      agentverse: AgentverseConfig) -> bool
@@ -17,17 +16,16 @@ Check if the agent is a mailbox agent.
 
 - `bool` - True if the agent is a mailbox agent, False otherwise.
 
-<a id="src.uagents.mailbox.register_in_agentverse"></a>
 
-#### register`_`in`_`agentverse
 
+#### register_in_agentverse[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L77)
 ```python
 async def register_in_agentverse(
         request: AgentverseConnectRequest,
         identity: Identity,
         prefix: AddressPrefix,
         agentverse: AgentverseConfig,
-        agent_details: Optional[AgentUpdates] = None) -> RegistrationResponse
+        agent_details: AgentUpdates | None = None) -> RegistrationResponse
 ```
 
 Registers agent in Agentverse
@@ -39,22 +37,43 @@ Registers agent in Agentverse
 - `prefix` _AddressPrefix_ - Agent address prefix
   can be "agent" (mainnet) or "test-agent" (testnet)
 - `agentverse` _AgentverseConfig_ - Agentverse configuration
-- `agent_details` _Optional[AgentUpdates]_ - Agent details (name, readme, avatar_url)
+- `agent_details` _AgentUpdates | None_ - Agent details (name, readme, avatar_url)
   
 
 **Returns**:
 
-- `RegistrationResponse` - Registration
+- `RegistrationResponse` - Registration response object
 
-<a id="src.uagents.mailbox.update_agent_details"></a>
 
-#### update`_`agent`_`details
 
+#### unregister_in_agentverse[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L145)
+```python
+async def unregister_in_agentverse(
+        request: AgentverseDisconnectRequest, agent_address: str,
+        agentverse: AgentverseConfig) -> UnregistrationResponse
+```
+
+Unregisters agent in Agentverse
+
+**Arguments**:
+
+- `request` _AgentverseDisconnectRequest_ - Request object
+- `agent_address` _str_ - The agent's address
+- `agentverse` _AgentverseConfig_ - Agentverse configuration
+  
+
+**Returns**:
+
+- `UnregistrationResponse` - Unregistration response object
+
+
+
+#### update_agent_details[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L179)
 ```python
 async def update_agent_details(user_token: str,
                                agent_address: str,
                                agent_details: AgentUpdates,
-                               agentverse: Optional[AgentverseConfig] = None)
+                               agentverse: AgentverseConfig | None = None)
 ```
 
 Updates agent details in Agentverse.
@@ -64,11 +83,11 @@ Updates agent details in Agentverse.
 - `user_token` _str_ - User token
 - `agent_address` _str_ - Agent address
 - `agent_details` _AgentUpdates_ - Agent details
-- `agentverse` _Optional[AgentverseConfig]_ - Agentverse configuration
+- `agentverse` _AgentverseConfig | None_ - Agentverse configuration
 
-<a id="src.uagents.mailbox.MailboxClient"></a>
 
-## MailboxClient Objects
+
+## MailboxClient Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L212)
 
 ```python
 class MailboxClient()
@@ -76,10 +95,9 @@ class MailboxClient()
 
 Client for interacting with the Agentverse mailbox server.
 
-<a id="src.uagents.mailbox.MailboxClient.run"></a>
 
-#### run
 
+#### run[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L228)
 ```python
 async def run()
 ```
