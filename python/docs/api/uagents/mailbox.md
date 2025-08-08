@@ -97,7 +97,7 @@ Client for interacting with the Agentverse mailbox server.
 
 
 
-#### run[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L227)
+#### run[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L228)
 ```python
 async def run()
 ```

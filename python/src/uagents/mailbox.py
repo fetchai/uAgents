@@ -223,6 +223,7 @@ class MailboxClient:
         self._access_token: str | None = None
         self._poll_interval = MAILBOX_POLL_INTERVAL_SECONDS
         self._logger = logger or get_logger("mailbox")
+        self._missing_mailbox_warning_logged = False
 
     async def run(self):
         """Runs the mailbox client."""
@@ -255,6 +256,12 @@ class MailboxClient:
                             self._logger.warning(
                                 "Access token expired: a new one should be retrieved automatically"
                             )
+                        elif resp.status == 404:
+                            if not self._missing_mailbox_warning_logged:
+                                self._logger.warning(
+                                    "Agent mailbox not found: create one using the agent inspector"
+                                )
+                                self._missing_mailbox_warning_logged = True
                         else:
                             self._logger.error(
                                 f"Failed to retrieve messages: {resp.status}:{(await resp.text())}"
