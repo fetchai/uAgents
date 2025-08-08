@@ -7,9 +7,9 @@ import logging
 import os
 import uuid
 from typing import Any, NoReturn
+from urllib.parse import quote
 
 import aiohttp
-import requests
 from cosmpy.aerial.client import LedgerClient
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
@@ -1181,7 +1181,7 @@ class Agent(Sink):
         """Start the agent's server."""
         if self._enable_agent_inspector:
             inspector_url = f"{self._agentverse.url}/inspect/"
-            escaped_uri = requests.utils.quote(f"http://127.0.0.1:{self._port}")  # type: ignore
+            escaped_uri = quote(f"http://127.0.0.1:{self._port}")
             self._logger.info(
                 f"Agent inspector available at {inspector_url}"
                 f"?uri={escaped_uri}&address={self.address}"
