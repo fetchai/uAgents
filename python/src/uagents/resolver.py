@@ -135,6 +135,32 @@ def get_agent_address(name: str, network: AgentNetwork) -> str | None:
     return None
 
 
+def build_identifier(
+    prefix: str | None = None, name: str | None = None, address: str | None = None
+) -> str:
+    """
+    Build an agent identifier string from prefix, name, and address.
+
+    Args:
+        prefix (str): The prefix to be used in the identifier.
+        name (str): The name to be used in the identifier.
+        address (str): The address to be used in the identifier.
+
+    Returns:
+        str: The constructed identifier string.
+    """
+
+    identifier = ""
+    if prefix:
+        identifier += f"{prefix}://"
+    if name:
+        identifier += name + ("/" if address else "")
+    if address:
+        identifier += address
+
+    return identifier
+
+
 class Resolver(ABC):
     @abstractmethod
     async def resolve(self, destination: str) -> tuple[str | None, list[str]]:
@@ -213,6 +239,7 @@ class AlmanacContractResolver(Resolver):
         """
         prefix, _, address = parse_identifier(destination)
 
+        result: dict | None = None
         if prefix == MAINNET_PREFIX:
             result = query_record(agent_address=address, network="mainnet")
         elif prefix == TESTNET_PREFIX:
@@ -377,18 +404,20 @@ class NameServiceResolver(Resolver):
             domain_record = Domain.model_validate(response.json())
             agent_records = domain_record.assigned_agents
             if len(agent_records) == 0:
-                return None
+                return None, []
             elif len(agent_records) == 1:
-                return agent_records[0].address
+                address = agent_records[0].address
             else:
                 addresses = [val.address for val in agent_records]
                 weights = [val.weight for val in agent_records]
-                return weighted_random_sample(addresses, weights=weights, k=1)[0]
+                address = weighted_random_sample(addresses, weights=weights, k=1)[0]
+
+            identifier = build_identifier(prefix=prefix, address=address)
+            return await self._almanac_api_resolver.resolve(identifier)
 
         except Exception as ex:
-            LOGGER.error(f"Error when resolving {domain}: {ex}")
-
-        return None
+            LOGGER.error(f"Error when resolving {destination}: {ex}")
+            return None, []
 
     async def resolve(self, destination: str) -> tuple[str | None, list[str]]:
         """
@@ -407,6 +436,7 @@ class NameServiceResolver(Resolver):
         if api_result:
             return api_result
 
+        address: str | None = None
         if prefix == MAINNET_PREFIX:
             address = get_agent_address(name, "mainnet")
         elif prefix == TESTNET_PREFIX:
@@ -420,7 +450,8 @@ class NameServiceResolver(Resolver):
             raise ValueError(f"Invalid prefix: {prefix}")
 
         if address is not None:
-            return await self._almanac_api_resolver.resolve(address)
+            identifier = build_identifier(prefix=prefix, address=address)
+            return await self._almanac_api_resolver.resolve(identifier)
 
         return None, []
 
