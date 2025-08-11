@@ -4,6 +4,7 @@ import logging
 import random
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
+from enum import Enum
 
 import requests
 from dateutil import parser
@@ -35,6 +36,23 @@ class AgentRecord(BaseModel):
 class DomainRecord(BaseModel):
     name: str
     agents: list[AgentRecord]
+
+
+class DomainStatus(Enum):
+    Registered = "Registered"
+    Pending = "Pending"
+    Checking = "Checking"
+    Updating = "Updating"
+    Deleting = "Deleting"
+    Failed = "Failed"
+
+
+class Domain(BaseModel):
+    name: str
+    status: DomainStatus
+    expiry: datetime | None = None
+    assigned_agents: list[AgentRecord]
+    network: AgentNetwork = "testnet"
 
 
 def is_valid_prefix(prefix: str) -> bool:
@@ -255,9 +273,12 @@ class AlmanacApiResolver(Resolver):
             tuple[str | None, list[str]]: The address and resolved endpoints.
         """
         try:
-            _, _, address = parse_identifier(destination)
+            prefix, _, address = parse_identifier(destination)
+
+            query_str = f"?prefix={prefix}" if prefix else ""
+
             response = requests.get(
-                url=f"{self._almanac_api_url}/agents/{address}", timeout=5
+                url=f"{self._almanac_api_url}/agents/{address}{query_str}", timeout=5
             )
 
             if response.status_code != 200:
@@ -328,29 +349,33 @@ class NameServiceResolver(Resolver):
             almanac_api_url=almanac_api_url, max_endpoints=self._max_endpoints
         )
 
-    async def _api_resolve(self, domain: str) -> tuple[str | None, list[str]]:
+    async def _api_resolve(self, destination: str) -> tuple[str | None, list[str]]:
         """
-        Resolve the domain using the Alamanac API.
+        Resolve the destination using the Almanac Domains API.
 
         Args:
-            domain (str): The domain to resolve.
+            destination (str): The agent identifier to resolve.
 
         Returns:
             Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
         """
         try:
-            response = requests.get(f"{self._almanac_api_url}/domains/{domain}")
+            prefix, domain, _ = parse_identifier(destination)
+
+            query_str = f"?prefix={prefix}" if prefix else ""
+            response = requests.get(
+                f"{self._almanac_api_url}/domains/{domain}{query_str}"
+            )
 
             if response.status_code != 200:
-                if response.status_code != 404:
-                    LOGGER.debug(
-                        f"Failed to resolve name {domain} from {self._almanac_api_url}: "
-                        f"{response.status_code}: {response.text}"
-                    )
-                return None
+                LOGGER.debug(
+                    f"Failed to resolve name {domain} from {self._almanac_api_url}: "
+                    f"{response.status_code}: {response.text}"
+                )
+                return None, []
 
-            domain_record = DomainRecord.model_validate(response.json())
-            agent_records = domain_record.agents
+            domain_record = Domain.model_validate(response.json())
+            agent_records = domain_record.assigned_agents
             if len(agent_records) == 0:
                 return None
             elif len(agent_records) == 1:
