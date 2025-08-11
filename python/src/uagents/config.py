@@ -11,7 +11,6 @@ USER_PREFIX = "user"
 TESTNET_PREFIX = "test-agent"
 MAINNET_PREFIX = "agent"
 AGENT_ADDRESS_LENGTH = 65
-TESTNET_CHAINID = "dorado-1"
 
 MAINNET_CONTRACT_ALMANAC = (
     "fetch1mezzhfj7qgveewzwzdk6lz5sae4dunpmmsjr9u7z0tpmdsae8zmquq3y0y"
@@ -23,7 +22,7 @@ MAINNET_CONTRACT_NAME_SERVICE = (
     "fetch1479lwv5vy8skute5cycuz727e55spkhxut0valrcm38x9caa2x8q99ef0q"
 )
 TESTNET_CONTRACT_NAME_SERVICE = (
-    "fetch1kewgfwxwtuxcnppr547wj6sd0e5fkckyp48dazsh89hll59epgpspmh0tn"
+    "fetch1mxz8kn3l5ksaftx8a9pj9a6prpzk2uhxnqdkwuqvuh37tw80xu6qges77l"
 )
 TESTNET_REGISTRATION_FEE = 500000000000000000
 REGISTRATION_UPDATE_INTERVAL_SECONDS = 3600
