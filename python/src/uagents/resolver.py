@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from enum import Enum
 
-import requests
+import aiohttp
 from dateutil import parser
 from pydantic import BaseModel
 from uagents_core.helpers import weighted_random_sample
@@ -302,21 +302,23 @@ class AlmanacApiResolver(Resolver):
         try:
             prefix, _, address = parse_identifier(destination)
 
-            query_str = f"?prefix={prefix}" if prefix else ""
-
-            response = requests.get(
-                url=f"{self._almanac_api_url}/agents/{address}{query_str}", timeout=5
-            )
-
-            if response.status_code != 200:
-                if response.status_code != 404:
+            params = {"prefix": prefix} if prefix else None
+            async with (
+                aiohttp.ClientSession() as session,
+                session.get(
+                    url=f"{self._almanac_api_url}/agents/{address}",
+                    params=params,
+                    timeout=aiohttp.ClientTimeout(total=5),
+                ) as response,
+            ):
+                if response.status != 200:
                     LOGGER.debug(
                         f"Failed to resolve agent {address} from {self._almanac_api_url}, "
                         "resolving via Almanac contract..."
                     )
-                return None, []
+                    return None, []
 
-            agent = response.json()
+                agent = await response.json()
 
             expiry_str = agent.get("expiry", None)
             if expiry_str is None:
@@ -389,19 +391,24 @@ class NameServiceResolver(Resolver):
         try:
             prefix, domain, _ = parse_identifier(destination)
 
-            query_str = f"?prefix={prefix}" if prefix else ""
-            response = requests.get(
-                f"{self._almanac_api_url}/domains/{domain}{query_str}"
-            )
+            params = {"prefix": prefix} if prefix else None
+            async with (
+                aiohttp.ClientSession() as session,
+                session.get(
+                    f"{self._almanac_api_url}/domains/{domain}",
+                    params=params,
+                    timeout=aiohttp.ClientTimeout(total=5),
+                ) as response,
+            ):
+                if response.status != 200:
+                    LOGGER.debug(
+                        f"Failed to resolve name {domain} from {self._almanac_api_url}: "
+                        f"{response.status}: {await response.text()}"
+                    )
+                    return None, []
 
-            if response.status_code != 200:
-                LOGGER.debug(
-                    f"Failed to resolve name {domain} from {self._almanac_api_url}: "
-                    f"{response.status_code}: {response.text}"
-                )
-                return None, []
+                domain_record = Domain.model_validate(await response.json())
 
-            domain_record = Domain.model_validate(response.json())
             agent_records = domain_record.assigned_agents
             if len(agent_records) == 0:
                 return None, []
@@ -431,7 +438,7 @@ class NameServiceResolver(Resolver):
         """
         prefix, name, _ = parse_identifier(destination)
 
-        api_result = await self._api_resolve(name)
+        api_result = await self._api_resolve(destination)
 
         if api_result:
             return api_result
