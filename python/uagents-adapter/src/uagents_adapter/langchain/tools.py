@@ -1,6 +1,7 @@
 """Tool for converting a Langchain agent into a uAgent and registering it on Agentverse."""
 
 import atexit
+import inspect
 import os
 import socket
 import threading
@@ -191,7 +192,7 @@ class LangchainRegisterTool(BaseRegisterTool):
                     result = None
 
                     # Check if agent is a coroutine function (async function)
-                    import inspect
+
 
                     if inspect.iscoroutinefunction(agent):
                         # Agent is async, await it
@@ -267,7 +268,7 @@ class LangchainRegisterTool(BaseRegisterTool):
                                 agent = agent_info["agent_obj"]
 
                                 # Check if agent is a coroutine function (async function)
-                                import inspect
+
 
                                 if inspect.iscoroutinefunction(agent):
                                     # Agent is async, await it
@@ -357,7 +358,7 @@ class LangchainRegisterTool(BaseRegisterTool):
                 # Run the agent with the query
                 try:
                     # Check if agent is a coroutine function (async function)
-                    import inspect
+
 
                     if inspect.iscoroutinefunction(agent):
                         # Agent is async, await it
