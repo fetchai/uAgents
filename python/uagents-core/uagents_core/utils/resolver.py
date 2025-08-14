@@ -14,6 +14,7 @@ from uagents_core.config import (
 from uagents_core.helpers import weighted_random_sample
 from uagents_core.identity import parse_identifier
 from uagents_core.logger import get_logger
+from uagents_core.types import Resolver
 
 logger = get_logger("uagents_core.utils.resolver")
 
@@ -71,3 +72,27 @@ def lookup_endpoint_for_agent(
         )
 
     return []
+
+
+class AlmanacResolver(Resolver):
+    def __init__(
+        self, max_endpoints: int = 1, agentverse_config: AgentverseConfig | None = None
+    ):
+        self.agentverse_config = agentverse_config or AgentverseConfig()
+        self.max_endpoints = max_endpoints
+
+    async def resolve(self, destination: str) -> tuple[str | None, list[str]]:
+        endpoints = lookup_endpoint_for_agent(
+            agent_identifier=destination,
+            max_endpoints=self.max_endpoints,
+            agentverse_config=self.agentverse_config,
+        )
+        return None, endpoints
+
+    def sync_resolve(self, destination: str) -> list[str]:
+        endpoints = lookup_endpoint_for_agent(
+            agent_identifier=destination,
+            max_endpoints=self.max_endpoints,
+            agentverse_config=self.agentverse_config,
+        )
+        return endpoints

@@ -4,9 +4,11 @@ import logging
 import random
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
+from enum import Enum
 
-import requests
+import aiohttp
 from dateutil import parser
+from pydantic import BaseModel
 from uagents_core.helpers import weighted_random_sample
 from uagents_core.identity import parse_identifier
 
@@ -17,7 +19,6 @@ from uagents.config import (
     TESTNET_PREFIX,
 )
 from uagents.network import (
-    AlmanacContract,
     get_almanac_contract,
     get_name_service_contract,
 )
@@ -25,6 +26,33 @@ from uagents.types import AgentNetwork
 from uagents.utils import get_logger
 
 LOGGER: logging.Logger = get_logger("resolver", logging.WARNING)
+
+
+class AgentRecord(BaseModel):
+    address: str
+    weight: float
+
+
+class DomainRecord(BaseModel):
+    name: str
+    agents: list[AgentRecord]
+
+
+class DomainStatus(Enum):
+    Registered = "Registered"
+    Pending = "Pending"
+    Checking = "Checking"
+    Updating = "Updating"
+    Deleting = "Deleting"
+    Failed = "Failed"
+
+
+class Domain(BaseModel):
+    name: str
+    status: DomainStatus
+    expiry: datetime | None = None
+    assigned_agents: list[AgentRecord]
+    network: AgentNetwork = "testnet"
 
 
 def is_valid_prefix(prefix: str) -> bool:
@@ -58,31 +86,32 @@ def parse_prefix(prefix: str) -> AgentNetwork:
     raise ValueError(f"Invalid prefix: {prefix}")
 
 
-def query_record(agent_address: str, service: str, network: AgentNetwork) -> dict:
+def query_record(agent_address: str, network: AgentNetwork) -> dict:
     """
-    Query a record from the Almanac contract.
+    Query an agent record from the Almanac contract.
 
     Args:
         agent_address (str): The address of the agent.
-        service (str): The type of service to query.
         network (AgentNetwork): The network to query (mainnet or testnet).
 
     Returns:
         dict: The query result.
     """
-    contract: AlmanacContract | None = get_almanac_contract(network)
-    if not contract:
-        raise ValueError("Almanac contract not found.")
+
     query_msg = {
-        "query_record": {"agent_address": agent_address, "record_type": service}
+        "query_record": {"agent_address": agent_address, "record_type": "service"}
     }
-    result = contract.query(query_msg)
-    return result
+
+    contract = get_almanac_contract(network)
+    if not contract:
+        raise ValueError(f"Almanac contract not found for {network}.")
+
+    return contract.query(query_msg)
 
 
 def get_agent_address(name: str, network: AgentNetwork) -> str | None:
     """
-    Get the agent address associated with the provided name from the name service contract.
+    Get the agent address associated with the provided domain from the name service contract.
 
     Args:
         name (str): The name to query.
@@ -104,6 +133,32 @@ def get_agent_address(name: str, network: AgentNetwork) -> str | None:
             )
             return selected_address
     return None
+
+
+def build_identifier(
+    prefix: str | None = None, name: str | None = None, address: str | None = None
+) -> str:
+    """
+    Build an agent identifier string from prefix, name, and address.
+
+    Args:
+        prefix (str): The prefix to be used in the identifier.
+        name (str): The name to be used in the identifier.
+        address (str): The address to be used in the identifier.
+
+    Returns:
+        str: The constructed identifier string.
+    """
+
+    identifier = ""
+    if prefix:
+        identifier += f"{prefix}://"
+    if name:
+        identifier += name + ("/" if address else "")
+    if address:
+        identifier += address
+
+    return identifier
 
 
 class Resolver(ABC):
@@ -137,7 +192,7 @@ class GlobalResolver(Resolver):
             max_endpoints=self._max_endpoints, almanac_api_url=almanac_api_url
         )
         self._name_service_resolver = NameServiceResolver(
-            max_endpoints=self._max_endpoints
+            max_endpoints=self._max_endpoints, almanac_api_url=almanac_api_url
         )
 
     async def resolve(self, destination: str) -> tuple[str | None, list[str]]:
@@ -183,8 +238,22 @@ class AlmanacContractResolver(Resolver):
             tuple[str | None, list[str]]: The address and resolved endpoints.
         """
         prefix, _, address = parse_identifier(destination)
-        network = parse_prefix(prefix)
-        result = query_record(agent_address=address, service="service", network=network)
+
+        result: dict | None = None
+        if prefix == MAINNET_PREFIX:
+            result = query_record(agent_address=address, network="mainnet")
+        elif prefix == TESTNET_PREFIX:
+            result = query_record(agent_address=address, network="testnet")
+        elif prefix == "":
+            for network in ["mainnet", "testnet"]:
+                try:
+                    result = query_record(agent_address=address, network="mainnet")
+                    if result is not None:
+                        break
+                except ValueError:
+                    if network == "testnet":
+                        raise
+
         if result is not None:
             record = result.get("record") or {}
             endpoint_list = (
@@ -231,20 +300,25 @@ class AlmanacApiResolver(Resolver):
             tuple[str | None, list[str]]: The address and resolved endpoints.
         """
         try:
-            _, _, address = parse_identifier(destination)
-            response = requests.get(
-                url=f"{self._almanac_api_url}/agents/{address}", timeout=5
-            )
+            prefix, _, address = parse_identifier(destination)
 
-            if response.status_code != 200:
-                if response.status_code != 404:
+            params = {"prefix": prefix} if prefix else None
+            async with (
+                aiohttp.ClientSession() as session,
+                session.get(
+                    url=f"{self._almanac_api_url}/agents/{address}",
+                    params=params,
+                    timeout=aiohttp.ClientTimeout(total=5),
+                ) as response,
+            ):
+                if response.status != 200:
                     LOGGER.debug(
                         f"Failed to resolve agent {address} from {self._almanac_api_url}, "
                         "resolving via Almanac contract..."
                     )
-                return None, []
+                    return None, []
 
-            agent = response.json()
+                agent = await response.json()
 
             expiry_str = agent.get("expiry", None)
             if expiry_str is None:
@@ -289,7 +363,9 @@ class AlmanacApiResolver(Resolver):
 
 
 class NameServiceResolver(Resolver):
-    def __init__(self, max_endpoints: int | None = None):
+    def __init__(
+        self, max_endpoints: int | None = None, almanac_api_url: str | None = None
+    ):
         """
         Initialize the NameServiceResolver.
 
@@ -297,7 +373,58 @@ class NameServiceResolver(Resolver):
             max_endpoints (int | None): The maximum number of endpoints to return.
         """
         self._max_endpoints = max_endpoints or DEFAULT_MAX_ENDPOINTS
-        self._almanac_api_resolver = AlmanacApiResolver(self._max_endpoints)
+        self._almanac_api_url = almanac_api_url
+        self._almanac_api_resolver = AlmanacApiResolver(
+            almanac_api_url=almanac_api_url, max_endpoints=self._max_endpoints
+        )
+
+    async def _api_resolve(self, destination: str) -> tuple[str | None, list[str]]:
+        """
+        Resolve the destination using the Almanac Domains API.
+
+        Args:
+            destination (str): The agent identifier to resolve.
+
+        Returns:
+            Tuple[Optional[str], List[str]]: The address (if available) and resolved endpoints.
+        """
+        try:
+            prefix, domain, _ = parse_identifier(destination)
+
+            params = {"prefix": prefix} if prefix else None
+            async with (
+                aiohttp.ClientSession() as session,
+                session.get(
+                    f"{self._almanac_api_url}/domains/{domain}",
+                    params=params,
+                    timeout=aiohttp.ClientTimeout(total=5),
+                ) as response,
+            ):
+                if response.status != 200:
+                    LOGGER.debug(
+                        f"Failed to resolve name {domain} from {self._almanac_api_url}: "
+                        f"{response.status}: {await response.text()}"
+                    )
+                    return None, []
+
+                domain_record = Domain.model_validate(await response.json())
+
+            agent_records = domain_record.assigned_agents
+            if len(agent_records) == 0:
+                return None, []
+            elif len(agent_records) == 1:
+                address = agent_records[0].address
+            else:
+                addresses = [val.address for val in agent_records]
+                weights = [val.weight for val in agent_records]
+                address = weighted_random_sample(addresses, weights=weights, k=1)[0]
+
+            identifier = build_identifier(prefix=prefix, address=address)
+            return await self._almanac_api_resolver.resolve(identifier)
+
+        except Exception as ex:
+            LOGGER.error(f"Error when resolving {destination}: {ex}")
+            return None, []
 
     async def resolve(self, destination: str) -> tuple[str | None, list[str]]:
         """
@@ -310,10 +437,29 @@ class NameServiceResolver(Resolver):
             tuple[str | None, list[str]]: The address (if available) and resolved endpoints.
         """
         prefix, name, _ = parse_identifier(destination)
-        network = parse_prefix(prefix)
-        address = get_agent_address(name, network)
+
+        api_result = await self._api_resolve(destination)
+
+        if api_result:
+            return api_result
+
+        address: str | None = None
+        if prefix == MAINNET_PREFIX:
+            address = get_agent_address(name, "mainnet")
+        elif prefix == TESTNET_PREFIX:
+            address = get_agent_address(name, "testnet")
+        elif prefix == "":
+            for network in ["mainnet", "testnet"]:
+                address = get_agent_address(name, network)  # type: ignore
+                if address is not None:
+                    break
+        else:
+            raise ValueError(f"Invalid prefix: {prefix}")
+
         if address is not None:
-            return await self._almanac_api_resolver.resolve(address)
+            identifier = build_identifier(prefix=prefix, address=address)
+            return await self._almanac_api_resolver.resolve(identifier)
+
         return None, []
 
 

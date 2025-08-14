@@ -73,6 +73,10 @@ class AgentRegistrationAttestation(VerifiableModel):
     metadata: dict[str, str | list[str] | dict[str, str]] | None = None
 
 
+class AgentRegistrationAttestationBatch(BaseModel):
+    attestations: list[AgentRegistrationAttestation]
+
+
 # Agentverse related models
 class RegistrationRequest(BaseModel):
     address: str

@@ -19,6 +19,7 @@ from uagents_core.logger import get_logger
 from uagents_core.protocol import is_valid_protocol_digest
 from uagents_core.registration import (
     AgentRegistrationAttestation,
+    AgentRegistrationAttestationBatch,
     AgentStatusUpdate,
     AgentUpdates,
     AgentverseConnectRequest,
@@ -27,9 +28,31 @@ from uagents_core.registration import (
     RegistrationRequest,
     RegistrationResponse,
 )
-from uagents_core.types import AgentEndpoint
+from uagents_core.types import AddressPrefix, AgentEndpoint
 
 logger = get_logger("uagents_core.utils.registration")
+
+
+class AgentRegistrationInput:
+    identity: Identity
+    prefix: str | None = None
+    endpoints: list[str]
+    protocol_digests: list[str]
+    metadata: dict[str, str | list[str] | dict[str, str]] | None = None
+
+    def __init__(
+        self,
+        identity: Identity,
+        endpoints: list[str],
+        protocol_digests: list[str],
+        prefix: AddressPrefix | None = None,
+        metadata: dict[str, str | list[str] | dict[str, str]] | None = None,
+    ):
+        self.identity = identity
+        self.prefix = prefix
+        self.endpoints = endpoints
+        self.protocol_digests = protocol_digests
+        self.metadata = metadata
 
 
 def _send_post_request(
@@ -63,11 +86,32 @@ def _send_post_request(
     return False, None
 
 
+def _build_signed_attestation(
+    item: AgentRegistrationInput,
+) -> AgentRegistrationAttestation:
+    agent_endpoints: list[AgentEndpoint] = [
+        AgentEndpoint(url=endpoint, weight=1) for endpoint in item.endpoints
+    ]
+
+    attestation = AgentRegistrationAttestation(
+        agent_identifier=f"{item.prefix}://{item.identity.address}"
+        if item.prefix
+        else item.identity.address,
+        protocols=item.protocol_digests,
+        endpoints=agent_endpoints,
+        metadata=item.metadata,
+    )
+
+    attestation.sign(item.identity)
+    return attestation
+
+
 def register_in_almanac(
     identity: Identity,
     endpoints: list[str],
     protocol_digests: list[str],
     metadata: dict[str, str | list[str] | dict[str, str]] | None = None,
+    prefix: AddressPrefix | None = None,
     *,
     agentverse_config: AgentverseConfig | None = None,
     timeout: int = DEFAULT_REQUEST_TIMEOUT,
@@ -77,6 +121,7 @@ def register_in_almanac(
 
     Args:
         identity (Identity): The identity of the agent.
+        prefix (AddressPrefix | None): The prefix for the agent identifier.
         endpoints (list[str]): The endpoints that the agent can be reached at.
         protocol_digests (list[str]): The digests of the protocol that the agent supports
         agentverse_config (AgentverseConfig): The configuration for the agentverse API
@@ -95,10 +140,6 @@ def register_in_almanac(
             )
             return False
 
-    agent_endpoints: list[AgentEndpoint] = [
-        AgentEndpoint(url=endpoint, weight=1) for endpoint in endpoints
-    ]
-
     # check protocol digests
     for proto_digest in protocol_digests:
         if not is_valid_protocol_digest(proto_digest):
@@ -112,27 +153,111 @@ def register_in_almanac(
     agentverse_config = agentverse_config or AgentverseConfig()
     almanac_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_ALMANAC_API_PATH)
 
-    # get the agent address
-    agent_address = identity.address
-
     # create the attestation
-    attestation = AgentRegistrationAttestation(
-        agent_identifier=agent_address,
-        protocols=protocol_digests,
-        endpoints=agent_endpoints,
+    item = AgentRegistrationInput(
+        identity=identity,
+        prefix=prefix,
+        endpoints=endpoints,
+        protocol_digests=protocol_digests,
         metadata=metadata,
     )
+    attestation = _build_signed_attestation(item)
 
     logger.info(msg="Registering with Almanac API", extra=attestation.model_dump())
-
-    # sign the attestation
-    attestation.sign(identity)
 
     # submit the attestation to the API
     status, _ = _send_post_request(
         url=f"{almanac_api}/agents", data=attestation, timeout=timeout
     )
     return status
+
+
+def register_batch_in_almanac(
+    items: list[AgentRegistrationInput],
+    *,
+    agentverse_config: AgentverseConfig | None = None,
+    timeout: int = DEFAULT_REQUEST_TIMEOUT,
+    validate_all_before_registration: bool = False,
+) -> tuple[bool, list[str]]:
+    """
+    Register multiple identities with the Almanac API to make them discoverable by other agents.
+
+    The return value is a 2-tuple including:
+    * (bool) Whether the registration request was both attempted and successful.
+    * (list[str]) A list of addresses of identities that failed validation.
+
+    If `validate_all_before_registration` is `True`, no registration request will be sent
+    unless all identities pass validation.
+
+    Args:
+        items (list[AgentRegistrationInput]): The list of identities to register.
+            See `register_in_almanac` for details about attributes in `AgentRegistrationInput`.
+        agentverse_config (AgentverseConfig): The configuration for the agentverse API
+        timeout (int): The timeout for the request
+    """
+    invalid_identities: list[str] = []
+    attestations: list[AgentRegistrationAttestation] = []
+
+    for item in items:
+        # check endpoints
+        if not item.endpoints:
+            logger.warning(
+                f"No endpoints provided for {item.identity.address}; skipping registration",
+            )
+            invalid_identities.append(item.identity.address)
+        for endpoint in item.endpoints:
+            result = urllib.parse.urlparse(endpoint)
+            if not all([result.scheme, result.netloc]):
+                logger.error(
+                    msg=f"Invalid endpoint provided for {item.identity.address}; "
+                    + "skipping registration",
+                    extra={"endpoint": endpoint},
+                )
+                invalid_identities.append(item.identity.address)
+
+        # check protocol digests
+        for proto_digest in item.protocol_digests:
+            if not is_valid_protocol_digest(proto_digest):
+                logger.error(
+                    msg=f"Invalid protocol digest provided for {item.identity.address}; "
+                    + "skipping registration",
+                    extra={"protocol_digest": proto_digest},
+                )
+                invalid_identities.append(item.identity.address)
+
+    # Remove duplicates
+    invalid_identities = sorted(list(set(invalid_identities)))
+
+    for item in items:
+        if item.identity.address not in invalid_identities:
+            attestations.append(_build_signed_attestation(item))
+
+    if validate_all_before_registration and invalid_identities:
+        return False, invalid_identities
+
+    # get the almanac API endpoint
+    agentverse_config = agentverse_config or AgentverseConfig()
+    almanac_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_ALMANAC_API_PATH)
+
+    logger.info(
+        msg="Bulk registering with Almanac API",
+        extra={
+            "agent_addresses": [
+                attestation.agent_identifier for attestation in attestations
+            ]
+        },
+    )
+    attestation_batch = AgentRegistrationAttestationBatch(
+        attestations=attestations,
+    )
+
+    # submit the attestation to the API
+    status, _ = _send_post_request(
+        url=f"{almanac_api}/agents/batch",
+        data=attestation_batch,
+        timeout=timeout,
+    )
+    return status, invalid_identities
 
 
 # associate user account with your agent

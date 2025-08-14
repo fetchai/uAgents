@@ -2,8 +2,9 @@
 This module contains the protocol specification for the agent chat protocol.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal, TypedDict
+from uuid import uuid4
 
 from pydantic.v1 import UUID4
 
@@ -27,6 +28,9 @@ class TextContent(Model):
     # markdown based formatting can be used and will be supported by most clients
     text: str
 
+    def __init__(self, text: str, type: str = "text"):
+        super().__init__(type=type, text=text)
+
 
 class Resource(Model):
     # the uri of the resource
@@ -35,6 +39,9 @@ class Resource(Model):
     # the set of metadata for this resource, for more detailed description of the set of
     # fields see `docs/metadata.md`
     metadata: dict[str, str]
+
+    def __init__(self, uri: str, metadata: dict[str, str] | None = None):
+        super().__init__(uri=uri, metadata=metadata or {})
 
 
 class ResourceContent(Model):
@@ -51,6 +58,14 @@ class ResourceContent(Model):
     # considered the primary resource
     resource: Resource | list[Resource]
 
+    def __init__(
+        self,
+        resource_id: UUID4,
+        resource: Resource | list[Resource],
+        type: str = "resource",
+    ):
+        super().__init__(type=type, resource_id=resource_id, resource=resource)
+
 
 class MetadataContent(Model):
     type: Literal["metadata"]
@@ -59,13 +74,22 @@ class MetadataContent(Model):
     # fields see `docs/metadata.md`
     metadata: dict[str, str]
 
+    def __init__(self, metadata: dict[str, str], type: str = "metadata"):
+        super().__init__(type=type, metadata=metadata)
+
 
 class StartSessionContent(Model):
     type: Literal["start-session"]
 
+    def __init__(self, type: str = "start-session"):
+        super().__init__(type=type)
+
 
 class EndSessionContent(Model):
     type: Literal["end-session"]
+
+    def __init__(self, type: str = "end-session"):
+        super().__init__(type=type)
 
 
 class StartStreamContent(Model):
@@ -73,11 +97,17 @@ class StartStreamContent(Model):
 
     stream_id: UUID4
 
+    def __init__(self, stream_id: UUID4, type: str = "start-stream"):
+        super().__init__(type=type, stream_id=stream_id)
+
 
 class EndStreamContent(Model):
     type: Literal["end-stream"]
 
     stream_id: UUID4
+
+    def __init__(self, stream_id: UUID4, type: str = "end-stream"):
+        super().__init__(type=type, stream_id=stream_id)
 
 
 # The combined agent content types
@@ -102,6 +132,16 @@ class ChatMessage(Model):
     # the list of content elements in the chat
     content: list[AgentContent]
 
+    def __init__(
+        self,
+        content: list[AgentContent],
+        msg_id: UUID4 | None = None,
+        timestamp: datetime | None = None,
+    ):
+        msg_id = msg_id or uuid4()
+        timestamp = timestamp or datetime.now(timezone.utc)
+        super().__init__(timestamp=timestamp, msg_id=msg_id, content=content)
+
 
 class ChatAcknowledgement(Model):
     # the timestamp for the message, should be in UTC
@@ -112,6 +152,19 @@ class ChatAcknowledgement(Model):
 
     # optional acknowledgement metadata
     metadata: dict[str, str] | None = None
+
+    def __init__(
+        self,
+        acknowledged_msg_id: UUID4,
+        metadata: dict[str, str] | None = None,
+        timestamp: datetime | None = None,
+    ):
+        timestamp = timestamp or datetime.now(timezone.utc)
+        super().__init__(
+            timestamp=timestamp,
+            acknowledged_msg_id=acknowledged_msg_id,
+            metadata=metadata,
+        )
 
 
 chat_protocol_spec = ProtocolSpecification(
