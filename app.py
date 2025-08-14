@@ -26,7 +26,6 @@ from src.core.super_hybrid_agent import SuperHybridAgent
 from src.services.memory_service import MemoryService
 from src.services.voice_service import VoiceService
 from src.services.file_service import FileService
-from src.utils.logger import setup_logger # هذا الاستيراد قد لا يكون ضرورياً إذا كنت تستخدم logging.basicConfig مباشرة
 from src.utils.security import SecurityManager
 
 # إعداد التسجيل
