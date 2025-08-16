@@ -19,7 +19,7 @@ from uagents_core.config import AgentverseConfig
 from uagents_core.identity import Identity, derive_key_from_seed, is_user_address
 from uagents_core.models import ErrorMessage, Model
 from uagents_core.registration import AgentUpdates
-from uagents_core.types import AddressPrefix, AgentEndpoint, AgentInfo
+from uagents_core.types import AddressPrefix, AgentEndpoint, AgentInfo, AgentType
 
 from uagents.asgi import ASGIServer
 from uagents.communication import Dispenser
@@ -441,6 +441,8 @@ class Agent(Sink):
                     endpoints=self._endpoints,
                     protocols=list(self.protocols.keys()),
                     metadata=self.metadata,
+                    agent_type=self.agent_type,
+                    port=self._port,
                 )
 
             @self.on_rest_get("/messages", EnvelopeHistoryResponse)  # type: ignore
@@ -698,6 +700,21 @@ class Agent(Sink):
         return self.ledger.query_bank_balance(Address(self.wallet.address()))
 
     @property
+    def agent_type(self) -> AgentType:
+        """
+        Get the type of the agent.
+
+        Returns:
+            AgentType: The type of the agent.
+        """
+        endpoints = [ep.url for ep in self._endpoints]
+        if self.agentverse.mailbox_endpoint in endpoints:
+            return "mailbox"
+        elif self.agentverse.proxy_endpoint in endpoints:
+            return "proxy"
+        return "custom"
+
+    @property
     def info(self) -> AgentInfo:
         """
         Get basic information about the agent.
@@ -711,6 +728,8 @@ class Agent(Sink):
             endpoints=self._endpoints,
             protocols=list(self.protocols.keys()),
             metadata=self.metadata,
+            agent_type=self.agent_type,
+            port=self._port,
         )
 
     @property
