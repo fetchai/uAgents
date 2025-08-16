@@ -71,14 +71,6 @@ from typing import Any
 
 from uagents import Model
 
-# Import the protocol implementation
-from .protocol import (
-    X402Config,
-    X402PaymentProtocol,
-    create_mainnet_config,
-    create_testnet_config,
-)
-
 
 # Payment Models
 class X402Network(str, Enum):
@@ -154,6 +146,14 @@ class PaymentNotification(Model):
     service_endpoint: str
     timestamp: datetime
 
+
+# Import the protocol implementation at the bottom to avoid circular imports
+from .protocol import (  # noqa: E402, F401
+    X402Config,
+    X402PaymentProtocol,
+    create_mainnet_config,
+    create_testnet_config,
+)
 
 __all__ = [
     "X402PaymentProtocol",
