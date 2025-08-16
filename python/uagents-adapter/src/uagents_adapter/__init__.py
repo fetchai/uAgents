@@ -2,10 +2,30 @@
 
 from importlib import metadata
 
+# Import common utilities (should always be available)
 from .common import ResponseMessage, cleanup_all_uagents, cleanup_uagent
-from .crewai import CrewaiRegisterTool
-from .langchain import LangchainRegisterTool
-from .mcp import MCPServerAdapter
+
+# Try to import optional adapters
+try:
+    from .crewai import CrewaiRegisterTool
+    _CREWAI_AVAILABLE = True
+except ImportError:
+    CrewaiRegisterTool = None
+    _CREWAI_AVAILABLE = False
+
+try:
+    from .langchain import LangchainRegisterTool
+    _LANGCHAIN_AVAILABLE = True
+except ImportError:
+    LangchainRegisterTool = None
+    _LANGCHAIN_AVAILABLE = False
+
+try:
+    from .mcp import MCPServerAdapter
+    _MCP_AVAILABLE = True
+except ImportError:
+    MCPServerAdapter = None
+    _MCP_AVAILABLE = False
 
 try:
     __version__ = metadata.version(__package__)
@@ -16,11 +36,16 @@ del metadata  # optional, avoids polluting the results of dir(__package__)
 
 
 __all__ = [
-    "LangchainRegisterTool",
-    "CrewaiRegisterTool",
-    "MCPServerAdapter",
     "ResponseMessage",
     "cleanup_uagent",
     "cleanup_all_uagents",
     "__version__",
 ]
+
+# Add available adapters to __all__
+if _LANGCHAIN_AVAILABLE:
+    __all__.append("LangchainRegisterTool")
+if _CREWAI_AVAILABLE:
+    __all__.append("CrewaiRegisterTool")
+if _MCP_AVAILABLE:
+    __all__.append("MCPServerAdapter")

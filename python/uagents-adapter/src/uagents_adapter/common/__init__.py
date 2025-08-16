@@ -10,8 +10,6 @@ from typing import Any, Dict, Type
 from uuid import uuid4
 
 import requests
-from langchain_core.callbacks import CallbackManagerForToolRun
-from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 from uagents import Agent, Context, Model, Protocol
 from uagents_core.contrib.protocols.chat import (
@@ -21,6 +19,21 @@ from uagents_core.contrib.protocols.chat import (
     TextContent,
     chat_protocol_spec,
 )
+
+# Try to import langchain_core components, but make them optional
+try:
+    from langchain_core.callbacks import CallbackManagerForToolRun
+    from langchain_core.tools import BaseTool
+    _LANGCHAIN_AVAILABLE = True
+except ImportError:
+    # Create placeholder classes if langchain is not available
+    CallbackManagerForToolRun = None
+    class BaseTool:
+        """Placeholder BaseTool when langchain is not available."""
+        name: str = "placeholder"
+        description: str = "Placeholder tool"
+        args_schema: Type[BaseModel] = BaseModel
+    _LANGCHAIN_AVAILABLE = False
 
 # Dictionary to keep track of all running uAgents
 RUNNING_UAGENTS: Dict[str, Dict[str, Any]] = {}
@@ -263,7 +276,7 @@ class BaseRegisterTool(BaseTool):
         ai_agent_address: str | None = None,
         mailbox: bool = True,
         *,
-        run_manager: CallbackManagerForToolRun | None = None,
+        run_manager=None,  # Type hint removed to avoid import issues
     ) -> str:
         """Run the tool asynchronously."""
         return self._run_base(
