@@ -3,7 +3,17 @@
 import logging
 from typing import Any, Dict, List
 
+import uvicorn
+from a2a.server.apps import A2AStarletteApplication
+from a2a.server.request_handlers import DefaultRequestHandler
+from a2a.server.tasks import (
+    InMemoryPushNotificationConfigStore,
+    InMemoryTaskStore,
+)
+from a2a.types import AgentCapabilities, AgentCard, AgentSkill
 from pydantic import BaseModel
+
+from .agentverse_executor import AgentverseAgentExecutor
 
 
 class A2ARegisterTool(BaseModel):
@@ -86,16 +96,7 @@ class A2ARegisterTool(BaseModel):
     ) -> Dict[str, Any]:
         """Start the A2A server with the given parameters."""
 
-        import uvicorn
-        from a2a.server.apps import A2AStarletteApplication
-        from a2a.server.request_handlers import DefaultRequestHandler
-        from a2a.server.tasks import (
-            InMemoryPushNotificationConfigStore,
-            InMemoryTaskStore,
-        )
-        from a2a.types import AgentCapabilities, AgentCard, AgentSkill
 
-        from .agentverse_executor import AgentverseAgentExecutor
 
         try:
             # Create agent capabilities
