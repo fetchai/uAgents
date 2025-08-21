@@ -452,6 +452,7 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
             endpoints=agent_info.endpoints,
             contract_address=str(self._almanac_contract.address),
             sender_address=str(self._wallet.address()),
+            agent_type=agent_info.agent_type,
         )
         self._records.append(agent_record)
         self._identities[agent_info.address] = identity

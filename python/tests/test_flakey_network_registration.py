@@ -286,6 +286,7 @@ class FlakeyBatchNetworkRegistrationTests(unittest.IsolatedAsyncioTestCase):
             endpoints=[],
             protocols=[],
             metadata={},
+            agent_type="custom",
         )
         self.policy.add_agent(info, self.identity)
 
