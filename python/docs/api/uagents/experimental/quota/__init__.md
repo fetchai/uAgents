@@ -71,7 +71,7 @@ async def message_handler(ctx: Context, sender: str, msg: Message):
 
 
 
-## QuotaProtocol Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L105)
+## QuotaProtocol Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L106)
 
 ```python
 class QuotaProtocol(Protocol)
@@ -79,11 +79,13 @@ class QuotaProtocol(Protocol)
 
 
 
-#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L106)
+#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L107)
 ```python
 def __init__(storage_reference: StorageAPI,
              name: str | None = None,
              version: str | None = None,
+             spec: ProtocolSpecification | None = None,
+             role: str | None = None,
              default_rate_limit: RateLimit | None = None,
              default_acl: AccessControlList | None = None)
 ```
@@ -95,12 +97,14 @@ Initialize a QuotaProtocol instance.
 - `storage_reference` _StorageAPI_ - The storage reference to use for rate limiting.
 - `name` _str | None_ - The name of the protocol. Defaults to None.
 - `version` _str | None_ - The version of the protocol. Defaults to None.
+- `spec` _ProtocolSpecification | None_ - The protocol specification. Defaults to None.
+- `role` _str | None_ - The role of the protocol. Defaults to None.
 - `default_rate_limit` _RateLimit | None_ - The default rate limit. Defaults to None.
 - `default_acl` _AccessControlList | None_ - The access control list. Defaults to None.
 
 
 
-#### on_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L129)
+#### on_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L134)
 ```python
 def on_message(
         model: type[Model],
@@ -128,7 +132,7 @@ including rate limiting.
 
 
 
-#### wrap[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L159)
+#### wrap[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L164)
 ```python
 def wrap(func: MessageCallback,
          rate_limit: RateLimit | None = None,
@@ -150,7 +154,7 @@ Decorator to wrap a function with rate limiting.
 
 
 
-#### add_request[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L227)
+#### add_request[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/quota/__init__.py#L232)
 ```python
 def add_request(agent_address: str, function_name: str,
                 window_size_minutes: int, max_requests: int) -> bool
