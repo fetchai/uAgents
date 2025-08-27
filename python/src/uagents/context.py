@@ -630,7 +630,7 @@ class InternalContext(Context):
             )
             return None, msg_status
 
-        response_msg: JsonStr | None = await dispatcher.wait_for_response(
+        response_msg: MsgInfo | None = await dispatcher.wait_for_response(
             self.agent.address, parsed_address, self._session, timeout
         )
 
@@ -650,13 +650,12 @@ class InternalContext(Context):
 
         response: Model | None = None
         for r_type in response_types:
-            try:
-                parsed: Model = r_type.parse_raw(response_msg)
-                if parsed:
-                    response = parsed
+            if response_msg.schema_digest == Model.build_schema_digest(r_type):
+                try:
+                    response = r_type.parse_raw(response_msg.message)
                     break
-            except ValidationError:
-                pass
+                except ValidationError:
+                    pass
 
         if response is None:
             log(

@@ -416,7 +416,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             sender=self.clyde.address,
             target=self.alice.address,
             session=context.session,
-            schema_digest=msg_digest,
+            schema_digest=incoming_digest,
         )
         env.encode_payload(incoming.model_dump_json())
         env.sign(self.clyde._identity)
