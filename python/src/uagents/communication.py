@@ -182,6 +182,7 @@ async def dispatch_sync_response_envelope(
         sender=env.sender,
         destination=env.target,
         session=env.session,
+        schema_digest=env.schema_digest,
         message=env.decode_payload(),
     ):
         return MsgStatus(
