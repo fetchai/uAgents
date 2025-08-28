@@ -2,12 +2,17 @@ import hashlib
 import json
 import time
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any
 
 from pydantic import AliasChoices, BaseModel, Field
-
 from uagents_core.identity import Identity, parse_identifier
 from uagents_core.types import AddressPrefix, AgentEndpoint, AgentInfo, AgentType
+
+
+class AgentRegistration(BaseModel):
+    agent_address: str
+    expiry: datetime
 
 
 class AgentRegistrationPolicy(ABC):
@@ -19,13 +24,13 @@ class AgentRegistrationPolicy(ABC):
         protocols: list[str],
         endpoints: list[AgentEndpoint],
         metadata: dict[str, Any] | None = None,
-    ):
+    ) -> AgentRegistration | None:
         raise NotImplementedError
 
 
 class BatchRegistrationPolicy(ABC):
     @abstractmethod
-    async def register(self):
+    async def register(self) -> list[AgentRegistration] | None:
         raise NotImplementedError
 
     @abstractmethod
