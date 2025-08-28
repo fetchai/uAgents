@@ -14,9 +14,10 @@ from uagents_core.config import (
     DEFAULT_REQUEST_TIMEOUT,
     AgentverseConfig,
 )
+from uagents_core.contrib.protocols.chat import chat_protocol_spec
 from uagents_core.identity import Identity
 from uagents_core.logger import get_logger
-from uagents_core.protocol import is_valid_protocol_digest
+from uagents_core.protocol import ProtocolSpecification, is_valid_protocol_digest
 from uagents_core.registration import (
     AgentRegistrationAttestation,
     AgentRegistrationAttestationBatch,
@@ -28,7 +29,7 @@ from uagents_core.registration import (
     RegistrationRequest,
     RegistrationResponse,
 )
-from uagents_core.types import AddressPrefix, AgentEndpoint
+from uagents_core.types import AddressPrefix, AgentEndpoint, AgentType
 
 logger = get_logger("uagents_core.utils.registration")
 
@@ -429,3 +430,20 @@ def update_agent_status(active: bool, identity: Identity):
         )
 
     return status
+
+
+def register_agent(
+    user_token: str, identity: Identity, endpoint: str, name: str, type: AgentType
+):
+    request = AgentverseConnectRequest(
+        user_token=user_token, agent_type=type, endpoint=endpoint
+    )
+
+    details = AgentUpdates(name=name, agent_type=type)
+
+    register_in_agentverse(request, identity, agent_details=details)
+    register_in_almanac(
+        identity,
+        [endpoint],
+        [ProtocolSpecification.compute_digest(chat_protocol_spec.manifest())],
+    )
