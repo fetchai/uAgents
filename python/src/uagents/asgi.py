@@ -297,7 +297,7 @@ class ASGIServer:
         )
         if handlers:
             if (
-                request_path in RESERVED_ENDPOINTS
+                request_path in set(RESERVED_ENDPOINTS) - {"/agent_info"}
                 and "127.0.0.1" not in scope["client"]
             ):
                 await self._asgi_send(

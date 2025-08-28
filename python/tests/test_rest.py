@@ -258,7 +258,7 @@ async def test_inspector_rest_wrong_client():
             scope={
                 "type": "http",
                 "method": "GET",
-                "path": "/agent_info",
+                "path": "/messages",
                 "client": ("agentverse.ai",),
             },
             receive=None,
