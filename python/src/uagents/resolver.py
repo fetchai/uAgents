@@ -52,7 +52,6 @@ class Domain(BaseModel):
     status: DomainStatus
     expiry: datetime | None = None
     assigned_agents: list[AgentRecord]
-    network: AgentNetwork = "testnet"
 
 
 def is_valid_prefix(prefix: str) -> bool:
