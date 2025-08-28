@@ -365,6 +365,20 @@ Get the balance of the agent.
 
 
 
+#### agent_type
+```python
+@property
+def agent_type() -> AgentType
+```
+
+Get the type of the agent.
+
+**Returns**:
+
+- `AgentType` - The type of the agent.
+
+
+
 #### info
 ```python
 @property

@@ -23,6 +23,8 @@ class AgentInfo(BaseModel):
     endpoints: list[AgentEndpoint]
     protocols: list[str]
     metadata: dict[str, Any] | None = None
+    agent_type: AgentType
+    port: int | None = None
 
 
 class AgentRecord(BaseModel):

@@ -6,7 +6,7 @@ from uuid import UUID
 
 from uagents_core.models import Model
 
-from uagents.types import JsonStr, RestMethod
+from uagents.types import JsonStr, MsgInfo, RestMethod
 
 PendingResponseKey = tuple[str, str, UUID]
 
@@ -36,14 +36,14 @@ class Dispatcher:
 
     def __init__(self):
         self._sinks: dict[str, set[Sink]] = {}
-        self._pending_responses: dict[PendingResponseKey, Future[JsonStr]] = {}
+        self._pending_responses: dict[PendingResponseKey, Future[MsgInfo]] = {}
 
     @property
     def sinks(self) -> dict[str, set[Sink]]:
         return self._sinks
 
     @property
-    def pending_responses(self) -> dict[PendingResponseKey, Future[JsonStr]]:
+    def pending_responses(self) -> dict[PendingResponseKey, Future[MsgInfo]]:
         return self._pending_responses
 
     def register_pending_response(self, sender: str, destination: str, session: UUID):
@@ -58,7 +58,7 @@ class Dispatcher:
 
     async def wait_for_response(
         self, sender: str, destination: str, session: UUID, timeout: float
-    ) -> JsonStr | None:
+    ) -> MsgInfo | None:
         key: tuple[str, str, UUID] = (sender, destination, session)
         try:
             response = await asyncio.wait_for(self._pending_responses[key], timeout)
@@ -68,11 +68,17 @@ class Dispatcher:
         return response
 
     def dispatch_pending_response(
-        self, sender: str, destination: str, session: UUID, message: JsonStr
+        self,
+        sender: str,
+        destination: str,
+        session: UUID,
+        schema_digest: str,
+        message: JsonStr,
     ) -> bool:
         key = (destination, sender, session)
+        response = MsgInfo(message=message, sender=sender, schema_digest=schema_digest)
         if key in self._pending_responses:
-            self._pending_responses[key].set_result(message)
+            self._pending_responses[key].set_result(response)
             return True
         return False
 
@@ -100,7 +106,9 @@ class Dispatcher:
         message: JsonStr,
         session: UUID,
     ) -> None:
-        if self.dispatch_pending_response(sender, destination, session, message):
+        if self.dispatch_pending_response(
+            sender, destination, session, schema_digest, message
+        ):
             return
         for handler in self._sinks.get(destination, set()):
             await handler.handle_message(sender, schema_digest, message, session)
