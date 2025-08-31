@@ -129,6 +129,33 @@ async def _send_error_message(ctx: Context, destination: str, msg: ErrorMessage)
     await ctx.send(destination=destination, message=msg)
 
 
+class WalletAddress:
+    """
+    A lightweight wrapper for wallet addresses that exposes only the address method.
+    
+    This class provides a secure way to access wallet addresses without exposing
+    sensitive private key information from the full LocalWallet.
+    """
+    
+    def __init__(self, address: str):
+        """
+        Initialize the WalletAddress wrapper.
+        
+        Args:
+            address (str): The wallet address string.
+        """
+        self._address = address
+    
+    def address(self) -> str:
+        """
+        Get the wallet address.
+        
+        Returns:
+            str: The wallet address.
+        """
+        return self._address
+
+
 class AgentRepresentation:
     """
     Represents an agent in the context of a message.
@@ -137,12 +164,14 @@ class AgentRepresentation:
         _address (str): The address of the agent.
         _name (str | None): The name of the agent.
         _identity (Identity): The identity of the agent.
+        _wallet_address (str | None): The wallet address of the agent.
 
     Properties:
         name (str): The name of the agent.
         address (str): The address of the agent.
         identifier (str): The agent's address and network prefix.
         identity (Identity): The identity of the agent.
+        wallet (WalletAddress | None): The wallet address wrapper.
     """
 
     def __init__(
@@ -150,6 +179,7 @@ class AgentRepresentation:
         address: str,
         name: str | None,
         identity: Identity,
+        wallet_address: str | None = None,
     ) -> None:
         """
         Initialize the AgentRepresentation instance.
@@ -158,10 +188,12 @@ class AgentRepresentation:
             address (str): The address of the context.
             name (str | None): The optional name associated with the context.
             identity (Identity): The identity of the agent.
+            wallet_address (str | None): The wallet address of the agent.
         """
         self._address = address
         self._name = name
         self._identity = identity
+        self._wallet_address = wallet_address
 
     @property
     def name(self) -> str:
@@ -204,6 +236,18 @@ class AgentRepresentation:
             Identity: The identity of the agent.
         """
         return self._identity
+
+    @property
+    def wallet(self) -> WalletAddress | None:
+        """
+        Get the wallet address wrapper associated with the agent.
+
+        Returns:
+            WalletAddress | None: The wallet address wrapper.
+        """
+        if self._wallet_address:
+            return WalletAddress(self._wallet_address)
+        return None
 
 
 class Agent(Sink):
@@ -505,6 +549,7 @@ class Agent(Sink):
                 address=self.address,
                 name=self._name,
                 identity=self._identity,
+                wallet_address=self._wallet.address(),
             ),
             storage=self._storage,
             ledger=self._ledger,
@@ -1284,6 +1329,7 @@ class Agent(Sink):
                     address=self.address,
                     name=self._name,
                     identity=self._identity,
+                    wallet_address=self._wallet.address(),
                 ),
                 storage=self._storage,
                 ledger=self._ledger,
