@@ -644,13 +644,25 @@ def register_agent(
 
 
 def register_chat_agent(
-    name: str, endpoint: str, active: bool, credentials: RegistrationRequestCredentials
+    name: str,
+    endpoint: str,
+    active: bool,
+    credentials: RegistrationRequestCredentials,
+    description: str | None = None,
+    readme: str | None = None,
+    avatar_url: str | None = None,
 ):
     chat_protocol = [
         ProtocolSpecification.compute_digest(chat_protocol_spec.manifest())
     ]
     request = AgentverseRegistrationRequest(
-        name=name, endpoint=endpoint, protocols=chat_protocol, active=active
+        name=name,
+        endpoint=endpoint,
+        protocols=chat_protocol,
+        active=active,
+        description=description,
+        readme=readme,
+        avatar_url=avatar_url,
     )
     config = AgentverseConfig()
 
