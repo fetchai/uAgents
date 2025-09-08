@@ -643,7 +643,7 @@ def register_agent(
             logger.warning(f"failed to set agent as active. {str(e)}")
 
 
-def register_external_chat_agent(
+def register_chat_agent(
     name: str, endpoint: str, active: bool, credentials: RegistrationRequestCredentials
 ):
     chat_protocol = [
