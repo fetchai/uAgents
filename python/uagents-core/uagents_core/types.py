@@ -1,5 +1,6 @@
 import uuid
 from abc import ABC, abstractmethod
+from datetime import datetime
 from enum import Enum
 from typing import Any, Literal
 
@@ -24,6 +25,32 @@ class AgentInfo(BaseModel):
     metadata: dict[str, Any] | None = None
     agent_type: AgentType
     port: int | None = None
+
+
+class AgentRecord(BaseModel):
+    address: str
+    weight: float
+
+
+class DomainRecord(BaseModel):
+    name: str
+    agents: list[AgentRecord]
+
+
+class DomainStatus(Enum):
+    Registered = "Registered"
+    Pending = "Pending"
+    Checking = "Checking"
+    Updating = "Updating"
+    Deleting = "Deleting"
+    Failed = "Failed"
+
+
+class Domain(BaseModel):
+    name: str
+    status: DomainStatus
+    expiry: datetime | None = None
+    assigned_agents: list[AgentRecord]
 
 
 class DeliveryStatus(str, Enum):
