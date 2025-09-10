@@ -14,9 +14,53 @@ from uagents_core.config import (
 from uagents_core.helpers import weighted_random_sample
 from uagents_core.identity import parse_identifier
 from uagents_core.logger import get_logger
-from uagents_core.types import Resolver
+from uagents_core.types import Domain, Resolver
 
 logger = get_logger("uagents_core.utils.resolver")
+
+
+def lookup_address_for_domain(
+    agent_identifier: str,
+    *,
+    agentverse_config: AgentverseConfig | None = None,
+) -> str | None:
+    agentverse_config = agentverse_config or AgentverseConfig()
+    almanac_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_ALMANAC_API_PATH)
+
+    prefix, domain, _ = parse_identifier(agent_identifier)
+    if not domain:
+        logger.error(
+            "No domain provided in agent identifier",
+            extra={"identifier": agent_identifier},
+        )
+        return None
+
+    params = {"prefix": prefix} if prefix else None
+    try:
+        response = requests.get(
+            url=f"{almanac_api}/domains/{domain}",
+            timeout=DEFAULT_REQUEST_TIMEOUT,
+            params=params,
+        )
+        response.raise_for_status()
+    except requests.RequestException as e:
+        logger.error(
+            msg="Error looking up domain",
+            extra={"domain": domain, "exception": str(e)},
+        )
+        return None
+
+    domain_record = Domain.model_validate(response.json())
+
+    agent_records = domain_record.assigned_agents
+    if len(agent_records) == 0:
+        return None
+    elif len(agent_records) == 1:
+        return agent_records[0].address
+    else:
+        addresses = [val.address for val in agent_records]
+        weights = [val.weight for val in agent_records]
+        return weighted_random_sample(addresses, weights=weights, k=1)[0]
 
 
 def lookup_endpoint_for_agent(
@@ -34,10 +78,24 @@ def lookup_endpoint_for_agent(
     Returns:
         List[str]: The endpoint(s) for the agent.
     """
-    _, _, agent_address = parse_identifier(agent_identifier)
 
     agentverse_config = agentverse_config or AgentverseConfig()
     almanac_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_ALMANAC_API_PATH)
+
+    prefix, domain, agent_address = parse_identifier(agent_identifier)
+
+    if not agent_address:
+        if domain:
+            agent_address = lookup_address_for_domain(
+                agent_identifier=agent_identifier,
+                agentverse_config=agentverse_config,
+            )
+        else:
+            logger.error(
+                "No address or domain provided in identifier",
+                extra={"identifier": agent_identifier},
+            )
+            return []
 
     request_meta: dict[str, Any] = {
         "agent_address": agent_address,
@@ -45,8 +103,11 @@ def lookup_endpoint_for_agent(
     }
     logger.debug(msg="looking up endpoint for agent", extra=request_meta)
     try:
+        params = {"prefix": prefix} if prefix else None
         response = requests.get(
-            url=f"{almanac_api}/agents/{agent_address}", timeout=DEFAULT_REQUEST_TIMEOUT
+            url=f"{almanac_api}/agents/{agent_address}",
+            params=params,
+            timeout=DEFAULT_REQUEST_TIMEOUT,
         )
         response.raise_for_status()
     except requests.RequestException as e:
