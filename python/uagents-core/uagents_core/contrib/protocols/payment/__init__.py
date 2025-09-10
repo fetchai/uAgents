@@ -10,7 +10,7 @@ class Funds(Model):
     currency: str
 
     # payment method (skyfire, fet_direct)
-    payment_method: str = "skyfire"
+    payment_method: str = "fet_direct"
 
 
 class RequestPayment(Model):
