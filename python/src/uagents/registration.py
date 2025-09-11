@@ -15,6 +15,7 @@ from cosmpy.crypto.address import Address
 from pydantic import BaseModel
 from uagents_core.identity import Identity, parse_identifier
 from uagents_core.registration import (
+    AgentRegistration,
     AgentRegistrationAttestation,
     AgentRegistrationPolicy,
     BatchRegistrationPolicy,
@@ -80,7 +81,7 @@ async def almanac_api_post(
     timeout: float | None = None,
     max_retries: int | None = None,
     retry_delay: RetryDelayFunc | None = None,
-) -> bool:
+) -> dict[str, Any] | None:
     """Send a POST request to the Almanac API."""
     timeout_seconds = timeout or ALMANAC_API_TIMEOUT_SECONDS
     num_retries = max_retries or ALMANAC_API_MAX_RETRIES
@@ -96,13 +97,13 @@ async def almanac_api_post(
                     timeout=aiohttp.ClientTimeout(total=timeout_seconds),
                 ) as resp:
                     resp.raise_for_status()
-                    return True
+                    return resp.json()
             except (aiohttp.ClientError, asyncio.exceptions.TimeoutError) as e:
                 if retry + 1 >= num_retries:
                     raise e
 
                 await asyncio.sleep(retry_delay_func(retry))
-    return False
+    return None
 
 
 class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
@@ -133,7 +134,7 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         protocols: list[str],
         endpoints: list[AgentEndpoint],
         metadata: dict[str, Any] | None = None,
-    ):
+    ) -> AgentRegistration | None:
         # create the attestation
         attestation = AgentRegistrationAttestation(
             agent_identifier=agent_identifier,
@@ -146,20 +147,23 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
         attestation.sign(identity)
 
         try:
-            success = await almanac_api_post(
+            response = await almanac_api_post(
                 url=f"{self._almanac_api}/agents",
                 data=attestation,
                 timeout=self._timeout,
                 max_retries=self._max_retries,
                 retry_delay=self._retry_delay,
             )
-            if success:
+            if response:
                 self._logger.info("Registration on Almanac API successful")
                 self._last_successful_registration = datetime.now()
+                return AgentRegistration.model_validate(response.json())
             else:
                 self._logger.warning("Registration on Almanac API failed")
         except Exception:
             self._logger.warning("Registration on Almanac API failed")
+
+        return None
 
 
 class BatchAlmanacApiRegistrationPolicy(BatchRegistrationPolicy):
