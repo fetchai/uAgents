@@ -2,7 +2,6 @@
 
 import json
 import os
-import socket
 import threading
 import time
 from datetime import datetime
@@ -135,34 +134,7 @@ class CrewaiRegisterTool(BaseRegisterTool):
         super().__init__(**kwargs)
         # Cleanup handler is already registered at module level
 
-    def _find_available_port(
-        self, preferred_port=None, start_range=8000, end_range=9000
-    ):
-        """Find an available port to use for the agent."""
-        # Try the preferred port first
-        if preferred_port is not None:
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.bind(("", preferred_port))
-                    return preferred_port
-            except OSError:
-                print(
-                    f"Preferred port {preferred_port} is in use, searching for alternative..."
-                )
-
-        # Search for an available port in the range
-        for port in range(start_range, end_range):
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.bind(("", port))
-                    return port
-            except OSError:
-                continue
-
-        # If we can't find an available port, raise an exception
-        raise RuntimeError(
-            f"Could not find an available port in range {start_range}-{end_range}"
-        )
+    # Use BaseRegisterTool._find_available_port from common
 
     def _crewai_to_uagent(
         self,
@@ -192,13 +164,8 @@ class CrewaiRegisterTool(BaseRegisterTool):
                 endpoint=[f"http://localhost:{port}/submit"],
             )
 
-        # Get AI agent address from environment if not provided
-        if ai_agent_address is None:
-            ai_agent_address = os.getenv("AI_AGENT_ADDRESS")
-            if not ai_agent_address:
-                ai_agent_address = (
-                    "agent1q0h70caed8ax769shpemapzkyk65uscw4xwk6dc4t3emvp5jdcvqs9xs32y"
-                )
+        # Resolve AI agent address via common helper (supports explicit, env, fallback)
+        ai_agent_address = self._get_ai_agent_address(ai_agent_address)
 
         # Store the agent for later cleanup
         agent_info = {
@@ -472,7 +439,7 @@ class CrewaiRegisterTool(BaseRegisterTool):
 
             try:
                 connect_response = requests.post(
-                    connect_url, json=connect_payload, headers=headers
+                    connect_url, json=connect_payload, headers=headers, timeout=10
                 )
                 if connect_response.status_code == 200:
                     print(f"Successfully connected agent '{name}' to Agentverse")
@@ -563,7 +530,7 @@ class ResponseMessage(Model):
 
             try:
                 update_response = requests.put(
-                    update_url, json=update_payload, headers=headers
+                    update_url, json=update_payload, headers=headers, timeout=10
                 )
                 if update_response.status_code == 200:
                     print(f"Successfully updated agent '{name}' README on Agentverse")

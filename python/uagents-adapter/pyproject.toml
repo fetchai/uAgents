@@ -20,6 +20,10 @@ a2a-outbound = ["a2a-sdk[all,sqlite,sql]>=0.2.11"]
 
 a2a-inbound = ["a2a-sdk[all,sqlite]>=0.2.11", "uvicorn>=0.27.0", "httpx>=0.25.0", "click>=8.0.0", "python-dotenv>=1.0.0"]
 
+# Extras matching README usage
+langchain = ["langchain-core (>=0.3.52,<0.4.0)"]
+crewai = ["crewai>=0.50.0", "openai>=1.0.0"]
+
 [tool.poetry]
 # install from src/uagents_adapter folder
 packages = [{ include = "uagents_adapter", from = "src" }]
@@ -35,7 +39,7 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
-target-version = "py312"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = [

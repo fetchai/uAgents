@@ -228,7 +228,7 @@ class BaseRegisterTool(BaseTool):
 
         # Make the API request
         try:
-            response = requests.post(endpoint, json=data, headers=headers)
+            response = requests.post(endpoint, json=data, headers=headers, timeout=10)
 
             if response.status_code == 200:
                 return response.json()
