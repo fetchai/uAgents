@@ -266,8 +266,11 @@ class MailboxClient:
                             self._logger.error(
                                 f"Failed to retrieve messages: {resp.status}:{(await resp.text())}"
                             )
-            except ClientConnectorError as ex:
+            except (ClientConnectorError, asyncio.TimeoutError) as ex:
                 self._logger.warning(f"Failed to connect to mailbox server: {ex}")
+
+            except Exception as ex:
+                self._logger.exception(f"Got exception while checking mailbox: {ex}")
 
             await asyncio.sleep(self._poll_interval)
 
