@@ -15,7 +15,7 @@ The A2A Inbound Adapter provides:
 ## Installation
 
 ```bash
-# A2A Inbound support is included by default
+git s# A2A Inbound support is included by default
 pip install uagents-adapter
 ```
 

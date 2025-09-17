@@ -60,10 +60,8 @@ class ResponseMessage(Model):
 
 # Chat helper functions
 def create_text_chat(text: str, end_session: bool = False) -> ChatMessage:
-    """Create a text chat message with optional end session marker."""
+    """Create a text chat message. End-session markers are disabled by default."""
     content = [TextContent(type="text", text=text)]
-    if end_session:
-        content.append(EndSessionContent(type="end-session"))
     return ChatMessage(
         timestamp=datetime.utcnow(),
         msg_id=uuid4(),
