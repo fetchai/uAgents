@@ -12,14 +12,15 @@ dependencies = [
     "pydantic (>=2.8,<3.0)",
     "langchain-core (>=0.3.52,<0.4.0)",
     "requests (>=2.32.0,<3.0)",
+    "mcp (>=1.8.1)",
+    "a2a-sdk[all,sqlite,sql]>=0.2.11",
+    "uvicorn>=0.27.0",
+    "httpx>=0.25.0",
+    "click>=8.0.0",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.optional-dependencies]
-mcp = ["mcp (>=1.8.1)"]
-a2a-outbound = ["a2a-sdk[all,sqlite,sql]>=0.2.11"]
-
-a2a-inbound = ["a2a-sdk[all,sqlite]>=0.2.11", "uvicorn>=0.27.0", "httpx>=0.25.0", "click>=8.0.0", "python-dotenv>=1.0.0"]
-
 # Extras matching README usage
 langchain = ["langchain-core (>=0.3.52,<0.4.0)"]
 crewai = ["crewai>=0.50.0", "openai>=1.0.0"]

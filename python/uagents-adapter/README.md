@@ -20,14 +20,10 @@ pip install "uagents-adapter[langchain]"
 # Install with CrewAI support
 pip install "uagents-adapter[crewai]"
 
-# Install with MCP support
-pip install "uagents-adapter[mcp]"
-
-# Install with A2A Inbound support
-pip install "uagents-adapter[a2a-inbound]"
-
+# Note: MCP and A2A (inbound and outbound) support are included by default
+# No extras are needed for MCP or A2A functionality
 # Install with all extras
-pip install "uagents-adapter[langchain,crewai,mcp,a2a-outbound,a2a-inbound]"
+pip install "uagents-adapter[langchain,crewai]"
 ```
 
 ## LangChain Adapter
