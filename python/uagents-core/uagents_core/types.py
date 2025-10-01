@@ -19,11 +19,11 @@ class AgentEndpoint(BaseModel):
 
 class AgentInfo(BaseModel):
     address: str
-    prefix: AddressPrefix
     endpoints: list[AgentEndpoint]
     protocols: list[str]
-    metadata: dict[str, Any] | None = None
     agent_type: AgentType
+    metadata: dict[str, Any] | None = None
+    prefix: AddressPrefix | None = None
     port: int | None = None
 
 

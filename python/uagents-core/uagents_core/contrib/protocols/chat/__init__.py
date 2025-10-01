@@ -142,6 +142,19 @@ class ChatMessage(Model):
         timestamp = timestamp or datetime.now(timezone.utc)
         super().__init__(timestamp=timestamp, msg_id=msg_id, content=content)
 
+    def text(self) -> str:
+        """
+        Collect all text content from this ChatMessage.
+
+        Returns:
+            str: The concatenated text content.
+        """
+        text = ""
+        for content in self.content:
+            if isinstance(content, TextContent):
+                text += content.text
+        return text
+
 
 class ChatAcknowledgement(Model):
     # the timestamp for the message, should be in UTC
