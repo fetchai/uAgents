@@ -1,14 +1,23 @@
 """Tool for converting a Langchain agent into a uAgent and registering it on Agentverse."""
 
 import atexit
+import inspect
 import threading
 import time
 from datetime import datetime
 from typing import Any, Dict
 
 import requests
-from langchain_core.callbacks import CallbackManagerForToolRun
 from pydantic import BaseModel, Field
+
+# Conditional imports for LangChain modules
+try:
+    from langchain_core.callbacks import CallbackManagerForToolRun
+    LANGCHAIN_AVAILABLE = True
+except ImportError:
+    LANGCHAIN_AVAILABLE = False
+    # Create dummy class for when LangChain is not available
+    CallbackManagerForToolRun = None
 from uagents import Agent, Context, Model, Protocol
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
@@ -157,8 +166,6 @@ class LangchainRegisterTool(BaseRegisterTool):
                     result = None
 
                     # Check if agent is a coroutine function (async function)
-                    import inspect
-
                     if inspect.iscoroutinefunction(agent):
                         # Agent is async, await it
                         result = await agent(msg.query)
@@ -233,8 +240,6 @@ class LangchainRegisterTool(BaseRegisterTool):
                                 agent = agent_info["agent_obj"]
 
                                 # Check if agent is a coroutine function (async function)
-                                import inspect
-
                                 if inspect.iscoroutinefunction(agent):
                                     # Agent is async, await it
                                     result = await agent(item.text)
@@ -323,8 +328,6 @@ class LangchainRegisterTool(BaseRegisterTool):
                 # Run the agent with the query
                 try:
                     # Check if agent is a coroutine function (async function)
-                    import inspect
-
                     if inspect.iscoroutinefunction(agent):
                         # Agent is async, await it
                         result = await agent(query.query)
@@ -504,7 +507,7 @@ class ResponseMessage(Model):
         mailbox: bool = True,
         return_dict: bool = False,
         *,
-        run_manager: CallbackManagerForToolRun | None = None,
+        run_manager: Any = None,
     ) -> Dict[str, Any] | str:
         """Run the tool."""
         # Special handling for test environments
@@ -613,7 +616,7 @@ class ResponseMessage(Model):
         mailbox: bool = True,
         return_dict: bool = False,
         *,
-        run_manager: CallbackManagerForToolRun | None = None,
+        run_manager: Any = None,
     ) -> Dict[str, Any] | str:
         """Async implementation of the tool."""
         return self._run(

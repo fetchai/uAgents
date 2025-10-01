@@ -20,10 +20,14 @@ pip install "uagents-adapter[langchain]"
 # Install with CrewAI support
 pip install "uagents-adapter[crewai]"
 
-# Note: MCP and A2A (inbound and outbound) support are included by default
-# No extras are needed for MCP or A2A functionality
+# Install with MCP support
+pip install "uagents-adapter[mcp]"
+
+# Install with A2A Inbound support
+pip install "uagents-adapter[a2a-inbound]"
+
 # Install with all extras
-pip install "uagents-adapter[langchain,crewai]"
+pip install "uagents-adapter[langchain,crewai,mcp,a2a-outbound,"a2a-inbound"]"
 ```
 
 ## LangChain Adapter
@@ -190,7 +194,6 @@ if __name__ == "__main__":
 - Start A2A servers with `a2a_servers` for manifest and server management
 - Use `SingleA2AAdapter` or `MultiA2AAdapter` for orchestration and chat integration
 - After starting, inspect manifest URLs at `http://localhost:{port}/.well-known/agent.json`
-
 
 
 

@@ -8,8 +8,16 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 import requests
-from langchain_core.callbacks import CallbackManagerForToolRun
 from pydantic import BaseModel, Field
+
+# Conditional imports for LangChain modules
+try:
+    from langchain_core.callbacks import CallbackManagerForToolRun
+    LANGCHAIN_AVAILABLE = True
+except ImportError:
+    LANGCHAIN_AVAILABLE = False
+    # Create dummy class for when LangChain is not available
+    CallbackManagerForToolRun = None
 from uagents import Agent, Context, Model, Protocol
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
@@ -561,7 +569,7 @@ class ResponseMessage(Model):
         query_params: Dict[str, Any] | None = None,
         example_query: str | None = None,
         *,
-        run_manager: CallbackManagerForToolRun | None = None,
+        run_manager: Any = None,
         return_dict: bool = False,
     ) -> dict[str, Any]:
         """Create a uAgent for a CrewAI crew and return its address."""
@@ -658,7 +666,7 @@ class ResponseMessage(Model):
         query_params: Dict[str, Any] | None = None,
         example_query: str | None = None,
         *,
-        run_manager: CallbackManagerForToolRun | None = None,
+        run_manager: Any = None,
     ) -> dict[str, Any]:
         """Create a uAgent for a CrewAI crew and return its address (async version)."""
         return self._run(

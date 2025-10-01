@@ -10,20 +10,52 @@ requires-python = ">=3.10,<4.0"
 dependencies = [
     "uagents (>=0.22.3)",
     "pydantic (>=2.8,<3.0)",
-    "langchain-core (>=0.3.52,<0.4.0)",
     "requests (>=2.32.0,<3.0)",
-    "mcp (>=1.8.1)",
-    "a2a-sdk[all,sqlite,sql]>=0.2.11",
     "uvicorn>=0.27.0",
     "httpx>=0.25.0",
     "click>=8.0.0",
     "python-dotenv>=1.0.0",
+    "openai>=1.0.0",
 ]
 
 [project.optional-dependencies]
-# Extras matching README usage
-langchain = ["langchain-core (>=0.3.52,<0.4.0)"]
-crewai = ["crewai>=0.50.0", "openai>=1.0.0"]
+# Base package dependencies (installed by default)
+all = [
+    "langchain-core (>=0.3.52,<0.4.0)",
+    "langchain (>=0.3.0)",
+    "langchain-openai (>=0.2.0)",
+    "crewai (>=0.50.0)",
+    "mcp (>=1.8.1)",
+    "a2a-sdk[all,sqlite,sql] (>=0.2.11)",
+]
+
+# LangChain support
+langchain = [
+    "langchain-core (>=0.3.52,<0.4.0)",
+    "langchain (>=0.3.0)",
+    "langchain-openai (>=0.2.0)",
+]
+
+# CrewAI support
+crewai = [
+    "crewai (>=0.50.0)",
+]
+
+# MCP support
+mcp = [
+    "mcp (>=1.8.1)",
+]
+
+# A2A Inbound support
+a2a-inbound = [
+    "a2a-sdk[all,sqlite,sql] (>=0.2.11)",
+]
+
+# A2A Outbound support
+a2a-outbound = [
+    "a2a-sdk[all,sqlite,sql] (>=0.2.11)",
+]
+
 
 [tool.poetry]
 # install from src/uagents_adapter folder
