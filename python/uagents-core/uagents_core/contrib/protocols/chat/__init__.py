@@ -40,9 +40,6 @@ class Resource(Model):
     # fields see `docs/metadata.md`
     metadata: dict[str, str]
 
-    def __init__(self, uri: str, metadata: dict[str, str] | None = None):
-        super().__init__(uri=uri, metadata=metadata or {})
-
 
 class ResourceContent(Model):
     type: Literal["resource"]
