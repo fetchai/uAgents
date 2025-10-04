@@ -82,6 +82,7 @@ class SingleA2AAdapter:
         agent_executor: AgentExecutor,
         name: str,
         description: str,
+        timeout: int= 90,
         port: int = 8000,
         a2a_port: int = 9999,
         mailbox: bool = True,
@@ -97,6 +98,7 @@ class SingleA2AAdapter:
         self.seed = seed or f"{name}_seed"
         self.a2a_server = None
         self.server_thread = None
+        self.timeout = timeout
         self.agent_ports = agent_ports or []
         # Create uAgent
         self.uagent = Agent(name=name, port=port, seed=self.seed, mailbox=mailbox)
@@ -118,7 +120,9 @@ class SingleA2AAdapter:
                         response = await self._send_to_a2a_agent(
                             item.text, f"http://localhost:{self.a2a_port}"
                         )
-                        ctx.logger.info(f"🤖 A2A Response: {response[:100]}...")
+                        # --- FIX: Removed truncation from log message ---
+                        ctx.logger.info(f"🤖 A2A Response: {response}")
+                        # --- END FIX ---
 
                         # Send response back to sender
                         response_msg = ChatMessage(
@@ -172,6 +176,7 @@ class SingleA2AAdapter:
                 # Try the correct A2A endpoint format
                 payload = {
                     "id": uuid4().hex,
+                    "method": "message/send",
                     "params": {
                         "message": {
                             "role": "user",
@@ -192,6 +197,7 @@ class SingleA2AAdapter:
                         f"{a2a_url}/",
                         json=payload,
                         headers={"Content-Type": "application/json"},
+                       timeout=self.timeout,
                     )
 
                     if response.status_code == 200:
@@ -324,6 +330,7 @@ class MultiA2AAdapter:
         *,
         llm_api_key: str,
         port: int = 8000,
+        timeout: int= 90,
         mailbox: bool = True,
         seed: str | None = None,
         agent_configs: list[A2AAgentConfig] | None = None,
@@ -342,6 +349,7 @@ class MultiA2AAdapter:
         self.fallback_executor = fallback_executor
         self.routing_strategy = routing_strategy
         self.model = model
+        self.timeout = timeout
         self.base_url = base_url
 
         # Runtime agent discovery
@@ -722,6 +730,7 @@ class MultiA2AAdapter:
                 # Prepare A2A message payload
                 payload = {
                     "id": uuid4().hex,
+                    "method": "message/send",
                     "params": {
                         "message": {
                             "role": "user",
@@ -742,7 +751,7 @@ class MultiA2AAdapter:
                         f"{a2a_url}/",
                         json=payload,
                         headers={"Content-Type": "application/json"},
-                        timeout=60,
+                        timeout=self.timeout,
                     )
 
                     if response.status_code == 200:
@@ -865,11 +874,12 @@ def a2a_servers(
                 capabilities=AgentCapabilities(),
                 skills=[skill],
             )
+            request_handler = DefaultRequestHandler(
+                agent_executor=executor, task_store=InMemoryTaskStore()
+            )
             server = A2AStarletteApplication(
                 agent_card=agent_card,
-                http_handler=DefaultRequestHandler(
-                    agent_executor=executor, task_store=InMemoryTaskStore()
-                ),
+                http_handler=request_handler,
             )
             print(f"🚀 Starting {config.name} on port {config.port}")
             uvicorn.run(

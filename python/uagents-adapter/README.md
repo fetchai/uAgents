@@ -157,7 +157,7 @@ The A2A Outbound Adapter allows you to connect your uAgents with Chat Protocol t
 First, create your A2A servers in a directory named `agents` and then import the Agent Executors in your `agent.py` (uagent) file along with the SingleA2AAdapter or MultiA2AAdapter depending on whether you want to connect to a single Google A2A Server or Multiple A2A Servers. You will have to provide the Agent card to the Adapter and the Adapter will run the servers and enable the uagent with Chat Protocol so that it becomes discoverable through ASI:One and you can start interacting with any A2A Server using the A2A Outbound Adapter.
 
 ```python
-from uagent_adapter import SingleA2AAdapter, A2AAgentConfig, a2a_servers
+from uagents_adapter import SingleA2AAdapter, A2AAgentConfig, a2a_servers
 
 #Import A2A Server executor from your A2A Server code 
 from brave.agent import BraveSearchAgentExecutor
@@ -194,7 +194,6 @@ if __name__ == "__main__":
 - Start A2A servers with `a2a_servers` for manifest and server management
 - Use `SingleA2AAdapter` or `MultiA2AAdapter` for orchestration and chat integration
 - After starting, inspect manifest URLs at `http://localhost:{port}/.well-known/agent.json`
-
 
 
 
