@@ -195,10 +195,60 @@ if __name__ == "__main__":
 - Use `SingleA2AAdapter` or `MultiA2AAdapter` for orchestration and chat integration
 - After starting, inspect manifest URLs at `http://localhost:{port}/.well-known/agent.json`
 
+### Payment bridging (AP2 ↔ Fetch.ai)
 
+The outbound adapter includes payment bridging between AP2 artifacts and Fetch.ai Payment Protocol:
+- AP2 `CartMandate` → Fetch.ai `RequestPayment`
+- Fetch.ai `CommitPayment` → AP2 `PaymentMandate` (forwarded to producing A2A agent)
+- AP2 `PaymentSuccess` → Fetch.ai `CompletePayment`
+- AP2 `PaymentFailure` → Fetch.ai `CancelPayment`
+
+Response parsing prioritizes AP2 data parts in A2A JSON-RPC responses, so carts and payment results propagate as typed objects rather than plain text.
+
+### Environment variables for Skyfire payments
+
+Set these in your environment (or a `.env`) to enable Skyfire token verification/charge flows inside your A2A executors:
+- `SELLER_SERVICE_ID`
+- `SKYFIRE_TOKENS_CHARGE_API_URL` or `SKYFIRE_TOKENS_API_URL`
+- `SELLER_SKYFIRE_API_KEY`
+- `JWKS_URL`
+- `JWT_ISSUER`
+- `SELLER_ACCOUNT_ID`
+- `ASI_API_KEY` (optional; enables LLM routing in `MultiA2AAdapter`)
+
+### JSON-RPC message format for A2A
+
+```json
+{
+  "id": "<request_id>",
+  "method": "message/send",
+  "params": {
+    "message": {
+      "role": "user",
+      "parts": [ { "type": "text", "text": "python guide" } ],
+      "messageId": "<message_id>"
+    }
+  }
+}
+```
+
+### Quick start commands
+
+Single-server (seller):
+```bash
+lsof -ti TCP:9999,8220,10020 | xargs -I {} kill -9 {} || true
+cd "/Users/abhi/Desktop/a2p protocol/experiment-ap2/a2a-seller-agent"
+PYTHONPATH="/Users/abhi/Desktop/a2p protocol/uAgents/python/uagents-adapter/src:$PYTHONPATH" python3 av_adapter.py
+```
+
+Multi-server (coordinator + specialists):
+```bash
+lsof -ti TCP:8200,10020,10022,10023 | xargs -I {} kill -9 {} || true
+cd "/Users/abhi/Desktop/a2p protocol/experiment-ap2/a2a-multi-server"
+PYTHONPATH="/Users/abhi/Desktop/a2p protocol/uAgents/python/uagents-adapter/src:$PYTHONPATH" python3 run_multi_adapter.py
+```
 
 For more detailed instructions and advanced configuration options, see the [A2A Outbound Adapter Documentation](src/uagents_adapter/a2a-outbound-documentation/README.md).
-
 
 ## A2A Inbound Adapter
 
