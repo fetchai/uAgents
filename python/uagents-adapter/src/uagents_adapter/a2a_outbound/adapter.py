@@ -33,9 +33,9 @@ from .ap2.bridge_mapping import (
     PAYMENT_SUCCESS_KEY,
     cartmandate_to_requestpayment,
     commitpayment_to_paymentmandate,
-    rejectpayment_to_denycartmandate,
     paymentfailure_to_cancelpayment,
     paymentsuccess_to_completepayment,
+    rejectpayment_to_denycartmandate,
 )
 from .ap2.fetchai_payment_protocol import (
     CommitPayment,
