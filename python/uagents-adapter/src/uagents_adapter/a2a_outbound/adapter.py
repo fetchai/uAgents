@@ -233,45 +233,38 @@ class SingleA2AAdapter:
         @self.payment_proto.on_message(RejectPayment)
         async def handle_reject_payment(ctx: Context, sender: str, msg: RejectPayment):
             ctx.logger.info(f"📩 Received message from {sender}: {type(msg)} object")
-            # For single adapter, acknowledge rejection to the user
-            await ctx.send(
-                sender,
-                ChatMessage(
+            # Convert RejectPayment to DenyCartMandate and inform the A2A seller
+            try:
+                deny_cart_mandate = rejectpayment_to_denycartmandate(msg)
+                response = await self._send_to_a2a_agent(
+                    message={DENY_CART_MANDATE_KEY: deny_cart_mandate.dict()},
+                    a2a_url=f"http://localhost:{self.a2a_port}",
+                )
+                # Out of PaymentProtocol context; forward seller follow-up as chat text
+                if isinstance(response, str):
+                    response_msg = ChatMessage(
+                        timestamp=datetime.now(timezone.utc),
+                        msg_id=uuid4(),
+                        content=[TextContent(type="text", text=response)],
+                    )
+                else:
+                    # Fallback if seller did not return text
+                    response_msg = ChatMessage(
+                        timestamp=datetime.now(timezone.utc),
+                        msg_id=uuid4(),
+                        content=[
+                            TextContent(type="text", text="Payment rejected."),
+                        ],
+                    )
+            except Exception:
+                # Fallback path if forwarding fails
+                response_msg = ChatMessage(
                     timestamp=datetime.now(timezone.utc),
                     msg_id=uuid4(),
                     content=[TextContent(type="text", text="Payment rejected.")],
-                ),
-            )
-            ctx.logger.info(f"📩 Received message from {sender}: {type(msg)} object")
-            # Convert RejectPayment to DenyCartMandate and inform the A2A seller
-            deny_cart_mandate = rejectpayment_to_denycartmandate(msg)
-            response = await self._send_to_a2a_agent(
-                message={DENY_CART_MANDATE_KEY: deny_cart_mandate.dict()},
-                a2a_url=f"http://localhost:{self.a2a_port}",
-            )
-            # Out of PaymentProtocol context; forward seller follow-up as chat text
-            ctx.logger.info(f"🤖 A2A response: {type(response)} object")
-            if isinstance(response, str):
-                response_msg = ChatMessage(
-                    timestamp=datetime.now(timezone.utc),
-                    msg_id=uuid4(),
-                    content=[TextContent(type="text", text=response)],
                 )
-            else:
-                response_msg = ChatMessage(
-                    timestamp=datetime.now(timezone.utc),
-                    msg_id=uuid4(),
-                    content=[
-                        TextContent(
-                            type="text",
-                            text="❌ Unsupported response type from A2A agent",
-                        )
-                    ],
-                )
+
             await ctx.send(sender, response_msg)
-            ctx.logger.info(
-                f"📤 Sent response back to {sender}: {type(response_msg)} object"
-            )
 
         # Include protocols
         self.uagent.include(self.chat_proto, publish_manifest=True)
@@ -609,44 +602,54 @@ class MultiA2AAdapter:
 
         @self.payment_proto.on_message(RejectPayment)
         async def handle_reject_payment(ctx: Context, sender: str, msg: RejectPayment):
-            # Notify user about rejection
-            await ctx.send(
-                sender,
-                ChatMessage(
-                    timestamp=datetime.now(timezone.utc),
-                    msg_id=uuid4(),
-                    content=[TextContent(type="text", text="Payment rejected.")],
-                ),
-            )
-
-            # Inform the originating A2A seller if known
+            # Inform the originating A2A seller if known; otherwise fallback
             target = self._last_agent_for_sender.get(sender)
             if target:
-                deny_cart_mandate = rejectpayment_to_denycartmandate(msg)
-                response = await self._send_to_a2a_agent(
-                    message={DENY_CART_MANDATE_KEY: deny_cart_mandate.dict()},
-                    a2a_url=target.get("url", target.get("endpoint")),
-                )
+                try:
+                    deny_cart_mandate = rejectpayment_to_denycartmandate(msg)
+                    response = await self._send_to_a2a_agent(
+                        message={
+                            DENY_CART_MANDATE_KEY: deny_cart_mandate.dict()
+                        },
+                        a2a_url=target.get("url", target.get("endpoint")),
+                    )
 
-                # Forward seller's follow-up as chat text to continue conversation
-                if isinstance(response, str):
+                    # Forward seller's follow-up as chat text
+                    if isinstance(response, str):
+                        response_msg = ChatMessage(
+                            timestamp=datetime.now(timezone.utc),
+                            msg_id=uuid4(),
+                            content=[TextContent(type="text", text=response)],
+                        )
+                    else:
+                        response_msg = ChatMessage(
+                            timestamp=datetime.now(timezone.utc),
+                            msg_id=uuid4(),
+                            content=[
+                                TextContent(
+                                    type="text", text="Payment rejected."
+                                )
+                            ],
+                        )
+                except Exception:
                     response_msg = ChatMessage(
                         timestamp=datetime.now(timezone.utc),
                         msg_id=uuid4(),
-                        content=[TextContent(type="text", text=response)],
+                        content=[TextContent(type="text", text="Payment rejected.")],
                     )
-                else:
-                    response_msg = ChatMessage(
+                await ctx.send(sender, response_msg)
+            else:
+                # No associated agent; send fallback
+                await ctx.send(
+                    sender,
+                    ChatMessage(
                         timestamp=datetime.now(timezone.utc),
                         msg_id=uuid4(),
                         content=[
-                            TextContent(
-                                type="text",
-                                text="❌ Unsupported response type from A2A agent",
-                            )
+                            TextContent(type="text", text="Payment rejected."),
                         ],
-                    )
-                await ctx.send(sender, response_msg)
+                    ),
+                )
 
             # Clear tracked state for this sender
             self._last_agent_for_sender.pop(sender, None)
