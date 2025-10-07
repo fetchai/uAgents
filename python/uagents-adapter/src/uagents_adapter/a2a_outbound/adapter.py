@@ -608,9 +608,7 @@ class MultiA2AAdapter:
                 try:
                     deny_cart_mandate = rejectpayment_to_denycartmandate(msg)
                     response = await self._send_to_a2a_agent(
-                        message={
-                            DENY_CART_MANDATE_KEY: deny_cart_mandate.dict()
-                        },
+                        message={DENY_CART_MANDATE_KEY: deny_cart_mandate.dict()},
                         a2a_url=target.get("url", target.get("endpoint")),
                     )
 
@@ -626,9 +624,7 @@ class MultiA2AAdapter:
                             timestamp=datetime.now(timezone.utc),
                             msg_id=uuid4(),
                             content=[
-                                TextContent(
-                                    type="text", text="Payment rejected."
-                                )
+                                TextContent(type="text", text="Payment rejected.")
                             ],
                         )
                 except Exception:
