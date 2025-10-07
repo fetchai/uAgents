@@ -1,16 +1,24 @@
 """Tool for converting a Langchain agent into a uAgent and registering it on Agentverse."""
 
 import atexit
-import os
-import socket
+import inspect
 import threading
 import time
 from datetime import datetime
 from typing import Any, Dict
 
 import requests
-from langchain_core.callbacks import CallbackManagerForToolRun
 from pydantic import BaseModel, Field
+
+# Conditional imports for LangChain modules
+try:
+    from langchain_core.callbacks import CallbackManagerForToolRun
+
+    LANGCHAIN_AVAILABLE = True
+except ImportError:
+    LANGCHAIN_AVAILABLE = False
+    # Create dummy class for when LangChain is not available
+    CallbackManagerForToolRun = None
 from uagents import Agent, Context, Model, Protocol
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
@@ -92,34 +100,7 @@ class LangchainRegisterTool(BaseRegisterTool):
             atexit.register(cleanup_all_uagents)
             self._cleanup_handler_registered = True
 
-    def _find_available_port(
-        self, preferred_port=None, start_range=8000, end_range=9000
-    ):
-        """Find an available port to use for the agent."""
-        # Try the preferred port first
-        if preferred_port is not None:
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.bind(("", preferred_port))
-                    return preferred_port
-            except OSError:
-                print(
-                    f"Preferred port {preferred_port} is in use, searching for alternative..."
-                )
-
-        # Search for an available port in the range
-        for port in range(start_range, end_range):
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.bind(("", port))
-                    return port
-            except OSError:
-                continue
-
-        # If we can't find an available port, raise an exception
-        raise RuntimeError(
-            f"Could not find an available port in range {start_range}-{end_range}"
-        )
+    # Use BaseRegisterTool._find_available_port from common
 
     def _langchain_to_uagent(
         self,
@@ -147,13 +128,8 @@ class LangchainRegisterTool(BaseRegisterTool):
                 endpoint=[f"http://localhost:{port}/submit"],
             )
 
-        # Get AI agent address from environment if not provided
-        if ai_agent_address is None:
-            ai_agent_address = os.getenv("AI_AGENT_ADDRESS")
-            if not ai_agent_address:
-                ai_agent_address = (
-                    "agent1q0h70caed8ax769shpemapzkyk65uscw4xwk6dc4t3emvp5jdcvqs9xs32y"
-                )
+        # Resolve AI agent address via common helper (supports explicit, env, fallback)
+        ai_agent_address = self._get_ai_agent_address(ai_agent_address)
 
         # Store the agent for later cleanup
         agent_info = {
@@ -191,8 +167,6 @@ class LangchainRegisterTool(BaseRegisterTool):
                     result = None
 
                     # Check if agent is a coroutine function (async function)
-                    import inspect
-
                     if inspect.iscoroutinefunction(agent):
                         # Agent is async, await it
                         result = await agent(msg.query)
@@ -267,8 +241,6 @@ class LangchainRegisterTool(BaseRegisterTool):
                                 agent = agent_info["agent_obj"]
 
                                 # Check if agent is a coroutine function (async function)
-                                import inspect
-
                                 if inspect.iscoroutinefunction(agent):
                                     # Agent is async, await it
                                     result = await agent(item.text)
@@ -357,8 +329,6 @@ class LangchainRegisterTool(BaseRegisterTool):
                 # Run the agent with the query
                 try:
                     # Check if agent is a coroutine function (async function)
-                    import inspect
-
                     if inspect.iscoroutinefunction(agent):
                         # Agent is async, await it
                         result = await agent(query.query)
@@ -464,7 +434,7 @@ class LangchainRegisterTool(BaseRegisterTool):
 
             try:
                 connect_response = requests.post(
-                    connect_url, json=connect_payload, headers=headers
+                    connect_url, json=connect_payload, headers=headers, timeout=10
                 )
                 if connect_response.status_code == 200:
                     print(f"Successfully connected agent '{name}' to Agentverse")
@@ -508,7 +478,7 @@ class ResponseMessage(Model):
 
             try:
                 update_response = requests.put(
-                    update_url, json=update_payload, headers=headers
+                    update_url, json=update_payload, headers=headers, timeout=10
                 )
                 if update_response.status_code == 200:
                     print(f"Successfully updated agent '{name}' README on Agentverse")
@@ -538,7 +508,7 @@ class ResponseMessage(Model):
         mailbox: bool = True,
         return_dict: bool = False,
         *,
-        run_manager: CallbackManagerForToolRun | None = None,
+        run_manager: Any = None,
     ) -> Dict[str, Any] | str:
         """Run the tool."""
         # Special handling for test environments
@@ -647,7 +617,7 @@ class ResponseMessage(Model):
         mailbox: bool = True,
         return_dict: bool = False,
         *,
-        run_manager: CallbackManagerForToolRun | None = None,
+        run_manager: Any = None,
     ) -> Dict[str, Any] | str:
         """Async implementation of the tool."""
         return self._run(

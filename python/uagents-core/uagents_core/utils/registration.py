@@ -2,12 +2,12 @@
 This module provides methods to register your identity with the Fetch.ai services.
 """
 
-from typing import Literal
 import urllib.parse
+from json import JSONDecodeError
+from typing import Literal
 
 import requests
 from pydantic import BaseModel, Field, model_validator
-from json import JSONDecodeError
 
 from uagents_core.config import (
     DEFAULT_ALMANAC_API_PATH,
@@ -109,7 +109,7 @@ class RegistrationRequestCredentials(BaseModel):
     )
 
 
-class AgentverseRequestException(Exception):
+class AgentverseRequestError(Exception):
     def __init__(self, *args, from_exc: Exception):
         self.from_exc = from_exc
         super().__init__(*args)
@@ -161,7 +161,7 @@ def _send_http_request_agentverse(
         else:
             err_msg += f"Unexpected error: {e}."
 
-        raise AgentverseRequestException(err_msg, from_exc=e)
+        raise AgentverseRequestError(err_msg, from_exc=e) from e
 
     return response
 
@@ -297,7 +297,7 @@ def register_in_almanac(
             timeout=timeout,
         )
         return True
-    except AgentverseRequestException as e:
+    except AgentverseRequestError as e:
         logger.error(msg=str(e), exc_info=e.from_exc)
 
     return False
@@ -390,7 +390,7 @@ def register_batch_in_almanac(
             timeout=timeout,
         )
         return True, invalid_identities
-    except AgentverseRequestException as e:
+    except AgentverseRequestError as e:
         logger.error(msg=str(e), exc_info=e.from_exc)
 
     return False, invalid_identities
@@ -459,11 +459,11 @@ def _register_in_agentverse(
                 headers={"authorization": f"Bearer {request.user_token}"},
                 timeout=timeout,
             )
-        except AgentverseRequestException as e:
-            raise AgentverseRequestException(
+        except AgentverseRequestError as e:
+            raise AgentverseRequestError(
                 f"failed to request proof-of-ownership challenge. {str(e)}",
                 from_exc=e.from_exc,
-            )
+            ) from e
 
         challenge = ChallengeResponse.model_validate_json(response.text)
         registration_payload = RegistrationRequest(
@@ -504,7 +504,7 @@ def _register_in_agentverse(
             data=agent_details,
             timeout=timeout,
         )
-    except AgentverseRequestException as e:
+    except AgentverseRequestError as e:
         logger.warning(f"failed to upload agent details. {str(e)}")
 
 
@@ -536,7 +536,7 @@ def register_in_agentverse(
             timeout=timeout,
         )
         return True
-    except AgentverseRequestException as e:
+    except AgentverseRequestError as e:
         logger.error(msg=str(e), exc_info=e.from_exc)
 
     return False
@@ -579,7 +579,7 @@ def update_agent_status(active: bool, identity: Identity) -> bool:
     try:
         _update_agent_status(active, identity)
         return True
-    except AgentverseRequestException as e:
+    except AgentverseRequestError as e:
         logger.error(msg=str(e), exc_info=e.from_exc)
 
     return False
@@ -615,7 +615,7 @@ def register_agent(
             identity, endpoints, protos, agentverse_config=agentverse_config
         )
         logger.info("successfully registered to Almanac.")
-    except AgentverseRequestException as e:
+    except AgentverseRequestError as e:
         logger.error(f"failed to register to Almanac. {str(e)}")
         return
 
@@ -629,7 +629,7 @@ def register_agent(
             agentverse_config=agentverse_config,
         )
         logger.info("successfully registered to Agentverse.")
-    except AgentverseRequestException as e:
+    except AgentverseRequestError as e:
         logger.error(f"failed to register to Agentverse. {str(e)}")
         return
 
@@ -639,7 +639,7 @@ def register_agent(
             logger.info("setting agent as active...")
             _update_agent_status(True, identity)
             logger.info("successfully set agent to active.")
-        except AgentverseRequestException as e:
+        except AgentverseRequestError as e:
             logger.warning(f"failed to set agent as active. {str(e)}")
 
 

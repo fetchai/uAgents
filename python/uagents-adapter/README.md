@@ -148,7 +148,7 @@ mcp_adapter.run(agent)
 
 > **Important**: When creating MCP tools, always include detailed docstrings using triple quotes (`"""`) to describe what each tool does, when it should be used, and what parameters it expects. These descriptions are critical for ASI:One to understand when and how to use your tools.
 
-For more detailed instructions and advanced configuration options, see the [MCP Server Adapter Documentation](src/uagents_adapter/mcp/README.md).
+ 
 
 ## A2A Outbound Adapter
 
@@ -157,7 +157,7 @@ The A2A Outbound Adapter allows you to connect your uAgents with Chat Protocol t
 First, create your A2A servers in a directory named `agents` and then import the Agent Executors in your `agent.py` (uagent) file along with the SingleA2AAdapter or MultiA2AAdapter depending on whether you want to connect to a single Google A2A Server or Multiple A2A Servers. You will have to provide the Agent card to the Adapter and the Adapter will run the servers and enable the uagent with Chat Protocol so that it becomes discoverable through ASI:One and you can start interacting with any A2A Server using the A2A Outbound Adapter.
 
 ```python
-from uagent_adapter import SingleA2AAdapter, A2AAgentConfig, a2a_servers
+from uagents_adapter import SingleA2AAdapter, A2AAgentConfig, a2a_servers
 
 #Import A2A Server executor from your A2A Server code 
 from brave.agent import BraveSearchAgentExecutor
@@ -195,10 +195,102 @@ if __name__ == "__main__":
 - Use `SingleA2AAdapter` or `MultiA2AAdapter` for orchestration and chat integration
 - After starting, inspect manifest URLs at `http://localhost:{port}/.well-known/agent.json`
 
+### Payment bridging (AP2 ↔ Fetch.ai)
+
+The outbound adapter includes payment bridging between AP2 artifacts and Fetch.ai Payment Protocol:
+- AP2 `CartMandate` → Fetch.ai `RequestPayment`
+- Fetch.ai `CommitPayment` → AP2 `PaymentMandate` (forwarded to producing A2A agent)
+- AP2 `PaymentSuccess` → Fetch.ai `CompletePayment`
+- AP2 `PaymentFailure` → Fetch.ai `CancelPayment`
+
+Response parsing prioritizes AP2 data parts in A2A JSON-RPC responses, so carts and payment results propagate as typed objects rather than plain text.
+
+ 
+### JSON-RPC message format for A2A
+
+```json
+{
+  "id": "<request_id>",
+  "method": "message/send",
+  "params": {
+    "message": {
+      "role": "user",
+      "parts": [ { "type": "text", "text": "python guide" } ],
+      "messageId": "<message_id>"
+    }
+  }
+}
+```
+
+### Minimal run example (package-based)
+
+```python
+from uagents_adapter.a2a_outbound import (
+    SingleA2AAdapter,
+    MultiA2AAdapter,
+    A2AAgentConfig,
+    a2a_servers,
+)
+
+# Import your own A2A agent executors from your application
+from your_project.executors import YourAgentExecutor
 
 
+def run_single():
+    config = A2AAgentConfig(
+        name="my_specialist",
+        description="Demo A2A specialist",
+        url="http://localhost:10020",
+        port=10020,
+        specialties=["demo"],
+    )
+    executor = YourAgentExecutor()
+    a2a_servers([config], {config.name: executor})
+    adapter = SingleA2AAdapter(
+        agent_executor=executor,
+        name="my_uagent",
+        description="Routes to a single A2A specialist",
+        port=8200,
+        a2a_port=10020,
+    )
+    adapter.run()
 
-For more detailed instructions and advanced configuration options, see the [A2A Outbound Adapter Documentation](src/uagents_adapter/a2a-outbound-documentation/README.md).
+
+def run_multi():
+    configs = [
+        A2AAgentConfig(
+            name="specialist_one",
+            description="First A2A specialist",
+            url="http://localhost:10020",
+            port=10020,
+            specialties=["one"],
+            priority=2,
+        ),
+        A2AAgentConfig(
+            name="specialist_two",
+            description="Second A2A specialist",
+            url="http://localhost:10022",
+            port=10022,
+            specialties=["two"],
+        ),
+    ]
+    executors = {c.name: YourAgentExecutor() for c in configs}
+    a2a_servers(configs, executors)
+    adapter = MultiA2AAdapter(
+        name="coordinator",
+        description="Routes queries to multiple A2A specialists",
+        llm_api_key="",  # optional; leave empty to disable LLM routing
+        port=8200,
+        routing_strategy="keyword_match",
+    )
+    for cfg in configs:
+        adapter.add_agent_config(cfg)
+    adapter.run()
+
+
+if __name__ == "__main__":
+    run_single()  # or run_multi()
+```
 
 
 ## A2A Inbound Adapter
@@ -247,7 +339,7 @@ python -m uagents_adapter.a2a_inbound.cli \
 
 > **Security Note**: Always set `UAGENTS_BRIDGE_SEED` environment variable for production deployments to ensure consistent bridge agent addresses across restarts and prevent conflicts.
 
-For more detailed instructions and configuration options, see the [A2A Inbound Adapter Documentation](src/uagents_adapter/a2a_inbound/README.md).
+ 
 
 ## Agentverse Integration
 

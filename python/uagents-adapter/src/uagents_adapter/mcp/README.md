@@ -13,8 +13,8 @@ The MCP Server Adapter provides:
 ## Installation
 
 ```bash
-# Install with MCP support
-pip install "uagents-adapter[mcp]"
+# MCP support is included by default
+pip install uagents-adapter
 ```
 
 ## Usage

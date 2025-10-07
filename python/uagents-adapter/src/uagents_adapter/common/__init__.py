@@ -10,9 +10,19 @@ from typing import Any, Dict, Type
 from uuid import uuid4
 
 import requests
-from langchain_core.callbacks import CallbackManagerForToolRun
-from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
+
+# Conditional imports for LangChain modules
+try:
+    from langchain_core.callbacks import CallbackManagerForToolRun
+    from langchain_core.tools import BaseTool
+
+    LANGCHAIN_AVAILABLE = True
+except ImportError:
+    LANGCHAIN_AVAILABLE = False
+    # Create dummy classes for when LangChain is not available
+    CallbackManagerForToolRun = None
+    BaseTool = None
 from uagents import Agent, Context, Model, Protocol
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
@@ -60,10 +70,8 @@ class ResponseMessage(Model):
 
 # Chat helper functions
 def create_text_chat(text: str, end_session: bool = False) -> ChatMessage:
-    """Create a text chat message with optional end session marker."""
+    """Create a text chat message. End-session markers are disabled by default."""
     content = [TextContent(type="text", text=text)]
-    if end_session:
-        content.append(EndSessionContent(type="end-session"))
     return ChatMessage(
         timestamp=datetime.utcnow(),
         msg_id=uuid4(),
@@ -111,15 +119,9 @@ class BaseRegisterToolInput(BaseModel):
     )
 
 
-class BaseRegisterTool(BaseTool):
-    """Base class for tools that register agents on Agentverse."""
-
-    name: str = "base_register"
-    description: str = "Base class for registering agents on Agentverse"
-    args_schema: Type[BaseModel] = BaseRegisterToolInput
-
-    # Track current agent info for easier access
-    _current_agent_info: dict[str, Any] | None = None
+# Shared base class with all methods
+class _BaseRegisterToolMixin:
+    """Mixin class with shared methods for BaseRegisterTool."""
 
     def _find_available_port(
         self,
@@ -148,9 +150,8 @@ class BaseRegisterTool(BaseTool):
             except OSError:
                 continue
 
-        # If we can't find an available port, raise an exception
         raise RuntimeError(
-            f"Could not find an available port in range {start_range}-{end_range}"
+            f"No available ports found in range {start_range}-{end_range}"
         )
 
     def _create_agent(self, name: str, port: int, mailbox: bool = True) -> Agent:
@@ -199,76 +200,147 @@ class BaseRegisterTool(BaseTool):
         finally:
             loop.close()
 
-    def _register_with_agentverse(
-        self, agent_info: Dict[str, Any]
-    ) -> dict[str, Any] | None:
-        """Register agent with Agentverse API."""
-        # Get API token from agent_info or environment
-        api_token = agent_info.get("api_token")
-        if not api_token:
-            api_token = os.getenv("AGENTVERSE_API_TOKEN")
-
-        if not api_token:
-            print("No API token provided for Agentverse registration")
-            return None
-
-        # Get agent information
+    def _register_with_agentverse(self, agent_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Register the agent with Agentverse."""
         name = agent_info["name"]
-        description = agent_info.get("description", f"Agent: {name}")
-        address = agent_info["uagent"].address
+        port = agent_info["port"]
+        description = agent_info["description"]
+        api_token = agent_info.get("api_token")
+        ai_agent_address = agent_info.get("ai_agent_address")
 
-        # Set up the API request
-        endpoint = "https://agentverse.ai/api/v1/register-agent"
-        headers = {"Authorization": f"Bearer {api_token}"}
-        data = {
+        # Get AI agent address
+        actual_ai_agent_address = self._get_ai_agent_address(ai_agent_address)
+
+        # Register with Agentverse
+        registration_data = {
             "name": name,
+            "port": port,
             "description": description,
-            "address": address,
+            "ai_agent_address": actual_ai_agent_address,
         }
 
-        # Make the API request
+        if api_token:
+            registration_data["api_token"] = api_token
+
         try:
-            response = requests.post(endpoint, json=data, headers=headers)
+            response = requests.post(
+                "https://api.agentverse.ai/agents/register",
+                json=registration_data,
+                timeout=10,
+            )
+            response.raise_for_status()
+            result = response.json()
+            print(f"✅ Successfully registered agent '{name}' with Agentverse")
+            return result
+        except requests.RequestException as e:
+            print(f"❌ Failed to register with Agentverse: {e}")
+            return {"error": str(e)}
 
-            if response.status_code == 200:
-                return response.json()
-            else:
-                print(f"Failed to register agent: {response.text}")
-                return None
-        except Exception as e:
-            print(f"Error registering agent with Agentverse: {e}")
-            return None
 
-    def get_agent_info(self) -> dict[str, Any] | None:
-        """Get information about the current agent."""
-        return self._current_agent_info
+# Conditional class definition based on LangChain availability
+if LANGCHAIN_AVAILABLE:
 
-    def _run_base(
-        self,
-        name: str,
-        port: int,
-        description: str,
-        api_token: str | None = None,
-        return_dict: bool = False,
-    ) -> Dict[str, Any] | str:
-        """Base implementation for the run method."""
-        raise NotImplementedError("Subclasses must implement this method")
+    class BaseRegisterTool(BaseTool, _BaseRegisterToolMixin):
+        """Base class for tools that register agents on Agentverse."""
 
-    async def _arun(
-        self,
-        name: str,
-        port: int,
-        description: str,
-        api_token: str | None = None,
-        ai_agent_address: str | None = None,
-        mailbox: bool = True,
-        *,
-        run_manager: CallbackManagerForToolRun | None = None,
-    ) -> str:
-        """Run the tool asynchronously."""
-        return self._run_base(
-            name=name,
-            port=port,
-            description=description,
-            api_token=api_token,
-        )
+        name: str = "base_register"
+        description: str = "Base class for registering agents on Agentverse"
+        args_schema: Type[BaseModel] = BaseRegisterToolInput
+
+        # Track current agent info for easier access
+        _current_agent_info: dict[str, Any] | None = None
+
+        def _run_base(
+            self,
+            name: str,
+            port: int,
+            description: str,
+            api_token: str | None = None,
+            ai_agent_address: str | None = None,
+            mailbox: bool = True,
+            *,
+            run_manager: Any = None,
+        ) -> str:
+            """Run the tool asynchronously."""
+            return self._run_base(
+                name=name,
+                port=port,
+                description=description,
+                api_token=api_token,
+                ai_agent_address=ai_agent_address,
+                mailbox=mailbox,
+            )
+
+        async def _arun(
+            self,
+            name: str,
+            port: int,
+            description: str,
+            api_token: str | None = None,
+            ai_agent_address: str | None = None,
+            mailbox: bool = True,
+            *,
+            run_manager: Any = None,
+        ) -> str:
+            """Run the tool asynchronously."""
+            return self._run_base(
+                name=name,
+                port=port,
+                description=description,
+                api_token=api_token,
+                ai_agent_address=ai_agent_address,
+                mailbox=mailbox,
+            )
+else:
+    # Fallback class when LangChain is not available
+    class BaseRegisterTool(_BaseRegisterToolMixin):
+        """Base class for tools that register agents on Agentverse."""
+
+        name: str = "base_register"
+        description: str = "Base class for registering agents on Agentverse"
+        args_schema: Type[BaseModel] = BaseRegisterToolInput
+
+        # Track current agent info for easier access
+        _current_agent_info: dict[str, Any] | None = None
+
+        def _run_base(
+            self,
+            name: str,
+            port: int,
+            description: str,
+            api_token: str | None = None,
+            ai_agent_address: str | None = None,
+            mailbox: bool = True,
+            *,
+            run_manager: Any = None,
+        ) -> str:
+            """Run the tool asynchronously."""
+            return self._run_base(
+                name=name,
+                port=port,
+                description=description,
+                api_token=api_token,
+                ai_agent_address=ai_agent_address,
+                mailbox=mailbox,
+            )
+
+        async def _arun(
+            self,
+            name: str,
+            port: int,
+            description: str,
+            api_token: str | None = None,
+            ai_agent_address: str | None = None,
+            mailbox: bool = True,
+            *,
+            run_manager: Any = None,
+        ) -> str:
+            """Run the tool asynchronously."""
+            return self._run_base(
+                name=name,
+                port=port,
+                description=description,
+                api_token=api_token,
+                ai_agent_address=ai_agent_address,
+                mailbox=mailbox,
+            )
