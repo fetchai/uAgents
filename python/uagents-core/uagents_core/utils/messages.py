@@ -93,37 +93,52 @@ def send_message(
     return response
 
 
-def parse_sync_response(
-    env_json: JsonStr,
-    response_type: type[Model] | set[type[Model]] | None = None,
-) -> Model | JsonStr:
+def parse_envelope(
+    env: Envelope,
+    message_type: type[Model] | set[type[Model]] | None = None,
+) -> Model | str:
     """
     Parse the response from a synchronous message.
 
     Args:
-        env_json (JsonStr): The JSON string of the response envelope.
-        response_type (type[Model] | set[type[Model]] | None, optional):
-            The expected response type(s) for a sync message.
-
+        env (Envelope): The envelope.
+        message_type (type[Model] | set[type[Model]] | None, optional):
+            The expected type of the message contained in the envelope.
+            If None, the raw JSON string will be returned. Defaults to None.
     Returns:
-        Model | JsonStr: The parsed response model or JSON string.
+        Model | str: The parsed message model or JSON string.
     """
+    message_json = env.decode_payload()
 
-    env = Envelope.model_validate_json(env_json)
-
-    response_json = env.decode_payload()
-
-    response_msg: Model | None = None
-    if response_type:
+    msg: Model | None = None
+    if message_type:
         response_types = (
-            {response_type} if isinstance(response_type, type) else response_type
+            {message_type} if isinstance(message_type, type) else message_type
         )
 
         for r_type in response_types:
             with contextlib.suppress(ValidationError):
-                response_msg = r_type.parse_raw(response_json)
+                msg = r_type.parse_raw(message_json)
 
-    return response_msg or response_json
+    return msg or message_json
+
+
+def parse_envelope_raw(
+    env_json: str,
+    message_type: type[Model] | set[type[Model]] | None = None,
+) -> Model | str:
+    """
+    Parse an envelope in JSON str format
+
+    Args:
+        env_json (str): The JSON string of the response envelope.
+        message_type (type[Model] | set[type[Model]] | None, optional):
+            The expected type of the message contained in the envelope.
+    Returns:
+        Model | str: The parsed message model or JSON string.
+    """
+    env = Envelope.model_validate_json(env_json)
+    return parse_envelope(env, message_type)
 
 
 def send_message_to_agent(
@@ -136,6 +151,7 @@ def send_message_to_agent(
     agentverse_config: AgentverseConfig | None = None,
     resolver: Resolver | None = None,
     sync: bool = False,
+    timeout: int = DEFAULT_REQUEST_TIMEOUT,
     response_type: type[Model] | set[type[Model]] | None = None,
 ) -> list[MsgStatus] | Model | JsonStr:
     """
@@ -180,9 +196,10 @@ def send_message_to_agent(
     )
 
     status_result: list[MsgStatus] = []
+    response: requests.Response | None = None
     for endpoint in endpoints:
         try:
-            response = send_message(endpoint, env, sync=True)
+            response = send_message(endpoint, env, timeout=timeout, sync=sync)
             status_result.append(
                 MsgStatus(
                     status=DeliveryStatus.SENT,
@@ -192,6 +209,7 @@ def send_message_to_agent(
                     session=session_id,
                 )
             )
+            logger.info("Sent message to agent", extra={"agent_endpoint": endpoint})
             break
         except requests.RequestException as e:
             logger.error("Failed to send message to agent", extra={"error": str(e)})
@@ -205,11 +223,9 @@ def send_message_to_agent(
                 )
             )
 
-    logger.info("Sent message to agent", extra={"agent_endpoint": endpoint})
-
-    if sync:
+    if response and sync:
         try:
-            return parse_sync_response(response.text, response_type)
+            return parse_envelope_raw(response.text, response_type)
         except ValidationError as e:
             logger.error(
                 "Received invalid response envelope",
