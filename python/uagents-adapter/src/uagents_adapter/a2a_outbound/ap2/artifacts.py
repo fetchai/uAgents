@@ -110,7 +110,10 @@ class PaymentMandate(BaseModel):
     )
     payment_mandate_hash: Optional[str] = Field(
         None,
-        description="Integrity hash over canonicalized PaymentMandateContents (must be computed explicitly)",
+        description=(
+            "Integrity hash over canonicalized PaymentMandateContents (must be computed"
+            " explicitly)"
+        ),
     )
 
 

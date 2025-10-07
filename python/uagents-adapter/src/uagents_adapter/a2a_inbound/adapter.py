@@ -96,8 +96,6 @@ class A2ARegisterTool(BaseModel):
     ) -> Dict[str, Any]:
         """Start the A2A server with the given parameters."""
 
-
-
         try:
             # Create agent capabilities
             capabilities = AgentCapabilities(streaming=True, pushNotifications=True)

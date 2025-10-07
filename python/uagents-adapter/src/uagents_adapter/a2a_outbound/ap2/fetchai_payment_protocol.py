@@ -8,7 +8,7 @@ class Funds(Model):
 
     # currency of the funds (USDC, FET, etc.)
     currency: str
-    
+
     # payment method (skyfire, fet_direct)
     payment_method: str = "skyfire"
 

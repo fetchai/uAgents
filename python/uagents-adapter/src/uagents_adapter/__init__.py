@@ -16,6 +16,7 @@ try:
         SingleA2AAdapter,
         a2a_servers,
     )
+
     A2A_AVAILABLE = True
 except ImportError:
     A2A_AVAILABLE = False
@@ -47,10 +48,12 @@ __all__ = [
 
 # Add A2A modules only if available
 if A2A_AVAILABLE:
-    __all__.extend([
-        "A2ARegisterTool",
-        "A2AAgentConfig",
-        "MultiA2AAdapter",
-        "a2a_servers",
-        "SingleA2AAdapter",
-    ])
+    __all__.extend(
+        [
+            "A2ARegisterTool",
+            "A2AAgentConfig",
+            "MultiA2AAdapter",
+            "a2a_servers",
+            "SingleA2AAdapter",
+        ]
+    )

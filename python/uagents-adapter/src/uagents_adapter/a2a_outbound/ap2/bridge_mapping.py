@@ -61,7 +61,6 @@ def pretty_print_model(model: Any, label: str) -> None:
         model: The data model to print (Pydantic model, dict, etc.)
         label: Descriptive label for the model
     """
-    model_name = type(model).__name__
     print(f"\n\n🔄 {label}")
 
     # Pretty print the model data
@@ -134,9 +133,9 @@ def extract_ap2_mandate_from_a2a(
 
     # Extract data from A2A message
     for part in a2a_msg.parts:
-        if hasattr(part.root, "data") and isinstance(part.root.data, dict):
-            if data_key in part.root.data:
-                return mandate_class(**part.root.data[data_key])
+        has_data = hasattr(part.root, "data") and isinstance(part.root.data, dict)
+        if has_data and data_key in part.root.data:
+            return mandate_class(**part.root.data[data_key])
 
     raise ValueError(
         f"AP2 mandate data for {mandate_class.__name__} not found in A2A message"

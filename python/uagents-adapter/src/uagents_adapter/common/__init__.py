@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 try:
     from langchain_core.callbacks import CallbackManagerForToolRun
     from langchain_core.tools import BaseTool
+
     LANGCHAIN_AVAILABLE = True
 except ImportError:
     LANGCHAIN_AVAILABLE = False
@@ -149,7 +150,9 @@ class _BaseRegisterToolMixin:
             except OSError:
                 continue
 
-        raise RuntimeError(f"No available ports found in range {start_range}-{end_range}")
+        raise RuntimeError(
+            f"No available ports found in range {start_range}-{end_range}"
+        )
 
     def _create_agent(self, name: str, port: int, mailbox: bool = True) -> Agent:
         """Create a uAgent with consistent configuration."""
@@ -197,9 +200,7 @@ class _BaseRegisterToolMixin:
         finally:
             loop.close()
 
-    def _register_with_agentverse(
-        self, agent_info: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _register_with_agentverse(self, agent_info: Dict[str, Any]) -> Dict[str, Any]:
         """Register the agent with Agentverse."""
         name = agent_info["name"]
         port = agent_info["port"]
@@ -238,6 +239,7 @@ class _BaseRegisterToolMixin:
 
 # Conditional class definition based on LangChain availability
 if LANGCHAIN_AVAILABLE:
+
     class BaseRegisterTool(BaseTool, _BaseRegisterToolMixin):
         """Base class for tools that register agents on Agentverse."""
 

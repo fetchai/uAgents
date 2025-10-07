@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 # Conditional imports for LangChain modules
 try:
     from langchain_core.callbacks import CallbackManagerForToolRun
+
     LANGCHAIN_AVAILABLE = True
 except ImportError:
     LANGCHAIN_AVAILABLE = False

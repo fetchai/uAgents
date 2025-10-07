@@ -27,13 +27,13 @@ from uagents_core.contrib.protocols.chat import (
 from .ap2.artifacts import CartMandate, PaymentFailure, PaymentSuccess
 from .ap2.bridge_mapping import (
     CART_MANDATE_KEY,
+    PAYMENT_FAILURE_KEY,
     PAYMENT_MANDATE_KEY,
     PAYMENT_SUCCESS_KEY,
-    PAYMENT_FAILURE_KEY,
     cartmandate_to_requestpayment,
     commitpayment_to_paymentmandate,
-    paymentsuccess_to_completepayment,
     paymentfailure_to_cancelpayment,
+    paymentsuccess_to_completepayment,
 )
 from .ap2.fetchai_payment_protocol import (
     CommitPayment,
@@ -100,7 +100,7 @@ class SingleA2AAdapter:
         agent_executor: AgentExecutor,
         name: str,
         description: str,
-        timeout: int= 90,
+        timeout: int = 90,
         port: int = 8000,
         a2a_port: int = 9999,
         mailbox: bool = True,
@@ -151,7 +151,9 @@ class SingleA2AAdapter:
                         elif isinstance(response, PaymentFailure):
                             response_msg = paymentfailure_to_cancelpayment(response)
                         else:
-                            text_value = response if isinstance(response, str) else str(response)
+                            text_value = (
+                                response if isinstance(response, str) else str(response)
+                            )
                             response_msg = ChatMessage(
                                 timestamp=datetime.now(timezone.utc),
                                 msg_id=uuid4(),
@@ -210,13 +212,14 @@ class SingleA2AAdapter:
             elif isinstance(response, PaymentFailure):
                 response_msg = paymentfailure_to_cancelpayment(response)
             else:
+                # Keep error concise to satisfy line-length rules
                 response_msg = ChatMessage(
                     timestamp=datetime.now(timezone.utc),
                     msg_id=uuid4(),
                     content=[
                         TextContent(
                             type="text",
-                            text=f"❌ Unsupported response type from A2A agent: {type(response)} object",
+                            text=f"❌ Unsupported response type: {type(response)}",
                         )
                     ],
                 )
@@ -272,7 +275,7 @@ class SingleA2AAdapter:
                         f"{a2a_url}/",
                         json=payload,
                         headers={"Content-Type": "application/json"},
-                       timeout=self.timeout,
+                        timeout=self.timeout,
                     )
 
                     if response.status_code == 200:
@@ -298,9 +301,13 @@ class SingleA2AAdapter:
                                     if CART_MANDATE_KEY in data:
                                         return CartMandate(**data[CART_MANDATE_KEY])
                                     if PAYMENT_SUCCESS_KEY in data:
-                                        return PaymentSuccess(**data[PAYMENT_SUCCESS_KEY])
+                                        return PaymentSuccess(
+                                            **data[PAYMENT_SUCCESS_KEY]
+                                        )
                                     if PAYMENT_FAILURE_KEY in data:
-                                        return PaymentFailure(**data[PAYMENT_FAILURE_KEY])
+                                        return PaymentFailure(
+                                            **data[PAYMENT_FAILURE_KEY]
+                                        )
                             return "✅ Response received from A2A agent"
                     else:
                         return f"A2A agent returned HTTP {response.status_code}"
@@ -411,7 +418,7 @@ class MultiA2AAdapter:
         *,
         llm_api_key: str,
         port: int = 8000,
-        timeout: int= 90,
+        timeout: int = 90,
         mailbox: bool = True,
         seed: str | None = None,
         agent_configs: list[A2AAgentConfig] | None = None,
@@ -483,12 +490,12 @@ class MultiA2AAdapter:
                                     f"{response[:100]}..."
                                 )
                             else:
+                                agent_name = best_agent.get("name", "unknown agent")
                                 ctx.logger.info(
-                                    f"A2A Response type from {best_agent.get('name', 'unknown agent')}: "
-                                    f"{type(response)}"
+                                    f"A2A Response type from {agent_name}: {type(response)}"
                                 )
 
-                        # Send response back to sender; convert AP2 cart to payment request if needed
+                        # Send response back; convert AP2 cart to RequestPayment when needed
                         if isinstance(response, CartMandate):
                             self._last_agent_for_sender[sender] = best_agent
                             response_msg = cartmandate_to_requestpayment(
@@ -545,7 +552,9 @@ class MultiA2AAdapter:
             ctx.logger.info(f"📩 CommitPayment from {sender}")
             target = self._last_agent_for_sender.get(sender)
             if not target:
-                ctx.logger.warning("No associated agent for sender; dropping CommitPayment")
+                ctx.logger.warning(
+                    "No associated agent for sender; dropping CommitPayment"
+                )
                 return
             payment_mandate = commitpayment_to_paymentmandate(msg, agent_name=self.name)
             response = await self._send_to_a2a_agent(
@@ -560,7 +569,9 @@ class MultiA2AAdapter:
                 response_msg = ChatMessage(
                     timestamp=datetime.now(timezone.utc),
                     msg_id=uuid4(),
-                    content=[TextContent(type="text", text="Unexpected response to payment.")],
+                    content=[
+                        TextContent(type="text", text="Unexpected response to payment.")
+                    ],
                 )
             await ctx.send(sender, response_msg)
 
@@ -581,9 +592,13 @@ class MultiA2AAdapter:
             for config in self.agent_configs:
                 try:
                     # Prefer new endpoint; fallback to legacy for compatibility
-                    response = await client.get(f"{config.url}/.well-known/agent-card.json")
+                    response = await client.get(
+                        f"{config.url}/.well-known/agent-card.json"
+                    )
                     if response.status_code != 200:
-                        response = await client.get(f"{config.url}/.well-known/agent.json")
+                        response = await client.get(
+                            f"{config.url}/.well-known/agent.json"
+                        )
 
                     if response.status_code == 200:
                         agent_card = response.json()
@@ -899,9 +914,13 @@ class MultiA2AAdapter:
                                     if CART_MANDATE_KEY in data:
                                         return CartMandate(**data[CART_MANDATE_KEY])
                                     if PAYMENT_SUCCESS_KEY in data:
-                                        return PaymentSuccess(**data[PAYMENT_SUCCESS_KEY])
+                                        return PaymentSuccess(
+                                            **data[PAYMENT_SUCCESS_KEY]
+                                        )
                                     if PAYMENT_FAILURE_KEY in data:
-                                        return PaymentFailure(**data[PAYMENT_FAILURE_KEY])
+                                        return PaymentFailure(
+                                            **data[PAYMENT_FAILURE_KEY]
+                                        )
                                 # Fallback to text part
                                 text_part = result_data["parts"][0].get("text", "")
                                 if text_part:
