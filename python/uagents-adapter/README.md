@@ -148,7 +148,7 @@ mcp_adapter.run(agent)
 
 > **Important**: When creating MCP tools, always include detailed docstrings using triple quotes (`"""`) to describe what each tool does, when it should be used, and what parameters it expects. These descriptions are critical for ASI:One to understand when and how to use your tools.
 
-For more detailed instructions and advanced configuration options, see the [MCP Server Adapter Documentation](src/uagents_adapter/mcp/README.md).
+ 
 
 ## A2A Outbound Adapter
 
@@ -205,17 +205,7 @@ The outbound adapter includes payment bridging between AP2 artifacts and Fetch.a
 
 Response parsing prioritizes AP2 data parts in A2A JSON-RPC responses, so carts and payment results propagate as typed objects rather than plain text.
 
-### Environment variables for Skyfire payments
-
-Set these in your environment (or a `.env`) to enable Skyfire token verification/charge flows inside your A2A executors:
-- `SELLER_SERVICE_ID`
-- `SKYFIRE_TOKENS_CHARGE_API_URL` or `SKYFIRE_TOKENS_API_URL`
-- `SELLER_SKYFIRE_API_KEY`
-- `JWKS_URL`
-- `JWT_ISSUER`
-- `SELLER_ACCOUNT_ID`
-- `ASI_API_KEY` (optional; enables LLM routing in `MultiA2AAdapter`)
-
+ 
 ### JSON-RPC message format for A2A
 
 ```json
@@ -232,23 +222,76 @@ Set these in your environment (or a `.env`) to enable Skyfire token verification
 }
 ```
 
-### Quick start commands
+### Minimal run example (package-based)
 
-Single-server (seller):
-```bash
-lsof -ti TCP:9999,8220,10020 | xargs -I {} kill -9 {} || true
-cd "/Users/abhi/Desktop/a2p protocol/experiment-ap2/a2a-seller-agent"
-PYTHONPATH="/Users/abhi/Desktop/a2p protocol/uAgents/python/uagents-adapter/src:$PYTHONPATH" python3 av_adapter.py
+```python
+from uagents_adapter.a2a_outbound import (
+    SingleA2AAdapter,
+    MultiA2AAdapter,
+    A2AAgentConfig,
+    a2a_servers,
+)
+
+# Import your own A2A agent executors from your application
+from your_project.executors import YourAgentExecutor
+
+
+def run_single():
+    config = A2AAgentConfig(
+        name="my_specialist",
+        description="Demo A2A specialist",
+        url="http://localhost:10020",
+        port=10020,
+        specialties=["demo"],
+    )
+    executor = YourAgentExecutor()
+    a2a_servers([config], {config.name: executor})
+    adapter = SingleA2AAdapter(
+        agent_executor=executor,
+        name="my_uagent",
+        description="Routes to a single A2A specialist",
+        port=8200,
+        a2a_port=10020,
+    )
+    adapter.run()
+
+
+def run_multi():
+    configs = [
+        A2AAgentConfig(
+            name="specialist_one",
+            description="First A2A specialist",
+            url="http://localhost:10020",
+            port=10020,
+            specialties=["one"],
+            priority=2,
+        ),
+        A2AAgentConfig(
+            name="specialist_two",
+            description="Second A2A specialist",
+            url="http://localhost:10022",
+            port=10022,
+            specialties=["two"],
+        ),
+    ]
+    executors = {c.name: YourAgentExecutor() for c in configs}
+    a2a_servers(configs, executors)
+    adapter = MultiA2AAdapter(
+        name="coordinator",
+        description="Routes queries to multiple A2A specialists",
+        llm_api_key="",  # optional; leave empty to disable LLM routing
+        port=8200,
+        routing_strategy="keyword_match",
+    )
+    for cfg in configs:
+        adapter.add_agent_config(cfg)
+    adapter.run()
+
+
+if __name__ == "__main__":
+    run_single()  # or run_multi()
 ```
 
-Multi-server (coordinator + specialists):
-```bash
-lsof -ti TCP:8200,10020,10022,10023 | xargs -I {} kill -9 {} || true
-cd "/Users/abhi/Desktop/a2p protocol/experiment-ap2/a2a-multi-server"
-PYTHONPATH="/Users/abhi/Desktop/a2p protocol/uAgents/python/uagents-adapter/src:$PYTHONPATH" python3 run_multi_adapter.py
-```
-
-For more detailed instructions and advanced configuration options, see the [A2A Outbound Adapter Documentation](src/uagents_adapter/a2a-outbound-documentation/README.md).
 
 ## A2A Inbound Adapter
 
@@ -296,7 +339,7 @@ python -m uagents_adapter.a2a_inbound.cli \
 
 > **Security Note**: Always set `UAGENTS_BRIDGE_SEED` environment variable for production deployments to ensure consistent bridge agent addresses across restarts and prevent conflicts.
 
-For more detailed instructions and configuration options, see the [A2A Inbound Adapter Documentation](src/uagents_adapter/a2a_inbound/README.md).
+ 
 
 ## Agentverse Integration
 

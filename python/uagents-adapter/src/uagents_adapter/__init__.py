@@ -20,12 +20,7 @@ try:
     A2A_AVAILABLE = True
 except ImportError:
     A2A_AVAILABLE = False
-    # Create dummy classes for when A2A is not available
-    A2ARegisterTool = None
-    A2AAgentConfig = None
-    MultiA2AAdapter = None
-    SingleA2AAdapter = None
-    a2a_servers = None
+    # Do not define placeholders; raise a clear ImportError on access instead
 
 try:
     __version__ = metadata.version(__package__)
