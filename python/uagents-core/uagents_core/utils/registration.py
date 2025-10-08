@@ -30,7 +30,7 @@ from uagents_core.registration import (
     ChallengeResponse,
     RegistrationRequest,
 )
-from uagents_core.types import AddressPrefix, AgentEndpoint, AgentType
+from uagents_core.types import AddressPrefix, AgentEndpoint, AgentMetadata, AgentType
 
 logger = get_logger("uagents_core.utils.registration")
 
@@ -204,7 +204,7 @@ def _register_in_almanac(
     identity: Identity,
     endpoints: list[str],
     protocol_digests: list[str],
-    metadata: dict[str, str | list[str] | dict[str, str]] | None = None,
+    metadata: AgentMetadata | dict[str, str | list[str] | dict[str, str]] | None = None,
     prefix: AddressPrefix | None = None,
     *,
     agentverse_config: AgentverseConfig | None = None,
@@ -225,13 +225,17 @@ def _register_in_almanac(
     agentverse_config = agentverse_config or AgentverseConfig()
     almanac_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_ALMANAC_API_PATH)
 
+    raw_metadata = (
+        metadata.model_dump() if isinstance(metadata, AgentMetadata) else metadata
+    )
+
     # create the attestation
     item = AgentRegistrationInput(
         identity=identity,
         prefix=prefix,
         endpoints=endpoints,
         protocol_digests=protocol_digests,
-        metadata=metadata,
+        metadata=raw_metadata,
     )
     attestation = _build_signed_attestation(item)
 
@@ -247,7 +251,7 @@ def register_in_almanac(
     identity: Identity,
     endpoints: list[str],
     protocol_digests: list[str],
-    metadata: dict[str, str | list[str] | dict[str, str]] | None = None,
+    metadata: AgentMetadata | dict[str, str | list[str] | dict[str, str]] | None = None,
     prefix: AddressPrefix | None = None,
     *,
     agentverse_config: AgentverseConfig | None = None,
@@ -261,6 +265,8 @@ def register_in_almanac(
         prefix (AddressPrefix | None): The prefix for the agent identifier.
         endpoints (list[str]): The endpoints that the agent can be reached at.
         protocol_digests (list[str]): The digests of the protocol that the agent supports
+        metadata (AgentMetadata | dict[str, str | list[str] | dict[str, str]] | None):
+            Additional metadata about the agent (e.g. geolocation).
         agentverse_config (AgentverseConfig): The configuration for the agentverse API
         timeout (int): The timeout for the request
     """
