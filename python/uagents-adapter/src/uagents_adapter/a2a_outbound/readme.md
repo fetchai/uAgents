@@ -27,7 +27,7 @@ A comprehensive Python module for integrating A2A (Agent-to-Agent) systems with 
 ## 3. Installation
 
 ```shell
-pip install uagents-adapter
+pip install "uagents-adapter[a2a-outbound]"
 # A2A SDK is installed automatically as a dependency
 ```
 

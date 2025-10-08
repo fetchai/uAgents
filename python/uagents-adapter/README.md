@@ -26,8 +26,8 @@ pip install "uagents-adapter[mcp]"
 # Install with A2A Inbound support
 pip install "uagents-adapter[a2a-inbound]"
 
-# Install with all extras
-pip install "uagents-adapter[langchain,crewai,mcp,a2a-outbound,"a2a-inbound"]"
+# Install with A2A Outbound support
+pip install "uagents-adapter[a2a-outbound]"
 ```
 
 ## LangChain Adapter
