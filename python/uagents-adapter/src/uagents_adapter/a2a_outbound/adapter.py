@@ -37,7 +37,7 @@ from .ap2.bridge_mapping import (
     paymentsuccess_to_completepayment,
     rejectpayment_to_denycartmandate,
 )
-from .ap2.fetchai_payment_protocol import (
+from uagents_core.contrib.protocols.payment import (
     CommitPayment,
     RejectPayment,
     payment_protocol_spec,
