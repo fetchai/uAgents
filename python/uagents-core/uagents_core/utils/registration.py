@@ -70,6 +70,10 @@ class AgentverseRegistrationRequest(BaseModel):
     protocols: list[str] = Field(
         description="List of protocols supported by the agent."
     )
+    metadata: dict[str, str | list[str] | dict[str, str]] | None = Field(
+        default=None,
+        description="Additional metadata about the agent (e.g. geolocation).",
+    )
     type: AgentType = Field(
         default="custom", description="Agentverse registration type"
     )
@@ -226,7 +230,9 @@ def _register_in_almanac(
     almanac_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_ALMANAC_API_PATH)
 
     raw_metadata = (
-        metadata.model_dump() if isinstance(metadata, AgentMetadata) else metadata
+        metadata.model_dump(exclude_unset=True)
+        if isinstance(metadata, AgentMetadata)
+        else metadata
     )
 
     # create the attestation
@@ -599,6 +605,7 @@ def register_agent(
     identity = Identity.from_seed(credentials.agent_seed_phrase, 0)
     endpoints = [agent_registration.endpoint]
     protos = agent_registration.protocols
+    metadata = agent_registration.metadata
 
     connect_request = AgentverseConnectRequest(
         user_token=credentials.agentverse_api_key,
@@ -618,7 +625,7 @@ def register_agent(
     try:
         logger.info("registering to Almanac...")
         _register_in_almanac(
-            identity, endpoints, protos, agentverse_config=agentverse_config
+            identity, endpoints, protos, metadata, agentverse_config=agentverse_config
         )
         logger.info("successfully registered to Almanac.")
     except AgentverseRequestError as e:
@@ -657,10 +664,17 @@ def register_chat_agent(
     description: str | None = None,
     readme: str | None = None,
     avatar_url: str | None = None,
+    metadata: AgentMetadata | dict[str, str | list[str] | dict[str, str]] | None = None,
+    agentverse_config: AgentverseConfig | None = None,
 ):
     chat_protocol = [
         ProtocolSpecification.compute_digest(chat_protocol_spec.manifest())
     ]
+    raw_metadata = (
+        metadata.model_dump(exclude_unset=True)
+        if isinstance(metadata, AgentMetadata)
+        else metadata
+    )
     request = AgentverseRegistrationRequest(
         name=name,
         endpoint=endpoint,
@@ -669,7 +683,8 @@ def register_chat_agent(
         description=description,
         readme=readme,
         avatar_url=avatar_url,
+        metadata=raw_metadata,
     )
-    config = AgentverseConfig()
+    config = agentverse_config or AgentverseConfig()
 
     register_agent(request, config, credentials)
