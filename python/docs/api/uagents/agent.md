@@ -30,7 +30,8 @@ Represents an agent in the context of a message.
 
 #### __init__
 ```python
-def __init__(address: str, name: str | None, identity: Identity) -> None
+def __init__(address: str, name: str | None, identity: Identity,
+             prefix: AddressPrefix) -> None
 ```
 
 Initialize the AgentRepresentation instance.
@@ -40,6 +41,7 @@ Initialize the AgentRepresentation instance.
 - `address` _str_ - The address of the context.
 - `name` _str | None_ - The optional name associated with the context.
 - `identity` _Identity_ - The identity of the agent.
+- `prefix` _AddressPrefix_ - The address prefix for the agent's network.
 
 
 
@@ -182,7 +184,7 @@ def __init__(name: str | None = None,
              wallet_key_derivation_index: int | None = 0,
              max_resolver_endpoints: int | None = None,
              version: str | None = None,
-             network: AgentNetwork = "testnet",
+             network: AgentNetwork = "mainnet",
              loop: asyncio.AbstractEventLoop | None = None,
              log_level: int | str = logging.INFO,
              enable_agent_inspector: bool = True,

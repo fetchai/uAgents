@@ -68,23 +68,6 @@ def is_valid_prefix(prefix: str) -> bool:
     return prefix in valid_prefixes
 
 
-def parse_prefix(prefix: str) -> AgentNetwork:
-    """
-    Parse an agent prefix string into the corresponding network.
-
-    Args:
-        prefix (str): The prefix string to be parsed.
-
-    Returns:
-        AgentNetwork: The corresponding network.
-    """
-    if prefix in (TESTNET_PREFIX, ""):
-        return "testnet"
-    if prefix == MAINNET_PREFIX:
-        return "mainnet"
-    raise ValueError(f"Invalid prefix: {prefix}")
-
-
 def query_record(agent_address: str, network: AgentNetwork) -> dict:
     """
     Query an agent record from the Almanac contract.

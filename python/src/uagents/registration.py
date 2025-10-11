@@ -240,6 +240,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         self._poll_retries: int | None = None
         self._poll_retry_delay: RetryDelayFunc | None = None
         self._last_successful_registration: datetime | None = None
+        self._last_funds_warning_logged: datetime | None = None
         self._timeout_blocks = timeout_blocks
         self._tx_fee = tx_fee
 
@@ -301,17 +302,28 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
             or protocols != self._almanac_contract.get_protocols(agent_address)
         ):
             if self._get_balance() < self._registration_fee:
-                self._logger.warning(
-                    "I do not have enough funds to register on Almanac contract"
-                )
+                if self._last_funds_warning_logged is None or (
+                    self._last_successful_registration is not None
+                    and self._last_funds_warning_logged
+                    < self._last_successful_registration
+                ):
+                    self._logger.warning(
+                        "I do not have enough funds to register on Almanac contract"
+                    )
+                    if not self._testnet:
+                        self._logger.warning(
+                            "To enable contract registration, send funds to wallet address: "
+                            f"{self._wallet.address()}"
+                        )
+                        self._logger.warning(
+                            "To register on testnet Almanac contract, "
+                            "create agent with 'Agent(..., network=\"testnet\")'"
+                        )
+                    self._last_funds_warning_logged = datetime.now()
                 if self._testnet:
                     add_testnet_funds(str(self._wallet.address()))
                     self._logger.info(
                         f"Adding testnet funds to {self._wallet.address()}"
-                    )
-                else:
-                    self._logger.info(
-                        f"Send funds to wallet address: {self._wallet.address()}"
                     )
                 raise InsufficientFundsError()
 
@@ -560,10 +572,7 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
                 agent_identifier, identity, protocols, endpoints, metadata
             )
         except InsufficientFundsError:
-            self._logger.warning(
-                "Failed to register on Almanac contract due to insufficient funds"
-            )
-            raise
+            pass
         except Exception as e:
             self._logger.error(
                 f"Failed to register on Almanac contract: {e.__class__.__name__}"
