@@ -23,6 +23,34 @@ except ImportError:
     # Do not define placeholders; raise a clear ImportError on access instead
 
 try:
+    from composio.types import Tool, ToolExecuteParams, ToolExecutionResponse
+
+    from .composio import (
+        AfterExecute,
+        AuthConfigId,
+        AuthenticationError,
+        AuthResponse,
+        BeforeExecute,
+        ComposioConfig,
+        ComposioError,
+        ComposioService,
+        ConfigurationError,
+        ConnectionError,
+        ConnectionStatus,
+        Modifiers,
+        PostgresMemoryConfig,
+        SchemaModifier,
+        SessionId,
+        ToolConfig,
+        ToolRetrievalError,
+        ToolSlug,
+        UserId,
+    )
+    COMPOSIO_AVAILABLE = True
+except ImportError:
+    COMPOSIO_AVAILABLE = False
+
+try:
     __version__ = metadata.version(__package__)
 except metadata.PackageNotFoundError:
     # Case where package metadata is not available.
@@ -50,5 +78,38 @@ if A2A_AVAILABLE:
             "MultiA2AAdapter",
             "a2a_servers",
             "SingleA2AAdapter",
+        ]
+    )
+
+if COMPOSIO_AVAILABLE:
+    __all__.extend(
+        [
+            # Main classes
+            "ComposioService",
+            "ComposioConfig",
+            "ToolConfig",
+            "Modifiers",
+            "PostgresMemoryConfig",
+            # Response models
+            "ConnectionStatus",
+            "AuthResponse",
+            # Exceptions
+            "ComposioError",
+            "AuthenticationError",
+            "ConnectionError",
+            "ConfigurationError",
+            "ToolRetrievalError",
+            # Type aliases
+            "UserId",
+            "AuthConfigId",
+            "ToolSlug",
+            "SessionId",
+            # Tool types
+            "Tool",
+            "ToolExecuteParams",
+            "ToolExecutionResponse",
+            "SchemaModifier",
+            "BeforeExecute",
+            "AfterExecute",
         ]
     )

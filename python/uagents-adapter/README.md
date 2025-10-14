@@ -7,6 +7,7 @@ This package provides adapters for integrating [uAgents](https://github.com/fetc
 - **MCP Server Adapter**: Integrate Model Control Protocol (MCP) servers with uAgents
 - **A2A Outbound Adapter**: Bridges uAgents and A2A servers 
 - **A2A Inbound Adapter**: Bridge Agentverse agents to A2A protocol for AI assistants
+- **Composio Adapter**: Integrate Composio tools and create specialized multi-agent systems
 
 ## Installation
 
@@ -28,6 +29,9 @@ pip install "uagents-adapter[a2a-inbound]"
 
 # Install with A2A Outbound support
 pip install "uagents-adapter[a2a-outbound]"
+
+# Install with Composio support
+pip install "uagents-adapter[composio]"
 ```
 
 ## LangChain Adapter
@@ -339,7 +343,40 @@ python -m uagents_adapter.a2a_inbound.cli \
 
 > **Security Note**: Always set `UAGENTS_BRIDGE_SEED` environment variable for production deployments to ensure consistent bridge agent addresses across restarts and prevent conflicts.
 
- 
+## Composio Adapter
+
+The Composio adapter allows you to integrate Composio tools and create specialized agents that can interact with various external services through the Composio platform.
+
+```python
+import asyncio
+from uagents import Agent
+from uagents_adapter import ComposioConfig, ToolConfig, ComposioService
+
+async def main():
+    # Configure tools
+    tool_config = ToolConfig.from_toolkit(
+        tool_group_name="GitHub Tools",
+        auth_config_id="your_github_auth_config_id",
+        toolkit="GITHUB",
+        limit=5
+    )
+
+    # Create Composio configuration
+    composio_config = ComposioConfig.from_env(tool_configs=[tool_config])
+
+    # Initialize agent
+    agent = Agent(name="My Composio Agent", seed="my_seed", port=8001, mailbox=True)
+
+    # Create and configure Composio service
+    async with ComposioService(composio_config=composio_config) as service:
+        agent.include(service.protocol, publish_manifest=True)
+        await agent.run_async()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+The adapter supports multiple tool configurations, modifiers for customization, and multi-agent orchestration with specialized agents for different tool groups. See the [Composio documentation](src/uagents_adapter/composio/README.md) for advanced configuration options.
 
 ## Agentverse Integration
 
