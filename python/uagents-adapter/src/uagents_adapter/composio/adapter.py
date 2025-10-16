@@ -38,15 +38,15 @@ Architecture:
 Usage:
     ```python
     import asyncio
-    from uagents_composio_adapter import (
-        ComposioService, ComposioConfig, ToolConfig, Modifiers, ToolExecutionResponse
+    from uagents_adapter import (
+        ComposioService, ComposioConfig, ToolConfig, Modifiers, AfterExecuteParam
     )
 
     async def main():
         # Define custom modifier functions
         def show_data_loaded(
-            tool: str, toolkit: str, response: ToolExecutionResponse
-        ) -> ToolExecutionResponse:
+            tool: str, toolkit: str, response: AfterExecuteParam
+        ) -> AfterExecuteParam:
             print(f"[Data Loaded] Tool: {tool}, Response: {response}")
             return response
 
@@ -95,18 +95,21 @@ from datetime import datetime, timezone
 from typing import Any, Final, Protocol, runtime_checkable
 from uuid import uuid4
 
+import tiktoken
 from composio import Composio, after_execute, before_execute, schema_modifier
 from composio.core.models.connected_accounts import ConnectionRequest
 from composio.exceptions import ComposioSDKTimeoutError
 from composio.types import Tool, ToolExecuteParams, ToolExecutionResponse
 from composio_langchain import LangchainProvider
-from langchain.agents import ToolNode, create_agent
+from langchain.agents import AgentState, create_agent
+from langchain.agents.middleware import before_model
 from langchain.tools import tool
-from langchain_core.messages import BaseMessage, HumanMessage
-from langchain_core.messages.utils import count_tokens_approximately, trim_messages
+from langchain_core.messages import HumanMessage, ToolMessage
+from langchain_core.messages.utils import trim_messages
 from langchain_core.tools.structured import StructuredTool
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from langgraph.runtime import Runtime
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 from uagents import Context
@@ -139,7 +142,7 @@ SessionId = str
 
 # Constants
 DEFAULT_TIMEOUT: Final[int] = 300
-MAX_TOOLS_LIMIT: Final[int] = 100
+MAX_TOOLS_LIMIT: Final[int] = 20
 
 # Configure module logger with structured format for production
 logger = logging.getLogger(__name__)
@@ -161,6 +164,12 @@ def describe_modifier_type(modifier_type: type) -> None:
     print(f"\nExpected Signature:\n{sig}\n")
 
 
+# type aliases
+SchemaModifierParam = Tool
+BeforeExecuteParam = ToolExecuteParams
+AfterExecuteParam = ToolExecutionResponse
+
+
 @runtime_checkable
 class SchemaModifier(Protocol):
     """
@@ -168,26 +177,37 @@ class SchemaModifier(Protocol):
 
     Expected Signature:
         ```python
-        def function(tool: str, toolkit: str, schema: Tool) -> Tool
+        def function(
+            tool: str,
+            toolkit: str,
+            schema: SchemaModifierParam
+        ) -> SchemaModifierParam
+            ...
         ```
 
     Args:
         - tool (`str`): Name of the tool being modified
         - toolkit (`str`): Name of the toolkit the tool belongs to
-        - schema (`Tool`): The tool schema to modify
+        - schema (`SchemaModifierParam`): The tool schema to modify
 
     Returns:
-        - Modified `Tool` instance
+        - Modified `SchemaModifierParam` instance
 
     Example:
         ```python
-        def add_default_repo(tool, toolkit, schema):
+        def add_default_repo(
+            tool: str,
+            toolkit: str,
+            schema: SchemaModifierParam
+        ) -> SchemaModifierParam:
             schema.description += " Uses 'composio/composio' as default repo."
             return schema
         ```
     """
 
-    def __call__(self, tool: str, toolkit: str, schema: Any) -> Any: ...
+    def __call__(
+        self, tool: str, toolkit: str, schema: SchemaModifierParam
+    ) -> SchemaModifierParam: ...
 
 
 @runtime_checkable
@@ -197,26 +217,28 @@ class BeforeExecute(Protocol):
 
     Expected Signature:
         ```python
-        def function(tool: str, toolkit: str, params: ToolExecuteParams) -> ToolExecuteParams
+        def function(tool: str, toolkit: str, params: BeforeExecuteParam) -> BeforeExecuteParam
         ```
 
     Args:
         - tool (`str`): Tool name being executed
         - toolkit (`str`): Toolkit name
-        - params (`ToolExecuteParams`): Parameters to modify before execution
+        - params (`BeforeExecuteParam`): Parameters to modify before execution
 
     Returns:
-        - Modified `ToolExecuteParams`
+        - Modified `BeforeExecuteParam`
 
     Example:
         ```python
-        def limit_posts(tool, toolkit, params):
+        def limit_posts(tool: str, toolkit: str, params: BeforeExecuteParam) -> BeforeExecuteParam:
             params["arguments"]["size"] = min(params["arguments"].get("size", 10), 5)
             return params
         ```
     """
 
-    def __call__(self, tool: str, toolkit: str, params: Any) -> Any: ...
+    def __call__(
+        self, tool: str, toolkit: str, params: BeforeExecuteParam
+    ) -> BeforeExecuteParam: ...
 
 
 @runtime_checkable
@@ -229,27 +251,33 @@ class AfterExecute(Protocol):
         def function(
             tool: str,
             toolkit: str,
-            response: ToolExecutionResponse
-        ) -> ToolExecutionResponse
+            response: AfterExecuteParam
+        ) -> AfterExecuteParam
         ```
 
     Args:
         - tool (`str`): Tool name executed
         - toolkit (`str`): Toolkit name
-        - response (`ToolExecutionResponse`): Raw tool output to modify
+        - response (`AfterExecuteParam`): Raw tool output to modify
 
     Returns:
-        - Modified `ToolExecutionResponse`
+        - Modified `AfterExecuteParam`
 
     Example:
         ```python
-        def show_response(tool, toolkit, response):
+        def show_response(
+            tool: str,
+            toolkit: str,
+            response: AfterExecuteParam
+        ) -> AfterExecuteParam:
             print(f"Response from {tool}: {response}")
             return response
         ```
     """
 
-    def __call__(self, tool: str, toolkit: str, response: Any) -> Any: ...
+    def __call__(
+        self, tool: str, toolkit: str, response: AfterExecuteParam
+    ) -> AfterExecuteParam: ...
 
 
 class Modifiers(BaseModel):
@@ -277,7 +305,7 @@ class Modifiers(BaseModel):
             return schema
 
         # Create before-execute modifier function
-        def limit_posts(tool: str, toolkit: str, params: ToolExecuteParams) -> ToolExecuteParams:
+        def limit_posts(tool: str, toolkit: str, params: BeforeExecuteParam) -> BeforeExecuteParam:
             params["arguments"]["size"] = min(params["arguments"].get("size", 10), 5)
             return params
 
@@ -285,8 +313,8 @@ class Modifiers(BaseModel):
         def show_loaded_data(
             tool: str,
             toolkit: str,
-            response: ToolExecutionResponse
-        ) -> ToolExecutionResponse:
+            response: AfterExecuteParam
+        ) -> AfterExecuteParam:
             print(f"Tool: {tool}, Response: {response}")
             return response
 
@@ -306,8 +334,7 @@ class Modifiers(BaseModel):
                                  tool names
     """
 
-    schema_functions: dict[SchemaModifier,
-                           list[str]] = Field(default_factory=dict)
+    schema_functions: dict[SchemaModifier, list[str]] = Field(default_factory=dict)
     """
     Dictionary mapping schema modifier functions to list of tool names they should be applied to."""
 
@@ -319,8 +346,7 @@ class Modifiers(BaseModel):
     applied to.
     """
 
-    after_execute_functions: dict[AfterExecute,
-                                  list[str]] = Field(default_factory=dict)
+    after_execute_functions: dict[AfterExecute, list[str]] = Field(default_factory=dict)
     """
     Dictionary mapping after-execute modifier functions to list of tool names they should be
     applied to.
@@ -341,8 +367,7 @@ class Modifiers(BaseModel):
                 self.after_execute_functions,
             ]
         ):
-            raise ValueError(
-                "At least one modifier function list must be provided")
+            raise ValueError("At least one modifier function list must be provided")
         return self
 
     @classmethod
@@ -380,8 +405,7 @@ class Modifiers(BaseModel):
             ValueError: If no modifiers provided
         """
         if not modifiers:
-            raise ValueError(
-                "At least one before-execute modifier must be provided")
+            raise ValueError("At least one before-execute modifier must be provided")
         return cls(before_execute_functions=modifiers)
 
     @classmethod
@@ -399,8 +423,7 @@ class Modifiers(BaseModel):
             ValueError: If no modifiers provided
         """
         if not modifiers:
-            raise ValueError(
-                "At least one after-execute modifier must be provided")
+            raise ValueError("At least one after-execute modifier must be provided")
         return cls(after_execute_functions=modifiers)
 
     @classmethod
@@ -449,8 +472,7 @@ class Modifiers(BaseModel):
 
         if self.schema_functions:
             for schema_modifier_func, tool_list in self.schema_functions.items():
-                modifier = schema_modifier(
-                    tools=tool_list)(schema_modifier_func)
+                modifier = schema_modifier(tools=tool_list)(schema_modifier_func)
                 modifiers.append(modifier)
 
         if self.before_execute_functions:
@@ -615,8 +637,7 @@ class ToolConfig(BaseModel):
         if has_tools:
             # Tools filter - cannot be combined with anything else
             if any([has_toolkit, has_search, has_scopes, self.limit]):
-                raise ValueError(
-                    "Tools filter cannot be combined with other filters")
+                raise ValueError("Tools filter cannot be combined with other filters")
             if not self.tools:
                 raise ValueError("tools list cannot be empty")
 
@@ -1000,13 +1021,11 @@ class ComposioConfig(BaseModel):
             )
 
         # Parse timeout from environment with validation
-        timeout_str = os.getenv(
-            "COMPOSIO_DEFAULT_TIMEOUT", str(DEFAULT_TIMEOUT))
+        timeout_str = os.getenv("COMPOSIO_DEFAULT_TIMEOUT", str(DEFAULT_TIMEOUT))
         try:
             timeout = int(timeout_str)
             if timeout < 1:
-                raise ValueError(
-                    "COMPOSIO_DEFAULT_TIMEOUT must be a positive integer")
+                raise ValueError("COMPOSIO_DEFAULT_TIMEOUT must be a positive integer")
         except ValueError as e:
             raise ValueError(
                 f"COMPOSIO_DEFAULT_TIMEOUT must be a valid positive integer, got: {timeout_str}"
@@ -1338,18 +1357,15 @@ class ComposioClient:
             self._lock = asyncio.Lock()
 
             logger.info(
-                "ComposioClient initialized successfully",
-                extra={
-                    "auth_config_ids": list(self._config.get_auth_config_ids()),
-                    "tool_configs_count": len(self._config.tool_configs or []),
-                    "timeout": self._config.timeout,
-                },
+                f"ComposioClient initialized successfully, "
+                f"auth_config_ids: {list(self._config.get_auth_config_ids())}, "
+                f"tool_configs_count: {len(self._config.tool_configs or [])}, "
+                f"timeout: {self._config.timeout}"
             )
 
         except Exception as e:
             logger.error(
-                "Failed to initialize ComposioClient",
-                extra={"error": str(e)},
+                f"Failed to initialize ComposioClient, error: {str(e)}",
                 exc_info=True,
             )
             raise ConfigurationError(
@@ -1395,22 +1411,27 @@ class ComposioClient:
 
         auth_config_ids = list(self._config.get_auth_config_ids())
         if not auth_config_ids:
+            ctx.logger.error(
+                "No auth_config_ids found in configuration, operation: connection_check"
+            )
             raise ConfigurationError(
                 "No auth_config_ids found in configuration",
                 operation="connection_check",
             )
 
         ctx.logger.info(
-            "Checking user connection status",
-            extra={
-                "user_id": user_id,
-                "auth_config_ids": auth_config_ids,
-                "auth_config_count": len(auth_config_ids),
-            },
+            f"Checking user connection status, user_id: {user_id}, "
+            f"auth_config_ids: {auth_config_ids}, "
+            f"auth_config_count: {len(auth_config_ids)}"
         )
 
         try:
+            ctx.logger.debug(f"Acquiring lock for connection check, user_id: {user_id}")
             async with self._lock:
+                ctx.logger.debug(
+                    f"Fetching connected accounts from Composio API, "
+                    f"user_id: {user_id}, auth_config_ids: {auth_config_ids}"
+                )
                 connections = await asyncio.to_thread(
                     self._composio.connected_accounts.list,
                     user_ids=[user_id],
@@ -1421,6 +1442,10 @@ class ComposioClient:
             active_connections = 0
             connections_required: list[AuthConfigId] = []
 
+            ctx.logger.debug(
+                f"Checking each auth config for active connections, "
+                f"user_id: {user_id}, total_auth_configs: {len(auth_config_ids)}"
+            )
             # Check each auth config for active connections
             for auth_config_id in auth_config_ids:
                 has_active_connection = any(
@@ -1430,8 +1455,15 @@ class ComposioClient:
 
                 if has_active_connection:
                     active_connections += 1
+                    ctx.logger.debug(
+                        f"Found active connection, user_id: {user_id}, "
+                        f"auth_config_id: {auth_config_id}"
+                    )
                 else:
                     connections_required.append(auth_config_id)
+                    ctx.logger.debug(
+                        f"Missing connection, user_id: {user_id}, auth_config_id: {auth_config_id}"
+                    )
 
             connection_status = ConnectionStatus(
                 user_connected=len(connections_required) == 0,
@@ -1441,26 +1473,20 @@ class ComposioClient:
             )
 
             ctx.logger.info(
-                "Connection status check completed",
-                extra={
-                    "user_id": user_id,
-                    "user_connected": connection_status.user_connected,
-                    "active_connections": active_connections,
-                    "total_configs": len(auth_config_ids),
-                    "missing_connections": len(connections_required),
-                },
+                f"Connection status check completed, user_id: {user_id}, "
+                f"user_connected: {connection_status.user_connected}, "
+                f"active_connections: {active_connections}, "
+                f"total_configs: {len(auth_config_ids)}, "
+                f"missing_connections: {len(connections_required)}, "
+                f"connections_required: {connections_required}"
             )
 
             return connection_status
 
         except Exception as e:
             ctx.logger.error(
-                "Failed to check connection status",
-                extra={
-                    "user_id": user_id,
-                    "auth_config_ids": auth_config_ids,
-                    "error": str(e),
-                },
+                f"Failed to check connection status, user_id: {user_id}, "
+                f"auth_config_ids: {auth_config_ids}, error: {str(e)}",
                 exc_info=True,
             )
             raise ConnectionError(
@@ -1518,20 +1544,26 @@ class ComposioClient:
             ```
         """
         if not user_id or not user_id.strip():
+            ctx.logger.error("user_id validation failed, user_id is empty or invalid")
             raise ValueError("user_id cannot be empty")
         if not auth_config_id or not auth_config_id.strip():
+            ctx.logger.error(
+                "auth_config_id validation failed, auth_config_id is empty or invalid"
+            )
             raise ValueError("auth_config_id cannot be empty")
 
         ctx.logger.info(
-            "Creating authentication request",
-            extra={
-                "user_id": user_id,
-                "auth_config_id": auth_config_id,
-                "has_callback_url": callback_url is not None,
-            },
+            f"Creating authentication request, user_id: {user_id}, "
+            f"auth_config_id: {auth_config_id}, "
+            f"has_callback_url: {callback_url is not None}, "
+            f"callback_url: {callback_url if callback_url else 'None'}"
         )
 
         try:
+            ctx.logger.debug(
+                f"Acquiring lock for authentication request, "
+                f"user_id: {user_id}, auth_config_id: {auth_config_id}"
+            )
             async with self._lock:
                 # Prepare parameters for connection request
                 link_params = {
@@ -1541,17 +1573,19 @@ class ComposioClient:
                 if callback_url:
                     link_params["callback_url"] = callback_url
 
+                ctx.logger.debug(
+                    f"Initiating connection request with Composio API, "
+                    f"user_id: {user_id}, auth_config_id: {auth_config_id}, "
+                    f"link_params: {link_params}"
+                )
                 connection_request = await asyncio.to_thread(
                     self._composio.connected_accounts.initiate, **link_params
                 )
 
             if not connection_request.redirect_url:
                 ctx.logger.warning(
-                    "Auth request created without redirect URL",
-                    extra={
-                        "user_id": user_id,
-                        "auth_config_id": auth_config_id,
-                    },
+                    f"Auth request created without redirect URL, "
+                    f"user_id: {user_id}, auth_config_id: {auth_config_id}"
                 )
                 return AuthResponse(
                     status="failed",
@@ -1567,12 +1601,9 @@ class ComposioClient:
             )
 
             ctx.logger.info(
-                "Authentication request created successfully",
-                extra={
-                    "user_id": user_id,
-                    "auth_config_id": auth_config_id,
-                    "redirect_url_preview": redirect_preview,
-                },
+                f"Authentication request created successfully, "
+                f"user_id: {user_id}, auth_config_id: {auth_config_id}, "
+                f"redirect_url_preview: {redirect_preview}"
             )
 
             return AuthResponse(
@@ -1587,12 +1618,9 @@ class ComposioClient:
 
         except Exception as e:
             ctx.logger.error(
-                "Failed to create authentication request",
-                extra={
-                    "user_id": user_id,
-                    "auth_config_id": auth_config_id,
-                    "error": str(e),
-                },
+                f"Failed to create authentication request, "
+                f"user_id: {user_id}, auth_config_id: {auth_config_id}, "
+                f"error: {str(e)}",
                 exc_info=True,
             )
 
@@ -1650,20 +1678,25 @@ class ComposioClient:
             ```
         """
         if not connection_request:
-            raise ValueError(
-                "connection_request is required and cannot be None")
+            ctx.logger.error(
+                "connection_request validation failed, connection_request is None"
+            )
+            raise ValueError("connection_request is required and cannot be None")
 
         effective_timeout = timeout or self._config.timeout
 
         ctx.logger.info(
-            "Starting authentication verification",
-            extra={
-                "connection_request_id": getattr(connection_request, "id", "unknown"),
-                "timeout": effective_timeout,
-            },
+            f"Starting authentication verification, "
+            f"connection_request_id: {getattr(connection_request, 'id', 'unknown')}, "
+            f"timeout: {effective_timeout}"
         )
 
         try:
+            ctx.logger.debug(
+                f"Waiting for connection completion, "
+                f"connection_request_id: {getattr(connection_request, 'id', 'unknown')}, "
+                f"timeout: {effective_timeout}"
+            )
             # Run blocking wait in thread pool to avoid blocking event loop
             connected_account = await asyncio.to_thread(
                 connection_request.wait_for_connection,
@@ -1672,11 +1705,9 @@ class ComposioClient:
 
             if connected_account.status == "ACTIVE":
                 ctx.logger.info(
-                    "Authentication verification successful",
-                    extra={
-                        "account_id": connected_account.id,
-                        "account_status": connected_account.status,
-                    },
+                    f"Authentication verification successful, "
+                    f"account_id: {connected_account.id}, "
+                    f"account_status: {connected_account.status}"
                 )
 
                 return AuthResponse(
@@ -1686,11 +1717,10 @@ class ComposioClient:
                 )
             else:
                 ctx.logger.warning(
-                    "Authentication verification completed but connection not active",
-                    extra={
-                        "account_id": getattr(connected_account, "id", "unknown"),
-                        "account_status": connected_account.status,
-                    },
+                    f"Authentication verification completed but connection not active, "
+                    f"account_id: {getattr(connected_account, 'id', 'unknown')}, "
+                    f"account_status: {connected_account.status}, "
+                    f"expected_status: ACTIVE"
                 )
 
                 return AuthResponse(
@@ -1701,11 +1731,8 @@ class ComposioClient:
 
         except ComposioSDKTimeoutError as e:
             ctx.logger.warning(
-                "Authentication verification timed out",
-                extra={
-                    "timeout": effective_timeout,
-                    "error": str(e),
-                },
+                f"Authentication verification timed out, "
+                f"timeout: {effective_timeout}, error: {str(e)}"
             )
 
             return AuthResponse(
@@ -1716,12 +1743,9 @@ class ComposioClient:
 
         except Exception as e:
             ctx.logger.error(
-                "Authentication verification failed with unexpected error",
-                extra={
-                    "timeout": effective_timeout,
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
+                f"Authentication verification failed with unexpected error, "
+                f"timeout: {effective_timeout}, error: {str(e)}, "
+                f"error_type: {type(e).__name__}",
                 exc_info=True,
             )
 
@@ -1767,19 +1791,20 @@ class ComposioClient:
             ```
         """
         if not user_id or not user_id.strip():
+            ctx.logger.error("user_id validation failed, user_id is empty or invalid")
             raise ValueError("user_id is required and cannot be empty")
 
         if not self._config.tool_configs:
+            ctx.logger.error(
+                "No tool configurations provided, operation: tool_retrieval"
+            )
             raise ConfigurationError(
                 "No tool configurations provided", operation="tool_retrieval"
             )
 
         ctx.logger.info(
-            "Starting tool retrieval",
-            extra={
-                "user_id": user_id,
-                "tool_configs_count": len(self._config.tool_configs),
-            },
+            f"Starting tool retrieval, user_id: {user_id}, "
+            f"tool_configs_count: {len(self._config.tool_configs)}"
         )
 
         try:
@@ -1788,13 +1813,10 @@ class ComposioClient:
 
             for i, config in enumerate(self._config.tool_configs):
                 ctx.logger.info(
-                    f"Processing tool config {i + 1}/{len(self._config.tool_configs)}",
-                    extra={
-                        "user_id": user_id,
-                        "auth_config_id": config.auth_config_id,
-                        "config_type": self._get_config_type(config),
-                        "tool_group_name": config.tool_group_name,
-                    },
+                    f"Processing tool config {i + 1}/{len(self._config.tool_configs)}, "
+                    f"user_id: {user_id}, auth_config_id: {config.auth_config_id}, "
+                    f"config_type: {self._get_config_type(config)}, "
+                    f"tool_group_name: {config.tool_group_name}"
                 )
 
                 async with self._lock:
@@ -1834,23 +1856,24 @@ class ComposioClient:
                                 tools=params.get("tools"),
                             )
 
-                        ctx.logger.info(
-                            f"Retrieving tools with parameters with param: {params}",
+                        ctx.logger.debug(
+                            f"Retrieving tools from Composio API, "
+                            f"user_id: {user_id}, "
+                            f"auth_config_id: {current_config.auth_config_id}, "
+                            f"params: {params}"
                         )
 
                         return self._composio.tools.get(**params)
 
                     try:
                         retrieved_tools = await asyncio.to_thread(get_tools_for_config)
-                        tool_count = len(
-                            retrieved_tools) if retrieved_tools else 0
+                        tool_count = len(retrieved_tools) if retrieved_tools else 0
 
                         # Add tools to the group
                         group_name = config.tool_group_name
                         if group_name not in tools_by_group:
                             tools_by_group[group_name] = []
-                        tools_by_group[group_name].extend(
-                            retrieved_tools or [])
+                        tools_by_group[group_name].extend(retrieved_tools or [])
 
                         config_results.append(
                             {
@@ -1863,25 +1886,21 @@ class ComposioClient:
                         )
 
                         ctx.logger.info(
-                            f"Retrieved {tool_count} tools from config {i + 1}",
-                            extra={
-                                "user_id": user_id,
-                                "auth_config_id": config.auth_config_id,
-                                "tool_group_name": group_name,
-                                "tool_count": tool_count,
-                            },
+                            f"Retrieved {tool_count} tools from config {i + 1}, "
+                            f"user_id: {user_id}, "
+                            f"auth_config_id: {config.auth_config_id}, "
+                            f"tool_group_name: {group_name}, "
+                            f"tool_count: {tool_count}"
                         )
 
                     except Exception as config_error:
                         ctx.logger.warning(
-                            f"Failed to retrieve tools from config {i + 1}",
-                            extra={
-                                "user_id": user_id,
-                                "auth_config_id": config.auth_config_id,
-                                "config_type": self._get_config_type(config),
-                                "tool_group_name": config.tool_group_name,
-                                "error": str(config_error),
-                            },
+                            f"Failed to retrieve tools from config {i + 1}, "
+                            f"user_id: {user_id}, "
+                            f"auth_config_id: {config.auth_config_id}, "
+                            f"config_type: {self._get_config_type(config)}, "
+                            f"tool_group_name: {config.tool_group_name}, "
+                            f"error: {str(config_error)}",
                             exc_info=True,
                         )
                         config_results.append(
@@ -1902,39 +1921,32 @@ class ComposioClient:
                 result["tool_count"] for result in config_results if result["success"]
             )
 
+            tools_summary = ", ".join(
+                [f"{group}: {len(tools)}" for group, tools in tools_by_group.items()]
+            )
             ctx.logger.info(
-                "Tool retrieval completed",
-                extra={
-                    "user_id": user_id,
-                    "total_tools_retrieved": total_retrieved,
-                    "tools_by_group": {
-                        group: len(tools) for group, tools in tools_by_group.items()
-                    },
-                    "successful_configs": successful_configs,
-                    "total_configs": len(self._config.tool_configs),
-                    "config_results": config_results,
-                },
+                f"Tool retrieval completed, user_id: {user_id}, "
+                f"total_tools_retrieved: {total_retrieved}, "
+                f"tools_by_group: {{{tools_summary}}}, "
+                f"successful_configs: {successful_configs}, "
+                f"total_configs: {len(self._config.tool_configs)}, "
+                f"config_results: {config_results}"
             )
 
             if not tools_by_group:
                 ctx.logger.warning(
-                    "No tools retrieved from any configuration",
-                    extra={
-                        "user_id": user_id,
-                        "config_results": config_results,
-                    },
+                    f"No tools retrieved from any configuration, "
+                    f"user_id: {user_id}, config_results: {config_results}"
                 )
 
             return tools_by_group
 
         except Exception as e:
             ctx.logger.error(
-                "Tool retrieval failed with unexpected error",
-                extra={
-                    "user_id": user_id,
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
+                f"Tool retrieval failed with unexpected error, "
+                f"user_id: {user_id}, error: {str(e)}, "
+                f"error_type: {type(e).__name__}, "
+                f"tool_configs_count: {len(self._config.tool_configs)}",
                 exc_info=True,
             )
             raise ToolRetrievalError(
@@ -2050,14 +2062,11 @@ class PostgresMemoryConfig(BaseModel):
             password = os.getenv("PSQL_PASSWORD")
 
             if not database:
-                raise ValueError(
-                    "PSQL_DATABASE environment variable is required")
+                raise ValueError("PSQL_DATABASE environment variable is required")
             if not user:
-                raise ValueError(
-                    "PSQL_USERNAME environment variable is required")
+                raise ValueError("PSQL_USERNAME environment variable is required")
             if not password:
-                raise ValueError(
-                    "PSQL_PASSWORD environment variable is required")
+                raise ValueError("PSQL_PASSWORD environment variable is required")
             port = int(port_str)
             sslmode = os.getenv("PSQL_SSLMODE", "prefer")
             max_size = int(os.getenv("PSQL_MAX_SIZE", "20"))
@@ -2102,18 +2111,16 @@ class PostgresMemoryConfig(BaseModel):
             to avoid resource leaks.
         """
         ctx.logger.info(
-            "Initializing PostgreSQL connection pool",
-            extra={
-                "host": self.host,
-                "port": self.port,
-                "database": self.database,
-                "user": self.user,
-                "sslmode": self.sslmode,
-                "max_size": self.max_size,
-            },
+            f"Initializing PostgreSQL connection pool, host: {self.host}, "
+            f"port: {self.port}, database: {self.database}, user: {self.user}, "
+            f"sslmode: {self.sslmode}, max_size: {self.max_size}"
         )
 
         try:
+            ctx.logger.debug(
+                f"Creating AsyncConnectionPool, database: {self.database}, "
+                f"max_size: {self.max_size}"
+            )
             # Create the pool without opening it in the constructor
             pool = AsyncConnectionPool(
                 conninfo=f"postgres://{self.user}:{self.password.get_secret_value()}"
@@ -2128,26 +2135,23 @@ class PostgresMemoryConfig(BaseModel):
                 open=False,  # Don't open in constructor to avoid deprecation warning
             )
 
+            ctx.logger.debug(f"Opening connection pool, database: {self.database}")
             # Explicitly open the pool
             await pool.open()
 
             ctx.logger.info(
-                "PostgreSQL connection pool initialized and opened successfully",
-                extra={"max_size": self.max_size, "database": self.database},
+                f"PostgreSQL connection pool initialized and opened successfully, "
+                f"max_size: {self.max_size}, database: {self.database}"
             )
 
             return pool
 
         except Exception as e:
             ctx.logger.error(
-                "Failed to initialize PostgreSQL connection pool",
-                extra={
-                    "host": self.host,
-                    "port": self.port,
-                    "database": self.database,
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
+                f"Failed to initialize PostgreSQL connection pool, "
+                f"host: {self.host}, port: {self.port}, "
+                f"database: {self.database}, error: {str(e)}, "
+                f"error_type: {type(e).__name__}",
                 exc_info=True,
             )
             raise
@@ -2243,6 +2247,8 @@ class ComposioService:
         api_key: str | None = None,
         model_name: str | None = None,
         base_url: str | None = None,
+        model_context_window: int | None = None,
+        tool_response_token_limit: int | None = None,
         memory_config: PostgresMemoryConfig | None = None,
     ) -> None:
         """
@@ -2254,6 +2260,10 @@ class ComposioService:
             api_key: API key for the language model (or set LLM_API_KEY env var)
             model_name: Name of the language model to use (or set LLM_MODEL_NAME env var)
             base_url: Base URL for the language model API (or set LLM_BASE_URL env var)
+            model_context_window: Optional context window size for the model
+                                  (or set LLM_MODEL_CONTEXT_WINDOW env var)
+            tool_response_token_limit: Optional max tokens for tool responses
+                                       (or set LLM_TOOL_RESPONSE_TOKEN_LIMIT env var)
             memory_config: Optional PostgreSQL configuration for persistent memory
 
         Raises:
@@ -2281,12 +2291,9 @@ class ComposioService:
         """
 
         logger.info(
-            "Initializing ComposioService",
-            extra={
-                "has_memory_config": memory_config is not None,
-                "tool_configs_count": len(composio_config.tool_configs or []),
-                "auth_config_ids": list(composio_config.get_auth_config_ids()),
-            },
+            f"Initializing ComposioService, has_memory_config: {memory_config is not None}, "
+            f"tool_configs_count: {len(composio_config.tool_configs or [])}, "
+            f"auth_config_ids: {list(composio_config.get_auth_config_ids())}"
         )
 
         # Resolve API configuration from parameters or environment
@@ -2299,8 +2306,7 @@ class ComposioService:
                 "API key must be provided via parameter or LLM_API_KEY env var"
             )
 
-        base_url = base_url or os.getenv(
-            "LLM_BASE_URL", "https://api.asi1.ai/v1")
+        base_url = base_url or os.getenv("LLM_BASE_URL", "https://api.asi1.ai/v1")
         if not base_url:
             logger.error(
                 "Base URL not provided in parameter or LLM_BASE_URL environment variable"
@@ -2309,8 +2315,8 @@ class ComposioService:
                 "Base URL must be provided via parameter or LLM_BASE_URL env var"
             )
 
-        model = model_name or os.getenv("LLM_MODEL_NAME", "asi1-mini")
-        if not model:
+        self._model = model_name or os.getenv("LLM_MODEL_NAME", "asi1-mini")
+        if not self._model:
             logger.error(
                 "Model name not provided in parameter or LLM_MODEL_NAME environment variable"
             )
@@ -2318,40 +2324,53 @@ class ComposioService:
                 "Model name must be provided via parameter or LLM_MODEL_NAME env var"
             )
 
+        self._model_context_window = model_context_window or int(
+            os.getenv("LLM_MODEL_CONTEXT_WINDOW", "128000")
+        )
+        self._tool_response_token_limit = tool_response_token_limit or int(
+            os.getenv("LLM_TOOL_RESPONSE_TOKEN_LIMIT", None)
+            or self._model_context_window * 0.8
+        )
+
+        base_url_preview = base_url[:50] + "..." if len(base_url) > 50 else base_url
+        logger.debug(
+            f"Configuration resolved, model: {self._model}, "
+            f"base_url: {base_url_preview}, "
+            f"model_context_window: {self._model_context_window}, "
+            f"tool_response_token_limit: {self._tool_response_token_limit}"
+        )
+
         # Initialize instance variables
         self._setup_completed = False
         self._memory_config = memory_config
         self._pool: AsyncConnectionPool | None = None
 
         try:
+            logger.debug(f"Initializing language model client, model: {self._model}")
             # Initialize language model client
             self._llm = ChatOpenAI(
-                model=model, api_key=SecretStr(api_key), base_url=base_url
+                model=self._model, api_key=SecretStr(api_key), base_url=base_url
             )
             logger.info(
-                "Language model client initialized successfully",
-                extra={
-                    "model": model,
-                    "base_url": (
-                        base_url[:50] +
-                        "..." if len(base_url) > 50 else base_url
-                    ),
-                },
+                f"Language model client initialized successfully, "
+                f"model: {self._model}, base_url: {base_url_preview}"
             )
 
+            logger.debug("Initializing Composio client")
             # Initialize Composio client
             self._composio_config = composio_config
             self._client = ComposioClient(config=composio_config)
             logger.info("Composio client initialized successfully")
 
+            logger.debug("Initializing chat protocol")
             # Initialize chat protocol
             self._protocol = AgentChatProtocol(spec=chat_protocol_spec)
             logger.info("Chat protocol initialized successfully")
 
         except Exception as e:
             logger.error(
-                "Failed to initialize ComposioService components",
-                extra={"error": str(e), "error_type": type(e).__name__},
+                f"Failed to initialize ComposioService components, "
+                f"error: {str(e)}, error_type: {type(e).__name__}",
                 exc_info=True,
             )
             raise ConfigurationError(
@@ -2361,12 +2380,9 @@ class ComposioService:
             ) from e
 
         logger.info(
-            "ComposioService initialization completed successfully",
-            extra={
-                "service_id": id(self),
-                "memory_enabled": memory_config is not None,
-                "tools_configured": len(composio_config.tool_configs or []),
-            },
+            f"ComposioService initialization completed successfully, "
+            f"service_id: {id(self)}, memory_enabled: {memory_config is not None}, "
+            f"tools_configured: {len(composio_config.tool_configs or [])}"
         )
 
     async def _send_chat_message(
@@ -2385,21 +2401,18 @@ class ComposioService:
             Exception: If message sending fails (logged but not re-raised)
         """
         try:
+            session_id_str = str(ctx.session) if hasattr(ctx, "session") else "None"
             ctx.logger.info(
-                "Sending chat message",
-                extra={
-                    "sender": sender,
-                    "text_length": len(text),
-                    "end_session": end_session,
-                    "session_id": str(ctx.session) if hasattr(ctx, "session") else None,
-                },
+                f"Sending chat message, sender: {sender}, "
+                f"text_length: {len(text)}, end_session: {end_session}, "
+                f"session_id: {session_id_str}"
             )
 
             content: list[AgentContent] = [TextContent(type="text", text=text)]
 
             if end_session:
                 content.append(EndSessionContent(type="end-session"))
-                ctx.logger.info("Added end-session signal to message")
+                ctx.logger.debug("Added end-session signal to message")
 
             await ctx.send(
                 sender,
@@ -2411,27 +2424,20 @@ class ComposioService:
             )
 
             ctx.logger.info(
-                "Chat message sent successfully",
-                extra={"sender": sender, "message_length": len(text)},
+                f"Chat message sent successfully, sender: {sender}, message_length: {len(text)}"
             )
 
         except Exception as e:
             ctx.logger.error(
-                "Failed to send chat message",
-                extra={
-                    "sender": sender,
-                    "text_length": len(text),
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
+                f"Failed to send chat message, sender: {sender}, "
+                f"text_length: {len(text)}, error: {str(e)}, "
+                f"error_type: {type(e).__name__}",
                 exc_info=True,
             )
-            # Don't re-raise to avoid breaking the conversation flow
-            # The caller should handle message delivery failures gracefully
 
     async def _authenticate_user(
         self, user_id: UserId, auth_config_id: AuthConfigId, ctx: Context
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[str]:
         """
         Authenticate a user for a specific auth configuration.
 
@@ -2453,40 +2459,37 @@ class ComposioService:
         Raises:
             AuthenticationError: If authentication fails unexpectedly (logged but not raised)
         """
+        tool_group = self._composio_config.get_tool_group_name_by_auth_config(
+            auth_config_id
+        )
         ctx.logger.info(
-            "Starting user authentication flow",
-            extra={
-                "user_id": user_id,
-                "auth_config_id": auth_config_id,
-                "tool_group": self._composio_config.get_tool_group_name_by_auth_config(
-                    auth_config_id
-                ),
-            },
+            f"Starting user authentication flow, user_id: {user_id}, "
+            f"auth_config_id: {auth_config_id}, tool_group: {tool_group}"
         )
 
         try:
+            ctx.logger.debug(
+                f"Creating authentication request, user_id: {user_id}, "
+                f"auth_config_id: {auth_config_id}"
+            )
             # Create auth request for the specified auth config
             auth_response = await self._client.create_auth_request(
                 user_id, auth_config_id, ctx
             )
 
+            has_redirect = auth_response.redirect_url is not None
             ctx.logger.info(
-                "Authentication request created",
-                extra={
-                    "user_id": user_id,
-                    "auth_config_id": auth_config_id,
-                    "status": auth_response.status,
-                    "has_redirect_url": auth_response.redirect_url is not None,
-                },
+                f"Authentication request created, user_id: {user_id}, "
+                f"auth_config_id: {auth_config_id}, status: {auth_response.status}, "
+                f"has_redirect_url: {has_redirect}"
             )
 
             if auth_response.is_pending and auth_response.redirect_url:
                 if not auth_response.connection_request:
                     error_msg = "Connection request object missing in auth response."
                     ctx.logger.error(
-                        error_msg,
-                        extra={"user_id": user_id,
-                               "auth_config_id": auth_config_id},
+                        f"{error_msg}, user_id: {user_id}, "
+                        f"auth_config_id: {auth_config_id}"
                     )
                     yield (
                         "Sorry, an error occurred while creating the authentication request. "
@@ -2499,14 +2502,11 @@ class ComposioService:
                         auth_config_id
                     )
                 )
+                redirect_url_len = len(auth_response.redirect_url)
                 ctx.logger.info(
-                    "Authentication URL provided to user",
-                    extra={
-                        "user_id": user_id,
-                        "auth_config_id": auth_config_id,
-                        "tool_group": tool_group_name,
-                        "redirect_url_length": len(auth_response.redirect_url),
-                    },
+                    f"Authentication URL provided to user, user_id: {user_id}, "
+                    f"auth_config_id: {auth_config_id}, tool_group: {tool_group_name}, "
+                    f"redirect_url_length: {redirect_url_len}"
                 )
                 yield (
                     f"To connect with {tool_group_name}, please authenticate by "
@@ -2515,9 +2515,8 @@ class ComposioService:
 
                 # Wait for user to complete authentication
                 ctx.logger.info(
-                    "Waiting for user to complete authentication",
-                    extra={"user_id": user_id,
-                           "auth_config_id": auth_config_id},
+                    f"Waiting for user to complete authentication, "
+                    f"user_id: {user_id}, auth_config_id: {auth_config_id}"
                 )
                 verify_response = await self._client.verify_auth_request(
                     auth_response.connection_request, ctx=ctx
@@ -2525,20 +2524,16 @@ class ComposioService:
 
                 if verify_response.is_success:
                     ctx.logger.info(
-                        "User authentication completed successfully",
-                        extra={
-                            "user_id": user_id,
-                            "auth_config_id": auth_config_id,
-                            "connection_id": verify_response.connection_id,
-                        },
+                        f"User authentication completed successfully, "
+                        f"user_id: {user_id}, auth_config_id: {auth_config_id}, "
+                        f"connection_id: {verify_response.connection_id}"
                     )
                     yield "Authentication successful!"
 
                 elif verify_response.status == "timeout":
                     ctx.logger.warning(
-                        "Authentication timed out, retrying",
-                        extra={"user_id": user_id,
-                               "auth_config_id": auth_config_id},
+                        f"Authentication timed out, retrying, "
+                        f"user_id: {user_id}, auth_config_id: {auth_config_id}"
                     )
                     yield "Authentication timed out. Please try again."
                     async for msg in self._authenticate_user(
@@ -2549,13 +2544,10 @@ class ComposioService:
 
                 else:
                     ctx.logger.error(
-                        "Authentication failed",
-                        extra={
-                            "user_id": user_id,
-                            "auth_config_id": auth_config_id,
-                            "status": verify_response.status,
-                            "message": verify_response.message,
-                        },
+                        f"Authentication failed, user_id: {user_id}, "
+                        f"auth_config_id: {auth_config_id}, "
+                        f"status: {verify_response.status}, "
+                        f"message: {verify_response.message}"
                     )
                     yield f"Authentication failed: {verify_response.message}"
                     return
@@ -2564,12 +2556,8 @@ class ComposioService:
                     f"Failed to create authentication request: {auth_response.message}"
                 )
                 ctx.logger.error(
-                    error_msg,
-                    extra={
-                        "user_id": user_id,
-                        "auth_config_id": auth_config_id,
-                        "status": auth_response.status,
-                    },
+                    f"{error_msg}, user_id: {user_id}, "
+                    f"auth_config_id: {auth_config_id}, status: {auth_response.status}"
                 )
                 yield (
                     "Sorry, an error occurred while creating the authentication request. "
@@ -2579,13 +2567,9 @@ class ComposioService:
 
         except Exception as e:
             ctx.logger.error(
-                "Unexpected error during user authentication",
-                extra={
-                    "user_id": user_id,
-                    "auth_config_id": auth_config_id,
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
+                f"Unexpected error during user authentication, "
+                f"user_id: {user_id}, auth_config_id: {auth_config_id}, "
+                f"error: {str(e)}, error_type: {type(e).__name__}",
                 exc_info=True,
             )
             yield (
@@ -2595,7 +2579,7 @@ class ComposioService:
 
     async def _check_user_connections(
         self, user_id: UserId, ctx: Context
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[str]:
         """
         Check and establish user connections for all required auth configurations.
 
@@ -2614,29 +2598,24 @@ class ComposioService:
             This method is recursive - it re-checks connections after each authentication
             attempt to ensure all required connections are established.
         """
+        auth_config_ids = list(self._composio_config.get_auth_config_ids())
         ctx.logger.info(
-            "Checking user connections",
-            extra={
-                "user_id": user_id,
-                "required_auth_configs": list(
-                    self._composio_config.get_auth_config_ids()
-                ),
-            },
+            f"Checking user connections, user_id: {user_id}, "
+            f"required_auth_configs: {auth_config_ids}"
         )
 
         try:
+            ctx.logger.debug(f"Fetching connection status, user_id: {user_id}")
             # Check if user has an active connection
             status = await self._client.connection_exists(user_id, ctx)
 
+            missing_count = len(status.connections_required)
             ctx.logger.info(
-                "Connection status retrieved",
-                extra={
-                    "user_id": user_id,
-                    "user_connected": status.user_connected,
-                    "active_connections": status.active_connections,
-                    "total_configs": status.total_configs,
-                    "missing_connections": len(status.connections_required),
-                },
+                f"Connection status retrieved, user_id: {user_id}, "
+                f"user_connected: {status.user_connected}, "
+                f"active_connections: {status.active_connections}, "
+                f"total_configs: {status.total_configs}, "
+                f"missing_connections: {missing_count}"
             )
 
             if not status.user_connected:
@@ -2645,31 +2624,26 @@ class ComposioService:
                         "No authentication configurations available for connection."
                     )
                     ctx.logger.error(
-                        error_msg,
-                        extra={
-                            "user_id": user_id,
-                            "total_configs": status.total_configs,
-                            "active_connections": status.active_connections,
-                        },
+                        f"{error_msg}, user_id: {user_id}, "
+                        f"total_configs: {status.total_configs}, "
+                        f"active_connections: {status.active_connections}"
                     )
                     yield "No authentication configurations available for connection."
                     return
 
+                conn_progress = f"{status.active_connections}/{status.total_configs}"
                 ctx.logger.info(
-                    "User needs authentication for missing connections",
-                    extra={
-                        "user_id": user_id,
-                        "missing_connections": status.connections_required,
-                        "connection_progress": f"{status.active_connections}/{status.total_configs}"
-                    },
+                    f"User needs authentication for missing connections, "
+                    f"user_id: {user_id}, "
+                    f"missing_connections: {status.connections_required}, "
+                    f"connection_progress: {conn_progress}"
                 )
 
                 # Authenticate each missing connection
                 for auth_config_id in status.connections_required:
                     ctx.logger.info(
-                        "Starting authentication for missing connection",
-                        extra={"user_id": user_id,
-                               "auth_config_id": auth_config_id},
+                        f"Starting authentication for missing connection, "
+                        f"user_id: {user_id}, auth_config_id: {auth_config_id}"
                     )
                     async for auth_msg in self._authenticate_user(
                         user_id, auth_config_id, ctx
@@ -2678,30 +2652,24 @@ class ComposioService:
 
                 # Re-check connections after authentication attempts
                 ctx.logger.info(
-                    "Re-checking connections after authentication attempts",
-                    extra={"user_id": user_id},
+                    f"Re-checking connections after authentication attempts, "
+                    f"user_id: {user_id}"
                 )
                 async for conn_msg in self._check_user_connections(user_id, ctx):
                     yield conn_msg
 
             else:
                 ctx.logger.info(
-                    "User already has all required connections",
-                    extra={
-                        "user_id": user_id,
-                        "active_connections": status.active_connections,
-                        "total_configs": status.total_configs,
-                    },
+                    f"User already has all required connections, "
+                    f"user_id: {user_id}, "
+                    f"active_connections: {status.active_connections}, "
+                    f"total_configs: {status.total_configs}"
                 )
 
         except Exception as e:
             ctx.logger.error(
-                "Error checking user connections",
-                extra={
-                    "user_id": user_id,
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
+                f"Error checking user connections, user_id: {user_id}, "
+                f"error: {str(e)}, error_type: {type(e).__name__}",
                 exc_info=True,
             )
             yield (
@@ -2711,10 +2679,13 @@ class ComposioService:
 
     async def _create_pre_model_hook(
         self,
-        max_tokens: int = 100000,
-        strategy: str = "last",
-        agent_prompt: str | None = None,
-    ) -> Callable[[dict[str, Any]], dict[str, list[BaseMessage]]]:
+        model_name: str,
+        max_tokens: int,
+        max_tool_response_tokens: int,
+        strategy: str,
+        agent_prompt: str,
+        ctx: Context,
+    ) -> list[Callable[[AgentState[str], Runtime], dict[str, Any] | None]]:
         """
         Factory function to create a pre_model_hook with custom configuration for memory trimming.
 
@@ -2722,71 +2693,184 @@ class ComposioService:
         within the specified token limit, ensuring the most recent context is prioritized.
 
         Args:
-            max_tokens: Maximum number of tokens to keep in history.
-            strategy: Trimming strategy ('last', 'first', etc.).
-            agent_prompt: Optional agent prompt to include in trimming context.
+            model_name: Name of the language model (for tokenization)
+            max_tokens: Maximum tokens allowed in the model context
+            max_tool_response_tokens: Max tokens for individual tool responses
+            strategy: Trimming strategy ('remove_oldest', 'remove_newest', 'balanced')
+            agent_prompt: Optional static prompt to reserve tokens for
+            ctx: Context object for logging and operation context
 
         Returns:
-            Configured pre_model_hook function.
+            List of pre-model hook functions to be applied before each model call
         """
 
-        def pre_model_hook(state: dict[str, Any]) -> dict[str, list[BaseMessage]]:
-            """The actual hook to be executed before the LLM call."""
+        @before_model
+        def truncate_large_tool_responses(
+            state: AgentState[str], runtime: Runtime
+        ) -> dict[str, Any] | None:
+            """
+            Truncate tool responses that exceed a certain token limit.
 
-            if "messages" not in state or not isinstance(state["messages"], list):
-                return {}
+            This prevents large tool outputs from overwhelming the context window.
+            """
+            # Use the appropriate encoding for tokenization
+            try:
+                encoding = tiktoken.encoding_for_model(model_name)
+            except KeyError:
+                ctx.logger.warning(
+                    f"Model {model_name} not found in tiktoken, "
+                    f"using cl100k_base encoding, model_name: {model_name}"
+                )
+                encoding = tiktoken.get_encoding("cl100k_base")
 
-            messages: list[BaseMessage] = state["messages"]
-            safe_token_count = max_tokens
-            agent_prompt_tokens = 0
+            messages = state.get("messages", [])
+            if not messages:
+                ctx.logger.debug(
+                    "No messages in state, skipping tool response truncation"
+                )
+                return None
 
+            last_message = messages[-1]
+
+            # Only process tool messages
+            if not isinstance(last_message, ToolMessage):
+                msg_type = type(last_message).__name__
+                ctx.logger.debug(
+                    f"Last message is not a ToolMessage, skipping truncation, "
+                    f"message_type: {msg_type}"
+                )
+                return None
+
+            content = last_message.content
+            tokens = encoding.encode(content)
+            num_tokens = len(tokens)
+
+            ctx.logger.debug(
+                f"Checking tool response size, tool_response_tokens: {num_tokens}, "
+                f"max_tool_response_tokens: {max_tool_response_tokens}, "
+                f"content_length: {len(content)}"
+            )
+
+            # If within limit, skip truncation
+            if num_tokens <= max_tool_response_tokens:
+                ctx.logger.debug(
+                    "Tool response within token limit, no truncation needed"
+                )
+                return None
+
+            # Truncate tokens and decode back to string
+            truncated_tokens = tokens[:max_tool_response_tokens]
+            truncated_content = encoding.decode(truncated_tokens)
+
+            # Add truncation note
+            truncated_content += (
+                f"\n\n[... Truncated. Original length: {num_tokens} tokens. "
+                f"Showing first {max_tool_response_tokens} tokens only ...]"
+                "You must explain this situation to the user clearly."
+            )
+
+            # Replace message content
+            last_message.content = truncated_content
+
+            compression_ratio = (max_tool_response_tokens / num_tokens) * 100
+            ctx.logger.info(
+                f"Tool response truncated due to size limit, "
+                f"original_tokens: {num_tokens}, "
+                f"truncated_tokens: {max_tool_response_tokens}, "
+                f"original_content_length: {len(content)}, "
+                f"truncated_content_length: {len(truncated_content)}, "
+                f"compression_ratio: {compression_ratio:.1f}%"
+            )
+
+            return {"messages": messages[:-1] + [last_message]}
+
+        @before_model
+        def truncate_overlong_history(
+            state: AgentState[str], runtime: Runtime
+        ) -> dict[str, Any] | None:
+            """
+            Trim conversation history so that total tokens fit within model limits.
+            """
+            messages = state.get("messages", [])
+            if not messages:
+                logger.debug("No messages in state, skipping history truncation")
+                return None
+
+            try:
+                encoding = tiktoken.encoding_for_model(model_name)
+            except KeyError:
+                logger.warning(
+                    f"Model {model_name} not found in tiktoken, "
+                    f"using cl100k_base encoding, model_name: {model_name}"
+                )
+                encoding = tiktoken.get_encoding("cl100k_base")
+
+            # Reserve tokens for agent prompt if provided
+            reserved_tokens = 0
             if agent_prompt:
-                message = HumanMessage(content=agent_prompt)
-                agent_prompt_tokens = count_tokens_approximately([message])
-                safe_token_count -= agent_prompt_tokens
+                reserved_tokens = len(encoding.encode(agent_prompt))
 
-            safe_max_tokens = int(safe_token_count * 0.8)
-            current_max = safe_max_tokens
-            max_iterations = 5
+            # Available token budget with safety margin
+            available_tokens = int((max_tokens - reserved_tokens) * 0.9)
 
-            for iteration in range(max_iterations):
-                trimmed_messages: list[BaseMessage] = trim_messages(
-                    messages,
-                    strategy=strategy,
-                    token_counter=count_tokens_approximately,
-                    max_tokens=current_max,
-                    start_on="human",
-                    end_on=("human", "tool"),
+            # Calculate current token count
+            current_tokens = sum(len(encoding.encode(m.content)) for m in messages)
+
+            logger.debug(
+                f"Checking conversation history size, "
+                f"message_count: {len(messages)}, "
+                f"current_tokens: {current_tokens}, max_tokens: {max_tokens}, "
+                f"reserved_tokens: {reserved_tokens}, "
+                f"available_tokens: {available_tokens}, strategy: {strategy}"
+            )
+
+            # If within limit, skip trimming
+            if current_tokens <= available_tokens:
+                logger.debug(
+                    "Conversation history within token limit, no trimming needed"
                 )
+                return None
 
-                actual_tokens = (
-                    count_tokens_approximately(
-                        trimmed_messages) + agent_prompt_tokens
-                )
+            # Use helper function to trim messages with tiktoken-based token counter
+            trimmed_messages = trim_messages(
+                messages,
+                strategy=strategy,
+                token_counter=lambda msgs: sum(
+                    len(encoding.encode(m.content)) for m in msgs
+                ),
+                max_tokens=available_tokens,
+                start_on="human",
+                end_on=("human", "tool"),
+            )
 
-                if actual_tokens <= max_tokens:
-                    return {"llm_input_messages": trimmed_messages}
+            trimmed_tokens = sum(
+                len(encoding.encode(m.content)) for m in trimmed_messages
+            )
 
-                overage_ratio = actual_tokens / max_tokens
-                current_max = int(current_max / overage_ratio * 0.8)
+            compression_ratio = (trimmed_tokens / current_tokens) * 100
+            messages_removed = len(messages) - len(trimmed_messages)
+            tokens_saved = current_tokens - trimmed_tokens
+            logger.info(
+                f"Conversation history trimmed to fit token limit, "
+                f"original_message_count: {len(messages)}, "
+                f"trimmed_message_count: {len(trimmed_messages)}, "
+                f"original_tokens: {current_tokens}, "
+                f"trimmed_tokens: {trimmed_tokens}, "
+                f"messages_removed: {messages_removed}, "
+                f"tokens_saved: {tokens_saved}, "
+                f"compression_ratio: {compression_ratio:.1f}%, strategy: {strategy}"
+            )
 
-                if iteration == max_iterations - 1:
-                    result_messages: list[BaseMessage] = []
-                    token_count = agent_prompt_tokens
+            return {"messages": trimmed_messages}
 
-                    for msg in reversed(trimmed_messages):
-                        msg_tokens = count_tokens_approximately([msg])
-                        if token_count + msg_tokens <= max_tokens:
-                            result_messages.insert(0, msg)
-                            token_count += msg_tokens
-                        else:
-                            break
+        logger.debug(
+            f"Pre-model hooks created, model_name: {model_name}, "
+            f"max_tokens: {max_tokens}, "
+            f"max_tool_response_tokens: {max_tool_response_tokens}, "
+            f"strategy: {strategy}, has_agent_prompt: {bool(agent_prompt)}"
+        )
 
-                    return {"llm_input_messages": result_messages}
-
-            return {"llm_input_messages": trimmed_messages}
-
-        return pre_model_hook
+        return [truncate_large_tool_responses, truncate_overlong_history]
 
     async def _run_agent_query(
         self, agent: Any, query: str, session_id: str, ctx: Context
@@ -2806,18 +2890,19 @@ class ComposioService:
         Returns:
             str: Agent's final response to the query, or error message if processing fails.
         """
+        query_preview = query[:100] + "..." if len(query) > 100 else query
         ctx.logger.info(
-            "Running agent query",
-            extra={
-                "session_id": session_id,
-                "query_length": len(query),
-                "query_preview": query[:100] + "..." if len(query) > 100 else query,
-            },
+            f"Running agent query, session_id: {session_id}, "
+            f"query_length: {len(query)}, query_preview: {query_preview}"
         )
 
         try:
             input_messages = {"messages": [HumanMessage(content=query)]}
             config = {"configurable": {"thread_id": session_id}}
+
+            ctx.logger.debug(
+                f"Invoking agent, session_id: {session_id}, thread_id: {session_id}"
+            )
 
             final_state = await agent.ainvoke(
                 input_messages,
@@ -2832,25 +2917,18 @@ class ComposioService:
             )
 
             ctx.logger.info(
-                "Agent query completed",
-                extra={
-                    "session_id": session_id,
-                    "response_length": len(final_response),
-                    "has_response": bool(response_content),
-                },
+                f"Agent query completed, session_id: {session_id}, "
+                f"response_length: {len(final_response)}, "
+                f"has_response: {bool(response_content)}"
             )
 
             return final_response
 
         except Exception as e:
             ctx.logger.error(
-                "Error running agent query",
-                extra={
-                    "session_id": session_id,
-                    "query_length": len(query),
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
+                f"Error running agent query, session_id: {session_id}, "
+                f"query_length: {len(query)}, error: {str(e)}, "
+                f"error_type: {type(e).__name__}",
                 exc_info=True,
             )
             return f"An error occurred while processing your query: {str(e)}"
@@ -2871,8 +2949,7 @@ class ComposioService:
         elif hasattr(tool.args_schema, "model_dump"):
             schema = tool.args_schema.model_dump()
         else:
-            schema = tool.args_schema if isinstance(
-                tool.args_schema, dict) else {}
+            schema = tool.args_schema if isinstance(tool.args_schema, dict) else {}
 
         properties = schema.get("properties", {})
         required = schema.get("required", [])
@@ -2918,6 +2995,13 @@ class ComposioService:
     4. Error Handling: If any error occurs during tool execution, respond with a clear error
     message and do not attempt to call another tool.
 
+    5. Truncation Detection: When you receive tool responses, check if they contain truncation
+    markers like "[... Truncated. Original length: X tokens...]". If you see this:
+    - Note that the data was truncated due to size limits
+    - Include this information in your response (e.g., "Note: The results were truncated.
+      Only showing the first portion of X items requested")
+    - Be specific about what might be missing (e.g., "showing first 50 of 100 emails requested")
+
     ---
 
     """
@@ -2926,8 +3010,7 @@ class ComposioService:
             tool_dict = await self._structured_tool_to_dict(tool_def)
             function_data = tool_dict.get("function", {})
             name = function_data.get("name", "N/A")
-            description = function_data.get(
-                "description", "No description provided.")
+            description = function_data.get("description", "No description provided.")
             parameters = function_data.get("parameters", {})
             required_params = parameters.get("required", [])
             properties = parameters.get("properties", {})
@@ -2957,15 +3040,12 @@ class ComposioService:
                     )
 
                 if "enum" in prop_data:
-                    allowed_values = ", ".join(
-                        [f"`{v}`" for v in prop_data["enum"]])
+                    allowed_values = ", ".join([f"`{v}`" for v in prop_data["enum"]])
                     tools_prompt += f" Allowed Values: {allowed_values}"
 
                 tools_prompt += "\n"
 
-        tools_prompt += (
-            "\n---\nRemember: Check relevant_data first, then use tools to complete the task.\n"
-        )
+        tools_prompt += "\n---\nRemember: Check relevant_data first, then use tools to complete the task.\n"
 
         return tools_prompt
 
@@ -2993,8 +3073,7 @@ class ComposioService:
             for tool_def in tool_list:
                 tool_dict = await self._structured_tool_to_dict(tool_def)
                 name = tool_dict.get("function", {}).get("name", "N/A")
-                description = tool_dict.get(
-                    "function", {}).get("description", "")
+                description = tool_dict.get("function", {}).get("description", "")
 
                 snippet = description.split(";")[0].split(",")[0]
                 snippet = snippet.split(".")[0] + "..."
@@ -3034,8 +3113,16 @@ class ComposioService:
     5. Single Agent Per Turn: Invoke only ONE agent per reasoning step. Wait for its response
     before deciding the next action.
 
-    6. Final Response: After all agents complete, synthesize their results into a single coherent
-    response that describes what was accomplished.
+    6. Truncation Awareness: When specialized agents return responses:
+    - Check if the response mentions truncation or partial results
+    - If data was truncated, include this in your final response to the user
+    - Be transparent and friendly about limitations (e.g., "I retrieved your emails, but due to
+      the large volume, I'm showing you the first 50. Let me know if you need a different subset.")
+    - Suggest alternatives if applicable (e.g., "Would you like me to filter by date or sender?")
+
+    7. Final Response: After all agents complete, synthesize their results into a single coherent
+    response that describes what was accomplished. If any truncation occurred, communicate this
+    clearly and helpfully to the user.
 
     """
 
@@ -3055,60 +3142,57 @@ class ComposioService:
 
     async def _create_specialized_agent_tool(
         self,
-        session_id: str,
         agent_name: str,
         tools: list[Any],
         ctx: Context,
-        memory: AsyncPostgresSaver | None = None,
-        max_history_tokens: int = 100000,
+        max_history_tokens: int,
+        max_tool_response_tokens: int,
+        model_name: str,
     ) -> Any:
         """
-        Creates a single, specialized LangChain ReAct agent with dedicated tools, memory,
+        Creates a single, specialized LangChain ReAct agent with dedicated tools,
         and a custom system prompt generated from the tool definitions.
+
+        Args:
+            agent_name: Name of the specialized agent (e.g., "Email", "Calendar")
+            tools: List of StructuredTool instances for this agent
+            ctx: The conversation context for logging and session management
+            max_history_tokens: Max tokens for conversation history in this agent
+            max_tool_response_tokens: Max tokens for individual tool responses
+            model_name: Name of the language model (for tokenization)
+
+        Returns:
+            An async function that serves as a tool to invoke this specialized agent.
         """
         ctx.logger.info(
-            f"Creating Specialized Agent: {agent_name}",
-            extra={"tools_count": len(
-                tools), "has_memory": memory is not None},
+            f"Creating Specialized Agent: {agent_name}, tools_count: {len(tools)}"
         )
 
         try:
+            ctx.logger.debug(
+                f"Generating specialized prompt for agent: {agent_name}, tools_count: {len(tools)}"
+            )
             specialized_prompt = await self._create_agent_tool_prompt(tools, agent_name)
 
+            ctx.logger.debug(f"Creating pre-model hooks for agent: {agent_name}")
             pre_model_hook_func = await self._create_pre_model_hook(
-                max_tokens=max_history_tokens, strategy="last"
+                model_name=model_name,
+                max_tokens=max_history_tokens,
+                max_tool_response_tokens=max_tool_response_tokens,
+                strategy="last",
+                agent_prompt=specialized_prompt,
+                ctx=ctx,
             )
 
-            def _handle_tool_errors(error: Exception) -> str:
-                """Handle tool execution errors with logging and user-friendly messages."""
-                ctx.logger.error(
-                    f"Error occurred during tool execution in {agent_name}: {error}",
-                    exc_info=True,
-                )
-                return "An error occurred while executing a tool. Please try again."
-
-            tool_node = ToolNode(
-                tools=tools, handle_tool_errors=_handle_tool_errors)
-
+            ctx.logger.debug(f"Creating LangChain agent for: {agent_name}")
             config: dict[str, Any] = {
                 "model": self._llm,
-                "tools": tool_node,
-                "prompt": specialized_prompt,
-                "pre_model_hook": pre_model_hook_func,
+                "tools": tools,
+                "system_prompt": specialized_prompt,
+                "middleware": pre_model_hook_func,
             }
 
-            specialized_thread_id = (
-                f"{session_id}_{agent_name.lower().replace(' ', '_')}"
-            )
-
-            if memory:
-                config["checkpointer"] = memory
-                ctx.logger.info(
-                    f"Agent {agent_name} configured with memory checkpointer"
-                )
-
-            agent = create_agent(
-                **{k: v for k, v in config.items() if v is not None})
+            agent = create_agent(**{k: v for k, v in config.items() if v is not None})
 
             @tool(
                 agent_name.lower().replace(" ", "_") + "_agent",
@@ -3131,14 +3215,11 @@ class ComposioService:
                 Returns:
                     str: The agent's response after executing the task
                 """
+                data_keys = list(relevant_data.keys()) if relevant_data else []
                 ctx.logger.info(
-                    f"Invoking {agent_name} with task: {task_description}",
-                    extra={
-                        "relevant_data_provided": relevant_data is not None,
-                        "relevant_data_keys": (
-                            list(relevant_data.keys()) if relevant_data else []
-                        ),
-                    },
+                    f"Invoking {agent_name} with task: {task_description}, "
+                    f"relevant_data_provided: {relevant_data is not None}, "
+                    f"relevant_data_keys: {data_keys}"
                 )
 
                 # Make relevant_data very visible in the prompt
@@ -3151,19 +3232,21 @@ class ComposioService:
 
                 prompt += "Execute the task using the appropriate tools."
 
+                ctx.logger.debug(
+                    f"Executing task with agent: {agent_name}, prompt_length: {len(prompt)}"
+                )
+
                 response = await self._run_agent_query(
-                    agent, prompt, specialized_thread_id, ctx=ctx
+                    agent, prompt, str(uuid4()), ctx=ctx
                 )
 
                 ctx.logger.info(
-                    f"Response from {agent_name}",
-                    extra={"response_length": len(response)},
+                    f"Response from {agent_name}, response_length: {len(response)}"
                 )
 
                 return response
 
-            ctx.logger.info(
-                f"Specialized Agent {agent_name} created successfully")
+            ctx.logger.info(f"Specialized Agent {agent_name} created successfully")
             return agent_tool
 
         except Exception as e:
@@ -3174,43 +3257,53 @@ class ComposioService:
 
     async def _create_orchestrator_agent(
         self,
-        session_id: str,
         ctx: Context,
         agent_tools_map: dict[str, list[Any]],
+        max_history_tokens: int,
+        max_tool_response_tokens: int,
+        model_name: str,
         memory: AsyncPostgresSaver | None = None,
-        max_history_tokens: int = 100000,
     ) -> Any:
         """
         Creates a multi-agent system by instantiating specialized agents for each tool group
         and wrapping them into an Orchestrator Agent for high-level delegation.
 
         Args:
-            agent_tools_map: A dictionary mapping agent names (e.g., 'Gmail Agent')
-                            to their list of tool definitions (JSON schema).
-            session_id: Unique session identifier for memory context
             ctx: The conversation context for logging and session management
-            memory: Optional memory checkpoint for conversation persistence.
-            max_history_tokens: Maximum tokens for history trimming in the orchestrator.
+            agent_tools_map: Mapping of agent names to their respective tool lists
+            max_history_tokens: Max tokens for conversation history in each agent
+            max_tool_response_tokens: Max tokens for individual tool responses
+            model_name: Name of the language model (for tokenization)
+            memory: Optional memory persistence instance for the orchestrator
 
         Returns:
             The final Orchestrator Agent.
         """
+        agent_count = len(agent_tools_map)
         ctx.logger.info(
-            "Starting creation of multi-agent orchestrator system.")
+            f"Starting creation of multi-agent orchestrator system, "
+            f"agent_count: {agent_count}"
+        )
 
         orchestrator_tools = []
 
         for agent_name, tool_list in agent_tools_map.items():
             try:
+                ctx.logger.debug(
+                    f"Creating specialized agent: {agent_name}, tool_count: {len(tool_list)}"
+                )
                 specialized_agent = await self._create_specialized_agent_tool(
                     agent_name=agent_name,
                     tools=tool_list,
-                    memory=memory,
                     ctx=ctx,
                     max_history_tokens=max_history_tokens,
-                    session_id=session_id,
+                    max_tool_response_tokens=max_tool_response_tokens,
+                    model_name=model_name,
                 )
                 orchestrator_tools.append(specialized_agent)
+                ctx.logger.debug(
+                    f"Successfully created specialized agent: {agent_name}"
+                )
 
             except Exception as e:
                 ctx.logger.warning(
@@ -3219,40 +3312,65 @@ class ComposioService:
                 continue
 
         if not orchestrator_tools:
-            ctx.logger.info(f"{agent_tools_map=}, {orchestrator_tools=}")
+            error_msg = (
+                "No specialized agents could be successfully created to form "
+                f"the orchestrator. agent_tools_map: {agent_tools_map}, "
+                f"orchestrator_tools: {orchestrator_tools}"
+            )
+            ctx.logger.error(error_msg)
             raise Exception(
                 "No specialized agents could be successfully created to form the orchestrator."
             )
 
+        ctx.logger.debug(
+            f"Generating orchestrator system prompt, agent_count: {len(agent_tools_map)}"
+        )
         # Use the helper function to generate the top-level system prompt
         orchestrator_system_prompt = await self._create_orchestrator_prompt(
             agent_tools_map
         )
 
+        ctx.logger.debug("Creating pre-model hooks for orchestrator")
+        pre_model_hook_func = await self._create_pre_model_hook(
+            model_name=model_name,
+            max_tokens=max_history_tokens,
+            max_tool_response_tokens=max_tool_response_tokens,
+            strategy="last",
+            agent_prompt=orchestrator_system_prompt,
+            ctx=ctx,
+        )
+
         orchestrator_config: dict[str, Any] = {
             "model": self._llm,
             "tools": orchestrator_tools,  # The tools are now the specialized agents
-            "prompt": orchestrator_system_prompt,
-            "pre_model_hook": await self._create_pre_model_hook(
-                max_tokens=max_history_tokens, strategy="last"
-            ),
+            "system_prompt": orchestrator_system_prompt,
+            "middleware": pre_model_hook_func,
         }
 
         if memory:
             orchestrator_config["checkpointer"] = memory
+            ctx.logger.debug("Memory checkpointer added to orchestrator configuration")
 
+        has_memory = memory is not None
+        ctx.logger.debug(
+            f"Creating orchestrator agent, "
+            f"orchestrator_tools_count: {len(orchestrator_tools)}, "
+            f"has_memory: {has_memory}"
+        )
         orchestrator_agent = create_agent(
             **{k: v for k, v in orchestrator_config.items() if v is not None}
         )
 
         ctx.logger.info(
-            "Orchestrator Agent created successfully, managing all specialized agents."
+            f"Orchestrator Agent created successfully, "
+            f"managing all specialized agents, "
+            f"specialized_agent_count: {len(orchestrator_tools)}"
         )
         return orchestrator_agent
 
     async def _process_query_stream(
         self, session_id: SessionId, user_id: UserId, query: str, ctx: Context
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[str]:
         """
         Process a user query through the complete authentication and execution pipeline.
 
@@ -3276,50 +3394,44 @@ class ComposioService:
             This is the main entry point for query processing and handles the
             complete lifecycle from authentication to response generation.
         """
+        query_preview = query[:50] + "..." if len(query) > 50 else query
+        has_mem_cfg = self._memory_config is not None
         ctx.logger.info(
-            "Starting query processing stream",
-            extra={
-                "session_id": session_id,
-                "user_id": user_id,
-                "query_length": len(query),
-                "has_memory_config": self._memory_config is not None,
-                "query_preview": query[:50] + "..." if len(query) > 50 else query,
-            },
+            f"Starting query processing stream, session_id: {session_id}, "
+            f"user_id: {user_id}, query_length: {len(query)}, "
+            f"has_memory_config: {has_mem_cfg}, query_preview: {query_preview}"
         )
 
         try:
             # Step 1: Check and establish user connections
             ctx.logger.info(
-                "Checking user connections",
-                extra={"session_id": session_id, "user_id": user_id},
+                f"Checking user connections, session_id: {session_id}, user_id: {user_id}"
             )
             async for conn_msg in self._check_user_connections(user_id, ctx):
                 yield conn_msg
 
             # Step 2: Retrieve tools for the user
             ctx.logger.info(
-                "Retrieving tools for user",
-                extra={"session_id": session_id, "user_id": user_id},
+                f"Retrieving tools for user, session_id: {session_id}, user_id: {user_id}"
             )
             tools_by_group = await self._client.get_tools(user_id, ctx)
 
+            tools_summary = ", ".join(
+                [
+                    f"{group}: {len(group_tools)}"
+                    for group, group_tools in tools_by_group.items()
+                ]
+            )
             ctx.logger.info(
-                "Tools retrieved successfully",
-                extra={
-                    "session_id": session_id,
-                    "user_id": user_id,
-                    "tools_by_group": {
-                        group: len(group_tools)
-                        for group, group_tools in tools_by_group.items()
-                    },
-                },
+                f"Tools retrieved successfully, session_id: {session_id}, "
+                f"user_id: {user_id}, tools_by_group: {{{tools_summary}}}"
             )
 
             # Step 3: Set up memory and create agent
             if self._memory_config:
                 ctx.logger.info(
-                    "Using PostgreSQL memory configuration",
-                    extra={"session_id": session_id, "user_id": user_id},
+                    f"Using PostgreSQL memory configuration, "
+                    f"session_id: {session_id}, user_id: {user_id}"
                 )
 
                 # Initialize database pool if not already done
@@ -3337,18 +3449,24 @@ class ComposioService:
                         self._setup_completed = True
                         ctx.logger.info("Memory schema setup completed")
 
+                    ctx.logger.debug(
+                        f"Creating orchestrator agent with memory, "
+                        f"session_id: {session_id}, user_id: {user_id}"
+                    )
                     # Create agent with memory
                     agent = await self._create_orchestrator_agent(
-                        session_id=session_id,
                         ctx=ctx,
                         agent_tools_map=tools_by_group,
                         memory=memory,
+                        model_name=self._model,
+                        max_history_tokens=self._model_context_window,
+                        max_tool_response_tokens=self._tool_response_token_limit,
                     )
 
                     # Step 4: Process the query
                     ctx.logger.info(
-                        "Processing query with memory-enabled agent",
-                        extra={"session_id": session_id, "user_id": user_id},
+                        f"Processing query with memory-enabled agent, "
+                        f"session_id: {session_id}, user_id: {user_id}"
                     )
                     response = await self._run_agent_query(
                         agent=agent, query=query, session_id=session_id, ctx=ctx
@@ -3358,21 +3476,27 @@ class ComposioService:
 
             else:
                 ctx.logger.info(
-                    "Using stateless agent (no memory)",
-                    extra={"session_id": session_id, "user_id": user_id},
+                    f"Using stateless agent (no memory), "
+                    f"session_id: {session_id}, user_id: {user_id}"
                 )
 
+                ctx.logger.debug(
+                    f"Creating orchestrator agent without memory, "
+                    f"session_id: {session_id}, user_id: {user_id}"
+                )
                 # Create agent without memory
                 agent = await self._create_orchestrator_agent(
-                    session_id=session_id,
                     ctx=ctx,
                     agent_tools_map=tools_by_group,
+                    model_name=self._model,
+                    max_history_tokens=self._model_context_window,
+                    max_tool_response_tokens=self._tool_response_token_limit,
                 )
 
                 # Step 4: Process the query
                 ctx.logger.info(
-                    "Processing query with stateless agent",
-                    extra={"session_id": session_id, "user_id": user_id},
+                    f"Processing query with stateless agent, "
+                    f"session_id: {session_id}, user_id: {user_id}"
                 )
                 response = await self._run_agent_query(
                     agent=agent, query=query, session_id=session_id, ctx=ctx
@@ -3382,14 +3506,10 @@ class ComposioService:
 
         except Exception as e:
             ctx.logger.error(
-                "Unexpected error in query processing stream",
-                extra={
-                    "session_id": session_id,
-                    "user_id": user_id,
-                    "query_length": len(query),
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
+                f"Unexpected error in query processing stream, "
+                f"session_id: {session_id}, user_id: {user_id}, "
+                f"query_length: {len(query)}, error: {str(e)}, "
+                f"error_type: {type(e).__name__}",
                 exc_info=True,
             )
             yield (
@@ -3430,28 +3550,19 @@ class ComposioService:
         ) -> None:
             """Handle acknowledgement messages from users."""
             try:
+                session_id_str = str(ctx.session) if hasattr(ctx, "session") else "None"
                 ctx.logger.info(
-                    "Chat acknowledgement received",
-                    extra={
-                        "sender": sender,
-                        "acknowledged_msg_id": str(msg.acknowledged_msg_id),
-                        "session_id": (
-                            str(ctx.session) if hasattr(
-                                ctx, "session") else None
-                        ),
-                    },
+                    f"Chat acknowledgement received, sender: {sender}, "
+                    f"acknowledged_msg_id: {str(msg.acknowledged_msg_id)}, "
+                    f"session_id: {session_id_str}"
                 )
-                ctx.logger.info(
+                ctx.logger.debug(
                     f"Acknowledgement received from {sender} for message {msg.acknowledged_msg_id}"
                 )
             except Exception as e:
                 ctx.logger.error(
-                    "Error handling chat acknowledgement",
-                    extra={
-                        "sender": sender,
-                        "error": str(e),
-                        "error_type": type(e).__name__,
-                    },
+                    f"Error handling chat acknowledgement, sender: {sender}, "
+                    f"error: {str(e)}, error_type: {type(e).__name__}",
                     exc_info=True,
                 )
 
@@ -3459,21 +3570,15 @@ class ComposioService:
         async def _handle_message(ctx: Context, sender: str, msg: ChatMessage) -> None:
             """Handle incoming chat messages and process different content types."""
             try:
+                session_id_str = str(ctx.session) if hasattr(ctx, "session") else "None"
+                content_types = [type(item).__name__ for item in msg.content]
                 ctx.logger.info(
-                    "Chat message received",
-                    extra={
-                        "sender": sender,
-                        "session_id": (
-                            str(ctx.session) if hasattr(
-                                ctx, "session") else None
-                        ),
-                        "message_id": str(msg.msg_id),
-                        "content_types": [type(item).__name__ for item in msg.content],
-                        "content_count": len(msg.content),
-                    },
+                    f"Chat message received, sender: {sender}, "
+                    f"session_id: {session_id_str}, message_id: {str(msg.msg_id)}, "
+                    f"content_types: {content_types}, content_count: {len(msg.content)}"
                 )
 
-                ctx.logger.info(
+                ctx.logger.debug(
                     f"Message received from {sender} in session: {ctx.session}"
                 )
 
@@ -3485,75 +3590,56 @@ class ComposioService:
                             timestamp=datetime.now(UTC), acknowledged_msg_id=msg.msg_id
                         ),
                     )
-                    ctx.logger.info(
-                        "Acknowledgement sent",
-                        extra={"sender": sender,
-                               "message_id": str(msg.msg_id)},
+                    ctx.logger.debug(
+                        f"Acknowledgement sent, sender: {sender}, message_id: {str(msg.msg_id)}"
                     )
                 except Exception as ack_error:
                     ctx.logger.error(
-                        "Failed to send acknowledgement",
-                        extra={
-                            "sender": sender,
-                            "message_id": str(msg.msg_id),
-                            "error": str(ack_error),
-                        },
+                        f"Failed to send acknowledgement, sender: {sender}, "
+                        f"message_id: {str(msg.msg_id)}, error: {str(ack_error)}",
                         exc_info=True,
                     )
 
                 # Process message content
                 for i, item in enumerate(msg.content):
                     try:
+                        session_id_str = (
+                            str(ctx.session) if hasattr(ctx, "session") else "None"
+                        )
                         ctx.logger.info(
-                            "Processing message content item",
-                            extra={
-                                "sender": sender,
-                                "item_index": i,
-                                "item_type": type(item).__name__,
-                                "session_id": (
-                                    str(ctx.session)
-                                    if hasattr(ctx, "session")
-                                    else None
-                                ),
-                            },
+                            f"Processing message content item, sender: {sender}, "
+                            f"item_index: {i}, item_type: {type(item).__name__}, "
+                            f"session_id: {session_id_str}"
                         )
 
                         if isinstance(item, StartSessionContent):
-                            ctx.logger.info(
-                                "Session started",
-                                extra={
-                                    "sender": sender,
-                                    "session_id": (
-                                        str(ctx.session)
-                                        if hasattr(ctx, "session")
-                                        else None
-                                    ),
-                                },
+                            session_id_str = (
+                                str(ctx.session) if hasattr(ctx, "session") else "None"
                             )
                             ctx.logger.info(
+                                f"Session started, sender: {sender}, "
+                                f"session_id: {session_id_str}"
+                            )
+                            ctx.logger.debug(
                                 f"Session started with {sender} with session id: {ctx.session}"
                             )
 
                         elif isinstance(item, TextContent):
-                            ctx.logger.info(
-                                "Processing text query",
-                                extra={
-                                    "sender": sender,
-                                    "session_id": (
-                                        str(ctx.session)
-                                        if hasattr(ctx, "session")
-                                        else None
-                                    ),
-                                    "text_length": len(item.text),
-                                    "text_preview": (
-                                        item.text[:100] + "..."
-                                        if len(item.text) > 100
-                                        else item.text
-                                    ),
-                                },
+                            session_id_str = (
+                                str(ctx.session) if hasattr(ctx, "session") else "None"
+                            )
+                            text_preview = (
+                                item.text[:100] + "..."
+                                if len(item.text) > 100
+                                else item.text
                             )
                             ctx.logger.info(
-                                f"Text message from {sender}: {item.text}")
+                                f"Processing text query, sender: {sender}, "
+                                f"session_id: {session_id_str}, "
+                                f"text_length: {len(item.text)}, "
+                                f"text_preview: {text_preview}"
+                            )
+                            ctx.logger.debug(f"Text message from {sender}: {item.text}")
 
                             # Process the query through the agent pipeline
                             async for response in self._process_query_stream(
@@ -3565,88 +3651,68 @@ class ComposioService:
                                 await self._send_chat_message(response, ctx, sender)
 
                         elif isinstance(item, EndSessionContent):
-                            ctx.logger.info(
-                                "Session ended",
-                                extra={
-                                    "sender": sender,
-                                    "session_id": (
-                                        str(ctx.session)
-                                        if hasattr(ctx, "session")
-                                        else None
-                                    ),
-                                },
+                            session_id_str = (
+                                str(ctx.session) if hasattr(ctx, "session") else "None"
                             )
-                            ctx.logger.info(f"Session ended with {sender}")
+                            ctx.logger.info(
+                                f"Session ended, sender: {sender}, "
+                                f"session_id: {session_id_str}"
+                            )
+                            ctx.logger.debug(f"Session ended with {sender}")
 
                         elif isinstance(item, MetadataContent):
-                            ctx.logger.info(
-                                "Metadata received",
-                                extra={
-                                    "sender": sender,
-                                    "session_id": (
-                                        str(ctx.session)
-                                        if hasattr(ctx, "session")
-                                        else None
-                                    ),
-                                    "metadata_keys": (
-                                        list(item.metadata.keys())
-                                        if hasattr(item, "metadata") and item.metadata
-                                        else []
-                                    ),
-                                },
+                            session_id_str = (
+                                str(ctx.session) if hasattr(ctx, "session") else "None"
+                            )
+                            metadata_keys = (
+                                list(item.metadata.keys())
+                                if hasattr(item, "metadata") and item.metadata
+                                else []
                             )
                             ctx.logger.info(
-                                f"Metadata from {sender}: {item.metadata}")
+                                f"Metadata received, sender: {sender}, "
+                                f"session_id: {session_id_str}, "
+                                f"metadata_keys: {metadata_keys}"
+                            )
+                            ctx.logger.debug(f"Metadata from {sender}: {item.metadata}")
 
                         else:
-                            ctx.logger.warning(
-                                "Unexpected content type received",
-                                extra={
-                                    "sender": sender,
-                                    "session_id": (
-                                        str(ctx.session)
-                                        if hasattr(ctx, "session")
-                                        else None
-                                    ),
-                                    "content_type": type(item).__name__,
-                                    "content_repr": (
-                                        str(item)[:200] + "..."
-                                        if len(str(item)) > 200
-                                        else str(item)
-                                    ),
-                                },
+                            session_id_str = (
+                                str(ctx.session) if hasattr(ctx, "session") else "None"
                             )
-                            ctx.logger.info(
+                            content_repr = (
+                                str(item)[:200] + "..."
+                                if len(str(item)) > 200
+                                else str(item)
+                            )
+                            ctx.logger.warning(
+                                f"Unexpected content type received, sender: {sender}, "
+                                f"session_id: {session_id_str}, "
+                                f"content_type: {type(item).__name__}, "
+                                f"content_repr: {content_repr}"
+                            )
+                            ctx.logger.debug(
                                 "Received unexpected content type from "
                                 f"{sender}: {type(item)} - {item}"
                             )
 
                     except Exception as content_error:
+                        error_type = type(content_error).__name__
                         ctx.logger.error(
-                            "Error processing message content item",
-                            extra={
-                                "sender": sender,
-                                "item_index": i,
-                                "item_type": type(item).__name__,
-                                "error": str(content_error),
-                                "error_type": type(content_error).__name__,
-                            },
+                            f"Error processing message content item, sender: {sender}, "
+                            f"item_index: {i}, item_type: {type(item).__name__}, "
+                            f"error: {str(content_error)}, error_type: {error_type}",
                             exc_info=True,
                         )
                         # Continue processing other content items
                         continue
 
             except Exception as e:
+                msg_id = str(msg.msg_id) if hasattr(msg, "msg_id") else "None"
                 ctx.logger.error(
-                    "Error handling chat message",
-                    extra={
-                        "sender": sender,
-                        "message_id": (
-                            str(msg.msg_id) if hasattr(msg, "msg_id") else None
-                        ),
-                        "error": str(e),
-                        "error_type": type(e).__name__,
-                    },
+                    f"Error handling chat message, sender: {sender}, "
+                    f"message_id: {msg_id}, error: {str(e)}, "
+                    f"error_type: {type(e).__name__}",
                     exc_info=True,
                 )
                 # Send error message to user
@@ -3658,20 +3724,20 @@ class ComposioService:
                     )
                 except Exception as send_error:
                     ctx.logger.error(
-                        "Failed to send error message to user",
-                        extra={
-                            "sender": sender,
-                            "original_error": str(e),
-                            "send_error": str(send_error),
-                        },
+                        f"Failed to send error message to user, "
+                        f"sender: {sender}, original_error: {str(e)}, "
+                        f"send_error: {str(send_error)}",
                         exc_info=True,
                     )
 
         return self._protocol
 
-    async def health_check(self) -> dict[str, Any]:
+    async def health_check(self, ctx: Context | None = None) -> dict[str, Any]:
         """
         Perform a comprehensive health check of the service.
+
+        Args:
+            ctx: Optional context object for logging
 
         Returns:
             dict: Health status information including component checks
@@ -3685,66 +3751,105 @@ class ComposioService:
         try:
             # Check LLM client
             components = health_status["components"]
+            llm_status = "healthy" if self._llm else "unhealthy"
+            llm_model = getattr(self._llm, "model_name", "unknown")
+            llm_base_url = getattr(self._llm, "base_url", "unknown")
             components["llm"] = {
-                "status": "healthy" if self._llm else "unhealthy",
-                "model": getattr(self._llm, "model_name", "unknown"),
-                "base_url": getattr(self._llm, "base_url", "unknown"),
+                "status": llm_status,
+                "model": llm_model,
+                "base_url": llm_base_url,
             }
+            logger.debug(
+                f"LLM client health check, status: {llm_status}, model: {llm_model}"
+            )
 
             # Check Composio client
+            composio_status = "healthy" if self._client else "unhealthy"
+            auth_configs_count = len(self._composio_config.get_auth_config_ids())
+            tool_configs_count = len(self._composio_config.tool_configs or [])
             components["composio"] = {
-                "status": "healthy" if self._client else "unhealthy",
-                "auth_configs": len(self._composio_config.get_auth_config_ids()),
-                "tool_configs": len(self._composio_config.tool_configs or []),
+                "status": composio_status,
+                "auth_configs": auth_configs_count,
+                "tool_configs": tool_configs_count,
             }
+            logger.debug(
+                f"Composio client health check, status: {composio_status}, "
+                f"auth_configs: {auth_configs_count}, "
+                f"tool_configs: {tool_configs_count}"
+            )
+
             # Check database connection if configured
             if self._memory_config:
                 try:
                     if self._pool:
+                        pool_size = getattr(self._pool, "max_size", "unknown")
                         components["database"] = {
                             "status": "healthy",
-                            "pool_size": getattr(self._pool, "max_size", "unknown"),
+                            "pool_size": pool_size,
                             "setup_completed": self._setup_completed,
                         }
+                        logger.debug(
+                            f"Database pool health check, status: healthy, "
+                            f"pool_size: {pool_size}, "
+                            f"setup_completed: {self._setup_completed}"
+                        )
                     else:
                         components["database"] = {
                             "status": "not_initialized",
                             "message": "Database pool not yet initialized",
                         }
+                        logger.debug(
+                            "Database pool health check, status: not_initialized"
+                        )
                 except Exception as e:
-                    components["database"] = {
-                        "status": "unhealthy", "error": str(e)}
+                    components["database"] = {"status": "unhealthy", "error": str(e)}
+                    logger.warning(f"Database health check failed, error: {str(e)}")
             else:
                 components["database"] = {
                     "status": "not_configured",
                     "message": "Database memory not configured",
                 }
+                logger.debug("Database health check, status: not_configured")
 
             # Check protocol
-            components["protocol"] = {
-                "status": "healthy" if self._protocol else "unhealthy"
-            }
+            protocol_status = "healthy" if self._protocol else "unhealthy"
+            components["protocol"] = {"status": protocol_status}
+            logger.debug(f"Protocol health check, status: {protocol_status}")
 
             # Overall status
-            component_statuses = [comp.get("status")
-                                  for comp in components.values()]
+            component_statuses = [comp.get("status") for comp in components.values()]
             component_statuses = [
                 comp.get("status") for comp in health_status["components"].values()
             ]
             if any(status == "unhealthy" for status in component_statuses):
                 health_status["status"] = "unhealthy"
+                logger.info(
+                    f"Overall health status: unhealthy, component_statuses: {component_statuses}"
+                )
             elif any(
                 status in ["not_initialized", "not_configured"]
                 for status in component_statuses
             ):
                 health_status["status"] = "degraded"
+                logger.info(
+                    f"Overall health status: degraded, component_statuses: {component_statuses}"
+                )
+            else:
+                logger.info(
+                    f"Overall health status: healthy, component_statuses: {component_statuses}"
+                )
 
         except Exception as e:
-            logger.error(
-                "Health check failed",
-                extra={"error": str(e), "error_type": type(e).__name__},
-                exc_info=True,
-            )
+            if ctx:
+                ctx.logger.error(
+                    f"Health check failed, error: {str(e)}, error_type: {type(e).__name__}",
+                    exc_info=True,
+                )
+            else:
+                logger.error(
+                    f"Health check failed, error: {str(e)}, error_type: {type(e).__name__}",
+                    exc_info=True,
+                )
             health_status.update({"status": "unhealthy", "error": str(e)})
 
         return health_status
@@ -3765,16 +3870,18 @@ class ComposioService:
                 await self._pool.close()
                 self._pool = None
                 logger.info("Database connection pool closed successfully")
+            else:
+                logger.debug("No database connection pool to close")
 
             # Reset setup flag
             self._setup_completed = False
+            logger.debug("Reset setup_completed flag to False")
 
             logger.info("Service cleanup completed successfully")
 
         except Exception as e:
             logger.error(
-                "Error during service cleanup",
-                extra={"error": str(e), "error_type": type(e).__name__},
+                f"Error during service cleanup, error: {str(e)}, error_type: {type(e).__name__}",
                 exc_info=True,
             )
             raise
@@ -3803,7 +3910,6 @@ class ComposioService:
         Returns:
             Self for use in async with statement
         """
-        logger.info("Entering ComposioService async context manager")
         return self
 
     async def __aexit__(
@@ -3820,13 +3926,6 @@ class ComposioService:
             exc_val: Exception instance if an exception was raised
             exc_tb: Exception traceback if an exception was raised
         """
-        logger.info(
-            "Exiting ComposioService async context manager",
-            extra={
-                "has_exception": exc_type is not None,
-                "exception_type": exc_type.__name__ if exc_type else None,
-            },
-        )
         await self.cleanup()
 
     def __repr__(self) -> str:
@@ -3862,7 +3961,9 @@ __all__ = [
     "SchemaModifier",
     "BeforeExecute",
     "AfterExecute",
-    "Tool",
-    "ToolExecuteParams",
-    "ToolExecutionResponse"
+    "SchemaModifierParam",
+    "BeforeExecuteParam",
+    "AfterExecuteParam",
+    # helpers
+    "describe_modifier_type",
 ]

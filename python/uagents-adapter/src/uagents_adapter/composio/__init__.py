@@ -24,14 +24,17 @@ Key Features:
     - PostgreSQL-based conversation memory with automatic schema management
     - Thread-safe operations with proper resource management and connection pooling
 """
+
 from importlib import metadata
 
 from .adapter import (
     AfterExecute,
+    AfterExecuteParam,
     AuthConfigId,
     AuthenticationError,
     AuthResponse,
     BeforeExecute,
+    BeforeExecuteParam,
     ComposioConfig,
     ComposioError,
     ComposioService,
@@ -41,19 +44,18 @@ from .adapter import (
     Modifiers,
     PostgresMemoryConfig,
     SchemaModifier,
+    SchemaModifierParam,
     SessionId,
-    Tool,
     ToolConfig,
-    ToolExecuteParams,
-    ToolExecutionResponse,
     ToolRetrievalError,
     ToolSlug,
     UserId,
 )
 
 try:
-    __version__ = metadata.version(__package__.split(
-        ".")[0] if __package__ else "uagents-adapter")
+    __version__ = metadata.version(
+        __package__.split(".")[0] if __package__ else "uagents-adapter"
+    )
 except metadata.PackageNotFoundError:
     # Case where package metadata is not available.
     __version__ = ""
@@ -80,14 +82,13 @@ __all__ = [
     "AuthConfigId",
     "ToolSlug",
     "SessionId",
-    # Tool types
-    "Tool",
-    "ToolExecuteParams",
-    "ToolExecutionResponse",
     # Modifier function types
     "SchemaModifier",
     "BeforeExecute",
     "AfterExecute",
+    "SchemaModifierParam",
+    "BeforeExecuteParam",
+    "AfterExecuteParam",
     # Version
     "__version__",
 ]

@@ -1,3 +1,7 @@
+# uAgents Composio Adapter
+
+Seamlessly integrate uAgents with Composio, enabling agents to access and use third-party tools and toolkits through a unified interface.
+
 ## 🏁 Quick Start
 
 ### 1. Basic Setup
@@ -5,22 +9,26 @@
 ```python
 import asyncio
 from uagents import Agent
-from uagents_composio_adapter import ComposioConfig, ToolConfig, ComposioService
+from uagents_adapter import ComposioConfig, ToolConfig, ComposioService
 
 async def main():
     # Configure tools
     tool_config = ToolConfig.from_toolkit(
-        tool_group_name="GitHub Tools",
-        auth_config_id="your_github_auth_config_id",
-        toolkit="GITHUB",
-        limit=5
+        tool_group_name="Linkedin Tools",
+        auth_config_id="your_linkedin_auth_config_id",
+        toolkit="LINKEDIN"
     )
 
     # Create Composio configuration
     composio_config = ComposioConfig.from_env(tool_configs=[tool_config])
 
     # Initialize agent
-    agent = Agent(name="My Composio Agent", seed="my_seed", port=8001, mailbox=True)
+    agent = Agent(
+        name="My Composio Agent", 
+        seed="my_seed", 
+        port=8001, 
+        mailbox=True
+    )
 
     # Create and configure Composio service
     async with ComposioService(composio_config=composio_config) as service:
@@ -42,10 +50,6 @@ Create a `.env` file with the following variables:
 COMPOSIO_API_KEY=your_composio_api_key_here
 COMPOSIO_DEFAULT_TIMEOUT=300
 
-# Authentication Configuration IDs (from Composio dashboard)
-GITHUB_AUTH_CONFIG_ID=your_github_auth_config_id
-LINKEDIN_AUTH_CONFIG_ID=your_linkedin_auth_config_id
-
 # LLM Configuration (ASI1 or OpenAI compatible)
 LLM_API_KEY=your_llm_api_key_here
 LLM_BASE_URL=https://api.asi1.ai/v1
@@ -64,7 +68,7 @@ PSQL_PASSWORD=your_db_password
 ### Tool Configuration Patterns
 
 ```python
-from uagents_composio_adapter import ToolConfig
+from uagents_adapter import ToolConfig
 
 # 1. Specific tools by name
 github_tools = ToolConfig.from_tools(
@@ -86,7 +90,7 @@ gmail_tools = ToolConfig.from_toolkit_with_scopes(
     tool_group_name="Email Management",
     auth_config_id="auth_789",
     toolkit="GMAIL",
-    scopes=["gmail.send", "gmail.compose"],
+    scopes=["gmail.send", "gmail.compose"], # can also be done from composio dashboard
     limit=5
 )
 
@@ -102,21 +106,21 @@ crm_tools = ToolConfig.from_search(
 ### Tool Modifiers for Customization
 
 ```python
-from uagents_composio_adapter import Modifiers, ToolExecutionResponse
+from uagents_adapter import Modifiers, SchemaModifierParam, BeforeExecuteParam, AfterExecuteParam
 
 # Define modifier functions (no decorators needed)
-def enhance_github_schema(tool_name: str, toolkit: str, schema):
+def enhance_github_schema(tool_name: str, toolkit: str, schema: SchemaModifierParam) -> SchemaModifierParam:
     schema.description += " [Enhanced with context awareness]"
     return schema
 
 # Before-execute modifier to inject parameters
-def add_slack_context(tool_name: str, toolkit: str, params):
+def add_slack_context(tool_name: str, toolkit: str, params: BeforeExecuteParam) -> BeforeExecuteParam:
     if 'channel' not in params.arguments:
         params.arguments['channel'] = '#general'
     return params
 
 # After-execute modifier to process results
-def log_email_sent(tool_name: str, toolkit: str, response: ToolExecutionResponse) -> ToolExecutionResponse:
+def log_email_sent(tool_name: str, toolkit: str, response: AfterExecuteParam) -> AfterExecuteParam:
     print(f"Email sent successfully via {tool_name}")
     return response
 
@@ -139,14 +143,14 @@ config = ToolConfig.from_toolkit(
 ### Real-World Modifier Example
 
 ```python
-from uagents_composio_adapter import ToolConfig, Modifiers, ToolExecutionResponse
+from uagents_adapter import ToolConfig, Modifiers, AfterExecuteParam
 
 # After-execute modifier to log LinkedIn data loading
 def show_loaded_linkedin_data(
     tool: str,
     toolkit: str,
-    response: ToolExecutionResponse
-) -> ToolExecutionResponse:
+    response: AfterExecuteParam
+) -> AfterExecuteParam:
     print(f"\n[LinkedIn Data Loaded] Tool: {tool}, Toolkit: {toolkit}, Response: {response}\n")
     return response
 
@@ -166,7 +170,7 @@ linkedin_tool_config = ToolConfig.from_toolkit(
 ### Memory Persistence with PostgreSQL
 
 ```python
-from uagents_composio_adapter import PostgresMemoryConfig, ComposioService
+from uagents_adapter import PostgresMemoryConfig, ComposioService
 
 # Configure PostgreSQL memory
 memory_config = PostgresMemoryConfig.from_env()
@@ -194,7 +198,7 @@ async with ComposioService(
 ```python
 import asyncio
 from uagents import Agent
-from uagents_composio_adapter import ComposioConfig, ToolConfig, ComposioService
+from uagents_adapter import ComposioConfig, ToolConfig, ComposioService
 
 async def main():
     # Multiple tool configurations for different specialized agents
@@ -255,9 +259,9 @@ import os
 import asyncio
 import logging
 from uagents import Agent
-from uagents_composio_adapter import (
+from uagents_adapter import (
     ComposioConfig, ToolConfig, ComposioService,
-    PostgresMemoryConfig, Modifiers, ToolExecutionResponse
+    PostgresMemoryConfig, Modifiers, AfterExecuteParam
 )
 
 # Configure logging
@@ -269,8 +273,8 @@ async def main():
     def show_loaded_linkedin_data(
         tool: str,
         toolkit: str,
-        response: ToolExecutionResponse
-    ) -> ToolExecutionResponse:
+        response: AfterExecuteParam
+    ) -> AfterExecuteParam:
         print(f"\n[LinkedIn Data Loaded] Tool: {tool}, Toolkit: {toolkit}, Response: {response}\n")
         return response
 

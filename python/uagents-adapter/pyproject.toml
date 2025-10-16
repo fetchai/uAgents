@@ -1,11 +1,11 @@
 [project]
 name = "uagents-adapter"
 version = "0.6.1"
-description = "Adapters for uAgents to integrate with LangChain, CrewAI, MCP, and A2A"
+description = "Adapters for uAgents to integrate with LangChain, CrewAI, MCP, Composio, and A2A"
 authors = [{ name = "Fetch.AI Limited" }]
 license = { text = "Apache 2.0" }
 readme = "README.md"
-keywords = ["uagents", "agents", "langchain", "crewai", "mcp", "a2a", "fetch.ai"]
+keywords = ["uagents", "agents", "langchain", "crewai", "mcp", "a2a", "fetch.ai", "composio"]
 requires-python = ">=3.10,<3.14"
 dependencies = [
     "uagents (>=0.22.3)",
@@ -27,7 +27,7 @@ all = [
     "composio (>=0.8.16)",
     "composio-langchain (>=0.8.14)",
     "langchain-openai (>=0.3.33)",
-    "langchain (==1.0.0a10)",
+    "langchain (==1.0.0a14)",
     "langgraph (>=0.6.8)",
     "langgraph-checkpoint-postgres (>=2.0.24)",
     "psycopg[pool] (>=3.2.10)",
@@ -35,7 +35,7 @@ all = [
 
 # LangChain support
 langchain = [
-    "langchain-core (>=0.3.52,<0.4.0)",
+    "langchain-core (>=0.3.52)",
     "langchain (>=0.3.0)",
     "langchain-openai (>=0.2.0)",
 ]
@@ -65,7 +65,7 @@ composio = [
     "composio (>=0.8.16)",
     "composio-langchain (>=0.8.14)",
     "langchain-openai (>=0.3.33)",
-    "langchain (==1.0.0a10)",
+    "langchain (==1.0.0a14)",
     "langgraph (>=0.6.8)",
     "langgraph-checkpoint-postgres (>=2.0.24)",
     "psycopg[pool] (>=3.2.10)",

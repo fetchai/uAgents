@@ -2397,7 +2397,7 @@ description = "Building applications with LLMs through composability"
 optional = true
 python-versions = "<4.0.0,>=3.10.0"
 groups = ["main"]
-markers = "extra == \"all\" or extra == \"composio\" or extra == \"langchain\""
+markers = "extra == \"langchain\""
 files = [
     {file = "langchain-1.0.0a10-py3-none-any.whl", hash = "sha256:cb0c485649f41c323d4c573dffc978dd8f21375351723bfd887604f3040dd31c"},
     {file = "langchain-1.0.0a10.tar.gz", hash = "sha256:6624d993ba89c864c11e2def294689761c7b761b71b21697ce321b9041e9933a"},
@@ -2429,13 +2429,47 @@ together = ["langchain-together"]
 xai = ["langchain-xai"]
 
 [[package]]
+name = "langchain"
+version = "1.0.0a14"
+description = "Building applications with LLMs through composability"
+optional = true
+python-versions = "<4.0.0,>=3.10.0"
+groups = ["main"]
+markers = "extra == \"all\" or extra == \"composio\" or extra == \"langchain\""
+files = [
+    {file = "langchain-1.0.0a14-py3-none-any.whl", hash = "sha256:4a634e3996cbc82309279a6a9002d22bb16eec51629f8706744b85d4ae9e9820"},
+    {file = "langchain-1.0.0a14.tar.gz", hash = "sha256:264067fac9f38098c8dc69b348a33c2538e309bd4d20424484bd3ea2e138cc76"},
+]
+
+[package.dependencies]
+langchain-core = ">=1.0.0a7,<2.0.0"
+langgraph = ">=1.0.0a4,<2.0.0"
+pydantic = ">=2.7.4,<3.0.0"
+
+[package.extras]
+anthropic = ["langchain-anthropic"]
+aws = ["langchain-aws"]
+community = ["langchain-community"]
+deepseek = ["langchain-deepseek"]
+fireworks = ["langchain-fireworks"]
+google-genai = ["langchain-google-genai"]
+google-vertexai = ["langchain-google-vertexai"]
+groq = ["langchain-groq"]
+mistralai = ["langchain-mistralai"]
+ollama = ["langchain-ollama"]
+openai = ["langchain-openai"]
+perplexity = ["langchain-perplexity"]
+together = ["langchain-together"]
+xai = ["langchain-xai"]
+
+[[package]]
 name = "langchain-core"
 version = "0.3.79"
 description = "Building applications with LLMs through composability"
 optional = true
 python-versions = "<4.0.0,>=3.9.0"
 groups = ["main"]
-markers = "extra == \"all\" or extra == \"composio\" or extra == \"langchain\""
+markers = "extra == \"all\" or extra == \"langchain\" or extra == \"composio\""
 files = [
     {file = "langchain_core-0.3.79-py3-none-any.whl", hash = "sha256:92045bfda3e741f8018e1356f83be203ec601561c6a7becfefe85be5ddc58fdb"},
     {file = "langchain_core-0.3.79.tar.gz", hash = "sha256:024ba54a346dd9b13fb8b2342e0c83d0111e7f26fa01f545ada23ad772b55a60"},
@@ -2449,6 +2483,46 @@ pydantic = ">=2.7.4,<3.0.0"
 PyYAML = ">=5.3.0,<7.0.0"
 tenacity = ">=8.1.0,<8.4.0 || >8.4.0,<10.0.0"
 typing-extensions = ">=4.7.0,<5.0.0"
+
+[[package]]
+name = "langchain-core"
+version = "1.0.0rc1"
+description = "Building applications with LLMs through composability"
+optional = true
+python-versions = "<4.0.0,>=3.10.0"
+groups = ["main"]
+markers = "extra == \"all\" or extra == \"composio\" or extra == \"langchain\""
+files = [
+    {file = "langchain_core-1.0.0rc1-py3-none-any.whl", hash = "sha256:aa207864cd4e74a914f67c17dd7ed7cfbc2b1f249446ca681f68d50050c8d37f"},
+    {file = "langchain_core-1.0.0rc1.tar.gz", hash = "sha256:fb26e250460d198d26cdbc8197bb9b137cf481741c8833fbb58a1d8c1eb8467c"},
+]
+
+[package.dependencies]
+jsonpatch = ">=1.33.0,<2.0.0"
+langsmith = ">=0.3.45,<1.0.0"
+packaging = ">=23.2.0,<26.0.0"
+pydantic = ">=2.7.4,<3.0.0"
+pyyaml = ">=5.3.0,<7.0.0"
+tenacity = ">=8.1.0,<8.4.0 || >8.4.0,<10.0.0"
+typing-extensions = ">=4.7.0,<5.0.0"
+
+[[package]]
+name = "langchain-openai"
+version = "0.3.34"
+description = "An integration package connecting OpenAI and LangChain"
+optional = true
+python-versions = "<4.0.0,>=3.9.0"
+groups = ["main"]
+markers = "extra == \"all\" or extra == \"langchain\" or extra == \"composio\""
+files = [
+    {file = "langchain_openai-0.3.34-py3-none-any.whl", hash = "sha256:08d61d68a6d869c70d542171e149b9065668dedfc4fafcd4de8aeb5b933030a9"},
+    {file = "langchain_openai-0.3.34.tar.gz", hash = "sha256:57916d462be5b8fd19e5cb2f00d4e5cf0465266a292d583de2fc693a55ba190e"},
+]
+
+[package.dependencies]
+langchain-core = ">=0.3.77,<2.0.0"
+openai = ">=1.104.2,<3.0.0"
+tiktoken = ">=0.7.0,<1.0.0"
 
 [[package]]
 name = "langchain-openai"
@@ -2475,7 +2549,7 @@ description = "LangChain text splitting utilities"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"all\" or extra == \"composio\" or extra == \"langchain\""
+markers = "extra == \"langchain\""
 files = [
     {file = "langchain_text_splitters-0.3.11-py3-none-any.whl", hash = "sha256:cf079131166a487f1372c8ab5d0bfaa6c0a4291733d9c43a34a16ac9bcd6a393"},
     {file = "langchain_text_splitters-0.3.11.tar.gz", hash = "sha256:7a50a04ada9a133bbabb80731df7f6ddac51bc9f1b9cab7fa09304d71d38a6cc"},
@@ -6732,4 +6806,4 @@ mcp = ["mcp"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "9a2cb984ef514da15a554e3c5a5931afe63af181df2aae405e77cb8e36e2d1c6"
+content-hash = "dc9968726284fa12efc3223b9af8de2dfa04edbbcedc8354eee03a5fe5b03d00"

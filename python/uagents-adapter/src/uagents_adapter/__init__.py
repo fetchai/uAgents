@@ -23,14 +23,14 @@ except ImportError:
     # Do not define placeholders; raise a clear ImportError on access instead
 
 try:
-    from composio.types import Tool, ToolExecuteParams, ToolExecutionResponse
-
     from .composio import (
         AfterExecute,
+        AfterExecuteParam,
         AuthConfigId,
         AuthenticationError,
         AuthResponse,
         BeforeExecute,
+        BeforeExecuteParam,
         ComposioConfig,
         ComposioError,
         ComposioService,
@@ -40,12 +40,14 @@ try:
         Modifiers,
         PostgresMemoryConfig,
         SchemaModifier,
+        SchemaModifierParam,
         SessionId,
         ToolConfig,
         ToolRetrievalError,
         ToolSlug,
         UserId,
     )
+
     COMPOSIO_AVAILABLE = True
 except ImportError:
     COMPOSIO_AVAILABLE = False
@@ -105,11 +107,11 @@ if COMPOSIO_AVAILABLE:
             "ToolSlug",
             "SessionId",
             # Tool types
-            "Tool",
-            "ToolExecuteParams",
-            "ToolExecutionResponse",
             "SchemaModifier",
             "BeforeExecute",
             "AfterExecute",
+            "SchemaModifierParam",
+            "BeforeExecuteParam",
+            "AfterExecuteParam",
         ]
     )
