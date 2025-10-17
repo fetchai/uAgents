@@ -558,6 +558,20 @@ class ResponseMessage(Model):
         """Get information about the current agent."""
         return self._current_agent_info
 
+    def run(self, tool_input: Dict[str, Any]) -> str:
+        """Public method to run the tool with a dictionary of inputs."""
+        return self._run(
+            crew_obj=tool_input.get("crew_obj"),
+            name=tool_input.get("name"),
+            port=tool_input.get("port"),
+            description=tool_input.get("description"),
+            api_token=tool_input.get("api_token"),
+            ai_agent_address=tool_input.get("ai_agent_address"),
+            mailbox=tool_input.get("mailbox", True),
+            query_params=tool_input.get("query_params"),
+            example_query=tool_input.get("example_query"),
+            return_dict=tool_input.get("return_dict", False),
+        )
     def _run(
         self,
         crew_obj: Any,
