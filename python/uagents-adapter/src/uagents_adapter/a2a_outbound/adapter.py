@@ -22,6 +22,11 @@ from uagents_core.contrib.protocols.chat import (
     TextContent,
     chat_protocol_spec,
 )
+from uagents_core.contrib.protocols.payment import (
+    CommitPayment,
+    RejectPayment,
+    payment_protocol_spec,
+)
 
 # AP2 payment bridging (added)
 from .ap2.artifacts import CartMandate, PaymentFailure, PaymentSuccess
@@ -36,11 +41,6 @@ from .ap2.bridge_mapping import (
     paymentfailure_to_cancelpayment,
     paymentsuccess_to_completepayment,
     rejectpayment_to_denycartmandate,
-)
-from uagents_core.contrib.protocols.payment import (
-    CommitPayment,
-    RejectPayment,
-    payment_protocol_spec,
 )
 
 
