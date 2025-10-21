@@ -572,6 +572,7 @@ class ResponseMessage(Model):
             example_query=tool_input.get("example_query"),
             return_dict=tool_input.get("return_dict", False),
         )
+
     def _run(
         self,
         crew_obj: Any,
