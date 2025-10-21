@@ -11,21 +11,21 @@ from uagents_core.identity import Identity
 from uagents_core.utils.messages import parse_envelope, send_message_to_agent
 
 
-name = "Test Agent Example"
+name = "Chat Protocol Adapter"
 identity = Identity.from_seed(os.environ["AGENT_SEED_PHRASE"], 0)
-readme = "# Test Agent Readme\nJust a test agent supporting chat protocol."
+readme = "# Chat Protocol Adapter \nExample of how to integrate chat protocol."
 endpoint = "AGENT_EXTERNAL_ENDPOINT"
 
 
 app = FastAPI()
 
 
-@app.get("/")
+@app.get("/status")
 async def healthcheck():
     return {"status": "OK - Agent is running"}
 
 
-@app.post("/")
+@app.post("/chat")
 async def handle_message(env: Envelope):
     msg = cast(ChatMessage, parse_envelope(env, ChatMessage))
     print(f"Received message from {env.sender}: {msg.text()}")
