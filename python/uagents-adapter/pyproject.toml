@@ -1,7 +1,7 @@
 [project]
 name = "uagents-adapter"
-version = "0.6.1"
-description = "Adapters for uAgents to integrate with LangChain, CrewAI, MCP, Composio, and A2A"
+version =  "0.6.2"
+description = "Adapters for uAgents to integrate with LangChain, CrewAI, MCP, and A2A"
 authors = [{ name = "Fetch.AI Limited" }]
 license = { text = "Apache 2.0" }
 readme = "README.md"
@@ -21,7 +21,10 @@ dependencies = [
 [project.optional-dependencies]
 # Base package dependencies (installed by default)
 all = [
-    "crewai (>=0.50.0)",
+    "langchain-core (>=0.3.52,<0.4.0)",
+    "langchain (>=0.3.0)",
+    "langchain-openai (>=0.2.0)",
+    "crewai (==0.203.1)",
     "mcp (>=1.8.1)",
     "a2a-sdk[all,sqlite,sql] (>=0.2.11)",
     "composio (>=0.8.16)",
@@ -42,7 +45,7 @@ langchain = [
 
 # CrewAI support
 crewai = [
-    "crewai (>=0.50.0)",
+    "crewai (==0.203.1)",
 ]
 
 # MCP support

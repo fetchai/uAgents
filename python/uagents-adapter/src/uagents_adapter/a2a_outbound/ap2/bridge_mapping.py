@@ -16,6 +16,16 @@ from typing import Any, Union
 # A2A SDK imports
 from a2a.types import DataPart, Message, Part, Role
 
+# Fetch.ai payment protocol imports
+from uagents_core.contrib.protocols.payment import (
+    CancelPayment,
+    CommitPayment,
+    CompletePayment,
+    Funds,
+    RejectPayment,
+    RequestPayment,
+)
+
 from .artifacts import (
     CartContents,
     CartMandate,
@@ -31,14 +41,6 @@ from .artifacts import (
     build_basic_payment_request,
     compute_cart_hash,
     compute_payment_mandate_hash,
-)
-from .fetchai_payment_protocol import (
-    CancelPayment,
-    CommitPayment,
-    CompletePayment,
-    Funds,
-    RejectPayment,
-    RequestPayment,
 )
 
 # ===================== A2A DATA KEYS =====================
