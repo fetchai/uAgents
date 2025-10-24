@@ -35,6 +35,37 @@ Architecture:
     3. Tool Management: Intelligent grouping and organization of Composio tools
        into logical categories for efficient agent specialization
 
+Logging Best Practices:
+    This module implements comprehensive structured logging throughout:
+
+    - All log messages include relevant context variables for debugging
+    - Critical operations are logged at INFO level with timing information
+    - Detailed debug logging is available for troubleshooting
+    - Errors are logged with full exception context and stack traces
+    - Sensitive information (API keys, passwords) is never logged
+    - Log messages follow a consistent format: "Action description, key1: value1, key2: value2"
+
+    To enable debug logging:
+        ```python
+        import logging
+        logging.basicConfig(level=logging.DEBUG)
+        ```
+
+Error Handling:
+    The module defines custom exception classes for different failure scenarios:
+
+    - ComposioError: Base exception for all module errors
+    - AuthenticationError: Authentication and authorization failures
+    - ConnectionError: Network and connection state issues
+    - ConfigurationError: Invalid configuration or setup problems
+    - ToolRetrievalError: Tool fetching and configuration failures
+
+    All exceptions include:
+    - Descriptive error messages
+    - Operation context (what was being attempted)
+    - Additional details dictionary for debugging
+    - Proper exception chaining with original errors
+
 Usage:
     ```python
     import asyncio
@@ -72,12 +103,12 @@ Usage:
             persona_prompt="You are a productivity-focused AI assistant..."
         )
 
-        # Initialize the multi-agent orchestrator service
-        service = ComposioService(composio_config=config)
-
-        # Use the service protocol for agent communication
-        protocol = service.protocol
-        # ... integrate with your agent framework
+        # Initialize the multi-agent orchestrator service (recommended: use context manager)
+        async with ComposioService(composio_config=config) as service:
+            # Use the service protocol for agent communication
+            protocol = service.protocol
+            # ... integrate with your agent framework
+            # Automatic cleanup when exiting context
 
     asyncio.run(main())
     ```
@@ -135,16 +166,36 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 
 # Type definitions for better code clarity
 UserId = str
+"""
+A unique identifier for a user.
+"""
 AuthConfigId = str
+"""
+A unique identifier for an authentication configuration.
+"""
 ToolSlug = str
+"""
+A unique slug identifier for a Composio tool.
+"""
 SessionId = str
+"""
+A unique identifier for a user session.
+"""
 
 
 # Constants
 DEFAULT_TIMEOUT: Final[int] = 300
+"""
+Default timeout for operations in seconds.
+"""
 MAX_TOOLS_LIMIT: Final[int] = 20
+"""
+Maximum number of tools that can be requested at once.
+"""
 
-# Configure module logger with structured format for production
+# Configure module logger with structured format for production use
+# This logger is used throughout the module for consistent, structured logging
+# with proper context information for debugging and monitoring in production environments
 logger = logging.getLogger(__name__)
 
 
@@ -166,8 +217,41 @@ def describe_modifier_type(modifier_type: type) -> None:
 
 # type aliases
 SchemaModifierParam = Tool
+"""
+Represents the schema definition of a Composio tool.
+
+Used as the input and return type in schema modifier functions that
+customize or transform a tool's metadata before it is exposed to the agent.
+
+Example use:
+    - Adding default configuration fields
+    - Modifying tool descriptions or argument specifications
+"""
+
 BeforeExecuteParam = ToolExecuteParams
+"""
+Represents the execution parameters of a Composio tool.
+
+Used in pre-execution hooks (`BeforeExecute`) that modify or validate
+the input arguments before a tool is executed.
+
+Example use:
+    - Enforcing parameter limits
+    - Injecting default arguments or authentication tokens
+"""
+
 AfterExecuteParam = ToolExecutionResponse
+"""
+Represents the response or output returned after a Composio tool executes.
+
+Used in post-execution hooks (`AfterExecute`) that process, transform,
+or log tool outputs before returning them to the caller.
+
+Example use:
+    - Formatting or sanitizing tool responses
+    - Logging or augmenting results with metadata
+"""
+
 
 
 @runtime_checkable
@@ -300,12 +384,20 @@ class Modifiers(BaseModel):
     Example:
         ```python
         # Create schema modifier function
-        def add_default_repo(tool: str, toolkit: str, schema: Tool) -> Tool:
+        def add_default_repo(
+            tool: str,
+            toolkit: str,
+            schema: SchemaModifier
+        ) -> SchemaModifier:
             schema.description += " Uses 'composio/composio' as default repo."
             return schema
 
         # Create before-execute modifier function
-        def limit_posts(tool: str, toolkit: str, params: BeforeExecuteParam) -> BeforeExecuteParam:
+        def limit_posts(
+            tool: str,
+            toolkit: str,
+            params: BeforeExecuteParam
+        ) -> BeforeExecuteParam:
             params["arguments"]["size"] = min(params["arguments"].get("size", 10), 5)
             return params
 
@@ -336,7 +428,8 @@ class Modifiers(BaseModel):
 
     schema_functions: dict[SchemaModifier, list[str]] = Field(default_factory=dict)
     """
-    Dictionary mapping schema modifier functions to list of tool names they should be applied to."""
+    Dictionary mapping schema modifier functions to list of tool names they should be applied to.
+    """
 
     before_execute_functions: dict[BeforeExecute, list[str]] = Field(
         default_factory=dict
@@ -359,7 +452,15 @@ class Modifiers(BaseModel):
 
     @model_validator(mode="after")
     def validate_has_modifiers(self) -> Modifiers:
-        """Ensure at least one modifier type is provided."""
+        """
+        Ensure at least one modifier type is provided.
+
+        Returns:
+            Self after validation
+
+        Raises:
+            ValueError: If no modifiers are provided
+        """
         if not any(
             [
                 self.schema_functions,
@@ -367,7 +468,11 @@ class Modifiers(BaseModel):
                 self.after_execute_functions,
             ]
         ):
-            raise ValueError("At least one modifier function list must be provided")
+            raise ValueError(
+                "At least one modifier function list must be provided. "
+                "Use Modifiers.with_schema(), Modifiers.with_before_execute(), "
+                "Modifiers.with_after_execute(), or Modifiers.combine() to create modifiers."
+            )
         return self
 
     @classmethod
@@ -461,25 +566,34 @@ class Modifiers(BaseModel):
         """
         Convert to flat list for composio.tools.get() modifiers parameter.
 
+        This method transforms the structured modifier functions into a flat list
+        that can be passed to the Composio API. The modifiers are applied in a
+        specific order: schema modifiers first, then before_execute, then after_execute.
+
         Args:
-            tools: List of tool slugs to apply modifiers to
-            toolkits: List of toolkit names to apply modifiers to
+            tools: List of tool slugs to apply modifiers to (currently unused but
+                   reserved for future filtering functionality)
+            toolkits: List of toolkit names to apply modifiers to (currently unused but
+                      reserved for future filtering functionality)
 
         Returns:
             Flattened list of all modifier functions in execution order
         """
         modifiers: list[Any] = []
 
+        # Apply schema modifiers first (modify tool definitions before exposure)
         if self.schema_functions:
             for schema_modifier_func, tool_list in self.schema_functions.items():
                 modifier = schema_modifier(tools=tool_list)(schema_modifier_func)
                 modifiers.append(modifier)
 
+        # Apply before_execute modifiers (modify parameters before execution)
         if self.before_execute_functions:
             for before_execute_func, tool_list in self.before_execute_functions.items():
                 modifier = before_execute(tools=tool_list)(before_execute_func)
                 modifiers.append(modifier)
 
+        # Apply after_execute modifiers last (transform results after execution)
         if self.after_execute_functions:
             for after_execute_func, tool_list in self.after_execute_functions.items():
                 modifier = after_execute(tools=tool_list)(after_execute_func)
@@ -592,7 +706,9 @@ class ToolConfig(BaseModel):
     """
 
     limit: int | None = None
-    """Maximum number of tools to return (1-100)."""
+    """
+    Maximum number of tools to return (1-100).
+    """
 
     modifiers: Modifiers | None = None
     """
@@ -1111,14 +1227,26 @@ class ConnectionStatus(BaseModel):
 
     @property
     def connection_progress(self) -> float:
-        """Get connection progress as a percentage (0.0 to 1.0)."""
+        """
+        Get connection progress as a percentage (0.0 to 1.0).
+
+        Returns:
+            Float between 0.0 and 1.0 representing connection completion percentage.
+            Returns 1.0 if no connections are configured.
+        """
         if self.total_configs == 0:
             return 1.0
         return self.active_connections / self.total_configs
 
     @property
     def is_partial_connection(self) -> bool:
-        """Check if user has some but not all required connections."""
+        """
+        Check if user has some but not all required connections.
+
+        Returns:
+            True if user has at least one connection but not all required connections,
+            False if user has no connections or all required connections.
+        """
         return 0 < self.active_connections < self.total_configs
 
 
@@ -1187,17 +1315,35 @@ class AuthResponse(BaseModel):
 
     @property
     def is_success(self) -> bool:
-        """Check if the authentication was successful."""
+        """
+        Check if the authentication was successful.
+
+        Returns:
+            True if authentication completed successfully and connection is active,
+            False otherwise.
+        """
         return self.status == "active"
 
     @property
     def is_pending(self) -> bool:
-        """Check if the authentication is pending user action."""
+        """
+        Check if the authentication is pending user action.
+
+        Returns:
+            True if authentication request is created and waiting for user to complete
+            the authentication flow, False otherwise.
+        """
         return self.status == "pending"
 
     @property
     def is_error(self) -> bool:
-        """Check if there was an error in authentication."""
+        """
+        Check if there was an error in authentication.
+
+        Returns:
+            True if authentication failed, timed out, or encountered an error,
+            False otherwise.
+        """
         return self.status in ("failed", "error", "timeout")
 
 
@@ -1960,11 +2106,31 @@ class ComposioClient:
             ) from e
 
     def _get_config_type(self, config: ToolConfig) -> str:
-        """Get a string description of the tool config type for logging."""
+        """
+        Get a string description of the tool config type for logging purposes.
+
+        This method analyzes the ToolConfig and returns a human-readable string
+        describing which type of filter is being used. This is useful for
+        structured logging and debugging.
+
+        Args:
+            config: ToolConfig instance to analyze
+
+        Returns:
+            Human-readable string describing the config type (e.g.,
+            "specific_tools(3)", "search('github issues...')",
+            "scoped_toolkit(GITHUB, 2 scopes)", "toolkit(SLACK)", or "unknown")
+        """
         if config.tools:
             return f"specific_tools({len(config.tools)})"
         elif config.search:
-            return f"search('{config.search[:20]}...')"
+            # Truncate search query for logging
+            search_preview = (
+                config.search[:20] + "..."
+                if len(config.search) > 20
+                else config.search
+            )
+            return f"search('{search_preview}')"
         elif config.scopes:
             return f"scoped_toolkit({config.toolkit}, {len(config.scopes)} scopes)"
         elif config.toolkit:
@@ -2036,11 +2202,11 @@ class PostgresMemoryConfig(BaseModel):
         ValueError if any required parameters are missing.
 
         Required Environment Variables:
-            - PSQL_HOST
-            - PSQL_PORT
-            - PSQL_DATABASE
-            - PSQL_USERNAME
-            - PSQL_PASSWORD
+            - PSQL_HOST (or defaults to 'localhost')
+            - PSQL_PORT (or defaults to 5432)
+            - PSQL_DATABASE (required)
+            - PSQL_USERNAME (required)
+            - PSQL_PASSWORD (required)
 
         Optional Environment Variables:
             - PSQL_SSLMODE (default: "prefer")
@@ -2053,25 +2219,92 @@ class PostgresMemoryConfig(BaseModel):
 
         Raises:
             ValueError: If any required environment variables are missing or invalid
+
+        Example:
+            ```bash
+            export PSQL_HOST="localhost"
+            export PSQL_PORT="5432"
+            export PSQL_DATABASE="composio_memory"
+            export PSQL_USERNAME="postgres"
+            export PSQL_PASSWORD="secret"
+            export PSQL_SSLMODE="require"
+            ```
+
+            ```python
+            config = PostgresMemoryConfig.from_env()
+            ```
         """
         try:
+            # Read configuration from environment with defaults
             host = os.getenv("PSQL_HOST", "localhost")
             port_str = os.getenv("PSQL_PORT", "5432")
             database = os.getenv("PSQL_DATABASE")
             user = os.getenv("PSQL_USERNAME")
             password = os.getenv("PSQL_PASSWORD")
 
+            # Validate required fields
             if not database:
-                raise ValueError("PSQL_DATABASE environment variable is required")
+                raise ValueError(
+                    "PSQL_DATABASE environment variable is required. "
+                    "Please set it to your PostgreSQL database name."
+                )
             if not user:
-                raise ValueError("PSQL_USERNAME environment variable is required")
+                raise ValueError(
+                    "PSQL_USERNAME environment variable is required. "
+                    "Please set it to your PostgreSQL username."
+                )
             if not password:
-                raise ValueError("PSQL_PASSWORD environment variable is required")
-            port = int(port_str)
+                raise ValueError(
+                    "PSQL_PASSWORD environment variable is required. "
+                    "Please set it to your PostgreSQL password."
+                )
+
+            # Parse and validate port
+            try:
+                port = int(port_str)
+                if port < 1 or port > 65535:
+                    raise ValueError(
+                        f"PSQL_PORT must be between 1 and 65535, got: {port}"
+                    )
+            except ValueError as port_error:
+                raise ValueError(
+                    f"PSQL_PORT must be a valid integer between 1 and 65535, got: {port_str}"
+                ) from port_error
+
+            # Parse optional configuration with validation
             sslmode = os.getenv("PSQL_SSLMODE", "prefer")
-            max_size = int(os.getenv("PSQL_MAX_SIZE", "20"))
-            autocommit = os.getenv("PSQL_AUTOCOMMIT", "true").lower() == "true"
-            prepare_threshold = int(os.getenv("PSQL_PREPARE_THRESHOLD", "0"))
+            valid_sslmodes = ["disable", "allow", "prefer", "require", "verify-ca", "verify-full"]
+            if sslmode not in valid_sslmodes:
+                raise ValueError(
+                    f"PSQL_SSLMODE must be one of {valid_sslmodes}, got: {sslmode}"
+                )
+
+            max_size_str = os.getenv("PSQL_MAX_SIZE", "20")
+            try:
+                max_size = int(max_size_str)
+                if max_size < 1:
+                    raise ValueError(f"PSQL_MAX_SIZE must be at least 1, got: {max_size}")
+            except ValueError as max_size_error:
+                raise ValueError(
+                    f"PSQL_MAX_SIZE must be a valid positive integer, got: {max_size_str}"
+                ) from max_size_error
+
+            autocommit_str = os.getenv("PSQL_AUTOCOMMIT", "true").lower()
+            autocommit = autocommit_str in ("true", "1", "yes", "on")
+
+            prepare_threshold_str = os.getenv("PSQL_PREPARE_THRESHOLD", "0")
+            try:
+                prepare_threshold = int(prepare_threshold_str)
+                if prepare_threshold < 0:
+                    raise ValueError(
+                        f"PSQL_PREPARE_THRESHOLD must be non-negative, got: {prepare_threshold}"
+                    )
+            except ValueError as threshold_error:
+                raise ValueError(
+                    f"PSQL_PREPARE_THRESHOLD must be a valid non-negative integer, "
+                    f"got: {prepare_threshold_str}"
+                ) from threshold_error
+
             return cls(
                 host=host,
                 port=port,
@@ -2083,11 +2316,16 @@ class PostgresMemoryConfig(BaseModel):
                 autocommit=autocommit,
                 prepare_threshold=prepare_threshold,
             )
+
         except ValueError as ve:
-            raise ValueError(f"Invalid environment variable: {ve}") from ve
-        except Exception as e:
+            # Re-raise ValueError with context
             raise ValueError(
-                f"Error loading PostgresMemoryConfig from environment: {e}"
+                f"Failed to load PostgreSQL configuration from environment: {ve}"
+            ) from ve
+        except Exception as e:
+            # Catch any other unexpected errors
+            raise ValueError(
+                f"Unexpected error loading PostgreSQL configuration from environment: {e}"
             ) from e
 
     async def initialize_db_pool(self, ctx: Context) -> AsyncConnectionPool[Any]:
@@ -2178,15 +2416,6 @@ class ComposioService:
         - Implements uAgent chat protocol for communication
         - Provides automatic authentication flow management
 
-    Attributes:
-        _composio_config: Configuration for Composio integration
-        _client: Composio API client for operations
-        _llm: Language model instance for agent communication
-        _protocol: Chat protocol handler for message processing
-        _memory_config: Optional PostgreSQL configuration for persistence
-        _pool: Database connection pool for memory operations
-        _setup_completed: Flag indicating memory setup completion
-
     Example:
         ```python
         import asyncio
@@ -2274,6 +2503,9 @@ class ComposioService:
             LLM_API_KEY: API key for language model authentication
             LLM_BASE_URL: Base URL for language model API (default: https://api.asi1.ai/v1)
             LLM_MODEL_NAME: Model name to use (default: asi1-mini)
+            LLM_MODEL_CONTEXT_WINDOW: Context window size (default: 128000)
+            LLM_TOOL_RESPONSE_TOKEN_LIMIT: Max tokens for tool responses
+                                          (default: 80% of context window)
 
         Example:
             ```python
@@ -2692,6 +2924,17 @@ class ComposioService:
         This hook implements the 'Trim messages' pattern to keep the conversation history
         within the specified token limit, ensuring the most recent context is prioritized.
 
+        The hook system addresses a critical challenge in long-running conversations:
+        as conversation history grows, it can exceed the model's context window. This
+        implementation uses a two-stage trimming approach:
+
+        1. **Tool Response Truncation**: Individual tool responses are truncated if they
+           exceed max_tool_response_tokens. This prevents a single large response from
+           consuming the entire context budget.
+
+        2. **History Trimming**: The full conversation history is trimmed to fit within
+           max_tokens, using the specified strategy to determine which messages to keep.
+
         Args:
             model_name: Name of the language model (for tokenization)
             max_tokens: Maximum tokens allowed in the model context
@@ -2702,6 +2945,11 @@ class ComposioService:
 
         Returns:
             List of pre-model hook functions to be applied before each model call
+
+        Note:
+            The hooks are applied in sequence: tool response truncation first,
+            then history trimming. This ensures large tool outputs are handled
+            before overall context management.
         """
 
         @before_model
@@ -2938,22 +3186,32 @@ class ComposioService:
         Converts a StructuredTool object to the dictionary format expected by
         _create_agent_tool_prompt and _create_orchestrator_prompt methods.
 
-                Args:
-            tool: A StructuredTool instance from LangChain
+        This method extracts the schema information from a LangChain StructuredTool
+        and formats it into a dictionary structure that includes the function name,
+        description, and parameters in a format suitable for prompt generation.
+
+        Args:
+            tool: A StructuredTool instance from LangChain with args_schema defined
 
         Returns:
-            A dictionary with 'function' key containing name, description, and parameters
+            A dictionary with 'function' key containing:
+                - name: Tool function name
+                - description: Tool description
+                - parameters: Dict with properties, required fields, and type definitions
         """
+        # Extract schema from tool - try different methods for compatibility
         if hasattr(tool.args_schema, "model_json_schema"):
             schema = tool.args_schema.model_json_schema()
         elif hasattr(tool.args_schema, "model_dump"):
             schema = tool.args_schema.model_dump()
         else:
+            # Fallback: treat as dict if already in dict format
             schema = tool.args_schema if isinstance(tool.args_schema, dict) else {}
 
+        # Extract schema components with safe defaults
         properties = schema.get("properties", {})
         required = schema.get("required", [])
-        defs = schema.get("$defs", {})
+        defs = schema.get("$defs", {})  # Type definitions for complex types
 
         return {
             "function": {
@@ -3045,7 +3303,9 @@ class ComposioService:
 
                 tools_prompt += "\n"
 
-        tools_prompt += "\n---\nRemember: Check relevant_data first, then use tools to complete the task.\n"
+        tools_prompt += (
+            "\n---\nRemember: Check relevant_data first, then use tools to complete the task.\n"
+        )
 
         return tools_prompt
 
@@ -3153,6 +3413,23 @@ class ComposioService:
         Creates a single, specialized LangChain ReAct agent with dedicated tools,
         and a custom system prompt generated from the tool definitions.
 
+        This method implements the specialized agent pattern where each agent is
+        an expert in a specific domain (e.g., GitHub, Email, Calendar). The agent
+        is wrapped as a LangChain tool so it can be invoked by the orchestrator.
+
+        Key Design Decisions:
+            - **Tool Wrapping**: The agent is wrapped as a @tool function, making it
+              callable by the orchestrator with task_description and relevant_data parameters.
+
+            - **Isolated Memory**: Each specialized agent has its own conversation history,
+              isolated from other agents. This is why data passing via relevant_data is crucial.
+
+            - **Dynamic Prompts**: The system prompt is auto-generated from tool schemas,
+              ensuring the agent understands all available capabilities.
+
+            - **Token Management**: Pre-model hooks enforce token limits on both individual
+              tool responses and overall conversation history.
+
         Args:
             agent_name: Name of the specialized agent (e.g., "Email", "Calendar")
             tools: List of StructuredTool instances for this agent
@@ -3162,7 +3439,15 @@ class ComposioService:
             model_name: Name of the language model (for tokenization)
 
         Returns:
-            An async function that serves as a tool to invoke this specialized agent.
+            An async function decorated with @tool that can be invoked by the orchestrator.
+            The function signature is:
+                async def specilized_agent_tool(
+                    task_description: str,
+                    relevant_data: dict[str, Any] | None = None
+                ) -> str
+
+        Raises:
+            Exception: If agent creation fails (logged with full context)
         """
         ctx.logger.info(
             f"Creating Specialized Agent: {agent_name}, tools_count: {len(tools)}"
@@ -3201,7 +3486,7 @@ class ComposioService:
                     "Pass any data from previous steps via relevant_data."
                 ),
             )
-            async def agent_tool(
+            async def specialized_agent_tool(
                 task_description: str, relevant_data: dict[str, Any] | None = None
             ) -> str:
                 """
@@ -3247,7 +3532,7 @@ class ComposioService:
                 return response
 
             ctx.logger.info(f"Specialized Agent {agent_name} created successfully")
-            return agent_tool
+            return specialized_agent_tool
 
         except Exception as e:
             ctx.logger.error(
@@ -3890,8 +4175,26 @@ class ComposioService:
         """
         Get information about the service configuration.
 
+        This method returns a dictionary containing non-sensitive information
+        about the service's current configuration and state. Useful for debugging,
+        monitoring, and health checks.
+
         Returns:
-            dict: Service configuration information (without sensitive data)
+            dict: Service configuration information including:
+                - service_type: Type identifier for the service
+                - llm_model: Name of the language model being used
+                - auth_configs_count: Number of authentication configurations
+                - tool_configs_count: Number of tool configurations
+                - memory_enabled: Whether PostgreSQL memory is configured
+                - setup_completed: Whether memory schema setup has been completed
+                - pool_initialized: Whether database connection pool is initialized
+
+        Example:
+            ```python
+            service = ComposioService(config)
+            info = service.get_service_info()
+            print(f"Service using {info['llm_model']} with {info['tool_configs_count']} tools")
+            ```
         """
         return {
             "service_type": "ComposioService",
@@ -3907,8 +4210,19 @@ class ComposioService:
         """
         Async context manager entry.
 
+        Enables the service to be used in an async context manager for
+        automatic resource cleanup. No additional setup is performed on entry
+        as the service is fully initialized in __init__.
+
         Returns:
             Self for use in async with statement
+
+        Example:
+            ```python
+            async with ComposioService(config) as service:
+                protocol = service.protocol
+                # Service will be automatically cleaned up on exit
+            ```
         """
         return self
 
@@ -3921,15 +4235,41 @@ class ComposioService:
         """
         Async context manager exit with automatic cleanup.
 
+        This method ensures proper cleanup of resources when exiting the
+        context manager, including closing database connections and
+        releasing any held resources.
+
         Args:
             exc_type: Exception type if an exception was raised
             exc_val: Exception instance if an exception was raised
             exc_tb: Exception traceback if an exception was raised
+
+        Note:
+            This method does not suppress exceptions. If an exception occurred
+            in the context block, it will be re-raised after cleanup.
+
+        Example:
+            ```python
+            async with ComposioService(config) as service:
+                # Use service
+                pass  # Cleanup happens automatically here
+            ```
         """
         await self.cleanup()
 
     def __repr__(self) -> str:
-        """String representation of the service."""
+        """
+        String representation of the service.
+
+        Returns:
+            Human-readable string describing the service configuration
+
+        Example:
+            ```python
+            service = ComposioService(config)
+            print(service)  # ComposioService(auth_configs=2, tool_configs=3, memory_enabled=True)
+            ```
+        """
         return (
             f"ComposioService("
             f"auth_configs={len(self._composio_config.get_auth_config_ids())}, "

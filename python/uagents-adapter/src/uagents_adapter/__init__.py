@@ -1,4 +1,4 @@
-"""Adapters for uAgents to integrate with LangChain, CrewAI, and MCP."""
+"""Adapters for uAgents to integrate with LangChain, CrewAI, MCP, Composio and A2A."""
 
 from importlib import metadata
 
@@ -82,6 +82,8 @@ if A2A_AVAILABLE:
             "SingleA2AAdapter",
         ]
     )
+else:
+    print("A2A modules are not available. Please install the required dependencies to use A2A features.")
 
 if COMPOSIO_AVAILABLE:
     __all__.extend(

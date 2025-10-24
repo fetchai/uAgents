@@ -21,16 +21,14 @@ dependencies = [
 [project.optional-dependencies]
 # Base package dependencies (installed by default)
 all = [
-    "langchain-core (>=0.3.52,<0.4.0)",
-    "langchain (>=0.3.0)",
-    "langchain-openai (>=0.2.0)",
+    "langchain-core (>=0.3.52)",
     "crewai (==0.203.1)",
     "mcp (>=1.8.1)",
     "a2a-sdk[all,sqlite,sql] (>=0.2.11)",
     "composio (>=0.8.16)",
     "composio-langchain (>=0.8.14)",
     "langchain-openai (>=0.3.33)",
-    "langchain (==1.0.0a14)",
+    "langchain (==1.0.2)",
     "langgraph (>=0.6.8)",
     "langgraph-checkpoint-postgres (>=2.0.24)",
     "psycopg[pool] (>=3.2.10)",
@@ -68,7 +66,7 @@ composio = [
     "composio (>=0.8.16)",
     "composio-langchain (>=0.8.14)",
     "langchain-openai (>=0.3.33)",
-    "langchain (==1.0.0a14)",
+    "langchain (==1.0.2)",
     "langgraph (>=0.6.8)",
     "langgraph-checkpoint-postgres (>=2.0.24)",
     "psycopg[pool] (>=3.2.10)",
