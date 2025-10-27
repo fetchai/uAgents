@@ -2,7 +2,7 @@
 
 import json
 import unittest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, MagicMock
 from uuid import uuid4
 import sys
 from pathlib import Path
