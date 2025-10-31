@@ -1,18 +1,11 @@
 from datetime import datetime, timezone
-from typing import Dict, Optional
 from uuid import uuid4
 
 from pydantic.v1 import ValidationError
-from uagents import Agent, Context
-from uagents.experimental.llmtool import (
-    LLM,
-    LLMConfig,
-    Tool,
-    asione_config,
-    extract_tools_from_protocol,
-)
+from uagents import Context
+from uagents.experimental.chatagent.ai import LLM, LLMConfig
+from uagents.experimental.chatagent.tools import Tool
 from uagents.protocol import Protocol
-
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
     ChatMessage,
@@ -21,32 +14,6 @@ from uagents_core.contrib.protocols.chat import (
     TextContent,
     chat_protocol_spec,
 )
-
-
-class ChatAgent(Agent):
-    def __init__(
-        self,
-        *args,
-        llm_config: Optional[LLMConfig] = None,
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-
-        self._tools: Dict[str, Tool] = {}
-
-        self._chat_proto = ChatProtocol(
-            llm_config=llm_config or asione_config,
-            tools=self._tools,
-        )
-
-        super().include(self._chat_proto, publish_manifest=True)
-
-    def include(self, proto: Protocol, publish_manifest: bool = True):
-        super().include(proto, publish_manifest=publish_manifest)
-
-        new_tools = extract_tools_from_protocol(proto)
-        for tool in new_tools:
-            self._tools[tool.name] = tool
 
 
 def _create_text_chat(text: str, end_session: bool = True) -> ChatMessage:
@@ -94,7 +61,7 @@ class ChatProtocol(Protocol):
                 return
 
             session = ctx.session
-            messages: List[dict] = []
+            messages: list[dict] = []
 
             if ctx._message_history is not None:
                 try:
@@ -173,7 +140,6 @@ class ChatProtocol(Protocol):
         *,
         end_session: bool = True,
     ):
-
         return await ctx.send(
             recipient,
             _create_text_chat(text, end_session=end_session),

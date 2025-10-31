@@ -1,10 +1,9 @@
 import json
-from typing import Any, Callable, Literal, Tuple
+from typing import Any, Literal
 
 from litellm import completion
 from pydantic import BaseModel, ConfigDict
-from uagents.protocol import Protocol
-from uagents_core.models import Model
+from uagents.experimental.chatagent.tools import Tool
 
 OPENAI_API_URL = "https://api.openai.com/v1"
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
@@ -28,7 +27,7 @@ class LLMParams(BaseModel):
 
 
 class LLMConfig(BaseModel):
-    provider: str = Literal["asi1", "openai", "claude"]
+    provider: str = Literal["asi1", "openai", "anthropic"]
     api_key: str
     model: str
     url: str
@@ -60,59 +59,6 @@ asione_config = LLMConfig(
 )
 
 
-class Tool:
-    def __init__(
-        self,
-        name: str,
-        description: str,
-        model_cls: type[Model],
-        handler: Callable[..., Any],
-    ):
-        self.name = name
-        self.description = description
-        self.model_cls = model_cls
-        self.handler = handler
-
-    def tool_spec(self) -> dict[str, Any]:
-        schema = self.model_cls.schema()
-        return {
-            "type": "function",
-            "function": {
-                "name": self.name,
-                "description": self.description,
-                "parameters": schema,
-            },
-        }
-
-
-def extract_tools_from_protocol(proto: Protocol) -> list[Tool]:
-    tools: list[Tool] = []
-
-    all_handlers: dict[str, Callable[..., Any]] = {
-        **proto.signed_message_handlers,
-        **proto.unsigned_message_handlers,
-    }
-
-    for digest, model_cls in proto.models.items():
-        handler_fn = all_handlers.get(digest)
-        if handler_fn is None:
-            continue
-
-        tool_name = model_cls.__name__
-        description = f"Handle a `{model_cls.__name__}` request for protocol {proto.canonical_name}."
-
-        tools.append(
-            Tool(
-                name=tool_name,
-                description=description,
-                model_cls=model_cls,
-                handler=handler_fn,
-            )
-        )
-
-    return tools
-
-
 class LLM:
     def __init__(self, config: LLMConfig, tools: dict[str, Tool]):
         self._config = config
@@ -124,7 +70,7 @@ class LLM:
     def process(
         self,
         message_history: list[dict[str, str]],
-    ) -> Tuple[str, dict]:
+    ) -> tuple[str, dict]:
         tools_specs = self._build_tool_specs()
         model_id = f"{self._config.provider}/{self._config.model}"
 
