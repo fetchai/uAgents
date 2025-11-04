@@ -1,5 +1,5 @@
+import json
 from datetime import datetime, timezone
-from uuid import uuid4
 
 from pydantic.v1 import ValidationError
 from uagents import Context
@@ -14,13 +14,6 @@ from uagents_core.contrib.protocols.chat import (
     TextContent,
     chat_protocol_spec,
 )
-
-
-def _create_text_chat(text: str, end_session: bool = True) -> ChatMessage:
-    content = [TextContent(type="text", text=text)]
-    if end_session:
-        content.append(EndSessionContent(type="end-session"))
-    return ChatMessage(timestamp=datetime.utcnow(), msg_id=uuid4(), content=content)
 
 
 class ChatProtocol(Protocol):
@@ -85,7 +78,9 @@ class ChatProtocol(Protocol):
             )
 
             try:
-                tool_name, arg_dict = self._llm.process(messages)
+                tool_name, arg_dict, tool_call_id, assistant_msg = self._llm.process(
+                    messages
+                )
 
             except Exception as e:
                 ctx.logger.error(f"LLM failed: {e}")
@@ -127,10 +122,29 @@ class ChatProtocol(Protocol):
                     "Sorry, I couldn't process your request. Please try again later.",
                 )
 
-            if isinstance(result, str):
-                return await self.send_text(ctx, sender, result)
+            if hasattr(result, "model_dump"):
+                tool_content = json.dumps(result.model_dump())
+            elif isinstance(result, (dict, list)):
+                tool_content = json.dumps(result)
+            else:
+                tool_content = json.dumps({"result": str(result)})
 
-            return await self.send_text(ctx, sender, str(result))
+            tool_result_message = {
+                "role": "tool",
+                "tool_call_id": tool_call_id,
+                "content": tool_content,
+            }
+            followup_messages = [
+                {
+                    "role": "system",
+                    "content": self._llm._config.parameters.system_prompt,
+                },
+                *messages,
+                assistant_msg,
+                tool_result_message,
+            ]
+            final_text = self._llm.complete(followup_messages)
+            return await self.send_text(ctx, sender, final_text)
 
     async def send_text(
         self,
@@ -140,7 +154,7 @@ class ChatProtocol(Protocol):
         *,
         end_session: bool = True,
     ):
-        return await ctx.send(
-            recipient,
-            _create_text_chat(text, end_session=end_session),
-        )
+        content = [TextContent(type="text", text=text)]
+        if end_session:
+            content.append(EndSessionContent(type="end-session"))
+        return await ctx.send(recipient, ChatMessage(content=content))
