@@ -152,7 +152,7 @@ class ChatProtocol(Protocol):
         recipient: str,
         text: str,
         *,
-        end_session: bool = True,
+        end_session: bool = False,
     ):
         content = [TextContent(type="text", text=text)]
         if end_session:
