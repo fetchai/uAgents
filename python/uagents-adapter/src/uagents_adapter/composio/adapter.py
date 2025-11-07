@@ -253,7 +253,6 @@ Example use:
 """
 
 
-
 @runtime_checkable
 class SchemaModifier(Protocol):
     """
@@ -2126,9 +2125,7 @@ class ComposioClient:
         elif config.search:
             # Truncate search query for logging
             search_preview = (
-                config.search[:20] + "..."
-                if len(config.search) > 20
-                else config.search
+                config.search[:20] + "..." if len(config.search) > 20 else config.search
             )
             return f"search('{search_preview}')"
         elif config.scopes:
@@ -2273,7 +2270,14 @@ class PostgresMemoryConfig(BaseModel):
 
             # Parse optional configuration with validation
             sslmode = os.getenv("PSQL_SSLMODE", "prefer")
-            valid_sslmodes = ["disable", "allow", "prefer", "require", "verify-ca", "verify-full"]
+            valid_sslmodes = [
+                "disable",
+                "allow",
+                "prefer",
+                "require",
+                "verify-ca",
+                "verify-full",
+            ]
             if sslmode not in valid_sslmodes:
                 raise ValueError(
                     f"PSQL_SSLMODE must be one of {valid_sslmodes}, got: {sslmode}"
@@ -2283,7 +2287,9 @@ class PostgresMemoryConfig(BaseModel):
             try:
                 max_size = int(max_size_str)
                 if max_size < 1:
-                    raise ValueError(f"PSQL_MAX_SIZE must be at least 1, got: {max_size}")
+                    raise ValueError(
+                        f"PSQL_MAX_SIZE must be at least 1, got: {max_size}"
+                    )
             except ValueError as max_size_error:
                 raise ValueError(
                     f"PSQL_MAX_SIZE must be a valid positive integer, got: {max_size_str}"
@@ -3303,9 +3309,7 @@ class ComposioService:
 
                 tools_prompt += "\n"
 
-        tools_prompt += (
-            "\n---\nRemember: Check relevant_data first, then use tools to complete the task.\n"
-        )
+        tools_prompt += "\n---\nRemember: Check relevant_data first, then use tools to complete the task.\n"
 
         return tools_prompt
 

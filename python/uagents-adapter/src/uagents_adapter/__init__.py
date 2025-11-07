@@ -83,7 +83,9 @@ if A2A_AVAILABLE:
         ]
     )
 else:
-    print("A2A modules are not available. Please install the required dependencies to use A2A features.")
+    print(
+        "A2A modules are not available. Please install the required dependencies to use A2A features."
+    )
 
 if COMPOSIO_AVAILABLE:
     __all__.extend(
