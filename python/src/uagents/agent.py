@@ -18,7 +18,7 @@ from typing_extensions import deprecated
 from uagents_core.config import AgentverseConfig
 from uagents_core.identity import Identity, derive_key_from_seed, is_user_address
 from uagents_core.models import ErrorMessage, Model
-from uagents_core.registration import AgentUpdates
+from uagents_core.registration import AgentProfile, RegistrationRequest
 from uagents_core.types import AddressPrefix, AgentEndpoint, AgentInfo, AgentType
 
 from uagents.asgi import ASGIServer
@@ -288,8 +288,10 @@ class Agent(Sink):
         enable_agent_inspector: bool = True,
         metadata: dict[str, Any] | None = None,
         readme_path: str | None = None,
+        description: str | None = None,
+        handle: str | None = None,
         avatar_url: str | None = None,
-        publish_agent_details: bool = False,
+        publish_agent_details: bool = True,
         store_message_history: bool = False,
     ):
         """
@@ -317,6 +319,8 @@ class Agent(Sink):
             enable_agent_inspector (bool): Enable the agent inspector for debugging.
             metadata (dict[str, Any] | None): Optional metadata to include in the agent object.
             readme_path (str | None): The path to the agent's README file.
+            description (str | None): A short description of the agent.
+            handle (str | None): A unique handle for the agent on Agentverse.
             avatar_url (str | None): The URL for the agent's avatar image on Agentverse.
             publish_agent_details (bool): Publish agent details to Agentverse on connection via
             local agent inspector.
@@ -349,7 +353,7 @@ class Agent(Sink):
         else:
             self._mailbox_client = None
 
-        self._almanac_api_url = f"{self._agentverse.url}/v1/almanac"
+        self._almanac_api_url = self._agentverse.almanac_api
         self._resolver = resolve or GlobalResolver(
             max_endpoints=max_resolver_endpoints,
             almanac_api_url=self._almanac_api_url,
@@ -405,6 +409,7 @@ class Agent(Sink):
                 self._readme = f.read()
         else:
             self._readme = None
+        self._description = description
         self._avatar_url = avatar_url
 
         self.initialize_wallet_messaging(enable_wallet_messaging)
@@ -459,22 +464,31 @@ class Agent(Sink):
             async def _handle_connect(
                 _ctx: Context, request: AgentverseConnectRequest
             ) -> RegistrationResponse:
-                agent_details = (
-                    AgentUpdates(
-                        name=self.name,
-                        readme=self._readme,
-                        avatar_url=self._avatar_url,
-                        agent_type=request.agent_type,
+                profile = (
+                    AgentProfile(
+                        description=description or "",
+                        readme=self._readme or "",
+                        avatar_url=avatar_url or "",
                     )
                     if publish_agent_details
-                    else None
+                    else AgentProfile()
+                )
+                registration_data = RegistrationRequest(
+                    address=self.address,
+                    name=self.name,
+                    handle=handle,
+                    url=request.endpoint,
+                    profile=profile,
+                    endpoints=self._endpoints,
+                    protocols=list(self.protocols.keys()),
+                    metadata=self.metadata,
                 )
                 return await register_in_agentverse(
                     request=request,
                     identity=self._identity,
                     prefix=self._prefix,
                     agentverse=self._agentverse,
-                    agent_details=agent_details,
+                    agent_details=registration_data,
                 )
 
             @self.on_rest_post(
@@ -1061,7 +1075,7 @@ class Agent(Sink):
             async with (
                 aiohttp.ClientSession() as session,
                 session.post(
-                    url=f"{self._agentverse.url}/v1/almanac/manifests",
+                    url=f"{self._agentverse.almanac_api}/manifests",
                     json=manifest,
                 ) as response,
             ):
@@ -1449,7 +1463,7 @@ class Bureau:
                 almanac_contract=almanac_contract,
                 testnet=network == "testnet",
                 logger=self._logger,
-                almanac_api=f"{self._agentverse.url}/v1/almanac",
+                almanac_api=self._agentverse.almanac_api,
             )
 
         if agents is not None:

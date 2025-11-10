@@ -4,9 +4,9 @@ from typing import Annotated, Literal
 import requests
 from pydantic import BaseModel, Field
 
-from uagents.config import AGENTVERSE_URL
+from uagents.config import AgentverseConfig
 
-SEARCH_API_URL = AGENTVERSE_URL + "/v1/search/agents"
+SEARCH_API_URL = AgentverseConfig().search_api
 
 StatusType = Literal["active", "inactive"]
 AgentType = Literal["hosted", "local", "mailbox", "proxy", "custom"]
@@ -160,9 +160,12 @@ def _geosearch_agents(criteria: AgentGeoSearchCriteria) -> list[Agent]:
     return []
 
 
-def _search_agents(criteria: AgentSearchCriteria) -> list[Agent]:
+def _search_agents(
+    criteria: AgentSearchCriteria, agentverse_config: AgentverseConfig | None = None
+) -> list[Agent]:
+    agentverse_config = agentverse_config or AgentverseConfig()
     response = requests.post(
-        url=SEARCH_API_URL,
+        url=agentverse_config.search_api,
         json=criteria.model_dump(),
         timeout=5,
     )

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from datetime import datetime
+from secrets import token_bytes
 
 import aiohttp
 from aiohttp.client_exceptions import ClientConnectorError
@@ -11,10 +12,11 @@ from uagents_core.identity import Identity, is_user_address
 from uagents_core.models import Model
 from uagents_core.registration import (
     AgentUpdates,
-    ChallengeRequest,
     ChallengeResponse,
+    IdentityProof,
     RegistrationRequest,
 )
+from uagents_core.storage import compute_attestation
 from uagents_core.types import AddressPrefix, AgentEndpoint, AgentType
 
 from uagents.config import MAILBOX_POLL_INTERVAL_SECONDS
@@ -71,7 +73,7 @@ def is_mailbox_agent(
     Returns:
         bool: True if the agent is a mailbox agent, False otherwise.
     """
-    return any(f"{agentverse.url}/v1/submit" in ep.url for ep in endpoints)
+    return any(agentverse.mailbox_endpoint in ep.url for ep in endpoints)
 
 
 async def register_in_agentverse(
@@ -79,7 +81,7 @@ async def register_in_agentverse(
     identity: Identity,
     prefix: AddressPrefix,
     agentverse: AgentverseConfig,
-    agent_details: AgentUpdates | None = None,
+    agent_details: RegistrationRequest,
 ) -> RegistrationResponse:
     """
     Registers agent in Agentverse
@@ -90,19 +92,17 @@ async def register_in_agentverse(
         prefix (AddressPrefix): Agent address prefix
             can be "agent" (mainnet) or "test-agent" (testnet)
         agentverse (AgentverseConfig): Agentverse configuration
-        agent_details (AgentUpdates | None): Agent details (name, readme, avatar_url)
+        agent_details (RegistrationRequest | None): Agent details to register
 
     Returns:
         RegistrationResponse: Registration response object
     """
     async with aiohttp.ClientSession() as session:
         # get challenge
-        challenge_url = f"{agentverse.url}/v1/auth/challenge"
-        challenge_request = ChallengeRequest(address=identity.address)
+        challenge_url = f"{agentverse.identity_api}/{identity.address}/challenge"
         logger.debug("Requesting mailbox access challenge")
-        async with session.post(
+        async with session.get(
             challenge_url,
-            data=challenge_request.model_dump_json(),
             headers={
                 "content-type": "application/json",
                 "Authorization": f"Bearer {request.user_token}",
@@ -111,18 +111,28 @@ async def register_in_agentverse(
             resp.raise_for_status()
             challenge = ChallengeResponse.model_validate_json(await resp.text())
 
-        # response to challenge with signature to get token
-        prove_url = f"{agentverse.url}/v1/agents"
+        # prove identity to agentverse
+        logger.debug("Proving mailbox access challenge")
+        identity_proof = IdentityProof(
+            address=identity.address,
+            challenge=challenge.challenge,
+            challenge_response=identity.sign(challenge.challenge.encode()),
+        )
         async with session.post(
-            url=prove_url,
-            data=RegistrationRequest(
-                address=identity.address,
-                prefix=prefix,
-                challenge=challenge.challenge,
-                challenge_response=identity.sign(challenge.challenge.encode()),
-                endpoint=request.endpoint,
-                agent_type=request.agent_type,
-            ).model_dump_json(),
+            url=agentverse.identity_api,
+            data=identity_proof.model_dump_json(),
+            headers={
+                "content-type": "application/json",
+                "Authorization": f"Bearer {request.user_token}",
+            },
+        ) as resp:
+            resp.raise_for_status()
+
+        # register agent details in agentverse
+        logger.debug("Registering agent in Agentverse")
+        async with session.post(
+            url=agentverse.agents_api,
+            data=agent_details.model_dump_json(),
             headers={
                 "content-type": "application/json",
                 "Authorization": f"Bearer {request.user_token}",
@@ -132,10 +142,6 @@ async def register_in_agentverse(
                 logger.info(
                     f"Successfully registered as {request.agent_type} agent in Agentverse"
                 )
-                if agent_details:
-                    await update_agent_details(
-                        request.user_token, identity.address, agent_details, agentverse
-                    )
                 return RegistrationResponse(success=True)
 
             detail = (await resp.json())["detail"]
@@ -158,22 +164,22 @@ async def unregister_in_agentverse(
     Returns:
         UnregistrationResponse: Unregistration response object
     """
-    async with aiohttp.ClientSession() as session:
-        # response to challenge with signature to get token
-        prove_url = f"{agentverse.url}/v1/agents/{agent_address}"
-        async with session.delete(
-            prove_url,
+    async with (
+        aiohttp.ClientSession() as session,
+        session.delete(
+            f"{agentverse.agents_api}/{agent_address}",
             headers={
                 "content-type": "application/json",
                 "Authorization": f"Bearer {request.user_token}",
             },
-        ) as resp:
-            if resp.status == 200:
-                logger.info("Successfully unregistered from Agentverse")
-                return UnregistrationResponse(success=True)
+        ) as resp,
+    ):
+        if resp.status == 200:
+            logger.info("Successfully unregistered from Agentverse")
+            return UnregistrationResponse(success=True)
 
-            detail = (await resp.json())["detail"]
-            return UnregistrationResponse(success=False, detail=detail)
+        detail = (await resp.json())["detail"]
+        return UnregistrationResponse(success=False, detail=detail)
 
 
 async def update_agent_details(
@@ -193,18 +199,19 @@ async def update_agent_details(
     """
     agentverse = agentverse or AgentverseConfig()
     try:
-        async with aiohttp.ClientSession() as session:
-            update_url = f"{agentverse.url}/v1/agents/{agent_address}"
-            async with session.put(
-                update_url,
+        async with (
+            aiohttp.ClientSession() as session,
+            session.put(
+                f"{agentverse.agents_api}/{agent_address}",
                 data=agent_details.model_dump_json(),
                 headers={
                     "content-type": "application/json",
                     "Authorization": f"Bearer {user_token}",
                 },
-            ) as resp:
-                resp.raise_for_status()
-                logger.info("Agent details updated in Agentverse")
+            ) as resp,
+        ):
+            resp.raise_for_status()
+            logger.info("Agent details updated in Agentverse")
     except Exception as ex:
         logger.warning(f"Failed to update agent details: {ex}")
 
@@ -220,7 +227,7 @@ class MailboxClient:
     ):
         self._identity = identity
         self._agentverse = agentverse
-        self._access_token: str | None = None
+        self._attestation: str | None = None
         self._poll_interval = MAILBOX_POLL_INTERVAL_SECONDS
         self._logger = logger or get_logger("mailbox")
         self._missing_mailbox_warning_logged = False
@@ -235,27 +242,21 @@ class MailboxClient:
         """Retrieves envelopes from the mailbox server and processes them."""
         while True:
             try:
+                await self._create_attestation()
                 async with aiohttp.ClientSession() as session:
-                    if self._access_token is None:
-                        await self._get_access_token()
-                    mailbox_url = f"{self._agentverse.url}/v1/mailbox"
+                    agents_url = self._agentverse.agents_api
                     async with session.get(
-                        mailbox_url,
+                        f"{agents_url}/{self._identity.address}/mailbox",
                         headers={
-                            "Authorization": f"token {self._access_token}",
+                            "Authorization": f"Agent {self._attestation}",
                         },
                     ) as resp:
                         success = resp.status == 200
                         if success:
-                            items = (await resp.json())["items"]
+                            items = await resp.json()
                             for item in items:
                                 stored_env = StoredEnvelope.model_validate(item)
                                 await self._handle_envelope(stored_env)
-                        elif resp.status == 401:
-                            self._access_token = None
-                            self._logger.warning(
-                                "Access token expired: a new one should be retrieved automatically"
-                            )
                         elif resp.status == 404:
                             if not self._missing_mailbox_warning_logged:
                                 self._logger.warning(
@@ -321,15 +322,15 @@ class MailboxClient:
         """
         try:
             async with aiohttp.ClientSession() as session:
-                env_url = f"{self._agentverse.url}/v1/mailbox/{str(uuid)}"
+                agents_url = self._agentverse.agents_api
                 self._logger.debug(f"Deleting message: {str(uuid)}")
                 async with session.delete(
-                    env_url,
+                    f"{agents_url}/{self._identity.address}/mailbox/{str(uuid)}",
                     headers={
-                        "Authorization": f"token {self._access_token}",
+                        "Authorization": f"Agent {self._attestation}",
                     },
                 ) as resp:
-                    if resp.status != 200:
+                    if resp.status >= 300:
                         self._logger.exception(
                             f"Failed to delete envelope from inbox: {(await resp.text())}"
                         )
@@ -338,43 +339,13 @@ class MailboxClient:
         except Exception as ex:
             self._logger.exception(f"Got exception while deleting message: {ex}")
 
-    async def _get_access_token(self):
-        """Gets an access token from the mailbox server."""
-        async with aiohttp.ClientSession() as session:
-            challenge_url = f"{self._agentverse.url}/v1/auth/challenge"
-            challenge_request = ChallengeRequest(address=self._identity.address)
-            async with session.post(
-                challenge_url,
-                data=challenge_request.model_dump_json(),
-                headers={"content-type": "application/json"},
-            ) as resp:
-                if resp and resp.status == 200:
-                    challenge: str = (await resp.json())["challenge"]
-                else:
-                    self._logger.exception(
-                        f"Failed to retrieve authorization challenge: {(await resp.text())}"
-                    )
-                    return
-
-            # response to challenge with signature to get token
-            prove_url = f"{self._agentverse.url}/v1/auth/prove"
-            proof_request = ChallengeProof(
-                address=self._identity.address,
-                challenge=challenge,
-                challenge_response=self._identity.sign(challenge.encode()),
-            )
-            async with session.post(
-                prove_url,
-                data=proof_request.model_dump_json(),
-                headers={"content-type": "application/json"},
-            ) as resp:
-                if resp and resp.status == 200:
-                    challenge_proof_response = ChallengeProofResponse.parse_raw(
-                        await resp.text()
-                    )
-                    self._logger.info("Mailbox access token acquired")
-                    self._access_token = challenge_proof_response.access_token
-                else:
-                    self._logger.exception(
-                        f"Failed to prove authorization: {(await resp.text())}"
-                    )
+    async def _create_attestation(self):
+        """
+        Creates an attestation for the mailbox server.
+        """
+        self._attestation = compute_attestation(
+            identity=self._identity,
+            validity_start=datetime.now(),
+            validity_secs=int(self._poll_interval * 2),
+            nonce=token_bytes(nbytes=32),
+        )
