@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 JsonStr = str
 
-AgentType = Literal["mailbox", "proxy", "custom"]
+AgentType = Literal["uagent"] | str
 AddressPrefix = Literal["agent", "test-agent"]
 
 
