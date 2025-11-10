@@ -188,8 +188,10 @@ def __init__(name: str | None = None,
              enable_agent_inspector: bool = True,
              metadata: dict[str, Any] | None = None,
              readme_path: str | None = None,
+             description: str | None = None,
+             handle: str | None = None,
              avatar_url: str | None = None,
-             publish_agent_details: bool = False,
+             publish_agent_details: bool = True,
              store_message_history: bool = False)
 ```
 
@@ -218,6 +220,8 @@ Initialize an Agent instance.
 - `enable_agent_inspector` _bool_ - Enable the agent inspector for debugging.
 - `metadata` _dict[str, Any] | None_ - Optional metadata to include in the agent object.
 - `readme_path` _str | None_ - The path to the agent's README file.
+- `description` _str | None_ - A short description of the agent.
+- `handle` _str | None_ - A unique handle for the agent on Agentverse.
 - `avatar_url` _str | None_ - The URL for the agent's avatar image on Agentverse.
 - `publish_agent_details` _bool_ - Publish agent details to Agentverse on connection via
   local agent inspector.
