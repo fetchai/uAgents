@@ -3,12 +3,13 @@ from datetime import datetime, timezone
 
 from pydantic.v1 import ValidationError
 from uagents import Context
-from uagents.experimental.chatagent.ai import LLM, LLMConfig
-from uagents.experimental.chatagent.tools import Tool
+from uagents.experimental.chat_agent.llm import LLM, LLMConfig
+from uagents.experimental.chat_agent.tools import Tool
 from uagents.protocol import Protocol
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
     ChatMessage,
+    AgentContent,
     EndSessionContent,
     StartSessionContent,
     TextContent,
@@ -22,10 +23,8 @@ class ChatProtocol(Protocol):
         *,
         llm_config: LLMConfig,
         tools: dict[str, Tool],
-        name: str = "ChatProto-LLM",
-        version: str = "0.1.0",
     ):
-        super().__init__(name=name, version=version, spec=chat_protocol_spec)
+        super().__init__(spec=chat_protocol_spec)
 
         self._llm = LLM(config=llm_config, tools=tools)
         self._tools = tools
@@ -56,19 +55,16 @@ class ChatProtocol(Protocol):
             session = ctx.session
             messages: list[dict] = []
 
-            if ctx._message_history is not None:
-                try:
-                    past_entries = ctx._message_history.get_session_messages(session)
-                    for entry in past_entries:
-                        if entry.sender != ctx.agent.address:
-                            messages.append(
-                                {
-                                    "role": "user",
-                                    "content": entry.payload,
-                                }
-                            )
-                except Exception as e:
-                    ctx.logger.warning(f"Could not load message history: {e}")
+            session_history = ctx.session_history()
+            if session_history is not None:
+                for entry in session_history:
+                    role = "agent" if entry.sender == ctx.agent.address else "user"
+                    messages.append(
+                        {
+                            "role": role,
+                            "content": entry.payload,
+                        }
+                        )
 
             messages.append(
                 {
@@ -154,7 +150,7 @@ class ChatProtocol(Protocol):
         *,
         end_session: bool = False,
     ):
-        content = [TextContent(type="text", text=text)]
+        content: list[AgentContent] = [TextContent(type="text", text=text)]
         if end_session:
             content.append(EndSessionContent(type="end-session"))
         return await ctx.send(recipient, ChatMessage(content=content))

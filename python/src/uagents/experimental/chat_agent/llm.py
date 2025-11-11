@@ -1,45 +1,47 @@
 import json
-from typing import Any
+import os
+from typing import Any, cast
 
 from litellm import completion
+from litellm.types.utils import ModelResponse
 from pydantic import BaseModel, ConfigDict
-from uagents.experimental.chatagent.tools import Tool
+from uagents.experimental.chat_agent.tools import Tool
 
-ASIONE_API_URL = "https://api.asi1.ai/v1"
+ASI1_API_URL = "https://api.asi1.ai/v1"
+ASI1_API_KEY = os.getenv("ASI1_API_KEY", "")
 
 DEFAULT_TEMPERATURE = 0.0
 DEFAULT_MAX_TOKENS = 1024
+DEFAULT_SYSTEM_PROMPT = (
+    "You are an AI agent built on the uAgents framework and ChatProtocol. "
+    "Respond to user queries using the most relevant one of the available tools. "
+    "If insufficient information is provided to invoke a tool, you may "
+    "ask for more details but do not guess. "
+)
 
 
 class LLMParams(BaseModel):
     temperature: float = DEFAULT_TEMPERATURE
     max_tokens: int = DEFAULT_MAX_TOKENS
     tool_choice: str = "required"
-    system_prompt: str = (
-        "You are an assistant running inside an on-chain agent. "
-        "When a tool is available you must call it and then base your final reply ONLY on the tool result. "
-        "Do not guess. "
-        "When choosing which tool to call, you MUST pick exactly one tool, "
-        "and you MUST decide based ONLY on the user's most recent message, "
-        "using earlier messages only as context"
-    )
+    system_prompt: str = DEFAULT_SYSTEM_PROMPT
     parallel_tool_calls: bool = False
     model_config = ConfigDict(extra="allow")
 
 
 class LLMConfig(BaseModel):
     provider: str
-    api_key: str
     model: str
     url: str
     parameters: LLMParams
+    api_key: str | None = None
 
 
-asione_config = LLMConfig(
+asi1_config = LLMConfig(
     provider="openai",
-    api_key="YOUR_ASIONE_API_KEY",
+    api_key=ASI1_API_KEY,
     model="asi1-mini",
-    url=ASIONE_API_URL,
+    url=ASI1_API_URL,
     parameters=LLMParams(),
 )
 
@@ -76,6 +78,7 @@ class LLM:
             "messages": messages,
             "api_base": self._config.url,
             "api_key": self._config.api_key,
+            "stream": False,
             **params_dict,
         }
         if tools_specs:
@@ -84,11 +87,11 @@ class LLM:
             kwargs.pop("tool_choice", None)
 
         try:
-            resp = completion(**kwargs)
+            resp = cast(ModelResponse, completion(**kwargs))
         except Exception as e:
             raise RuntimeError(f"LLM call failed: {e}")
 
-        msg = resp["choices"][0]["message"]
+        msg = resp.choices[0].message.model_dump() # type: ignore
         tool_calls = msg.get("tool_calls") or []
 
         if tool_calls:
@@ -127,6 +130,7 @@ class LLM:
             "messages": messages,
             "api_base": self._config.url,
             "api_key": self._config.api_key,
+            "stream": False,
             **params_dict,
         }
 
@@ -140,5 +144,5 @@ class LLM:
                 kwargs["tools"] = tools_specs
                 kwargs["tool_choice"] = "none"
 
-        resp = completion(**kwargs)
-        return (resp["choices"][0]["message"].get("content") or "").strip()
+        resp = cast(ModelResponse, completion(**kwargs))
+        return (resp.choices[0].message.content or "").strip() # type: ignore
