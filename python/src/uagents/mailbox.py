@@ -11,7 +11,6 @@ from uagents_core.envelope import Envelope
 from uagents_core.identity import Identity, is_user_address
 from uagents_core.models import Model
 from uagents_core.registration import (
-    AgentUpdates,
     ChallengeResponse,
     IdentityProof,
     RegistrationRequest,
@@ -30,6 +29,7 @@ class AgentverseConnectRequest(Model):
     user_token: str
     agent_type: AgentType
     endpoint: str | None = None
+    team: str | None = None
 
 
 class ChallengeProof(BaseModel):
@@ -50,6 +50,7 @@ class RegistrationResponse(Model):
 
 class AgentverseDisconnectRequest(Model):
     user_token: str
+    team: str | None = None
 
 
 class UnregistrationResponse(Model):
@@ -74,6 +75,18 @@ def is_mailbox_agent(
         bool: True if the agent is a mailbox agent, False otherwise.
     """
     return any(agentverse.mailbox_endpoint in ep.url for ep in endpoints)
+
+
+def _get_headers(
+    request: AgentverseConnectRequest | AgentverseDisconnectRequest,
+) -> dict[str, str]:
+    headers = {
+        "Authorization": f"Bearer {request.user_token}",
+        "Content-Type": "application/json",
+    }
+    if request.team:
+        headers["x-team"] = request.team
+    return headers
 
 
 async def register_in_agentverse(
@@ -103,10 +116,7 @@ async def register_in_agentverse(
         logger.debug("Requesting mailbox access challenge")
         async with session.get(
             challenge_url,
-            headers={
-                "content-type": "application/json",
-                "Authorization": f"Bearer {request.user_token}",
-            },
+            headers=_get_headers(request),
         ) as resp:
             resp.raise_for_status()
             challenge = ChallengeResponse.model_validate_json(await resp.text())
@@ -121,10 +131,7 @@ async def register_in_agentverse(
         async with session.post(
             url=agentverse.identity_api,
             data=identity_proof.model_dump_json(),
-            headers={
-                "content-type": "application/json",
-                "Authorization": f"Bearer {request.user_token}",
-            },
+            headers=_get_headers(request),
         ) as resp:
             resp.raise_for_status()
 
@@ -133,10 +140,7 @@ async def register_in_agentverse(
         async with session.post(
             url=agentverse.agents_api,
             data=agent_details.model_dump_json(),
-            headers={
-                "content-type": "application/json",
-                "Authorization": f"Bearer {request.user_token}",
-            },
+            headers=_get_headers(request),
         ) as resp:
             if resp.status == 200:
                 logger.info(
@@ -168,10 +172,7 @@ async def unregister_in_agentverse(
         aiohttp.ClientSession() as session,
         session.delete(
             f"{agentverse.agents_api}/{agent_address}",
-            headers={
-                "content-type": "application/json",
-                "Authorization": f"Bearer {request.user_token}",
-            },
+            headers=_get_headers(request),
         ) as resp,
     ):
         if resp.status == 200:
@@ -180,40 +181,6 @@ async def unregister_in_agentverse(
 
         detail = (await resp.json())["detail"]
         return UnregistrationResponse(success=False, detail=detail)
-
-
-async def update_agent_details(
-    user_token: str,
-    agent_address: str,
-    agent_details: AgentUpdates,
-    agentverse: AgentverseConfig | None = None,
-):
-    """
-    Updates agent details in Agentverse.
-
-    Args:
-        user_token (str): User token
-        agent_address (str): Agent address
-        agent_details (AgentUpdates): Agent details
-        agentverse (AgentverseConfig | None): Agentverse configuration
-    """
-    agentverse = agentverse or AgentverseConfig()
-    try:
-        async with (
-            aiohttp.ClientSession() as session,
-            session.put(
-                f"{agentverse.agents_api}/{agent_address}",
-                data=agent_details.model_dump_json(),
-                headers={
-                    "content-type": "application/json",
-                    "Authorization": f"Bearer {user_token}",
-                },
-            ) as resp,
-        ):
-            resp.raise_for_status()
-            logger.info("Agent details updated in Agentverse")
-    except Exception as ex:
-        logger.warning(f"Failed to update agent details: {ex}")
 
 
 class MailboxClient:
