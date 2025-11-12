@@ -54,12 +54,55 @@ class LLM:
     def _build_tool_specs(self) -> list[dict[str, Any]]:
         return [tool.tool_spec() for tool in self._tools.values()]
 
+    def _get_model_id(self) -> str:
+        """Get the full model identifier."""
+        return f"{self._config.provider}/{self._config.model}"
+
+    def _get_base_kwargs(
+        self, messages: list[dict], exclude_params: set[str] | None = None
+    ) -> dict[str, Any]:
+        """Build base kwargs for LLM completion calls."""
+        params_dict = self._config.parameters.model_dump()
+        
+        # Remove excluded parameters
+        if exclude_params:
+            for param in exclude_params:
+                params_dict.pop(param, None)
+
+        return {
+            "model": self._get_model_id(),
+            "messages": messages,
+            "api_base": self._config.url,
+            "api_key": self._config.api_key,
+            "stream": False,
+            **params_dict,
+        }
+
+    def _parse_tool_call(
+        self, tool_calls: list[dict]
+    ) -> tuple[str, dict, str | None]:
+        """Parse the first tool call from LLM response."""
+        call = tool_calls[0]
+        fn = call.get("function", {})
+        tool_name = fn.get("name")
+        args_raw = fn.get("arguments", "{}")
+        tool_call_id = call.get("id")
+
+        try:
+            args_dict = (
+                json.loads(args_raw) if isinstance(args_raw, str) else args_raw
+            )
+        except json.JSONDecodeError:
+            args_dict = {"_raw_args": args_raw}
+
+        return (tool_name, args_dict, tool_call_id)
+
     def process(
         self,
         message_history: list[dict[str, str]],
     ) -> tuple[str, dict, str | None, dict]:
+        """Process a user message and determine the next action."""
         tools_specs = self._build_tool_specs()
-        model_id = f"{self._config.provider}/{self._config.model}"
 
         messages = [
             {
@@ -69,18 +112,9 @@ class LLM:
             *message_history,
         ]
 
-        params_dict = self._config.parameters.model_dump()
-        if "system_prompt" in params_dict:
-            params_dict.pop("system_prompt")
+        kwargs = self._get_base_kwargs(messages, exclude_params={"system_prompt"})
 
-        kwargs = {
-            "model": model_id,
-            "messages": messages,
-            "api_base": self._config.url,
-            "api_key": self._config.api_key,
-            "stream": False,
-            **params_dict,
-        }
+        # Add tools if available
         if tools_specs:
             kwargs["tools"] = tools_specs
         else:
@@ -89,26 +123,15 @@ class LLM:
         try:
             resp = cast(ModelResponse, completion(**kwargs))
         except Exception as e:
-            raise RuntimeError(f"LLM call failed: {e}")
+            raise RuntimeError(f"LLM call failed: {e}") from e
 
-        msg = resp.choices[0].message.model_dump() # type: ignore
+        msg = resp.choices[0].message.model_dump()  # type: ignore
         tool_calls = msg.get("tool_calls") or []
 
         if tool_calls:
-            call = tool_calls[0]
-            msg["tool_calls"] = [call]
-            fn = call.get("function", {})
-            tool_name = fn.get("name")
-            args_raw = fn.get("arguments", "{}")
-            tool_call_id = call.get("id")
-
-            try:
-                args_dict = (
-                    json.loads(args_raw) if isinstance(args_raw, str) else args_raw
-                )
-            except json.JSONDecodeError:
-                args_dict = {"_raw_args": args_raw}
-
+            # Keep only the first tool call
+            msg["tool_calls"] = [tool_calls[0]]
+            tool_name, args_dict, tool_call_id = self._parse_tool_call(tool_calls)
             return (tool_name, args_dict, tool_call_id, msg)
 
         content_text = (msg.get("content") or "").strip()
@@ -119,21 +142,11 @@ class LLM:
 
     def complete(self, messages: list[dict]) -> str:
         """Finalize a chat turn after tool execution."""
+        kwargs = self._get_base_kwargs(
+            messages, exclude_params={"system_prompt", "tool_choice"}
+        )
 
-        model_id = f"{self._config.provider}/{self._config.model}"
-        params_dict = self._config.parameters.model_dump()
-        params_dict.pop("system_prompt", None)
-        params_dict.pop("tool_choice", None)
-
-        kwargs = {
-            "model": model_id,
-            "messages": messages,
-            "api_base": self._config.url,
-            "api_key": self._config.api_key,
-            "stream": False,
-            **params_dict,
-        }
-
+        # If there are tool messages, include tools but don't require them
         has_tool_message = any(
             isinstance(m, dict) and m.get("role") == "tool" for m in messages
         )
@@ -144,5 +157,9 @@ class LLM:
                 kwargs["tools"] = tools_specs
                 kwargs["tool_choice"] = "none"
 
-        resp = cast(ModelResponse, completion(**kwargs))
-        return (resp.choices[0].message.content or "").strip() # type: ignore
+        try:
+            resp = cast(ModelResponse, completion(**kwargs))
+        except Exception as e:
+            raise RuntimeError(f"LLM completion call failed: {e}") from e
+
+        return (resp.choices[0].message.content or "").strip()  # type: ignore

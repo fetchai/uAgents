@@ -52,7 +52,6 @@ class ChatProtocol(Protocol):
             if not user_text:
                 return
 
-            session = ctx.session
             messages: list[dict] = []
 
             session_history = ctx.session_history()
