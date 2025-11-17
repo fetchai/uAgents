@@ -2,15 +2,23 @@
 
 import json
 import os
-import socket
 import threading
 import time
 from datetime import datetime
 from typing import Any, Dict, List
 
 import requests
-from langchain_core.callbacks import CallbackManagerForToolRun
 from pydantic import BaseModel, Field
+
+# Conditional imports for LangChain modules
+try:
+    from langchain_core.callbacks import CallbackManagerForToolRun
+
+    LANGCHAIN_AVAILABLE = True
+except ImportError:
+    LANGCHAIN_AVAILABLE = False
+    # Create dummy class for when LangChain is not available
+    CallbackManagerForToolRun = None
 from uagents import Agent, Context, Model, Protocol
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
@@ -135,34 +143,7 @@ class CrewaiRegisterTool(BaseRegisterTool):
         super().__init__(**kwargs)
         # Cleanup handler is already registered at module level
 
-    def _find_available_port(
-        self, preferred_port=None, start_range=8000, end_range=9000
-    ):
-        """Find an available port to use for the agent."""
-        # Try the preferred port first
-        if preferred_port is not None:
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.bind(("", preferred_port))
-                    return preferred_port
-            except OSError:
-                print(
-                    f"Preferred port {preferred_port} is in use, searching for alternative..."
-                )
-
-        # Search for an available port in the range
-        for port in range(start_range, end_range):
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.bind(("", port))
-                    return port
-            except OSError:
-                continue
-
-        # If we can't find an available port, raise an exception
-        raise RuntimeError(
-            f"Could not find an available port in range {start_range}-{end_range}"
-        )
+    # Use BaseRegisterTool._find_available_port from common
 
     def _crewai_to_uagent(
         self,
@@ -192,13 +173,8 @@ class CrewaiRegisterTool(BaseRegisterTool):
                 endpoint=[f"http://localhost:{port}/submit"],
             )
 
-        # Get AI agent address from environment if not provided
-        if ai_agent_address is None:
-            ai_agent_address = os.getenv("AI_AGENT_ADDRESS")
-            if not ai_agent_address:
-                ai_agent_address = (
-                    "agent1q0h70caed8ax769shpemapzkyk65uscw4xwk6dc4t3emvp5jdcvqs9xs32y"
-                )
+        # Resolve AI agent address via common helper (supports explicit, env, fallback)
+        ai_agent_address = self._get_ai_agent_address(ai_agent_address)
 
         # Store the agent for later cleanup
         agent_info = {
@@ -472,7 +448,7 @@ class CrewaiRegisterTool(BaseRegisterTool):
 
             try:
                 connect_response = requests.post(
-                    connect_url, json=connect_payload, headers=headers
+                    connect_url, json=connect_payload, headers=headers, timeout=10
                 )
                 if connect_response.status_code == 200:
                     print(f"Successfully connected agent '{name}' to Agentverse")
@@ -563,7 +539,7 @@ class ResponseMessage(Model):
 
             try:
                 update_response = requests.put(
-                    update_url, json=update_payload, headers=headers
+                    update_url, json=update_payload, headers=headers, timeout=10
                 )
                 if update_response.status_code == 200:
                     print(f"Successfully updated agent '{name}' README on Agentverse")
@@ -582,6 +558,21 @@ class ResponseMessage(Model):
         """Get information about the current agent."""
         return self._current_agent_info
 
+    def run(self, tool_input: Dict[str, Any]) -> str:
+        """Public method to run the tool with a dictionary of inputs."""
+        return self._run(
+            crew_obj=tool_input.get("crew_obj"),
+            name=tool_input.get("name"),
+            port=tool_input.get("port"),
+            description=tool_input.get("description"),
+            api_token=tool_input.get("api_token"),
+            ai_agent_address=tool_input.get("ai_agent_address"),
+            mailbox=tool_input.get("mailbox", True),
+            query_params=tool_input.get("query_params"),
+            example_query=tool_input.get("example_query"),
+            return_dict=tool_input.get("return_dict", False),
+        )
+
     def _run(
         self,
         crew_obj: Any,
@@ -594,7 +585,7 @@ class ResponseMessage(Model):
         query_params: Dict[str, Any] | None = None,
         example_query: str | None = None,
         *,
-        run_manager: CallbackManagerForToolRun | None = None,
+        run_manager: Any = None,
         return_dict: bool = False,
     ) -> dict[str, Any]:
         """Create a uAgent for a CrewAI crew and return its address."""
@@ -691,7 +682,7 @@ class ResponseMessage(Model):
         query_params: Dict[str, Any] | None = None,
         example_query: str | None = None,
         *,
-        run_manager: CallbackManagerForToolRun | None = None,
+        run_manager: Any = None,
     ) -> dict[str, Any]:
         """Create a uAgent for a CrewAI crew and return its address (async version)."""
         return self._run(

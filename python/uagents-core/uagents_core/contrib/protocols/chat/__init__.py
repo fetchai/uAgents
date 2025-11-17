@@ -40,9 +40,6 @@ class Resource(Model):
     # fields see `docs/metadata.md`
     metadata: dict[str, str]
 
-    def __init__(self, uri: str, metadata: dict[str, str] | None = None):
-        super().__init__(uri=uri, metadata=metadata or {})
-
 
 class ResourceContent(Model):
     type: Literal["resource"]
@@ -141,6 +138,19 @@ class ChatMessage(Model):
         msg_id = msg_id or uuid4()
         timestamp = timestamp or datetime.now(timezone.utc)
         super().__init__(timestamp=timestamp, msg_id=msg_id, content=content)
+
+    def text(self) -> str:
+        """
+        Collect all text content from this ChatMessage.
+
+        Returns:
+            str: The concatenated text content.
+        """
+        text = ""
+        for content in self.content:
+            if isinstance(content, TextContent):
+                text += content.text
+        return text
 
 
 class ChatAcknowledgement(Model):

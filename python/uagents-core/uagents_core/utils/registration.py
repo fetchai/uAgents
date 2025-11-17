@@ -2,12 +2,12 @@
 This module provides methods to register your identity with the Fetch.ai services.
 """
 
-from typing import Literal
 import urllib.parse
+from json import JSONDecodeError
+from typing import Literal
 
 import requests
 from pydantic import BaseModel, Field, model_validator
-from json import JSONDecodeError
 
 from uagents_core.config import (
     DEFAULT_ALMANAC_API_PATH,
@@ -30,7 +30,7 @@ from uagents_core.registration import (
     ChallengeResponse,
     RegistrationRequest,
 )
-from uagents_core.types import AddressPrefix, AgentEndpoint, AgentType
+from uagents_core.types import AddressPrefix, AgentEndpoint, AgentMetadata, AgentType
 
 logger = get_logger("uagents_core.utils.registration")
 
@@ -69,6 +69,10 @@ class AgentverseRegistrationRequest(BaseModel):
     )
     protocols: list[str] = Field(
         description="List of protocols supported by the agent."
+    )
+    metadata: dict[str, str | list[str] | dict[str, str]] | None = Field(
+        default=None,
+        description="Additional metadata about the agent (e.g. geolocation).",
     )
     type: AgentType = Field(
         default="custom", description="Agentverse registration type"
@@ -109,7 +113,7 @@ class RegistrationRequestCredentials(BaseModel):
     )
 
 
-class AgentverseRequestException(Exception):
+class AgentverseRequestError(Exception):
     def __init__(self, *args, from_exc: Exception):
         self.from_exc = from_exc
         super().__init__(*args)
@@ -161,7 +165,7 @@ def _send_http_request_agentverse(
         else:
             err_msg += f"Unexpected error: {e}."
 
-        raise AgentverseRequestException(err_msg, from_exc=e)
+        raise AgentverseRequestError(err_msg, from_exc=e) from e
 
     return response
 
@@ -204,7 +208,7 @@ def _register_in_almanac(
     identity: Identity,
     endpoints: list[str],
     protocol_digests: list[str],
-    metadata: dict[str, str | list[str] | dict[str, str]] | None = None,
+    metadata: AgentMetadata | dict[str, str | list[str] | dict[str, str]] | None = None,
     prefix: AddressPrefix | None = None,
     *,
     agentverse_config: AgentverseConfig | None = None,
@@ -225,13 +229,19 @@ def _register_in_almanac(
     agentverse_config = agentverse_config or AgentverseConfig()
     almanac_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_ALMANAC_API_PATH)
 
+    raw_metadata = (
+        metadata.model_dump(exclude_unset=True)
+        if isinstance(metadata, AgentMetadata)
+        else metadata
+    )
+
     # create the attestation
     item = AgentRegistrationInput(
         identity=identity,
         prefix=prefix,
         endpoints=endpoints,
         protocol_digests=protocol_digests,
-        metadata=metadata,
+        metadata=raw_metadata,
     )
     attestation = _build_signed_attestation(item)
 
@@ -247,7 +257,7 @@ def register_in_almanac(
     identity: Identity,
     endpoints: list[str],
     protocol_digests: list[str],
-    metadata: dict[str, str | list[str] | dict[str, str]] | None = None,
+    metadata: AgentMetadata | dict[str, str | list[str] | dict[str, str]] | None = None,
     prefix: AddressPrefix | None = None,
     *,
     agentverse_config: AgentverseConfig | None = None,
@@ -261,6 +271,8 @@ def register_in_almanac(
         prefix (AddressPrefix | None): The prefix for the agent identifier.
         endpoints (list[str]): The endpoints that the agent can be reached at.
         protocol_digests (list[str]): The digests of the protocol that the agent supports
+        metadata (AgentMetadata | dict[str, str | list[str] | dict[str, str]] | None):
+            Additional metadata about the agent (e.g. geolocation).
         agentverse_config (AgentverseConfig): The configuration for the agentverse API
         timeout (int): The timeout for the request
     """
@@ -297,7 +309,7 @@ def register_in_almanac(
             timeout=timeout,
         )
         return True
-    except AgentverseRequestException as e:
+    except AgentverseRequestError as e:
         logger.error(msg=str(e), exc_info=e.from_exc)
 
     return False
@@ -390,7 +402,7 @@ def register_batch_in_almanac(
             timeout=timeout,
         )
         return True, invalid_identities
-    except AgentverseRequestException as e:
+    except AgentverseRequestError as e:
         logger.error(msg=str(e), exc_info=e.from_exc)
 
     return False, invalid_identities
@@ -459,11 +471,11 @@ def _register_in_agentverse(
                 headers={"authorization": f"Bearer {request.user_token}"},
                 timeout=timeout,
             )
-        except AgentverseRequestException as e:
-            raise AgentverseRequestException(
+        except AgentverseRequestError as e:
+            raise AgentverseRequestError(
                 f"failed to request proof-of-ownership challenge. {str(e)}",
                 from_exc=e.from_exc,
-            )
+            ) from e
 
         challenge = ChallengeResponse.model_validate_json(response.text)
         registration_payload = RegistrationRequest(
@@ -504,7 +516,7 @@ def _register_in_agentverse(
             data=agent_details,
             timeout=timeout,
         )
-    except AgentverseRequestException as e:
+    except AgentverseRequestError as e:
         logger.warning(f"failed to upload agent details. {str(e)}")
 
 
@@ -536,7 +548,7 @@ def register_in_agentverse(
             timeout=timeout,
         )
         return True
-    except AgentverseRequestException as e:
+    except AgentverseRequestError as e:
         logger.error(msg=str(e), exc_info=e.from_exc)
 
     return False
@@ -579,7 +591,7 @@ def update_agent_status(active: bool, identity: Identity) -> bool:
     try:
         _update_agent_status(active, identity)
         return True
-    except AgentverseRequestException as e:
+    except AgentverseRequestError as e:
         logger.error(msg=str(e), exc_info=e.from_exc)
 
     return False
@@ -593,6 +605,7 @@ def register_agent(
     identity = Identity.from_seed(credentials.agent_seed_phrase, 0)
     endpoints = [agent_registration.endpoint]
     protos = agent_registration.protocols
+    metadata = agent_registration.metadata
 
     connect_request = AgentverseConnectRequest(
         user_token=credentials.agentverse_api_key,
@@ -612,10 +625,10 @@ def register_agent(
     try:
         logger.info("registering to Almanac...")
         _register_in_almanac(
-            identity, endpoints, protos, agentverse_config=agentverse_config
+            identity, endpoints, protos, metadata, agentverse_config=agentverse_config
         )
         logger.info("successfully registered to Almanac.")
-    except AgentverseRequestException as e:
+    except AgentverseRequestError as e:
         logger.error(f"failed to register to Almanac. {str(e)}")
         return
 
@@ -629,7 +642,7 @@ def register_agent(
             agentverse_config=agentverse_config,
         )
         logger.info("successfully registered to Agentverse.")
-    except AgentverseRequestException as e:
+    except AgentverseRequestError as e:
         logger.error(f"failed to register to Agentverse. {str(e)}")
         return
 
@@ -639,7 +652,7 @@ def register_agent(
             logger.info("setting agent as active...")
             _update_agent_status(True, identity)
             logger.info("successfully set agent to active.")
-        except AgentverseRequestException as e:
+        except AgentverseRequestError as e:
             logger.warning(f"failed to set agent as active. {str(e)}")
 
 
@@ -651,10 +664,17 @@ def register_chat_agent(
     description: str | None = None,
     readme: str | None = None,
     avatar_url: str | None = None,
+    metadata: AgentMetadata | dict[str, str | list[str] | dict[str, str]] | None = None,
+    agentverse_config: AgentverseConfig | None = None,
 ):
     chat_protocol = [
         ProtocolSpecification.compute_digest(chat_protocol_spec.manifest())
     ]
+    raw_metadata = (
+        metadata.model_dump(exclude_unset=True)
+        if isinstance(metadata, AgentMetadata)
+        else metadata
+    )
     request = AgentverseRegistrationRequest(
         name=name,
         endpoint=endpoint,
@@ -663,7 +683,8 @@ def register_chat_agent(
         description=description,
         readme=readme,
         avatar_url=avatar_url,
+        metadata=raw_metadata,
     )
-    config = AgentverseConfig()
+    config = agentverse_config or AgentverseConfig()
 
     register_agent(request, config, credentials)
