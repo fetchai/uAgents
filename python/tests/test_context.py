@@ -106,6 +106,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
                 address=self.alice.address,
                 name=self.alice.name,
                 identity=self.alice._identity,
+                prefix=self.alice._prefix,
             ),
             storage=self.alice._storage,
             ledger=self.alice._ledger,

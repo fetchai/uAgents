@@ -80,7 +80,7 @@ class AgentRegistrationAttestationBatch(BaseModel):
 # Agentverse related models
 class RegistrationRequest(BaseModel):
     address: str
-    prefix: AddressPrefix | None = "test-agent"
+    prefix: AddressPrefix | None = "agent"
     challenge: str
     challenge_response: str
     agent_type: AgentType
