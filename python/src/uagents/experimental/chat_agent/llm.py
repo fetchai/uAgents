@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from typing import Any, cast
 
@@ -7,8 +8,11 @@ from litellm.types.utils import ModelResponse
 from pydantic import BaseModel, ConfigDict
 from uagents.experimental.chat_agent.tools import Tool
 
-ASI1_API_URL = "https://api.asi1.ai/v1"
-ASI1_API_KEY = os.getenv("ASI1_API_KEY", "")
+# Configure litellm logging to reduce verbosity
+logging.getLogger("litellm").setLevel(logging.WARNING)
+logging.getLogger("litellm.router").setLevel(logging.WARNING)
+logging.getLogger("litellm.proxy").setLevel(logging.WARNING)
+
 
 DEFAULT_TEMPERATURE = 0.0
 DEFAULT_MAX_TOKENS = 1024
@@ -16,7 +20,7 @@ DEFAULT_SYSTEM_PROMPT = (
     "You are an AI agent built on the uAgents framework and ChatProtocol. "
     "Respond to user queries using the most relevant one of the available tools. "
     "If insufficient information is provided to invoke a tool, you may "
-    "ask for more details but do not guess. "
+    "ask for more details but do not guess."
 )
 
 
@@ -36,14 +40,44 @@ class LLMConfig(BaseModel):
     parameters: LLMParams
     api_key: str | None = None
 
-
-asi1_config = LLMConfig(
-    provider="openai",
-    api_key=ASI1_API_KEY,
-    model="asi1-mini",
-    url=ASI1_API_URL,
-    parameters=LLMParams(),
-)
+    @classmethod
+    def asi1(cls) -> "LLMConfig":
+        api_key = os.getenv("ASI1_API_KEY")
+        if api_key is None:
+            raise ValueError("Please set ASI1_API_KEY environment variable.")
+        return LLMConfig(
+            provider="openai",
+            api_key=api_key,
+            model="asi1-mini",
+            url="https://api.asi1.ai/v1",
+            parameters=LLMParams(),
+        )
+    
+    @classmethod
+    def claude(cls) -> "LLMConfig":
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if api_key is None:
+            raise ValueError("Please set ANTHROPIC_API_KEY environment variable.")
+        return LLMConfig(
+            provider="anthropic",
+            api_key=api_key,
+            model="claude-haiku-4-5",
+            url="https://api.anthropic.com/v1/messages",
+            parameters=LLMParams(),
+        )
+    
+    @classmethod
+    def openai(cls) -> "LLMConfig":
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key is None:
+            raise ValueError("Please set OPENAI_API_KEY environment variable.")
+        return LLMConfig(
+            provider="openai",
+            api_key=api_key,
+            model="gpt-5-mini",
+            url="https://api.openai.com/v1",
+            parameters=LLMParams(),
+        )
 
 
 class LLM:

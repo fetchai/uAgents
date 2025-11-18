@@ -57,7 +57,7 @@ class ChatProtocol(Protocol):
             session_history = ctx.session_history()
             if session_history is not None:
                 for entry in session_history:
-                    role = "agent" if entry.sender == ctx.agent.address else "user"
+                    role = "assistant" if entry.sender == ctx.agent.address else "user"
                     messages.append(
                         {
                             "role": role,
