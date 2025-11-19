@@ -91,6 +91,9 @@ class RegistrationRequestCredentials(BaseModel):
     agent_seed_phrase: str = Field(
         description="The secret seed phrase used to create the agent identity"
     )
+    team: str | None = Field(
+        default=None, description="The team the agent belongs to in Agentverse"
+    )
 
 
 class AgentverseRequestError(Exception):
@@ -198,13 +201,17 @@ def _register_in_agentverse(
         "agent_name": agent_details.name,
     }
 
+    headers = {
+        "content-type": "application/json",
+        "authorization": f"Bearer {request.user_token}",
+    }
+    if request.team:
+        headers["x-team"] = request.team
+
     # check to see if the agent exists
     response = requests.get(
         f"{agents_api}/{agent_address}",
-        headers={
-            "content-type": "application/json",
-            "authorization": f"Bearer {request.user_token}",
-        },
+        headers=headers,
         timeout=timeout,
     )
 
@@ -244,7 +251,7 @@ def _register_in_agentverse(
         response = _send_post_request_agentverse(
             url=identity_api,
             data=identity_proof,
-            headers={"authorization": f"Bearer {request.user_token}"},
+            headers=headers,
             timeout=timeout,
         )
 
@@ -370,6 +377,7 @@ def register_agent(
         user_token=credentials.agentverse_api_key,
         agent_type=agent_registration.type,
         endpoint=agent_registration.endpoint,
+        team=credentials.team,
     )
 
     # register the agent to agentverse
