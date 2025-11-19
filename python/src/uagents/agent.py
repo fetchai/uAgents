@@ -150,6 +150,7 @@ class AgentRepresentation:
         address: str,
         name: str | None,
         identity: Identity,
+        prefix: AddressPrefix,
     ) -> None:
         """
         Initialize the AgentRepresentation instance.
@@ -158,10 +159,12 @@ class AgentRepresentation:
             address (str): The address of the context.
             name (str | None): The optional name associated with the context.
             identity (Identity): The identity of the agent.
+            prefix (AddressPrefix): The address prefix for the agent's network.
         """
         self._address = address
         self._name = name
         self._identity = identity
+        self._prefix = prefix
 
     @property
     def name(self) -> str:
@@ -193,7 +196,7 @@ class AgentRepresentation:
         Returns:
             str: The agent's address and network prefix.
         """
-        return TESTNET_PREFIX + "://" + self._address
+        return self._prefix + "://" + self._address
 
     @property
     def identity(self) -> Identity:
@@ -282,7 +285,7 @@ class Agent(Sink):
         wallet_key_derivation_index: int | None = 0,
         max_resolver_endpoints: int | None = None,
         version: str | None = None,
-        network: AgentNetwork = "testnet",
+        network: AgentNetwork = "mainnet",
         loop: asyncio.AbstractEventLoop | None = None,
         log_level: int | str = logging.INFO,
         enable_agent_inspector: bool = True,
@@ -505,6 +508,7 @@ class Agent(Sink):
                 address=self.address,
                 name=self._name,
                 identity=self._identity,
+                prefix=self._prefix,
             ),
             storage=self._storage,
             ledger=self._ledger,
@@ -1284,6 +1288,7 @@ class Agent(Sink):
                     address=self.address,
                     name=self._name,
                     identity=self._identity,
+                    prefix=self._prefix,
                 ),
                 storage=self._storage,
                 ledger=self._ledger,
