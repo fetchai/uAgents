@@ -91,6 +91,9 @@ class RegistrationRequestCredentials(BaseModel):
     agent_seed_phrase: str = Field(
         description="The secret seed phrase used to create the agent identity"
     )
+    team: str | None = Field(
+        default=None, description="The team the agent belongs to in Agentverse"
+    )
 
 
 class AgentverseRequestError(Exception):
@@ -370,6 +373,7 @@ def register_agent(
         user_token=credentials.agentverse_api_key,
         agent_type=agent_registration.type,
         endpoint=agent_registration.endpoint,
+        team=credentials.team,
     )
 
     # register the agent to agentverse

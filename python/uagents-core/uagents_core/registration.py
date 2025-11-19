@@ -140,6 +140,12 @@ class AgentverseConnectRequest(BaseModel):
     user_token: str
     agent_type: AgentType = "mailbox"
     endpoint: str | None = None
+    team: str | None = None
+
+
+class AgentverseDisconnectRequest(BaseModel):
+    user_token: str
+    team: str | None = None
 
 
 class RegistrationResponse(BaseModel):
