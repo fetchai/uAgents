@@ -11,8 +11,6 @@ from pydantic import BaseModel, Field, model_validator
 
 from uagents_core.config import (
     DEFAULT_ALMANAC_API_PATH,
-    DEFAULT_CHALLENGE_PATH,
-    DEFAULT_REGISTRATION_PATH,
     DEFAULT_REQUEST_TIMEOUT,
     AgentverseConfig,
 )
@@ -21,40 +19,17 @@ from uagents_core.identity import Identity
 from uagents_core.logger import get_logger
 from uagents_core.protocol import ProtocolSpecification, is_valid_protocol_digest
 from uagents_core.registration import (
-    AgentRegistrationAttestation,
-    AgentRegistrationAttestationBatch,
+    AgentProfile,
     AgentStatusUpdate,
-    AgentUpdates,
     AgentverseConnectRequest,
-    ChallengeRequest,
+    BatchRegistrationRequest,
     ChallengeResponse,
+    IdentityProof,
     RegistrationRequest,
 )
-from uagents_core.types import AddressPrefix, AgentEndpoint, AgentMetadata, AgentType
+from uagents_core.types import AgentEndpoint, AgentMetadata, AgentType
 
 logger = get_logger("uagents_core.utils.registration")
-
-
-class AgentRegistrationInput:
-    identity: Identity
-    prefix: str | None = None
-    endpoints: list[str]
-    protocol_digests: list[str]
-    metadata: dict[str, str | list[str] | dict[str, str]] | None = None
-
-    def __init__(
-        self,
-        identity: Identity,
-        endpoints: list[str],
-        protocol_digests: list[str],
-        prefix: AddressPrefix | None = None,
-        metadata: dict[str, str | list[str] | dict[str, str]] | None = None,
-    ):
-        self.identity = identity
-        self.prefix = prefix
-        self.endpoints = endpoints
-        self.protocol_digests = protocol_digests
-        self.metadata = metadata
 
 
 class AgentverseRegistrationRequest(BaseModel):
@@ -75,7 +50,7 @@ class AgentverseRegistrationRequest(BaseModel):
         description="Additional metadata about the agent (e.g. geolocation).",
     )
     type: AgentType = Field(
-        default="custom", description="Agentverse registration type"
+        default="uagent", description="Agentverse registration type"
     )
     description: str | None = Field(
         default=None,
@@ -85,6 +60,11 @@ class AgentverseRegistrationRequest(BaseModel):
     avatar_url: str | None = Field(
         default=None,
         description="Agent avatar url to be shown on its Agentverse profile.",
+    )
+    handle: str | None = Field(
+        default=None,
+        max_length=40,
+        description="Agent's unique handle in Agentverse.",
     )
     active: bool = Field(default=True, description="Set agent as active immediatly")
 
@@ -120,10 +100,10 @@ class AgentverseRequestError(Exception):
 
 
 def _send_http_request_agentverse(
-    request_type: Literal["post", "put"],
+    request_type: Literal["get", "post", "put"],
     url: str,
-    data: BaseModel,
     *,
+    data: BaseModel | None = None,
     headers: dict[str, str] | None = None,
     timeout: int = DEFAULT_REQUEST_TIMEOUT,
 ) -> requests.Response:
@@ -131,13 +111,17 @@ def _send_http_request_agentverse(
     if headers:
         final_headers.update(headers)
 
-    send_request = requests.post if request_type == "post" else requests.put
+    send_request = {
+        "get": requests.get,
+        "post": requests.post,
+        "put": requests.put,
+    }[request_type]
 
     try:
         response: requests.Response = send_request(
             url=url,
             headers=final_headers,
-            data=data.model_dump_json(),
+            data=data.model_dump_json() if data else None,
             timeout=timeout,
         )
         response.raise_for_status()
@@ -172,247 +156,21 @@ def _send_http_request_agentverse(
 
 def _send_post_request_agentverse(
     url: str,
-    data: BaseModel,
     *,
+    data: BaseModel | None = None,
     headers: dict[str, str] | None = None,
     timeout: int = DEFAULT_REQUEST_TIMEOUT,
 ) -> requests.Response:
     return _send_http_request_agentverse(
-        "post", url, data, headers=headers, timeout=timeout
+        "post", url, data=data, headers=headers, timeout=timeout
     )
-
-
-def _build_signed_attestation(
-    item: AgentRegistrationInput,
-) -> AgentRegistrationAttestation:
-    agent_endpoints: list[AgentEndpoint] = [
-        AgentEndpoint(url=endpoint, weight=1) for endpoint in item.endpoints
-    ]
-
-    attestation = AgentRegistrationAttestation(
-        agent_identifier=(
-            f"{item.prefix}://{item.identity.address}"
-            if item.prefix
-            else item.identity.address
-        ),
-        protocols=item.protocol_digests,
-        endpoints=agent_endpoints,
-        metadata=item.metadata,
-    )
-
-    attestation.sign(item.identity)
-    return attestation
-
-
-def _register_in_almanac(
-    identity: Identity,
-    endpoints: list[str],
-    protocol_digests: list[str],
-    metadata: AgentMetadata | dict[str, str | list[str] | dict[str, str]] | None = None,
-    prefix: AddressPrefix | None = None,
-    *,
-    agentverse_config: AgentverseConfig | None = None,
-    timeout: int = DEFAULT_REQUEST_TIMEOUT,
-) -> requests.Response:
-    """
-    Register the identity with the Almanac API to make it discoverable by other agents.
-
-    Args:
-        identity (Identity): The identity of the agent.
-        prefix (AddressPrefix | None): The prefix for the agent identifier.
-        endpoints (list[str]): The endpoints that the agent can be reached at.
-        protocol_digests (list[str]): The digests of the protocol that the agent supports
-        agentverse_config (AgentverseConfig): The configuration for the agentverse API
-        timeout (int): The timeout for the request
-    """
-    # get the almanac API endpoint
-    agentverse_config = agentverse_config or AgentverseConfig()
-    almanac_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_ALMANAC_API_PATH)
-
-    raw_metadata = (
-        metadata.model_dump(exclude_unset=True)
-        if isinstance(metadata, AgentMetadata)
-        else metadata
-    )
-
-    # create the attestation
-    item = AgentRegistrationInput(
-        identity=identity,
-        prefix=prefix,
-        endpoints=endpoints,
-        protocol_digests=protocol_digests,
-        metadata=raw_metadata,
-    )
-    attestation = _build_signed_attestation(item)
-
-    logger.info(msg="Registering with Almanac API", extra=attestation.model_dump())
-
-    # submit the attestation to the API
-    return _send_post_request_agentverse(
-        url=f"{almanac_api}/agents", data=attestation, timeout=timeout
-    )
-
-
-def register_in_almanac(
-    identity: Identity,
-    endpoints: list[str],
-    protocol_digests: list[str],
-    metadata: AgentMetadata | dict[str, str | list[str] | dict[str, str]] | None = None,
-    prefix: AddressPrefix | None = None,
-    *,
-    agentverse_config: AgentverseConfig | None = None,
-    timeout: int = DEFAULT_REQUEST_TIMEOUT,
-) -> bool:
-    """
-    Register the identity with the Almanac API to make it discoverable by other agents.
-
-    Args:
-        identity (Identity): The identity of the agent.
-        prefix (AddressPrefix | None): The prefix for the agent identifier.
-        endpoints (list[str]): The endpoints that the agent can be reached at.
-        protocol_digests (list[str]): The digests of the protocol that the agent supports
-        metadata (AgentMetadata | dict[str, str | list[str] | dict[str, str]] | None):
-            Additional metadata about the agent (e.g. geolocation).
-        agentverse_config (AgentverseConfig): The configuration for the agentverse API
-        timeout (int): The timeout for the request
-    """
-    # check endpoints
-    if not endpoints:
-        logger.warning("No endpoints provided; skipping registration")
-        return False
-    for endpoint in endpoints:
-        result = urllib.parse.urlparse(endpoint)
-        if not all([result.scheme, result.netloc]):
-            logger.error(
-                msg="Invalid endpoint provided; skipping registration",
-                extra={"endpoint": endpoint},
-            )
-            return False
-
-    # check protocol digests
-    for proto_digest in protocol_digests:
-        if not is_valid_protocol_digest(proto_digest):
-            logger.error(
-                msg="Invalid protocol digest provided; skipping registration",
-                extra={"protocol_digest": proto_digest},
-            )
-            return False
-
-    try:
-        _register_in_almanac(
-            identity,
-            endpoints,
-            protocol_digests,
-            metadata,
-            prefix,
-            agentverse_config=agentverse_config,
-            timeout=timeout,
-        )
-        return True
-    except AgentverseRequestError as e:
-        logger.error(msg=str(e), exc_info=e.from_exc)
-
-    return False
-
-
-def register_batch_in_almanac(
-    items: list[AgentRegistrationInput],
-    *,
-    agentverse_config: AgentverseConfig | None = None,
-    timeout: int = DEFAULT_REQUEST_TIMEOUT,
-    validate_all_before_registration: bool = False,
-) -> tuple[bool, list[str]]:
-    """
-    Register multiple identities with the Almanac API to make them discoverable by other agents.
-
-    The return value is a 2-tuple including:
-    * (bool) Whether the registration request was both attempted and successful.
-    * (list[str]) A list of addresses of identities that failed validation.
-
-    If `validate_all_before_registration` is `True`, no registration request will be sent
-    unless all identities pass validation.
-
-    Args:
-        items (list[AgentRegistrationInput]): The list of identities to register.
-            See `register_in_almanac` for details about attributes in `AgentRegistrationInput`.
-        agentverse_config (AgentverseConfig): The configuration for the agentverse API
-        timeout (int): The timeout for the request
-    """
-    invalid_identities: list[str] = []
-    attestations: list[AgentRegistrationAttestation] = []
-
-    for item in items:
-        # check endpoints
-        if not item.endpoints:
-            logger.warning(
-                f"No endpoints provided for {item.identity.address}; skipping registration",
-            )
-            invalid_identities.append(item.identity.address)
-        for endpoint in item.endpoints:
-            result = urllib.parse.urlparse(endpoint)
-            if not all([result.scheme, result.netloc]):
-                logger.error(
-                    msg=f"Invalid endpoint provided for {item.identity.address}; "
-                    + "skipping registration",
-                    extra={"endpoint": endpoint},
-                )
-                invalid_identities.append(item.identity.address)
-
-        # check protocol digests
-        for proto_digest in item.protocol_digests:
-            if not is_valid_protocol_digest(proto_digest):
-                logger.error(
-                    msg=f"Invalid protocol digest provided for {item.identity.address}; "
-                    + "skipping registration",
-                    extra={"protocol_digest": proto_digest},
-                )
-                invalid_identities.append(item.identity.address)
-
-    # Remove duplicates
-    invalid_identities = sorted(list(set(invalid_identities)))
-
-    for item in items:
-        if item.identity.address not in invalid_identities:
-            attestations.append(_build_signed_attestation(item))
-
-    if validate_all_before_registration and invalid_identities:
-        return False, invalid_identities
-
-    # get the almanac API endpoint
-    agentverse_config = agentverse_config or AgentverseConfig()
-    almanac_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_ALMANAC_API_PATH)
-
-    logger.info(
-        msg="Bulk registering with Almanac API",
-        extra={
-            "agent_addresses": [
-                attestation.agent_identifier for attestation in attestations
-            ]
-        },
-    )
-    attestation_batch = AgentRegistrationAttestationBatch(
-        attestations=attestations,
-    )
-
-    # submit the attestation to the API
-    try:
-        _send_post_request_agentverse(
-            url=f"{almanac_api}/agents/batch",
-            data=attestation_batch,
-            timeout=timeout,
-        )
-        return True, invalid_identities
-    except AgentverseRequestError as e:
-        logger.error(msg=str(e), exc_info=e.from_exc)
-
-    return False, invalid_identities
 
 
 def _register_in_agentverse(
     request: AgentverseConnectRequest,
     identity: Identity,
     *,
-    agent_details: AgentUpdates | None = None,
+    agent_details: AgentverseRegistrationRequest,
     agentverse_config: AgentverseConfig | None = None,
     timeout: int = DEFAULT_REQUEST_TIMEOUT,
 ):
@@ -422,30 +180,27 @@ def _register_in_agentverse(
     Args:
         request (AgentverseConnectRequest): The request containing the agent details.
         identity (Identity): The identity of the agent.
-        agent_details (AgentUpdates | None): The agent details to update.
+        agent_details (AgentverseRegistrationRequest): The agent details to update.
         agentverse_config (AgentverseConfig | None): The configuration for the agentverse API
         timeout (int): The timeout for the requests
     """
     agentverse_config = agentverse_config or AgentverseConfig()
-    registration_api = urllib.parse.urljoin(
-        agentverse_config.url, DEFAULT_REGISTRATION_PATH
-    )
-    challenge_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_CHALLENGE_PATH)
+    agents_api = agentverse_config.agents_api
+    identity_api = agentverse_config.identity_api
 
     agent_address = identity.address
 
     registration_metadata = {
-        "registration_api": registration_api,
-        "challenge_api": challenge_api,
+        "agents_api": agents_api,
         "agent_address": agent_address,
         "agent_endpoint": request.endpoint or "",
         "agent_type": request.agent_type,
-        "agent_name": agent_details.name if agent_details else "",
+        "agent_name": agent_details.name,
     }
 
     # check to see if the agent exists
     response = requests.get(
-        f"{registration_api}/{agent_address}",
+        f"{agents_api}/{agent_address}",
         headers={
             "content-type": "application/json",
             "authorization": f"Bearer {request.user_token}",
@@ -460,14 +215,16 @@ def _register_in_agentverse(
             extra=registration_metadata,
         )
 
-        challenge_request = ChallengeRequest(address=identity.address)
+        challenge_api = f"{identity_api}/{agent_address}/challenge"
         logger.debug(
-            msg="Requesting mailbox access challenge", extra=registration_metadata
+            msg="Requesting proof-of-ownership challenge",
+            extra={**registration_metadata, "challenge_api": challenge_api},
         )
         try:
-            response = _send_post_request_agentverse(
+            response = _send_http_request_agentverse(
+                request_type="get",
                 url=challenge_api,
-                data=challenge_request,
+                data=None,
                 headers={"authorization": f"Bearer {request.user_token}"},
                 timeout=timeout,
             )
@@ -478,54 +235,60 @@ def _register_in_agentverse(
             ) from e
 
         challenge = ChallengeResponse.model_validate_json(response.text)
-        registration_payload = RegistrationRequest(
+        identity_proof = IdentityProof(
             address=identity.address,
             challenge=challenge.challenge,
             challenge_response=identity.sign(challenge.challenge.encode()),
-            endpoint=request.endpoint,
-            agent_type=request.agent_type,
         )
 
         response = _send_post_request_agentverse(
-            url=registration_api,
-            data=registration_payload,
+            url=identity_api,
+            data=identity_proof,
             headers={"authorization": f"Bearer {request.user_token}"},
             timeout=timeout,
         )
-
-    if not agent_details:
-        logger.debug(
-            msg="No agent details provided; skipping agent update",
-            extra=registration_metadata,
-        )
-        return
 
     # update the readme and the name of the agent to make it easier to find
     logger.debug(
         msg="Registering agent details with Agentverse",
         extra=registration_metadata,
     )
+
+    reg_request = RegistrationRequest(
+        address=agent_address,
+        name=agent_details.name,
+        handle=agent_details.handle,
+        url=agent_details.avatar_url,
+        agent_type=agent_details.type,
+        profile=AgentProfile(
+            description=agent_details.description or "",
+            readme=agent_details.readme or "",
+            avatar_url=agent_details.avatar_url or "",
+        ),
+        endpoints=[AgentEndpoint(url=agent_details.endpoint, weight=1)],
+        protocols=agent_details.protocols,
+        metadata=agent_details.metadata,
+    )
+
     try:
-        response = _send_http_request_agentverse(
-            request_type="put",
-            url=f"{registration_api}/{agent_address}",
+        _send_post_request_agentverse(
+            url=agents_api,
             headers={
                 "content-type": "application/json",
                 "authorization": f"Bearer {request.user_token}",
             },
-            data=agent_details,
+            data=reg_request,
             timeout=timeout,
         )
     except AgentverseRequestError as e:
-        logger.warning(f"failed to upload agent details. {str(e)}")
+        logger.warning(f"failed to register agent. {str(e)}")
 
 
-# associate user account with your agent
 def register_in_agentverse(
     request: AgentverseConnectRequest,
     identity: Identity,
+    agent_details: AgentverseRegistrationRequest,
     *,
-    agent_details: AgentUpdates | None = None,
     agentverse_config: AgentverseConfig | None = None,
     timeout: int = DEFAULT_REQUEST_TIMEOUT,
 ) -> bool:
@@ -535,7 +298,7 @@ def register_in_agentverse(
     Args:
         request (AgentverseConnectRequest): The request containing the agent details.
         identity (Identity): The identity of the agent.
-        agent_details (AgentUpdates | None): The agent details to update.
+        agent_details (AgentverseRegistrationRequest): The agent details to update.
         agentverse_config (AgentverseConfig | None): The configuration for the agentverse API
         timeout (int): The timeout for the requests
     """
@@ -603,34 +366,11 @@ def register_agent(
     credentials: RegistrationRequestCredentials,
 ):
     identity = Identity.from_seed(credentials.agent_seed_phrase, 0)
-    endpoints = [agent_registration.endpoint]
-    protos = agent_registration.protocols
-    metadata = agent_registration.metadata
-
     connect_request = AgentverseConnectRequest(
         user_token=credentials.agentverse_api_key,
         agent_type=agent_registration.type,
-        endpoint=endpoints[0],
+        endpoint=agent_registration.endpoint,
     )
-
-    agent_details = AgentUpdates(
-        name=agent_registration.name,
-        readme=agent_registration.readme,
-        avatar_url=agent_registration.avatar_url,
-        short_description=agent_registration.description,
-        agent_type=agent_registration.type,
-    )
-
-    # register the agent to almanac
-    try:
-        logger.info("registering to Almanac...")
-        _register_in_almanac(
-            identity, endpoints, protos, metadata, agentverse_config=agentverse_config
-        )
-        logger.info("successfully registered to Almanac.")
-    except AgentverseRequestError as e:
-        logger.error(f"failed to register to Almanac. {str(e)}")
-        return
 
     # register the agent to agentverse
     try:
@@ -638,7 +378,7 @@ def register_agent(
         _register_in_agentverse(
             connect_request,
             identity,
-            agent_details=agent_details,
+            agent_details=agent_registration,
             agentverse_config=agentverse_config,
         )
         logger.info("successfully registered to Agentverse.")
@@ -688,3 +428,58 @@ def register_chat_agent(
     config = agentverse_config or AgentverseConfig()
 
     register_agent(request, config, credentials)
+
+
+def register_batch_in_agentverse(
+    batch_request: BatchRegistrationRequest,
+    user_token: str,
+    *,
+    agentverse_config: AgentverseConfig | None = None,
+    timeout: int = DEFAULT_REQUEST_TIMEOUT,
+) -> bool:
+    """
+    Register multiple agents in Agentverse using the batch endpoint.
+
+    Args:
+        batch_request (BatchRegistrationRequest): The batch registration request containing
+            a list of agents to register.
+        user_token (str): The user's authentication token for Agentverse.
+        agentverse_config (AgentverseConfig | None): The configuration for the agentverse API.
+        timeout (int): The timeout for the request.
+
+    Returns:
+        bool: True if the batch registration was successful, False otherwise.
+    """
+    agentverse_config = agentverse_config or AgentverseConfig()
+    agents_api = agentverse_config.agents_api
+    batch_url = f"{agents_api}/batch"
+
+    logger.debug(
+        msg="Registering batch of agents in Agentverse",
+        extra={
+            "agents_api": agents_api,
+            "batch_url": batch_url,
+            "agent_count": len(batch_request.agents),
+        },
+    )
+
+    try:
+        _send_post_request_agentverse(
+            url=batch_url,
+            headers={
+                "content-type": "application/json",
+                "authorization": f"Bearer {user_token}",
+            },
+            data=batch_request,
+            timeout=timeout,
+        )
+        logger.info(
+            f"Successfully registered batch of {len(batch_request.agents)} agents in Agentverse"
+        )
+        return True
+    except AgentverseRequestError as e:
+        logger.error(
+            msg=f"Failed to register batch of agents in Agentverse: {str(e)}",
+            exc_info=e.from_exc,
+        )
+        return False
