@@ -201,13 +201,17 @@ def _register_in_agentverse(
         "agent_name": agent_details.name,
     }
 
+    headers = {
+        "content-type": "application/json",
+        "authorization": f"Bearer {request.user_token}",
+    }
+    if request.team:
+        headers["x-team"] = request.team
+
     # check to see if the agent exists
     response = requests.get(
         f"{agents_api}/{agent_address}",
-        headers={
-            "content-type": "application/json",
-            "authorization": f"Bearer {request.user_token}",
-        },
+        headers=headers,
         timeout=timeout,
     )
 
@@ -247,7 +251,7 @@ def _register_in_agentverse(
         response = _send_post_request_agentverse(
             url=identity_api,
             data=identity_proof,
-            headers={"authorization": f"Bearer {request.user_token}"},
+            headers=headers,
             timeout=timeout,
         )
 
