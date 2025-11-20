@@ -31,10 +31,7 @@ AVERAGE_BLOCK_INTERVAL = 6
 DEFAULT_LEDGER_TX_WAIT_SECONDS = 30
 ALMANAC_CONTRACT_VERSION = "2.2.0"
 
-AGENTVERSE_BASE_URL = "agentverse.ai"
-AGENTVERSE_HTTP_PREFIX = "https"
-AGENTVERSE_URL = AGENTVERSE_HTTP_PREFIX + "://" + AGENTVERSE_BASE_URL
-ALMANAC_API_URL = AGENTVERSE_URL + "/v1/almanac"
+ALMANAC_API_URL = AgentverseConfig().almanac_api
 
 ALMANAC_API_TIMEOUT_SECONDS = 1.0
 ALMANAC_API_MAX_RETRIES = 10
@@ -101,9 +98,9 @@ def parse_endpoint_config(
     elif isinstance(endpoint, str):
         endpoints = [AgentEndpoint.model_validate({"url": endpoint, "weight": 1})]
     elif mailbox:
-        endpoints = [AgentEndpoint(url=f"{agentverse.url}/v1/submit", weight=1)]
+        endpoints = [AgentEndpoint(url=agentverse.mailbox_endpoint, weight=1)]
     elif proxy:
-        endpoints = [AgentEndpoint(url=f"{agentverse.url}/v1/proxy/submit", weight=1)]
+        endpoints = [AgentEndpoint(url=agentverse.proxy_endpoint, weight=1)]
     else:
         endpoints = []
     return endpoints
@@ -118,7 +115,7 @@ def parse_agentverse_config(
     Returns:
         AgentverseConfig: The parsed agentverse configuration.
     """
-    base_url = AGENTVERSE_BASE_URL
+    base_url = AgentverseConfig().base_url
     protocol = None
     protocol_override = None
 
