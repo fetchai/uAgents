@@ -280,10 +280,7 @@ def _register_in_agentverse(
     try:
         _send_post_request_agentverse(
             url=agents_api,
-            headers={
-                "content-type": "application/json",
-                "authorization": f"Bearer {request.user_token}",
-            },
+            headers=headers,
             data=reg_request,
             timeout=timeout,
         )
