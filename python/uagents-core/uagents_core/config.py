@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-DEFAULT_AGENTVERSE_URL = "staging.agentverse.ai"
+DEFAULT_AGENTVERSE_URL = "agentverse.ai"
 DEFAULT_ALMANAC_API_PATH = "/v1/almanac"
 DEFAULT_REGISTRATION_PATH = "/v2/agents"
 DEFAULT_IDENTITY_PATH = "/v2/identity"
