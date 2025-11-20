@@ -4,7 +4,7 @@
 
 
 
-#### is_mailbox_agent[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L67)
+#### is_mailbox_agent[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L68)
 ```python
 def is_mailbox_agent(endpoints: list[AgentEndpoint],
                      agentverse: AgentverseConfig) -> bool
@@ -18,7 +18,7 @@ Check if the agent is a mailbox agent.
 
 
 
-#### register_in_agentverse[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L79)
+#### register_in_agentverse[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L92)
 ```python
 async def register_in_agentverse(
         request: AgentverseConnectRequest, identity: Identity,
@@ -44,7 +44,7 @@ Registers agent in Agentverse
 
 
 
-#### unregister_in_agentverse[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L151)
+#### unregister_in_agentverse[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L155)
 ```python
 async def unregister_in_agentverse(
         request: AgentverseDisconnectRequest, agent_address: str,
@@ -66,26 +66,7 @@ Unregisters agent in Agentverse
 
 
 
-#### update_agent_details[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L185)
-```python
-async def update_agent_details(user_token: str,
-                               agent_address: str,
-                               agent_details: AgentUpdates,
-                               agentverse: AgentverseConfig | None = None)
-```
-
-Updates agent details in Agentverse.
-
-**Arguments**:
-
-- `user_token` _str_ - User token
-- `agent_address` _str_ - Agent address
-- `agent_details` _AgentUpdates_ - Agent details
-- `agentverse` _AgentverseConfig | None_ - Agentverse configuration
-
-
-
-## MailboxClient Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L219)
+## MailboxClient Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L186)
 
 ```python
 class MailboxClient()
@@ -95,7 +76,7 @@ Client for interacting with the Agentverse mailbox server.
 
 
 
-#### run[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L235)
+#### run[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L202)
 ```python
 async def run()
 ```
