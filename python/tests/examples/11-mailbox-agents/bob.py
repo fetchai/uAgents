@@ -6,7 +6,7 @@ class Message(Model):
 
 
 # Copy ALICE_ADDRESS generated in alice.py
-ALICE_ADDRESS = "agent1q2ye6jzpnal5xyaxvaejjqftl35a94anu7zct0dsnljg3xgzkfm7vcd303l"
+ALICE_ADDRESS = "paste_alice_address_here"
 
 
 # Now your agent is ready to join the agentverse!
