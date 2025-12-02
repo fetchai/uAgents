@@ -534,7 +534,9 @@ class Agent(Sink):
             message_history=self._message_history,
         )
 
-    def _initialize_wallet_and_identity(self, seed, name, wallet_key_derivation_index):
+    def _initialize_wallet_and_identity(
+        self, seed: str | None, name: str | None, wallet_key_derivation_index: int = 0
+    ):
         """
         Initialize the wallet and identity for the agent.
 
