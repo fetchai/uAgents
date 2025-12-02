@@ -181,7 +181,7 @@ def __init__(name: str | None = None,
              resolve: Resolver | None = None,
              registration_policy: AgentRegistrationPolicy | None = None,
              enable_wallet_messaging: bool | dict[str, str] = False,
-             wallet_key_derivation_index: int | None = 0,
+             wallet_key_derivation_index: int = 0,
              max_resolver_endpoints: int | None = None,
              version: str | None = None,
              network: AgentNetwork = "mainnet",
@@ -213,7 +213,7 @@ Initialize an Agent instance.
 - `enable_wallet_messaging` _bool | dict[str, str]_ - Whether to enable
   wallet messaging. If '{"chain_id": CHAIN_ID}' is provided, this sets the chain ID for
   the messaging server.
-- `wallet_key_derivation_index` _int | None_ - The index used for deriving the wallet key.
+- `wallet_key_derivation_index` _int_ - The index used for deriving the wallet key.
 - `max_resolver_endpoints` _int | None_ - The maximum number of endpoints to resolve.
 - `version` _str | None_ - The version of the agent.
 - `network` _Literal["mainnet", "testnet"]_ - The network to use for the agent.
