@@ -282,7 +282,7 @@ class Agent(Sink):
         resolve: Resolver | None = None,
         registration_policy: AgentRegistrationPolicy | None = None,
         enable_wallet_messaging: bool | dict[str, str] = False,
-        wallet_key_derivation_index: int | None = 0,
+        wallet_key_derivation_index: int = 0,
         max_resolver_endpoints: int | None = None,
         version: str | None = None,
         network: AgentNetwork = "mainnet",
@@ -313,7 +313,7 @@ class Agent(Sink):
             enable_wallet_messaging (bool | dict[str, str]): Whether to enable
             wallet messaging. If '{"chain_id": CHAIN_ID}' is provided, this sets the chain ID for
             the messaging server.
-            wallet_key_derivation_index (int | None): The index used for deriving the wallet key.
+            wallet_key_derivation_index (int): The index used for deriving the wallet key.
             max_resolver_endpoints (int | None): The maximum number of endpoints to resolve.
             version (str | None): The version of the agent.
             network (Literal["mainnet", "testnet"]): The network to use for the agent.
@@ -534,7 +534,9 @@ class Agent(Sink):
             message_history=self._message_history,
         )
 
-    def _initialize_wallet_and_identity(self, seed, name, wallet_key_derivation_index):
+    def _initialize_wallet_and_identity(
+        self, seed: str | None, name: str | None, wallet_key_derivation_index: int = 0
+    ):
         """
         Initialize the wallet and identity for the agent.
 

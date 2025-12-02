@@ -27,10 +27,17 @@ Build your first uAgent using the following script:
 
 ```python3
 from uagents import Agent, Context
-alice = Agent(name="alice", seed="alice recovery phrase")
+alice = Agent(name="alice")
 ```
 
-Include a seed parameter when creating an agent to set fixed addresses, or leave it out to generate a new random address each time.
+Include a seed parameter when creating an agent to set a fixed address, for example from an environment variable:
+```
+import os
+alice = Agent(name="alice", seed=os.getenv("ALICE_SEED_PHRASE"))
+```
+
+Otherwise the agent's private key will be stored locally alongside its name in `private_keys.json`.
+If you create the agent without a name `alice = Agent()`, a new address will be generated each time you run the agent.
 
 #### Giving it a task
 
