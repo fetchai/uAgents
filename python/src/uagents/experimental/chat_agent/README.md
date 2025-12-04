@@ -3,7 +3,7 @@
 `ChatAgent` is a thin wrapper around `Agent` that:
 - Plugs in an LLM (ASI1, OpenAI, Anthropic, …)
 - Exposes your protocol handlers as **tools**
-- Keeps **message history** for multi-turn chat
+- Optionally keeps **message history** for multi-turn chat
 
 ---
 
@@ -12,48 +12,43 @@
 Minimal change from `Agent` → `ChatAgent`:
 
 ```python
-from uagents import Context, Field, Model, Protocol
-from uagents.experimental.chat_agent import ChatAgent
+from uagents.experimental.chatagent.agent import ChatAgent
+from uagents.experimental.chatagent.ai import asione_config
 
+AGENT_SEED = "chat-agent"
+AGENT_NAME = "chat-agent"
+PORT = 8000
 
-agent = ChatAgent(name="chat-bob", mailbox=True)
+agent = ChatAgent(
+    name=AGENT_NAME,
+    seed=AGENT_SEED,
+    port=PORT,
+    endpoint=f"http://localhost:{PORT}/submit",
+    llm_config=claude_config,      # choose your LLM config
+    store_message_history=True,    # enable session-aware chat
+)
 
+@proto.on_message(Prompt, replies={Response, ErrorMessage})
+async def handle_request(ctx: Context, sender: str, msg: Prompt):
+    # Your logic...
 
-proto = Protocol(name="Calculator", version="0.1.0")
+    # NEW: always return, ChatAgent will reply for you
+    return Response(mean=..., median=...)
 
-
-class CalculateRequest(Model):
-    expression: str = Field(..., description="Mathematical expression to calculate")
-
-
-class CalculateResponse(Model):
-    result: float = Field(..., description="Calculation result")
-
-
-@proto.on_message(CalculateRequest)
-async def handle_calculate_request(ctx: Context, sender: str, msg: CalculateRequest):
-    ctx.logger.info(f"Received calculate request from {sender}: {msg.expression}")
-    await ctx.send(
-        sender, CalculateResponse(result=eval(msg.expression))
-    )
-
-
-agent.include(proto)
-
-if __name__ == "__main__":
-    agent.run()
+# include your protocols as usual
+agent.include(my_proto, publish_manifest=True)
 ```
 
 ## LLM Configuration
-LLM provider, model, and parameters are all configurable via `LLMConfig` and `LLMParams`
+LLM behavior is configured via LLMParams and LLMConfig:
 
 ```python
-from uagents.experimental.chat_agent.llm import LLMParams, LLMConfig
+from uagents.experimental.chatagent.ai import LLMParams, LLMConfig
 
 openai_config = LLMConfig(
     provider="openai",
     api_key="YOUR_OPENAI_API_KEY",
-    model="gpt-5-mini",
+    model="gpt-4o-mini",
     url="https://api.openai.com/v1",
     parameters=LLMParams(),
 )
@@ -61,12 +56,12 @@ openai_config = LLMConfig(
 claude_config = LLMConfig(
     provider="anthropic",
     api_key="YOUR_ANTHROPIC_API_KEY",
-    model="claude-haiku-4-5",
+    model="claude-3-5-haiku-latest",
     url="https://api.anthropic.com/v1/messages",
     parameters=LLMParams(),
 )
 
-asi1_mini = LLMConfig(
+asione_config = LLMConfig(
     provider="openai",
     api_key="YOUR_ASIONE_API_KEY",
     model="asi1-mini",

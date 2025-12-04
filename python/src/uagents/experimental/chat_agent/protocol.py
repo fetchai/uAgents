@@ -2,19 +2,20 @@ import json
 from datetime import datetime, timezone
 
 from pydantic.v1 import ValidationError
-from uagents import Context
-from uagents.experimental.chat_agent.llm import LLM, LLMConfig
-from uagents.experimental.chat_agent.tools import Tool
-from uagents.protocol import Protocol
 from uagents_core.contrib.protocols.chat import (
+    AgentContent,
     ChatAcknowledgement,
     ChatMessage,
-    AgentContent,
     EndSessionContent,
     StartSessionContent,
     TextContent,
     chat_protocol_spec,
 )
+
+from uagents import Context
+from uagents.experimental.chat_agent.llm import LLM, LLMConfig
+from uagents.experimental.chat_agent.tools import Tool
+from uagents.protocol import Protocol
 
 
 class ChatProtocol(Protocol):
@@ -57,13 +58,13 @@ class ChatProtocol(Protocol):
             session_history = ctx.session_history()
             if session_history is not None:
                 for entry in session_history:
-                    role = "assistant" if entry.sender == ctx.agent.address else "user"
+                    role = "agent" if entry.sender == ctx.agent.address else "user"
                     messages.append(
                         {
                             "role": role,
                             "content": entry.payload,
                         }
-                        )
+                    )
 
             messages.append(
                 {

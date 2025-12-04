@@ -1,7 +1,8 @@
 from typing import Any, Callable
 
-from uagents.protocol import Protocol
 from uagents_core.models import Model
+
+from uagents.protocol import Protocol
 
 
 class Tool:
@@ -43,7 +44,9 @@ def extract_tools_from_protocol(proto: Protocol) -> list[Tool]:
             continue
 
         tool_name = model_cls.__name__
-        description = f"Handle a `{model_cls.__name__}` request for protocol {proto.canonical_name}."
+        description = (
+            f"Handle a `{model_cls.__name__}` request for protocol {proto.canonical_name}."
+        )
 
         tools.append(
             Tool(
