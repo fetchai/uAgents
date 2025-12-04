@@ -18,7 +18,7 @@ from typing_extensions import deprecated
 from uagents_core.config import AgentverseConfig
 from uagents_core.identity import Identity, derive_key_from_seed, is_user_address
 from uagents_core.models import ErrorMessage, Model
-from uagents_core.registration import AgentUpdates
+from uagents_core.registration import AgentProfile, RegistrationRequest
 from uagents_core.types import AddressPrefix, AgentEndpoint, AgentInfo, AgentType
 
 from uagents.asgi import ASGIServer
@@ -150,6 +150,7 @@ class AgentRepresentation:
         address: str,
         name: str | None,
         identity: Identity,
+        prefix: AddressPrefix,
     ) -> None:
         """
         Initialize the AgentRepresentation instance.
@@ -158,10 +159,12 @@ class AgentRepresentation:
             address (str): The address of the context.
             name (str | None): The optional name associated with the context.
             identity (Identity): The identity of the agent.
+            prefix (AddressPrefix): The address prefix for the agent's network.
         """
         self._address = address
         self._name = name
         self._identity = identity
+        self._prefix = prefix
 
     @property
     def name(self) -> str:
@@ -193,7 +196,7 @@ class AgentRepresentation:
         Returns:
             str: The agent's address and network prefix.
         """
-        return TESTNET_PREFIX + "://" + self._address
+        return self._prefix + "://" + self._address
 
     @property
     def identity(self) -> Identity:
@@ -279,17 +282,19 @@ class Agent(Sink):
         resolve: Resolver | None = None,
         registration_policy: AgentRegistrationPolicy | None = None,
         enable_wallet_messaging: bool | dict[str, str] = False,
-        wallet_key_derivation_index: int | None = 0,
+        wallet_key_derivation_index: int = 0,
         max_resolver_endpoints: int | None = None,
         version: str | None = None,
-        network: AgentNetwork = "testnet",
+        network: AgentNetwork = "mainnet",
         loop: asyncio.AbstractEventLoop | None = None,
         log_level: int | str = logging.INFO,
         enable_agent_inspector: bool = True,
         metadata: dict[str, Any] | None = None,
         readme_path: str | None = None,
+        description: str | None = None,
+        handle: str | None = None,
         avatar_url: str | None = None,
-        publish_agent_details: bool = False,
+        publish_agent_details: bool = True,
         store_message_history: bool = False,
     ):
         """
@@ -308,7 +313,7 @@ class Agent(Sink):
             enable_wallet_messaging (bool | dict[str, str]): Whether to enable
             wallet messaging. If '{"chain_id": CHAIN_ID}' is provided, this sets the chain ID for
             the messaging server.
-            wallet_key_derivation_index (int | None): The index used for deriving the wallet key.
+            wallet_key_derivation_index (int): The index used for deriving the wallet key.
             max_resolver_endpoints (int | None): The maximum number of endpoints to resolve.
             version (str | None): The version of the agent.
             network (Literal["mainnet", "testnet"]): The network to use for the agent.
@@ -317,6 +322,8 @@ class Agent(Sink):
             enable_agent_inspector (bool): Enable the agent inspector for debugging.
             metadata (dict[str, Any] | None): Optional metadata to include in the agent object.
             readme_path (str | None): The path to the agent's README file.
+            description (str | None): A short description of the agent.
+            handle (str | None): A unique handle for the agent on Agentverse.
             avatar_url (str | None): The URL for the agent's avatar image on Agentverse.
             publish_agent_details (bool): Publish agent details to Agentverse on connection via
             local agent inspector.
@@ -349,7 +356,7 @@ class Agent(Sink):
         else:
             self._mailbox_client = None
 
-        self._almanac_api_url = f"{self._agentverse.url}/v1/almanac"
+        self._almanac_api_url = self._agentverse.almanac_api
         self._resolver = resolve or GlobalResolver(
             max_endpoints=max_resolver_endpoints,
             almanac_api_url=self._almanac_api_url,
@@ -405,6 +412,7 @@ class Agent(Sink):
                 self._readme = f.read()
         else:
             self._readme = None
+        self._description = description
         self._avatar_url = avatar_url
 
         self.initialize_wallet_messaging(enable_wallet_messaging)
@@ -459,22 +467,31 @@ class Agent(Sink):
             async def _handle_connect(
                 _ctx: Context, request: AgentverseConnectRequest
             ) -> RegistrationResponse:
-                agent_details = (
-                    AgentUpdates(
-                        name=self.name,
-                        readme=self._readme,
-                        avatar_url=self._avatar_url,
-                        agent_type=request.agent_type,
+                profile = (
+                    AgentProfile(
+                        description=description or "",
+                        readme=self._readme or "",
+                        avatar_url=avatar_url or "",
                     )
                     if publish_agent_details
-                    else None
+                    else AgentProfile()
+                )
+                registration_data = RegistrationRequest(
+                    address=self.address,
+                    name=self.name,
+                    handle=handle,
+                    url=request.endpoint,
+                    profile=profile,
+                    endpoints=self._endpoints,
+                    protocols=list(self.protocols.keys()),
+                    metadata=self.metadata,
                 )
                 return await register_in_agentverse(
                     request=request,
                     identity=self._identity,
                     prefix=self._prefix,
                     agentverse=self._agentverse,
-                    agent_details=agent_details,
+                    agent_details=registration_data,
                 )
 
             @self.on_rest_post(
@@ -505,6 +522,7 @@ class Agent(Sink):
                 address=self.address,
                 name=self._name,
                 identity=self._identity,
+                prefix=self._prefix,
             ),
             storage=self._storage,
             ledger=self._ledger,
@@ -516,7 +534,9 @@ class Agent(Sink):
             message_history=self._message_history,
         )
 
-    def _initialize_wallet_and_identity(self, seed, name, wallet_key_derivation_index):
+    def _initialize_wallet_and_identity(
+        self, seed: str | None, name: str | None, wallet_key_derivation_index: int = 0
+    ):
         """
         Initialize the wallet and identity for the agent.
 
@@ -1061,7 +1081,7 @@ class Agent(Sink):
             async with (
                 aiohttp.ClientSession() as session,
                 session.post(
-                    url=f"{self._agentverse.url}/v1/almanac/manifests",
+                    url=f"{self._agentverse.almanac_api}/manifests",
                     json=manifest,
                 ) as response,
             ):
@@ -1284,6 +1304,7 @@ class Agent(Sink):
                     address=self.address,
                     name=self._name,
                     identity=self._identity,
+                    prefix=self._prefix,
                 ),
                 storage=self._storage,
                 ledger=self._ledger,
@@ -1449,7 +1470,7 @@ class Bureau:
                 almanac_contract=almanac_contract,
                 testnet=network == "testnet",
                 logger=self._logger,
-                almanac_api=f"{self._agentverse.url}/v1/almanac",
+                almanac_api=self._agentverse.almanac_api,
             )
 
         if agents is not None:

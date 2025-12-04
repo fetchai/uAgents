@@ -30,7 +30,8 @@ Represents an agent in the context of a message.
 
 #### __init__
 ```python
-def __init__(address: str, name: str | None, identity: Identity) -> None
+def __init__(address: str, name: str | None, identity: Identity,
+             prefix: AddressPrefix) -> None
 ```
 
 Initialize the AgentRepresentation instance.
@@ -40,6 +41,7 @@ Initialize the AgentRepresentation instance.
 - `address` _str_ - The address of the context.
 - `name` _str | None_ - The optional name associated with the context.
 - `identity` _Identity_ - The identity of the agent.
+- `prefix` _AddressPrefix_ - The address prefix for the agent's network.
 
 
 
@@ -179,17 +181,19 @@ def __init__(name: str | None = None,
              resolve: Resolver | None = None,
              registration_policy: AgentRegistrationPolicy | None = None,
              enable_wallet_messaging: bool | dict[str, str] = False,
-             wallet_key_derivation_index: int | None = 0,
+             wallet_key_derivation_index: int = 0,
              max_resolver_endpoints: int | None = None,
              version: str | None = None,
-             network: AgentNetwork = "testnet",
+             network: AgentNetwork = "mainnet",
              loop: asyncio.AbstractEventLoop | None = None,
              log_level: int | str = logging.INFO,
              enable_agent_inspector: bool = True,
              metadata: dict[str, Any] | None = None,
              readme_path: str | None = None,
+             description: str | None = None,
+             handle: str | None = None,
              avatar_url: str | None = None,
-             publish_agent_details: bool = False,
+             publish_agent_details: bool = True,
              store_message_history: bool = False)
 ```
 
@@ -209,7 +213,7 @@ Initialize an Agent instance.
 - `enable_wallet_messaging` _bool | dict[str, str]_ - Whether to enable
   wallet messaging. If '{"chain_id": CHAIN_ID}' is provided, this sets the chain ID for
   the messaging server.
-- `wallet_key_derivation_index` _int | None_ - The index used for deriving the wallet key.
+- `wallet_key_derivation_index` _int_ - The index used for deriving the wallet key.
 - `max_resolver_endpoints` _int | None_ - The maximum number of endpoints to resolve.
 - `version` _str | None_ - The version of the agent.
 - `network` _Literal["mainnet", "testnet"]_ - The network to use for the agent.
@@ -218,6 +222,8 @@ Initialize an Agent instance.
 - `enable_agent_inspector` _bool_ - Enable the agent inspector for debugging.
 - `metadata` _dict[str, Any] | None_ - Optional metadata to include in the agent object.
 - `readme_path` _str | None_ - The path to the agent's README file.
+- `description` _str | None_ - A short description of the agent.
+- `handle` _str | None_ - A unique handle for the agent on Agentverse.
 - `avatar_url` _str | None_ - The URL for the agent's avatar image on Agentverse.
 - `publish_agent_details` _bool_ - Publish agent details to Agentverse on connection via
   local agent inspector.

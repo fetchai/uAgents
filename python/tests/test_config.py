@@ -1,11 +1,12 @@
 import unittest
 
+from uagents_core.config import AgentverseConfig
 from uagents_core.types import AgentEndpoint
 
 from uagents import Agent
 
-MAILBOX_ENDPOINT = "https://agentverse.ai/v1/submit"
-PROXY_ENDPOINT = "https://agentverse.ai/v1/proxy/submit"
+MAILBOX_ENDPOINT = AgentverseConfig().mailbox_endpoint
+PROXY_ENDPOINT = AgentverseConfig().proxy_endpoint
 
 
 agents = [

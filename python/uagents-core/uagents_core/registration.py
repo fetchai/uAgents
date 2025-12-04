@@ -7,7 +7,7 @@ from typing import Any
 from pydantic import AliasChoices, BaseModel, Field
 
 from uagents_core.identity import Identity, parse_identifier
-from uagents_core.types import AddressPrefix, AgentEndpoint, AgentInfo, AgentType
+from uagents_core.types import AgentEndpoint, AgentInfo, AgentType
 
 
 class AgentRegistrationPolicy(ABC):
@@ -77,20 +77,75 @@ class AgentRegistrationAttestationBatch(BaseModel):
     attestations: list[AgentRegistrationAttestation]
 
 
-# Agentverse related models
+class AgentProfile(BaseModel):
+    description: str = Field(
+        default="",
+        max_length=300,
+        description="Short description of the agent",
+    )
+    readme: str = Field(
+        default="",
+        max_length=80000,
+        description="Detailed README for the agent",
+    )
+    avatar_url: str = Field(
+        default="",
+        max_length=4000,
+        description="URL to the agent's avatar image",
+    )
+
+
 class RegistrationRequest(BaseModel):
-    address: str
-    prefix: AddressPrefix | None = "test-agent"
-    challenge: str
-    challenge_response: str
-    agent_type: AgentType
-    endpoint: str | None = None
+    address: str = Field(
+        ...,
+        max_length=66,
+        description="Agent's address (bech32 encoded public key with prefix 'agent')",
+    )
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=80,
+        description="Agent's public name",
+    )
+    handle: str | None = Field(
+        None,
+        max_length=40,
+        description="Agent's unique handle",
+    )
+    url: str | None = Field(
+        None,
+        max_length=4000,
+        description="Public URL for the agent",
+    )
+    agent_type: AgentType = Field(default="uagent", description="The type of the agent")
+    profile: AgentProfile = AgentProfile()
+    endpoints: list[AgentEndpoint] = Field(
+        default=[], description="List of agent endpoints"
+    )
+    protocols: list[str] = Field(
+        default=[], description="List of supported protocol digests"
+    )
+    metadata: dict[str, Any] | None = Field(
+        default=None, description="Optional metadata for the agent"
+    )
+
+
+class BatchRegistrationRequest(BaseModel):
+    agents: list[RegistrationRequest] = Field(
+        default=[], description="List of agents to register"
+    )
 
 
 class AgentverseConnectRequest(BaseModel):
     user_token: str
-    agent_type: AgentType
+    agent_type: AgentType = "mailbox"
     endpoint: str | None = None
+    team: str | None = None
+
+
+class AgentverseDisconnectRequest(BaseModel):
+    user_token: str
+    team: str | None = None
 
 
 class RegistrationResponse(BaseModel):
@@ -105,12 +160,30 @@ class ChallengeResponse(BaseModel):
     challenge: str
 
 
+class IdentityProof(BaseModel):
+    address: str = Field(
+        ...,
+        max_length=66,
+        description="Agent's address (bech32 encoded public key with prefix 'agent')",
+    )
+    challenge: str
+    challenge_response: str
+
+
+class IdentityResponse(BaseModel):
+    address: str = Field(
+        ...,
+        max_length=66,
+        description="Agent's address (bech32 encoded public key with prefix 'agent')",
+    )
+
+
 class AgentUpdates(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     readme: str | None = Field(default=None, max_length=80000)
     avatar_url: str | None = Field(default=None, max_length=4000)
     short_description: str | None = Field(default=None, max_length=300)
-    agent_type: AgentType | None = "custom"
+    agent_type: str = "custom"
 
 
 class AgentStatusUpdate(VerifiableModel):
