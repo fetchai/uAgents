@@ -9,6 +9,15 @@
 
 ## Quickstart
 
+Install uAgents with:
+```bash
+pip install uagents[llm]
+```
+or
+```bash
+pip install uagents[all]
+```
+
 Build your agent from protocols as usual:
 
 ```python
