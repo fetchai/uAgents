@@ -54,45 +54,6 @@ class LLMConfig(BaseModel):
             parameters=LLMParams(),
         )
 
-    @classmethod
-    def claude(cls) -> "LLMConfig":
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if api_key is None:
-            raise ValueError("Please set ANTHROPIC_API_KEY environment variable.")
-        return LLMConfig(
-            provider="anthropic",
-            api_key=api_key,
-            model="claude-haiku-4-5",
-            url="https://api.anthropic.com/v1/messages",
-            parameters=LLMParams(),
-        )
-
-    @classmethod
-    def gemini(cls) -> "LLMConfig":
-        api_key = os.getenv("GOOGLE_API_KEY")
-        if api_key is None:
-            raise ValueError("Please set GOOGLE_API_KEY environment variable.")
-        return LLMConfig(
-            provider="google",
-            api_key=api_key,
-            model="gemini-2.5-flash",
-            url="https://generativelanguage.googleapis.com/v1beta2/models/gemini-2.5-flash:generateMessage",
-            parameters=LLMParams(),
-        )
-
-    @classmethod
-    def openai(cls) -> "LLMConfig":
-        api_key = os.getenv("OPENAI_API_KEY")
-        if api_key is None:
-            raise ValueError("Please set OPENAI_API_KEY environment variable.")
-        return LLMConfig(
-            provider="openai",
-            api_key=api_key,
-            model="gpt-5-mini",
-            url="https://api.openai.com/v1",
-            parameters=LLMParams(),
-        )
-
 
 class LLM:
     def __init__(self, config: LLMConfig, tools: dict[str, Tool]):

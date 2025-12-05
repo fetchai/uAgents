@@ -1,12 +1,12 @@
 from typing import Optional
 
 from uagents import Agent
-from uagents.experimental.chat_agent.llm import LLMConfig
+from uagents.experimental.chat_agent.llm import LLMConfig, LLMParams
 from uagents.experimental.chat_agent.protocol import ChatProtocol
 from uagents.experimental.chat_agent.tools import Tool, extract_tools_from_protocol
 from uagents.protocol import Protocol
 
-__all__ = ["ChatAgent", "LLMConfig"]
+__all__ = ["ChatAgent", "LLMConfig", "LLMParams"]
 
 
 class ChatAgent(Agent):
