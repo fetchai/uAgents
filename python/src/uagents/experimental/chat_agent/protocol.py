@@ -12,7 +12,7 @@ from uagents_core.contrib.protocols.chat import (
     chat_protocol_spec,
 )
 
-from uagents import Context
+from uagents import Context, Model
 from uagents.experimental.chat_agent.llm import LLM, LLMConfig
 from uagents.experimental.chat_agent.tools import Tool
 from uagents.protocol import Protocol
@@ -58,7 +58,7 @@ class ChatProtocol(Protocol):
             session_history = ctx.session_history()
             if session_history is not None:
                 for entry in session_history:
-                    role = "agent" if entry.sender == ctx.agent.address else "user"
+                    role = "assistant" if entry.sender == ctx.agent.address else "user"
                     messages.append(
                         {
                             "role": role,
@@ -109,7 +109,7 @@ class ChatProtocol(Protocol):
                 )
 
             try:
-                result = await tool.handler(ctx, sender, parsed_msg)
+                result = await self.use_tool(tool, ctx, sender, parsed_msg)
             except Exception as err:
                 ctx.logger.error(f"Handler error: {err}")
                 return await self.send_text(
@@ -118,17 +118,10 @@ class ChatProtocol(Protocol):
                     "Sorry, I couldn't process your request. Please try again later.",
                 )
 
-            if hasattr(result, "model_dump"):
-                tool_content = json.dumps(result.model_dump())
-            elif isinstance(result, (dict, list)):
-                tool_content = json.dumps(result)
-            else:
-                tool_content = json.dumps({"result": str(result)})
-
             tool_result_message = {
                 "role": "tool",
                 "tool_call_id": tool_call_id,
-                "content": tool_content,
+                "content": json.dumps(result),
             }
             followup_messages = [
                 {
@@ -154,3 +147,24 @@ class ChatProtocol(Protocol):
         if end_session:
             content.append(EndSessionContent(type="end-session"))
         return await ctx.send(recipient, ChatMessage(content=content))
+
+    async def use_tool(
+        self,
+        tool: Tool,
+        ctx: Context,
+        sender: str,
+        parsed_msg,
+    ):
+        captured_messages: list[Model] = []
+
+        # Create a wrapper to capture messages sent to the sender
+        async def capture_send(destination: str, message, timeout: int = 30):
+            if destination == sender:
+                captured_messages.append(message)
+
+        ctx.send = capture_send  # type: ignore
+
+        await tool.handler(ctx, sender, parsed_msg)
+
+        # Return captured messages
+        return [msg.model_dump() for msg in captured_messages]

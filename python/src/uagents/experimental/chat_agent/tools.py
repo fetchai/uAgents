@@ -45,7 +45,8 @@ def extract_tools_from_protocol(proto: Protocol) -> list[Tool]:
 
         tool_name = model_cls.__name__
         description = (
-            f"Handle a `{model_cls.__name__}` request for protocol {proto.canonical_name}."
+            f"Handle a `{model_cls.__name__}` request for protocol "
+            f"{proto.canonical_name}."
         )
 
         tools.append(
