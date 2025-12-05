@@ -118,8 +118,12 @@ async def register_in_agentverse(
             challenge_url,
             headers=_get_headers(request),
         ) as resp:
-            resp.raise_for_status()
-            challenge = ChallengeResponse.model_validate_json(await resp.text())
+            if resp.status == 200:
+                logger.debug("Received challenge from Agentverse")
+                challenge = ChallengeResponse.model_validate_json(await resp.text())
+            else:
+                detail = (await resp.json())["detail"]
+                return RegistrationResponse(success=False, detail=detail)
 
         # prove identity to agentverse
         logger.debug("Proving mailbox access challenge")
@@ -133,7 +137,11 @@ async def register_in_agentverse(
             data=identity_proof.model_dump_json(),
             headers=_get_headers(request),
         ) as resp:
-            resp.raise_for_status()
+            if resp.status == 200:
+                logger.debug("Successfully proved identity to Agentverse")
+            else:
+                detail = (await resp.json())["detail"]
+                return RegistrationResponse(success=False, detail=detail)
 
         # register agent details in agentverse
         logger.debug("Registering agent in Agentverse")
