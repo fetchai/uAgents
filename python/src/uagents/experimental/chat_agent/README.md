@@ -46,7 +46,8 @@ async def handle_calculate_request(ctx: Context, sender: str, msg: CalculateRequ
 agent.include(proto, publish_manifest=True)
 
 
-if __name__ == "__main
+if __name__ == "__main__":
+    agent.run()
 ```
 
 ## LLM Configuration
@@ -62,13 +63,13 @@ openai_config = LLMConfig(
     api_key="YOUR_OPENAI_API_KEY",
     model="gpt-5-mini",
     url="https://api.openai.com/v1",
-    parameters=LLMParams(),
+    parameters=LLMParams(temperature=1),
 )
 
 claude_config = LLMConfig(
     provider="anthropic",
     api_key="YOUR_ANTHROPIC_API_KEY",
-    model="claude-4-5-haiku-latest",
+    model="claude-4-5-haiku",
     url="https://api.anthropic.com/v1/messages",
     parameters=LLMParams(),
 )

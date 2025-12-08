@@ -130,7 +130,13 @@ class LLM:
         except Exception as e:
             raise RuntimeError(f"LLM call failed: {e}") from e
 
-        msg = resp.choices[0].message.model_dump()  # type: ignore
+        message_obj = resp.choices[0].message
+
+        if isinstance(message_obj, dict):
+            msg = message_obj
+        else:
+            msg = message_obj.model_dump()
+
         tool_calls = msg.get("tool_calls") or []
 
         if tool_calls:
