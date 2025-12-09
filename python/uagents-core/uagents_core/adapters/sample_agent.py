@@ -1,9 +1,7 @@
 import os
 from fastapi import FastAPI
-from middleware import attach_and_register_adapter, MsgCallback
+from adapters import attach_adapter, MsgCallback
 
-
-AGENT_PUBLIC_ENDPOINT = "MY_AGENT_PUBLIC_ENDPOINT"
 
 app = FastAPI()
 
@@ -27,10 +25,8 @@ async def chat_callback(text: str) -> str:
     return await run_my_logic(text)
 
 
-attach_and_register_adapter(
+attach_adapter(
     app,
-    agent_name="My FastAPI Adapter",
-    public_endpoint=AGENT_PUBLIC_ENDPOINT,
     msg_callback=chat_callback,
     msg_route="/chat",   
 )
