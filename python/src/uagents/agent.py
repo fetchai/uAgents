@@ -281,7 +281,6 @@ class Agent(Sink):
         proxy: bool = False,
         resolve: Resolver | None = None,
         registration_policy: AgentRegistrationPolicy | None = None,
-        enable_wallet_messaging: bool | dict[str, str] = False,
         wallet_key_derivation_index: int = 0,
         max_resolver_endpoints: int | None = None,
         version: str | None = None,
@@ -310,7 +309,6 @@ class Agent(Sink):
             proxy (bool): True if the agent will receive messages via an Agentverse proxy endpoint.
             resolve (Resolver | None): The resolver to use for agent communication.
             registration_policy (AgentRegistrationPolicy | None): The agent registration policy.
-            enable_wallet_messaging (bool | dict[str, str]): Whether to enable
             wallet messaging. If '{"chain_id": CHAIN_ID}' is provided, this sets the chain ID for
             the messaging server.
             wallet_key_derivation_index (int): The index used for deriving the wallet key.
@@ -414,8 +412,6 @@ class Agent(Sink):
             self._readme = None
         self._description = description
         self._avatar_url = avatar_url
-
-        self.initialize_wallet_messaging(enable_wallet_messaging)
 
         # keep track of supported protocols
         self.protocols: dict[str, Protocol] = {}
@@ -529,7 +525,6 @@ class Agent(Sink):
             resolver=self._resolver,
             dispenser=self._dispenser,
             interval_messages=self._interval_messages,
-            wallet_messaging_client=self._wallet_messaging_client,
             logger=self._logger,
             message_history=self._message_history,
         )
@@ -569,43 +564,6 @@ class Agent(Sink):
         if name is None:
             self._name = self.address[0:16]
 
-    def initialize_wallet_messaging(
-        self, enable_wallet_messaging: bool | dict[str, str]
-    ):
-        """
-        Initialize wallet messaging for the agent.
-
-        Args:
-            enable_wallet_messaging (bool | dict[str, str]): Wallet messaging configuration.
-        """
-        if enable_wallet_messaging:
-            self._logger.warning(
-                "Wallet messaging is deprecated and will be removed in a future release."
-            )
-            wallet_chain_id = self._ledger.network_config.chain_id
-            if (
-                isinstance(enable_wallet_messaging, dict)
-                and "chain_id" in enable_wallet_messaging
-            ):
-                wallet_chain_id = enable_wallet_messaging["chain_id"]
-
-            try:
-                from uagents.wallet_messaging import WalletMessagingClient
-
-                self._wallet_messaging_client = WalletMessagingClient(
-                    identity=self._identity,
-                    wallet=self._wallet,
-                    chain_id=wallet_chain_id,
-                    logger=self._logger,
-                )
-            except ModuleNotFoundError:
-                self._logger.exception(
-                    "Unable to include wallet messaging. "
-                    "Please install the 'wallet' extra to enable wallet messaging."
-                )
-                self._wallet_messaging_client = None
-        else:
-            self._wallet_messaging_client = None
 
     def _initialize_metadata(self, metadata: dict[str, Any] | None) -> dict[str, Any]:
         """
@@ -1010,17 +968,6 @@ class Agent(Sink):
         elif event_type == "shutdown":
             self._on_shutdown.append(func)
 
-    def on_wallet_message(
-        self,
-    ):
-        """Add a handler for wallet messages."""
-        if self._wallet_messaging_client is None:
-            self._logger.warning(
-                "Discarding 'on_wallet_message' handler because wallet messaging is disabled"
-            )
-            return lambda func: func
-        return self._wallet_messaging_client.on_message()
-
     def include(self, protocol: Protocol, publish_manifest: bool = False):
         """
         Include a protocol into the agent's capabilities.
@@ -1206,16 +1153,6 @@ class Agent(Sink):
         # start the background message queue processor
         self._loop.create_task(self._process_message_queue())
 
-        # start the wallet messaging client if enabled
-        if self._wallet_messaging_client is not None:
-            for task in [
-                self._wallet_messaging_client.poll_server(),
-                self._wallet_messaging_client.process_message_queue(
-                    self._build_context
-                ),
-            ]:
-                self._loop.create_task(task)
-
     async def start_server(self):
         """Start the agent's server."""
         if self._enable_agent_inspector:
@@ -1310,7 +1247,6 @@ class Agent(Sink):
                 ledger=self._ledger,
                 resolver=self._resolver,
                 dispenser=self._dispenser,
-                wallet_messaging_client=self._wallet_messaging_client,
                 logger=self._logger,
                 queries=self._queries,
                 session=session,

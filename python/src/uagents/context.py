@@ -243,26 +243,6 @@ class Context(ABC):
         """
         raise NotImplementedError
 
-    @abstractmethod
-    async def send_wallet_message(
-        self,
-        destination: str,
-        text: str,
-        msg_type: int = 1,
-    ):
-        """
-        Send a message to the wallet of the specified destination.
-
-        Args:
-            destination (str): The destination address to send the message to.
-            text (str): The text of the message to be sent.
-            msg_type (int): The type of the message to be sent.
-
-        Returns:
-            None
-        """
-        raise NotImplementedError
-
 
 class InternalContext(Context):
     """Represents the agent internal context for proactive behaviour."""
@@ -276,7 +256,6 @@ class InternalContext(Context):
         dispenser: "Dispenser",
         session: uuid.UUID | None = None,
         interval_messages: set[str] | None = None,
-        wallet_messaging_client: Any | None = None,
         message_history: EnvelopeHistory | None = None,
         logger: logging.Logger | None = None,
     ):
@@ -288,7 +267,6 @@ class InternalContext(Context):
         self._logger = logger
         self._session = session or uuid.uuid4()
         self._interval_messages = interval_messages
-        self._wallet_messaging_client = wallet_messaging_client
         self._message_history = message_history
         self._outbound_messages: dict[str, list[tuple[JsonStr, str]]] = {}
 
@@ -672,21 +650,6 @@ class InternalContext(Context):
             )
 
         return response, msg_status
-
-    async def send_wallet_message(
-        self,
-        destination: str,
-        text: str,
-        msg_type: int = 1,
-    ):  # TODO: restructure wallet messaging
-        if self._wallet_messaging_client is not None:
-            await self._wallet_messaging_client.send(destination, text, msg_type)
-        else:
-            log(
-                logger=self.logger,
-                level=logging.WARNING,
-                message="Cannot send wallet message: no client available",
-            )
 
 
 class ExternalContext(InternalContext):
