@@ -20,8 +20,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-all = ["fetchai-babble >=0.4.5"]
+all = [
+    "fetchai-babble >=0.4.5",
+    "litellm >=1.78.6,<2.0",
+]
 wallet = ["fetchai-babble >=0.4.5"]
+llm = ["litellm >=1.78.6,<2.0"]
 
 [project.urls]
 homepage = "https://fetch.ai"
