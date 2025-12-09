@@ -3,11 +3,10 @@
 import logging
 import random
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 
 import aiohttp
-from dateutil import parser
 from pydantic import BaseModel
 from uagents_core.helpers import weighted_random_sample
 from uagents_core.identity import parse_identifier
@@ -306,11 +305,9 @@ class AlmanacApiResolver(Resolver):
             if expiry_str is None:
                 return None, []
 
-            expiry = parser.parse(expiry_str)
-            current_time = datetime.now(timezone.utc)
             endpoint_list = agent.get("endpoints", [])
 
-            if len(endpoint_list) > 0 and expiry > current_time:
+            if len(endpoint_list) > 0:
                 endpoints = [val.get("url") for val in endpoint_list]
                 weights = [val.get("weight") for val in endpoint_list]
                 return address, weighted_random_sample(
