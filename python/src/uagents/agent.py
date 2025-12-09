@@ -564,7 +564,6 @@ class Agent(Sink):
         if name is None:
             self._name = self.address[0:16]
 
-
     def _initialize_metadata(self, metadata: dict[str, Any] | None) -> dict[str, Any]:
         """
         Initialize the metadata for the agent.
