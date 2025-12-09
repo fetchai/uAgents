@@ -1,6 +1,6 @@
 [project]
 name = "uagents"
-version = "0.23.0"
+version = "0.23.1"
 description = "Lightweight framework for rapid agent-based development"
 authors = [
     { name = "Ed FitzGerald", email = "edward.fitzgerald@fetch.ai" },
@@ -20,8 +20,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-all = ["fetchai-babble >=0.4.5"]
+all = [
+    "fetchai-babble >=0.4.5",
+    "litellm >=1.78.6,<2.0",
+]
 wallet = ["fetchai-babble >=0.4.5"]
+llm = ["litellm >=1.78.6,<2.0"]
 
 [project.urls]
 homepage = "https://fetch.ai"
