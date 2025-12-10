@@ -21,7 +21,7 @@ pip install uagents[all]
 Build your agent from protocols as usual:
 
 ```python
-from uagents.experimental.chatagent.agent import ChatAgent
+from uagents.experimental.chat_agent import ChatAgent
 
 agent = ChatAgent(name="MathChat")
 proto = Protocol(name="Calculator", version="0.1.0")
