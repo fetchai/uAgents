@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from secrets import token_bytes
 
 import aiohttp
@@ -320,7 +320,7 @@ class MailboxClient:
         """
         self._attestation = compute_attestation(
             identity=self._identity,
-            validity_start=datetime.now(),
+            validity_start=datetime.now(timezone.utc),
             validity_secs=int(self._poll_interval * 2),
             nonce=token_bytes(nbytes=32),
         )
