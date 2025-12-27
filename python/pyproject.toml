@@ -16,15 +16,14 @@ dependencies = [
     "pydantic (>=2.8,<3.0)",
     "uvicorn (>=0.30.1,<1.0)",
     "aiohttp (>=3.8.3,<4.0)",
-    "cosmpy (>=0.11.0,<0.12.0)",
+    "cosmpy (==0.12.0rc1)",
 ]
 
 [project.optional-dependencies]
 all = [
-    "fetchai-babble >=0.4.5",
     "litellm >=1.78.6,<2.0",
 ]
-wallet = ["fetchai-babble >=0.4.5"]
+wallet = []
 llm = ["litellm >=1.78.6,<2.0"]
 
 [project.urls]
