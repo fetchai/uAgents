@@ -157,17 +157,6 @@ class LLM:
             messages, exclude_params={"system_prompt", "tool_choice"}
         )
 
-        # If there are tool messages, include tools but don't require them
-        has_tool_message = any(
-            isinstance(m, dict) and m.get("role") == "tool" for m in messages
-        )
-
-        if has_tool_message:
-            tools_specs = self._build_tool_specs()
-            if tools_specs:
-                kwargs["tools"] = tools_specs
-                kwargs["tool_choice"] = "auto"
-
         try:
             resp = cast(ModelResponse, completion(**kwargs))
         except Exception as e:
