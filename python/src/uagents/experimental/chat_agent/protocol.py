@@ -157,14 +157,21 @@ class ChatProtocol(Protocol):
     ):
         captured_messages: list[Model] = []
 
+        original_send = ctx.send
+
         # Create a wrapper to capture messages sent to the sender
-        async def capture_send(destination: str, message, timeout: int = 30):
+        async def capture_send(destination: str, message, timeout: int = 30, **kwargs):
             if destination == sender:
                 captured_messages.append(message)
 
+            return await original_send(destination, message, timeout=timeout, **kwargs)
+
         ctx.send = capture_send  # type: ignore
 
-        await tool.handler(ctx, sender, parsed_msg)
+        try:
+            await tool.handler(ctx, sender, parsed_msg)
+        finally:
+            ctx.send = original_send
 
         # Return captured messages
         return [msg.model_dump() for msg in captured_messages]

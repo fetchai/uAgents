@@ -166,7 +166,7 @@ class LLM:
             tools_specs = self._build_tool_specs()
             if tools_specs:
                 kwargs["tools"] = tools_specs
-                kwargs["tool_choice"] = "none"
+                kwargs["tool_choice"] = "auto"
 
         try:
             resp = cast(ModelResponse, completion(**kwargs))
