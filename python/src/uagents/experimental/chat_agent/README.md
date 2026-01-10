@@ -77,6 +77,31 @@ claude_config = LLMConfig(
 agent = ChatAgent(name="MathChat", llm_config=asione_config)
 ```
 
+### BlockRun.AI (Pay-per-request with x402)
+
+BlockRun provides access to multiple LLM providers with pay-per-request micropayments on Base chain. No API keys needed - just a wallet.
+
+```bash
+pip install uagents[blockrun]
+```
+
+```python
+from uagents.experimental.chat_agent import ChatAgent, LLMConfig
+
+# Set BLOCKRUN_WALLET_KEY env var or pass wallet_key directly
+blockrun_config = LLMConfig.blockrun(model="openai/gpt-4o")
+
+# Available models:
+# - openai/gpt-4o, openai/gpt-4o-mini
+# - anthropic/claude-sonnet-4
+# - google/gemini-2.0-flash
+# - deepseek/deepseek-chat
+
+agent = ChatAgent(name="MathChat", llm_config=blockrun_config)
+```
+
+Learn more: https://blockrun.ai/docs
+
 ## LLMParams defaults:
 
 * `temperature` = 0.0: make the model as deterministic as possible (no randomness in choices).
