@@ -30,7 +30,7 @@ class ToolContext:
         destination: str,
         message: Model,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
-    ):
+    ) -> MsgStatus:
         if destination == self._sender:
             self._captured.append(message)
             return MsgStatus(
