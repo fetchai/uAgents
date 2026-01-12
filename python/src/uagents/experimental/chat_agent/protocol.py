@@ -1,6 +1,5 @@
 import json
 from datetime import datetime, timezone
-from typing import cast
 
 from pydantic.v1 import ValidationError
 from uagents_core.contrib.protocols.chat import (
@@ -21,12 +20,7 @@ from uagents_core.types import DeliveryStatus, MsgStatus
 
 
 class ToolContext:
-    def __init__(
-        self,
-        base: Context,
-        sender: str,
-        captured: list[Model]
-    ):
+    def __init__(self, base: Context, sender: str, captured: list[Model]):
         self._base = base
         self._sender = sender
         self._captured = captured
@@ -35,7 +29,7 @@ class ToolContext:
         self,
         destination: str,
         message: Model,
-        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ):
         if destination == self._sender:
             self._captured.append(message)
