@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timezone
+from typing import cast
 
 from pydantic.v1 import ValidationError
 from uagents_core.contrib.protocols.chat import (
@@ -11,11 +12,44 @@ from uagents_core.contrib.protocols.chat import (
     TextContent,
     chat_protocol_spec,
 )
-
 from uagents import Context, Model
+from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
 from uagents.experimental.chat_agent.llm import LLM, LLMConfig
 from uagents.experimental.chat_agent.tools import Tool
 from uagents.protocol import Protocol
+from uagents_core.types import DeliveryStatus, MsgStatus
+
+
+class ToolContext:
+    def __init__(
+        self,
+        base: Context,
+        sender: str,
+        captured: list[Model]
+    ):
+        self._base = base
+        self._sender = sender
+        self._captured = captured
+
+    async def send(
+        self,
+        destination: str,
+        message: Model,
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS
+    ):
+        if destination == self._sender:
+            self._captured.append(message)
+            return MsgStatus(
+                status=DeliveryStatus.DELIVERED,
+                detail="Captured tool output",
+                destination=destination,
+                endpoint="",
+                session=self._base.session,
+            )
+        return await self._base.send(destination, message, timeout=timeout)
+
+    def __getattr__(self, name: str):
+        return getattr(self._base, name)
 
 
 class ChatProtocol(Protocol):
@@ -156,22 +190,7 @@ class ChatProtocol(Protocol):
         parsed_msg,
     ):
         captured_messages: list[Model] = []
+        tool_ctx = ToolContext(ctx, sender, captured_messages)
+        await tool.handler(tool_ctx, sender, parsed_msg)
 
-        original_send = ctx.send
-
-        # Create a wrapper to capture messages sent to the sender
-        async def capture_send(destination: str, message, timeout: int = 30, **kwargs):
-            if destination == sender:
-                captured_messages.append(message)
-
-            return await original_send(destination, message, timeout=timeout, **kwargs)
-
-        ctx.send = capture_send  # type: ignore
-
-        try:
-            await tool.handler(ctx, sender, parsed_msg)
-        finally:
-            ctx.send = original_send
-
-        # Return captured messages
         return [msg.model_dump() for msg in captured_messages]
