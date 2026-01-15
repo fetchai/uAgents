@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from secrets import token_bytes
 
 import aiohttp
@@ -203,7 +203,9 @@ class MailboxClient:
         self._identity = identity
         self._agentverse = agentverse
         self._attestation: str | None = None
+        self._attestation_expiry: int = 0
         self._poll_interval = MAILBOX_POLL_INTERVAL_SECONDS
+        self._attestation_validity_secs = int(self._poll_interval * 1000)
         self._logger = logger or get_logger("mailbox")
         self._missing_mailbox_warning_logged = False
 
@@ -217,13 +219,12 @@ class MailboxClient:
         """Retrieves envelopes from the mailbox server and processes them."""
         while True:
             try:
-                await self._create_attestation()
                 async with aiohttp.ClientSession() as session:
                     agents_url = self._agentverse.agents_api
                     async with session.get(
                         f"{agents_url}/{self._identity.address}/mailbox",
                         headers={
-                            "Authorization": f"Agent {self._attestation}",
+                            "Authorization": f"Agent {self.attestation}",
                         },
                     ) as resp:
                         success = resp.status == 200
@@ -302,7 +303,7 @@ class MailboxClient:
                 async with session.delete(
                     f"{agents_url}/{self._identity.address}/mailbox/{str(uuid)}",
                     headers={
-                        "Authorization": f"Agent {self._attestation}",
+                        "Authorization": f"Agent {self.attestation}",
                     },
                 ) as resp:
                     if resp.status >= 300:
@@ -314,13 +315,21 @@ class MailboxClient:
         except Exception as ex:
             self._logger.exception(f"Got exception while deleting message: {ex}")
 
-    async def _create_attestation(self):
+    @property
+    def attestation(self) -> str:
         """
-        Creates an attestation for the mailbox server.
+        Creates and returns an attestation for the mailbox server.
         """
-        self._attestation = compute_attestation(
-            identity=self._identity,
-            validity_start=datetime.now(),
-            validity_secs=int(self._poll_interval * 2),
-            nonce=token_bytes(nbytes=32),
-        )
+        if self._attestation_expiry - datetime.now(timezone.utc).timestamp() < 10:
+            now = datetime.now(timezone.utc)
+            self._attestation = compute_attestation(
+                identity=self._identity,
+                validity_start=now,
+                validity_secs=self._attestation_validity_secs,
+                nonce=token_bytes(nbytes=32),
+            )
+            self._attestation_expiry = (
+                int(now.timestamp()) + self._attestation_validity_secs
+            )
+
+        return self._attestation
