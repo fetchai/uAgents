@@ -386,7 +386,7 @@ class Agent(Sink):
         )
         self._dispenser = Dispenser(msg_cache_ref=self._message_history)
         self._message_queue = asyncio.Queue()
-        self._message_tasks = set()
+        self._message_tasks: set[asyncio.Task[None]] = set()
         self._on_startup = []
         self._on_shutdown = []
         self._network = network
