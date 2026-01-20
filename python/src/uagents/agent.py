@@ -242,6 +242,8 @@ class Agent(Sink):
         _dispatcher: The dispatcher for internal handling/sorting of messages.
         _dispenser: The dispatcher for external message handling.
         _message_queue: Asynchronous queue for incoming messages.
+        _message_tasks: A set for storing message handler tasks
+            to prevent the GC from deleting them.
         _on_startup (list[Callable]): List of functions to run on agent startup.
         _on_shutdown (list[Callable]): List of functions to run on agent shutdown.
         _version (str): The version of the agent.
