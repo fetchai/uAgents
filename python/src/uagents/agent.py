@@ -386,6 +386,7 @@ class Agent(Sink):
         )
         self._dispenser = Dispenser(msg_cache_ref=self._message_history)
         self._message_queue = asyncio.Queue()
+        self._message_tasks = set()
         self._on_startup = []
         self._on_shutdown = []
         self._network = network
@@ -1269,6 +1270,24 @@ class Agent(Sink):
                 return (protocol_digest, protocol)
         return None
 
+    def _handle_message(
+        self,
+        handler: MessageCallback,
+        context: ExternalContext,
+        sender: str,
+        model_class: type[Model],
+        message: Model,
+    ):
+        try:
+            handler(context, sender, message)
+            context.validate_replies(model_class)
+        except OSError as ex:
+            self._logger.exception(f"OS Error in message handler: {ex}")
+        except RuntimeError as ex:
+            self._logger.exception(f"Runtime Error in message handler: {ex}")
+        except Exception as ex:
+            self._logger.exception(f"Exception in message handler: {ex}")
+
     async def _process_message_queue(self) -> NoReturn:
         """Process the message queue."""
         while True:
@@ -1359,15 +1378,17 @@ class Agent(Sink):
                     continue
 
             if handler is not None:
-                try:
-                    await handler(context, sender, recovered)
-                    context.validate_replies(model_class)
-                except OSError as ex:
-                    self._logger.exception(f"OS Error in message handler: {ex}")
-                except RuntimeError as ex:
-                    self._logger.exception(f"Runtime Error in message handler: {ex}")
-                except Exception as ex:
-                    self._logger.exception(f"Exception in message handler: {ex}")
+                task = asyncio.create_task(
+                    self._handle_message(
+                        handler=handler,
+                        context=context,
+                        sender=sender,
+                        model_class=model_class,
+                        message=recovered,
+                    )
+                )
+                self._message_tasks.add(task)
+                task.add_done_callback(self._message_tasks.discard)
 
 
 class Bureau:
