@@ -1270,7 +1270,7 @@ class Agent(Sink):
                 return (protocol_digest, protocol)
         return None
 
-    def _handle_message(
+    async def _handle_message(
         self,
         handler: MessageCallback,
         context: ExternalContext,
@@ -1279,7 +1279,7 @@ class Agent(Sink):
         message: Model,
     ):
         try:
-            handler(context, sender, message)
+            await handler(context, sender, message)
             context.validate_replies(model_class)
         except OSError as ex:
             self._logger.exception(f"OS Error in message handler: {ex}")
