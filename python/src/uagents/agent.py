@@ -1378,7 +1378,7 @@ class Agent(Sink):
                     continue
 
             if handler is not None:
-                task = asyncio.create_task(
+                handler_task = asyncio.create_task(
                     self._handle_message(
                         handler=handler,
                         context=context,
@@ -1387,8 +1387,8 @@ class Agent(Sink):
                         message=recovered,
                     )
                 )
-                self._message_tasks.add(task)
-                task.add_done_callback(self._message_tasks.discard)
+                self._message_tasks.add(handler_task)
+                handler_task.add_done_callback(self._message_tasks.discard)
 
 
 class Bureau:
