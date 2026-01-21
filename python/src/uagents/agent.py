@@ -1385,7 +1385,7 @@ class Agent(Sink):
 
             if handler is not None:
                 if self._handle_messages_concurrently:
-                    handler_task = asyncio.create_task(
+                    handler_task = self._loop.create_task(
                         self._handle_message(
                             handler=handler,
                             context=context,
