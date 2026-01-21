@@ -242,6 +242,9 @@ class Agent(Sink):
         _dispatcher: The dispatcher for internal handling/sorting of messages.
         _dispenser: The dispatcher for external message handling.
         _message_queue: Asynchronous queue for incoming messages.
+        _message_tasks: A set for storing message handler tasks
+            to prevent the GC from deleting them.
+        _handle_messages_concurrently (bool): Whether to handle incoming messages concurrently.
         _on_startup (list[Callable]): List of functions to run on agent startup.
         _on_shutdown (list[Callable]): List of functions to run on agent shutdown.
         _version (str): The version of the agent.
@@ -296,6 +299,7 @@ class Agent(Sink):
         avatar_url: str | None = None,
         publish_agent_details: bool = True,
         store_message_history: bool = False,
+        handle_messages_concurrently: bool = False,
     ):
         """
         Initialize an Agent instance.
@@ -328,6 +332,7 @@ class Agent(Sink):
             publish_agent_details (bool): Publish agent details to Agentverse on connection via
             local agent inspector.
             store_message_history (bool): Store the message history for the agent.
+            handle_messages_concurrently (bool): Whether to handle incoming messages concurrently.
         """
         self._init_done = False
         self._name = name
@@ -386,6 +391,8 @@ class Agent(Sink):
         )
         self._dispenser = Dispenser(msg_cache_ref=self._message_history)
         self._message_queue = asyncio.Queue()
+        self._message_tasks: set[asyncio.Task] = set()
+        self._handle_messages_concurrently = handle_messages_concurrently
         self._on_startup = []
         self._on_shutdown = []
         self._network = network
@@ -1269,6 +1276,24 @@ class Agent(Sink):
                 return (protocol_digest, protocol)
         return None
 
+    async def _handle_message(
+        self,
+        handler: MessageCallback,
+        context: ExternalContext,
+        sender: str,
+        model_class: type[Model],
+        message: Model,
+    ):
+        try:
+            await handler(context, sender, message)
+            context.validate_replies(model_class)
+        except OSError as ex:
+            self._logger.exception(f"OS Error in message handler: {ex}")
+        except RuntimeError as ex:
+            self._logger.exception(f"Runtime Error in message handler: {ex}")
+        except Exception as ex:
+            self._logger.exception(f"Exception in message handler: {ex}")
+
     async def _process_message_queue(self) -> NoReturn:
         """Process the message queue."""
         while True:
@@ -1359,15 +1384,26 @@ class Agent(Sink):
                     continue
 
             if handler is not None:
-                try:
-                    await handler(context, sender, recovered)
-                    context.validate_replies(model_class)
-                except OSError as ex:
-                    self._logger.exception(f"OS Error in message handler: {ex}")
-                except RuntimeError as ex:
-                    self._logger.exception(f"Runtime Error in message handler: {ex}")
-                except Exception as ex:
-                    self._logger.exception(f"Exception in message handler: {ex}")
+                if self._handle_messages_concurrently:
+                    handler_task = self._loop.create_task(
+                        self._handle_message(
+                            handler=handler,
+                            context=context,
+                            sender=sender,
+                            model_class=model_class,
+                            message=recovered,
+                        )
+                    )
+                    self._message_tasks.add(handler_task)
+                    handler_task.add_done_callback(self._message_tasks.discard)
+                else:
+                    await self._handle_message(
+                        handler=handler,
+                        context=context,
+                        sender=sender,
+                        model_class=model_class,
+                        message=recovered,
+                    )
 
 
 class Bureau:

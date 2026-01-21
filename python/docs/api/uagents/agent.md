@@ -140,6 +140,9 @@ ts at which the agent is reachable.
 - `_dispatcher` - The dispatcher for internal handling/sorting of messages.
 - `_dispenser` - The dispatcher for external message handling.
 - `_message_queue` - Asynchronous queue for incoming messages.
+- `_message_tasks` - A set for storing message handler tasks
+  to prevent the GC from deleting them.
+- `_handle_messages_concurrently` _bool_ - Whether to handle incoming messages concurrently.
 - `_on_startup` _list[Callable]_ - List of functions to run on agent startup.
 - `_on_shutdown` _list[Callable]_ - List of functions to run on agent shutdown.
 - `_version` _str_ - The version of the agent.
@@ -194,7 +197,8 @@ def __init__(name: str | None = None,
              handle: str | None = None,
              avatar_url: str | None = None,
              publish_agent_details: bool = True,
-             store_message_history: bool = False)
+             store_message_history: bool = False,
+             handle_messages_concurrently: bool = False)
 ```
 
 Initialize an Agent instance.
@@ -228,6 +232,7 @@ Initialize an Agent instance.
 - `publish_agent_details` _bool_ - Publish agent details to Agentverse on connection via
   local agent inspector.
 - `store_message_history` _bool_ - Store the message history for the agent.
+- `handle_messages_concurrently` _bool_ - Whether to handle incoming messages concurrently.
 
 
 
