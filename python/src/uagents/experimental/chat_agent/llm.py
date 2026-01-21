@@ -54,11 +54,61 @@ class LLMConfig(BaseModel):
             parameters=LLMParams(),
         )
 
+    @classmethod
+    def blockrun(
+        cls,
+        model: str = "openai/gpt-4o-mini",
+        wallet_key: str | None = None,
+    ) -> "LLMConfig":
+        """
+        Create a BlockRun.AI LLM configuration using x402 micropayments.
+
+        BlockRun provides access to multiple LLM providers (OpenAI, Anthropic,
+        DeepSeek, Google) with pay-per-request USDC payments on Base chain.
+        No API keys needed - just a wallet.
+
+        Args:
+            model: Model to use (e.g., "openai/gpt-4o", "anthropic/claude-sonnet-4",
+                   "deepseek/deepseek-chat", "google/gemini-2.0-flash")
+            wallet_key: Base chain wallet private key (or set BLOCKRUN_WALLET_KEY env)
+
+        Example:
+            config = LLMConfig.blockrun(model="anthropic/claude-sonnet-4")
+            agent = ChatAgent(llm_config=config)
+
+        Learn more: https://blockrun.ai/docs
+        """
+        key = wallet_key or os.getenv("BLOCKRUN_WALLET_KEY")
+        if key is None:
+            raise ValueError(
+                "Please set BLOCKRUN_WALLET_KEY environment variable or pass wallet_key."
+            )
+        return LLMConfig(
+            provider="blockrun",
+            api_key=key,  # Wallet private key (used for local signing only)
+            model=model,
+            url="https://pay.blockrun.ai",
+            parameters=LLMParams(),
+        )
+
 
 class LLM:
     def __init__(self, config: LLMConfig, tools: dict[str, Tool]):
         self._config = config
         self._tools = tools
+        self._blockrun_client = None
+
+        # Initialize BlockRun client if using BlockRun provider
+        if config.provider == "blockrun":
+            try:
+                from blockrun_llm import LLMClient
+
+                self._blockrun_client = LLMClient(private_key=config.api_key)
+            except ImportError:
+                raise ImportError(
+                    "BlockRun provider requires blockrun-llm package. "
+                    "Install with: pip install blockrun-llm"
+                )
 
     def _build_tool_specs(self) -> list[dict[str, Any]]:
         return [tool.tool_spec() for tool in self._tools.values()]
@@ -102,6 +152,22 @@ class LLM:
 
         return (tool_name, args_dict, tool_call_id)
 
+    def _blockrun_completion(self, messages: list[dict]):
+        """Make a completion call using BlockRun SDK.
+
+        Note: BlockRun SDK currently supports basic chat completion.
+        Tool calling is not yet supported.
+        """
+        if self._blockrun_client is None:
+            raise RuntimeError("BlockRun client not initialized")
+
+        return self._blockrun_client.chat_completion(
+            model=self._config.model,
+            messages=messages,
+            max_tokens=self._config.parameters.max_tokens,
+            temperature=self._config.parameters.temperature,
+        )
+
     def process(
         self,
         message_history: list[dict[str, str]],
@@ -117,25 +183,37 @@ class LLM:
             *message_history,
         ]
 
-        kwargs = self._get_base_kwargs(messages, exclude_params={"system_prompt"})
-
-        # Add tools if available
-        if tools_specs:
-            kwargs["tools"] = tools_specs
+        # Use BlockRun SDK if provider is blockrun
+        if self._config.provider == "blockrun":
+            try:
+                resp = self._blockrun_completion(messages)
+                msg = {
+                    "role": "assistant",
+                    "content": resp.choices[0].message.content,
+                }
+            except Exception as e:
+                raise RuntimeError(f"BlockRun LLM call failed: {e}") from e
         else:
-            kwargs.pop("tool_choice", None)
+            # Use litellm for other providers
+            kwargs = self._get_base_kwargs(messages, exclude_params={"system_prompt"})
 
-        try:
-            resp = cast(ModelResponse, completion(**kwargs))
-        except Exception as e:
-            raise RuntimeError(f"LLM call failed: {e}") from e
+            # Add tools if available
+            if tools_specs:
+                kwargs["tools"] = tools_specs
+            else:
+                kwargs.pop("tool_choice", None)
 
-        message_obj = resp.choices[0].message
+            try:
+                resp = cast(ModelResponse, completion(**kwargs))
+            except Exception as e:
+                raise RuntimeError(f"LLM call failed: {e}") from e
 
-        if isinstance(message_obj, dict):
-            msg = message_obj
-        else:
-            msg = message_obj.model_dump()
+            message_obj = resp.choices[0].message
+
+            if isinstance(message_obj, dict):
+                msg = message_obj
+            else:
+                msg = message_obj.model_dump()
 
         tool_calls = msg.get("tool_calls") or []
 
@@ -153,6 +231,15 @@ class LLM:
 
     def complete(self, messages: list[dict]) -> str:
         """Finalize a chat turn after tool execution."""
+        # Use BlockRun SDK if provider is blockrun
+        if self._config.provider == "blockrun":
+            try:
+                resp = self._blockrun_completion(messages)
+                return (resp.choices[0].message.content or "").strip()
+            except Exception as e:
+                raise RuntimeError(f"BlockRun completion call failed: {e}") from e
+
+        # Use litellm for other providers
         kwargs = self._get_base_kwargs(
             messages, exclude_params={"system_prompt", "tool_choice"}
         )
