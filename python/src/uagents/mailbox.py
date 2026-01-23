@@ -212,7 +212,7 @@ class MailboxClient:
     async def run(self):
         """Runs the mailbox client."""
         self._logger.info(f"Starting mailbox client for {self._agentverse.url}")
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         loop.create_task(self._check_mailbox_loop())
 
     async def _check_mailbox_loop(self):
