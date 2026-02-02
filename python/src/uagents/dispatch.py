@@ -46,10 +46,11 @@ class Dispatcher:
     def pending_responses(self) -> dict[PendingResponseKey, Future[MsgInfo]]:
         return self._pending_responses
 
-    def register_pending_response(self, sender: str, destination: str, session: UUID):
-        self._pending_responses[(sender, destination, session)] = (
-            asyncio.get_event_loop().create_future()
-        )
+    async def register_pending_response(
+        self, sender: str, destination: str, session: UUID
+    ):
+        loop = asyncio.get_running_loop()
+        self._pending_responses[(sender, destination, session)] = loop.create_future()
 
     def cancel_pending_response(self, sender: str, destination: str, session: UUID):
         key: tuple[str, str, UUID] = (sender, destination, session)
@@ -64,7 +65,12 @@ class Dispatcher:
             response = await asyncio.wait_for(self._pending_responses[key], timeout)
         except asyncio.TimeoutError:
             response = None
-        del self._pending_responses[key]
+        except KeyError:
+            # Key was removed before wait_for completed
+            response = None
+        finally:
+            # Safe deletion - only delete if key exists
+            self._pending_responses.pop(key, None)
         return response
 
     def dispatch_pending_response(

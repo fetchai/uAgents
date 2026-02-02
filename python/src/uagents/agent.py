@@ -1262,10 +1262,13 @@ class Agent(Sink):
 
         A fresh event loop is created for the agent and it is closed after the agent stops.
         """
-        with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
-            self._loop.run_until_complete(self.run_async())
-        self._loop.stop()
-        self._loop.close()
+        try:
+            with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
+                self._loop.run_until_complete(self.run_async())
+        finally:
+            if not self._loop.is_closed():
+                self._loop.stop()
+                self._loop.close()
 
     def get_message_protocol(
         self, message_schema_digest
@@ -1611,7 +1614,10 @@ class Bureau:
 
     def run(self):
         """Run the bureau."""
-        with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
-            self._loop.run_until_complete(self.run_async())
-        self._loop.stop()
-        self._loop.close()
+        try:
+            with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
+                self._loop.run_until_complete(self.run_async())
+        finally:
+            if not self._loop.is_closed():
+                self._loop.stop()
+                self._loop.close()
