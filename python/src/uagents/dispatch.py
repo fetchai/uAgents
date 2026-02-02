@@ -46,13 +46,10 @@ class Dispatcher:
     def pending_responses(self) -> dict[PendingResponseKey, Future[MsgInfo]]:
         return self._pending_responses
 
-    def register_pending_response(self, sender: str, destination: str, session: UUID):
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            # Fallback if no running loop (shouldn't happen in normal usage)
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+    async def register_pending_response(
+        self, sender: str, destination: str, session: UUID
+    ):
+        loop = asyncio.get_running_loop()
         self._pending_responses[(sender, destination, session)] = loop.create_future()
 
     def cancel_pending_response(self, sender: str, destination: str, session: UUID):
