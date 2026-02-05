@@ -23,10 +23,35 @@ from uagents_core.types import DeliveryStatus, MsgStatus
 
 class ToolContext(ExternalContext):
     def __init__(self, base: ExternalContext, sender: str):
-        self.__dict__ = base.__dict__.copy()
-
+        self._base = base
         self._tool_sender = sender
         self._captured_messages: list[Model] = []
+
+    @property
+    def agent(self):
+        return self._base.agent
+
+    @property
+    def storage(self):
+        return self._base.storage
+
+    @property
+    def ledger(self):
+        return self._base.ledger
+
+    @property
+    def logger(self):
+        return self._base.logger
+
+    @property
+    def session(self):
+        return self._base.session
+
+    def session_history(self):
+        return self._base.session_history()
+
+    def __getattr__(self, name: str):
+        return getattr(self._base, name)
 
     @property
     def captured_messages(self) -> list[Model]:
@@ -48,7 +73,7 @@ class ToolContext(ExternalContext):
                 session=self.session,
             )
 
-        return await super().send(destination, message, timeout=timeout)
+        return await self._base.send(destination, message, timeout=timeout)
 
 
 class ChatProtocol(Protocol):
@@ -188,7 +213,7 @@ class ChatProtocol(Protocol):
         sender: str,
         parsed_msg,
     ):
-        tool_ctx = ToolContext(cast(ExternalContext, ctx), sender)
+        tool_ctx = ToolContext(ctx, sender)
         await tool.handler(tool_ctx, sender, parsed_msg)
 
         return [m.model_dump() for m in tool_ctx.captured_messages]

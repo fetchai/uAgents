@@ -32,10 +32,13 @@ class ChatAgent(Agent):
             tools=self._tools,
         )
 
-        super().include(self._chat_proto, publish_manifest=True)
+        self.include(self._chat_proto, publish_manifest=False)
 
-    def include(self, protocol: Protocol, publish_manifest: bool = True):
+    def include(self, protocol: Protocol, publish_manifest: bool = False):
         super().include(protocol, publish_manifest=publish_manifest)
+
+        if protocol is self._chat_proto:
+            return
 
         new_tools = extract_tools_from_protocol(protocol)
         for tool in new_tools:
