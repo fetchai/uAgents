@@ -1,6 +1,5 @@
 import json
 from datetime import datetime, timezone
-from typing import cast
 
 from pydantic.v1 import ValidationError
 from uagents_core.contrib.protocols.chat import (
@@ -22,10 +21,9 @@ from uagents_core.types import DeliveryStatus, MsgStatus
 
 
 class ToolContext(ExternalContext):
-    def __init__(self, base: ExternalContext, sender: str):
-        self.__dict__ = base.__dict__.copy()
-
-        self._tool_sender = sender
+    def __init__(self, *, tool_sender: str, **ctx_kwargs):
+        super().__init__(**ctx_kwargs)
+        self._tool_sender = tool_sender
         self._captured_messages: list[Model] = []
 
     @property
@@ -181,14 +179,23 @@ class ChatProtocol(Protocol):
             content.append(EndSessionContent(type="end-session"))
         return await ctx.send(recipient, ChatMessage(content=content))
 
-    async def use_tool(
-        self,
-        tool: Tool,
-        ctx: Context,
-        sender: str,
-        parsed_msg,
-    ):
-        tool_ctx = ToolContext(cast(ExternalContext, ctx), sender)
-        await tool.handler(tool_ctx, sender, parsed_msg)
+    async def use_tool(self, tool: Tool, ctx: Context, sender: str, parsed_msg):
+        tool_ctx = ToolContext(
+            tool_sender=sender,
+            agent=ctx.agent,
+            storage=ctx.storage,
+            ledger=ctx.ledger,
+            resolver=ctx.resolver,
+            dispenser=ctx.dispenser,
+            wallet_messaging_client=ctx.wallet_messaging_client,
+            logger=ctx.logger,
+            queries=ctx.queries,
+            session=ctx.session,
+            replies=ctx.replies,
+            message_received=ctx.message_received,
+            protocol=ctx.protocol,
+            message_history=ctx.message_history,
+        )
 
+        await tool.handler(tool_ctx, sender, parsed_msg)
         return [m.model_dump() for m in tool_ctx.captured_messages]
