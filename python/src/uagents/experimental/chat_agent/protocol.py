@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime, timezone
 
 from pydantic.v1 import ValidationError
@@ -11,13 +12,15 @@ from uagents_core.contrib.protocols.chat import (
     TextContent,
     chat_protocol_spec,
 )
+from uagents_core.types import DeliveryStatus, MsgStatus
+
 from uagents import Context, Model
 from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
 from uagents.context import ExternalContext
 from uagents.experimental.chat_agent.llm import LLM, LLMConfig
 from uagents.experimental.chat_agent.tools import Tool
 from uagents.protocol import Protocol
-from uagents_core.types import DeliveryStatus, MsgStatus
+from uagents.utils import log
 
 
 class ToolContext(ExternalContext):
@@ -63,12 +66,14 @@ class ChatProtocol(Protocol):
 
         @self.on_message(ChatAcknowledgement)
         async def _ack(ctx: Context, sender: str, msg: ChatAcknowledgement):
-            ctx.logger.info(
-                f"Got an acknowledgement from {sender} for {msg.acknowledged_msg_id}"
+            log(
+                ctx.logger,
+                logging.INFO,
+                f"Got an acknowledgement from {sender} for {msg.acknowledged_msg_id}",
             )
 
         @self.on_message(ChatMessage)
-        async def _chat_handler(ctx: Context, sender: str, msg: ChatMessage):
+        async def _chat_handler(ctx: ExternalContext, sender: str, msg: ChatMessage):
             await ctx.send(
                 sender,
                 ChatAcknowledgement(
@@ -78,7 +83,11 @@ class ChatProtocol(Protocol):
             )
 
             if any(isinstance(item, StartSessionContent) for item in msg.content):
-                ctx.logger.info(f"Got a start session message from {sender}")
+                log(
+                    ctx.logger,
+                    logging.INFO,
+                    f"Got a start session message from {sender}",
+                )
 
             user_text = msg.text()
             if not user_text:
@@ -110,7 +119,7 @@ class ChatProtocol(Protocol):
                 )
 
             except Exception as e:
-                ctx.logger.error(f"LLM failed: {e}")
+                log(ctx.logger, logging.ERROR, f"LLM failed: {e}")
                 return await self.send_text(
                     ctx, sender, f"Sorry, I couldn't process that: {e}"
                 )
@@ -129,7 +138,7 @@ class ChatProtocol(Protocol):
             try:
                 parsed_msg = tool.model_cls.model_validate(arg_dict)
             except ValidationError as ve:
-                ctx.logger.error(f"Validation error: {ve}")
+                log(ctx.logger, logging.ERROR, f"Validation error: {ve}")
                 return await self.send_text(
                     ctx,
                     sender,
@@ -142,7 +151,7 @@ class ChatProtocol(Protocol):
             try:
                 result = await self.use_tool(tool, ctx, sender, parsed_msg)
             except Exception as err:
-                ctx.logger.error(f"Handler error: {err}")
+                log(ctx.logger, logging.ERROR, f"Handler error: {err}")
                 return await self.send_text(
                     ctx,
                     sender,
@@ -168,7 +177,7 @@ class ChatProtocol(Protocol):
 
     async def send_text(
         self,
-        ctx: Context,
+        ctx: ExternalContext,
         recipient: str,
         text: str,
         *,
@@ -179,22 +188,18 @@ class ChatProtocol(Protocol):
             content.append(EndSessionContent(type="end-session"))
         return await ctx.send(recipient, ChatMessage(content=content))
 
-    async def use_tool(self, tool: Tool, ctx: Context, sender: str, parsed_msg):
+    async def use_tool(self, tool: Tool, ctx: ExternalContext, sender: str, parsed_msg):
         tool_ctx = ToolContext(
             tool_sender=sender,
             agent=ctx.agent,
             storage=ctx.storage,
             ledger=ctx.ledger,
-            resolver=ctx.resolver,
-            dispenser=ctx.dispenser,
-            wallet_messaging_client=ctx.wallet_messaging_client,
+            resolver=ctx._resolver,
+            dispenser=ctx._dispenser,
             logger=ctx.logger,
-            queries=ctx.queries,
             session=ctx.session,
-            replies=ctx.replies,
-            message_received=ctx.message_received,
-            protocol=ctx.protocol,
-            message_history=ctx.message_history,
+            message_received=ctx._message_received,
+            message_history=ctx._message_history,
         )
 
         await tool.handler(tool_ctx, sender, parsed_msg)

@@ -21,30 +21,37 @@ pip install uagents[all]
 Build your agent from protocols as usual:
 
 ```python
+from uagents import Context, Field, Model, Protocol
 from uagents.experimental.chat_agent import ChatAgent
 
-agent = ChatAgent(name="MathChat")
-proto = Protocol(name="Calculator", version="0.1.0")
+
+agent = ChatAgent(name="chat-bob", mailbox=True)
+proto = Protocol(name="WordCounter", version="0.1.0")
 
 
-class CalculateRequest(Model):
-    expression: str = Field(..., description="Mathematical expression to calculate")
+class WordCountRequest(Model):
+    text: str = Field(..., description="Text to count words in")
 
 
-class CalculateResponse(Model):
-    result: float = Field(..., description="Calculation result")
+class WordCountResponse(Model):
+    count: int = Field(..., description="Number of words")
 
 
-@proto.on_message(CalculateRequest)
-async def handle_calculate_request(ctx: Context, sender: str, msg: CalculateRequest):
-    ctx.logger.info(f"Received calculate request from {sender}: {msg.expression}")
+def count_words(s: str) -> int:
+    return len([w for w in s.split() if w.strip()])
+
+
+@proto.on_message(WordCountRequest)
+async def handle_word_count_request(ctx: Context, sender: str, msg: WordCountRequest):
+    ctx.logger.info(f"Received word count request from {sender}")
+    word_count = count_words(msg.text)
+    ctx.logger.info(f"Word count: {word_count}")
     await ctx.send(
-        sender, CalculateResponse(result=eval(msg.expression))
+        sender, WordCountResponse(count=word_count)
     )
 
 
-agent.include(proto, publish_manifest=True)
-
+agent.include(proto)
 
 if __name__ == "__main__":
     agent.run()
@@ -56,6 +63,7 @@ LLM behavior is configured via LLMParams and LLMConfig:
 ```python
 from uagents.experimental.chat_agent import ChatAgent, LLMParams, LLMConfig
 
+# When using default, set ASI1_API_KEY environment variable (https://asi1.ai/developer)
 asione_config = LLMConfig.asi1() # default
 
 openai_config = LLMConfig(

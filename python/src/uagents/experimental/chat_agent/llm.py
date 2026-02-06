@@ -132,10 +132,7 @@ class LLM:
 
         message_obj = resp.choices[0].message
 
-        if isinstance(message_obj, dict):
-            msg = message_obj
-        else:
-            msg = message_obj.model_dump()
+        msg = message_obj if isinstance(message_obj, dict) else message_obj.model_dump()
 
         tool_calls = msg.get("tool_calls") or []
 
