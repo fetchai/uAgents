@@ -1,5 +1,4 @@
 import json
-import logging
 from datetime import datetime, timezone
 
 from pydantic.v1 import ValidationError
@@ -20,7 +19,6 @@ from uagents.context import ExternalContext
 from uagents.experimental.chat_agent.llm import LLM, LLMConfig
 from uagents.experimental.chat_agent.tools import Tool
 from uagents.protocol import Protocol
-from uagents.utils import log
 
 
 class ToolContext(ExternalContext):
@@ -66,11 +64,10 @@ class ChatProtocol(Protocol):
 
         @self.on_message(ChatAcknowledgement)
         async def _ack(ctx: Context, sender: str, msg: ChatAcknowledgement):
-            log(
-                ctx.logger,
-                logging.INFO,
-                f"Got an acknowledgement from {sender} for {msg.acknowledged_msg_id}",
-            )
+            if ctx.logger is not None:
+                ctx.logger.info(
+                    f"Got an acknowledgement from {sender} for {msg.acknowledged_msg_id}"
+                )
 
         @self.on_message(ChatMessage)
         async def _chat_handler(ctx: ExternalContext, sender: str, msg: ChatMessage):
@@ -82,12 +79,11 @@ class ChatProtocol(Protocol):
                 ),
             )
 
-            if any(isinstance(item, StartSessionContent) for item in msg.content):
-                log(
-                    ctx.logger,
-                    logging.INFO,
-                    f"Got a start session message from {sender}",
-                )
+            if (
+                any(isinstance(item, StartSessionContent) for item in msg.content)
+                and ctx.logger is not None
+            ):
+                ctx.logger.info(f"Got a start session message from {sender}")
 
             user_text = msg.text()
             if not user_text:
@@ -119,7 +115,8 @@ class ChatProtocol(Protocol):
                 )
 
             except Exception as e:
-                log(ctx.logger, logging.ERROR, f"LLM failed: {e}")
+                if ctx.logger is not None:
+                    ctx.logger.error(f"LLM failed: {e}")
                 return await self.send_text(
                     ctx, sender, f"Sorry, I couldn't process that: {e}"
                 )
@@ -138,7 +135,8 @@ class ChatProtocol(Protocol):
             try:
                 parsed_msg = tool.model_cls.model_validate(arg_dict)
             except ValidationError as ve:
-                log(ctx.logger, logging.ERROR, f"Validation error: {ve}")
+                if ctx.logger is not None:
+                    ctx.logger.error(f"Validation error: {ve}")
                 return await self.send_text(
                     ctx,
                     sender,
@@ -151,7 +149,8 @@ class ChatProtocol(Protocol):
             try:
                 result = await self.use_tool(tool, ctx, sender, parsed_msg)
             except Exception as err:
-                log(ctx.logger, logging.ERROR, f"Handler error: {err}")
+                if ctx.logger is not None:
+                    ctx.logger.error(f"Handler error: {err}")
                 return await self.send_text(
                     ctx,
                     sender,
