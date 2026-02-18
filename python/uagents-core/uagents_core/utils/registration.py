@@ -265,21 +265,25 @@ def _register_in_agentverse(
         extra=registration_metadata,
     )
 
+    if agent_details.track_interactions:
+        endpoints = [AgentEndpoint(url=agentverse_config.proxy_endpoint, weight=1)]
+    else:
+        endpoints = [AgentEndpoint(url=agent_details.endpoint, weight=1)]
+
     reg_request = RegistrationRequest(
         address=agent_address,
         name=agent_details.name,
         handle=agent_details.handle,
-        url=agent_details.avatar_url,
+        url=agent_details.endpoint,
         agent_type=agent_details.type,
         profile=AgentProfile(
             description=agent_details.description or "",
             readme=agent_details.readme or "",
             avatar_url=agent_details.avatar_url or "",
         ),
-        endpoints=[AgentEndpoint(url=agent_details.endpoint, weight=1)],
+        endpoints=endpoints,
         protocols=agent_details.protocols,
         metadata=agent_details.metadata,
-        track_interactions=agent_details.track_interactions,
     )
 
     try:
