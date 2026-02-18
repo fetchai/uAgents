@@ -128,6 +128,10 @@ class RegistrationRequest(BaseModel):
     metadata: dict[str, Any] | None = Field(
         default=None, description="Optional metadata for the agent"
     )
+    track_interactions: bool | None = Field(
+        default=True,
+        description="Whether to track interactions of this agent in Agentverse.",
+    )
 
 
 class BatchRegistrationRequest(BaseModel):

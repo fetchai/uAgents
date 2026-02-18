@@ -279,6 +279,7 @@ def _register_in_agentverse(
         endpoints=[AgentEndpoint(url=agent_details.endpoint, weight=1)],
         protocols=agent_details.protocols,
         metadata=agent_details.metadata,
+        track_interactions=agent_details.track_interactions,
     )
 
     try:
