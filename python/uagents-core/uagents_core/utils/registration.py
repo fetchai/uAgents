@@ -67,6 +67,10 @@ class AgentverseRegistrationRequest(BaseModel):
         description="Agent's unique handle in Agentverse.",
     )
     active: bool = Field(default=True, description="Set agent as active immediatly")
+    track_interactions: bool | None = Field(
+        default=True,
+        description="Whether to track interactions of this agent in Agentverse.",
+    )
 
     @model_validator(mode="after")
     def check_request(self) -> "AgentverseRegistrationRequest":
@@ -406,6 +410,7 @@ def register_chat_agent(
     endpoint: str,
     active: bool,
     credentials: RegistrationRequestCredentials,
+    track_interactions: bool = True,
     description: str | None = None,
     readme: str | None = None,
     avatar_url: str | None = None,
@@ -429,6 +434,7 @@ def register_chat_agent(
         readme=readme,
         avatar_url=avatar_url,
         metadata=raw_metadata,
+        track_interactions=track_interactions,
     )
     config = agentverse_config or AgentverseConfig()
 
