@@ -1,6 +1,6 @@
 [project]
 name = "uagents-core"
-version = "0.4.0"
+version = "0.4.1"
 description = "Core components for agent based systems"
 authors = [
     { name = "Ed FitzGerald", email = "edward.fitzgerald@fetch.ai" },
@@ -8,6 +8,7 @@ authors = [
     { name = "Alejandro Morales", email = "alejandro.madrigal@fetch.ai" },
     { name = "Florian Wilde", email = "florian.wilde@fetch.ai" },
     { name = "Attila Bagoly", email = "attila.bagoly@fetch.ai" },
+    { name = "Devon Bleibtrey", email = "devon.bleibtrey@flockx.io" },
 ]
 license = { text = "Apache 2.0" }
 readme = "README.md"

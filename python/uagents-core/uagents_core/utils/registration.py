@@ -1,5 +1,47 @@
-"""
-This module provides methods to register your identity with the Fetch.ai services.
+"""Registration utilities for the Agentverse platform.
+
+This module provides functions to register agents with Agentverse, the Fetch.ai
+agent discovery and marketplace service. Registration makes your agent
+discoverable by other agents and sets up the webhook endpoint for receiving
+messages.
+
+Typical usage for a chat-capable agent::
+
+    from uagents_core.utils.registration import (
+        AgentverseRequestError,
+        RegistrationRequestCredentials,
+        register_chat_agent,
+    )
+
+    credentials = RegistrationRequestCredentials(
+        agent_seed_phrase="your-agent-seed-phrase",
+        agentverse_api_key="your-agentverse-api-key",
+    )
+
+    try:
+        register_chat_agent(
+            name="My Agent",
+            endpoint="https://my-server.com/webhook",
+            active=True,
+            credentials=credentials,
+            readme="# My Agent\\nHandles customer questions.",
+        )
+    except AgentverseRequestError as error:
+        print(f"Registration failed: {error}")
+        # Access the underlying network/HTTP exception:
+        print(f"Caused by: {error.from_exc}")
+
+Registration performs three steps:
+
+1. **Identity verification** -- proves ownership of the agent address via a
+   cryptographic challenge-response flow with the Agentverse identity API.
+2. **Agent details registration** -- creates or updates the agent's profile,
+   endpoint, protocols, and metadata on Agentverse.
+3. **Status activation** -- marks the agent as active in the Almanac so
+   Agentverse keeps the entry synchronized and discoverable.
+
+All HTTP failures are wrapped in :class:`AgentverseRequestError`, which
+preserves the original exception in its ``from_exc`` attribute for debugging.
 """
 
 import urllib.parse
@@ -33,12 +75,18 @@ logger = get_logger("uagents_core.utils.registration")
 
 
 class AgentverseRegistrationRequest(BaseModel):
-    """
-    A model containing all information for a user to register
-    their pre-existing agent to Agentverse.
+    """All information needed to register an agent with Agentverse.
+
+    This is the internal representation used by :func:`register_agent` and
+    :func:`register_chat_agent`. Most callers should use those functions
+    directly rather than constructing this model manually.
+
+    Raises:
+        ValueError: If ``endpoint`` is not a valid URL or any protocol
+            digest in ``protocols`` is malformed.
     """
 
-    name: str = Field(description="Agent name in Agentverse")
+    name: str = Field(description="Agent name in Agentverse.")
     endpoint: str = Field(
         description="Endpoint where the existing agent is accessible at."
     )
@@ -50,7 +98,7 @@ class AgentverseRegistrationRequest(BaseModel):
         description="Additional metadata about the agent (e.g. geolocation).",
     )
     type: AgentType = Field(
-        default="uagent", description="Agentverse registration type"
+        default="uagent", description="Agentverse registration type."
     )
     description: str | None = Field(
         default=None,
@@ -59,14 +107,17 @@ class AgentverseRegistrationRequest(BaseModel):
     readme: str | None = Field(default=None, description="Agent skills description.")
     avatar_url: str | None = Field(
         default=None,
-        description="Agent avatar url to be shown on its Agentverse profile.",
+        description="Agent avatar URL to be shown on its Agentverse profile.",
     )
     handle: str | None = Field(
         default=None,
         max_length=40,
         description="Agent's unique handle in Agentverse.",
     )
-    active: bool = Field(default=True, description="Set agent as active immediatly")
+    active: bool = Field(
+        default=True,
+        description="Set agent as active immediately after registration.",
+    )
     track_interactions: bool | None = Field(
         default=True,
         description="Whether to track interactions of this agent in Agentverse.",
@@ -74,12 +125,10 @@ class AgentverseRegistrationRequest(BaseModel):
 
     @model_validator(mode="after")
     def check_request(self) -> "AgentverseRegistrationRequest":
-        # check endpoint
         result = urllib.parse.urlparse(self.endpoint)
         if not all([result.scheme, result.netloc]):
             raise ValueError(f"Invalid endpoint provided: {self.endpoint}")
 
-        # check protocol digests
         for proto_digest in self.protocols:
             if not is_valid_protocol_digest(proto_digest):
                 raise ValueError(
@@ -89,18 +138,76 @@ class AgentverseRegistrationRequest(BaseModel):
 
 
 class RegistrationRequestCredentials(BaseModel):
+    """Credentials required to authenticate with the Agentverse API.
+
+    Attributes:
+        agentverse_api_key: An API key generated from the Agentverse dashboard
+            (https://agentverse.ai). This authenticates the request.
+        agent_seed_phrase: The secret seed phrase used to derive the agent's
+            cryptographic identity. This must match the seed used when the
+            agent was first created.
+        team: Optional team identifier. When provided, the agent is registered
+            under this team in Agentverse.
+    """
+
     agentverse_api_key: str = Field(
-        description="Agentverse API key generated by the owner of the agent"
+        description="Agentverse API key generated by the owner of the agent."
     )
     agent_seed_phrase: str = Field(
-        description="The secret seed phrase used to create the agent identity"
+        description="The secret seed phrase used to create the agent identity."
     )
     team: str | None = Field(
-        default=None, description="The team the agent belongs to in Agentverse"
+        default=None, description="The team the agent belongs to in Agentverse."
     )
 
 
 class AgentverseRequestError(Exception):
+    """Raised when an Agentverse API request fails.
+
+    This exception wraps all HTTP and network errors that occur during
+    registration, identity verification, or status updates. The human-readable
+    message describes what went wrong, while ``from_exc`` preserves the
+    original exception for debugging.
+
+    Attributes:
+        from_exc: The original exception that caused this error. Common types
+            include ``requests.ConnectionError`` (network unreachable),
+            ``requests.Timeout`` (request timed out),
+            ``requests.HTTPError`` (non-2xx status code), and
+            ``requests.RequestException`` (other request failures).
+
+    Common error messages and their meaning:
+
+    - ``"Connection error ..."`` -- Could not reach the Agentverse API. Check
+      your network connection and the configured base URL.
+    - ``"Operation timed out."`` -- The request exceeded the timeout
+      (default: 10 seconds). The Agentverse API may be under heavy load.
+    - ``"HTTP error: 401 ..."`` -- Invalid or expired API key. Generate a new
+      key from the Agentverse dashboard.
+    - ``"HTTP error: 406 ..."`` -- The request was not acceptable. This
+      typically means the agent data is malformed or missing required fields.
+    - ``"HTTP error: 409 ..."`` -- Conflict. The agent address or handle is
+      already registered by a different account.
+    - ``"Unexpected server error."`` -- HTTP 500 from Agentverse. Retry after
+      a short delay. If persistent, check the Agentverse status page.
+    - ``"failed to request proof-of-ownership challenge. ..."`` -- The
+      identity verification step failed. This usually means the API key
+      does not have permission to register this agent address.
+
+    Example::
+
+        try:
+            register_chat_agent(...)
+        except AgentverseRequestError as error:
+            print(f"Registration failed: {error}")
+
+            # Inspect the underlying cause
+            if isinstance(error.from_exc, requests.Timeout):
+                print("Consider increasing the timeout or retrying.")
+            elif isinstance(error.from_exc, requests.HTTPError):
+                print(f"HTTP status: {error.from_exc.response.status_code}")
+    """
+
     def __init__(self, *args, from_exc: Exception):
         self.from_exc = from_exc
         super().__init__(*args)
@@ -181,15 +288,15 @@ def _register_in_agentverse(
     agentverse_config: AgentverseConfig | None = None,
     timeout: int = DEFAULT_REQUEST_TIMEOUT,
 ):
-    """
-    Register an agent in Agentverse and update its details if provided.
+    """Register an agent in Agentverse (internal implementation).
 
-    Args:
-        request (AgentverseConnectRequest): The request containing the agent details.
-        identity (Identity): The identity of the agent.
-        agent_details (AgentverseRegistrationRequest): The agent details to update.
-        agentverse_config (AgentverseConfig | None): The configuration for the agentverse API
-        timeout (int): The timeout for the requests
+    Performs identity verification (if the agent is new) and then registers
+    or updates the agent's details. This is the core implementation used by
+    :func:`register_in_agentverse` and :func:`register_agent`.
+
+    Raises:
+        AgentverseRequestError: If any API call fails (identity challenge,
+            identity proof submission, or agent details registration).
     """
     agentverse_config = agentverse_config or AgentverseConfig()
     agents_api = agentverse_config.agents_api
@@ -286,15 +393,12 @@ def _register_in_agentverse(
         metadata=agent_details.metadata,
     )
 
-    try:
-        _send_post_request_agentverse(
-            url=agents_api,
-            headers=headers,
-            data=reg_request,
-            timeout=timeout,
-        )
-    except AgentverseRequestError as e:
-        logger.warning(f"failed to register agent. {str(e)}")
+    _send_post_request_agentverse(
+        url=agents_api,
+        headers=headers,
+        data=reg_request,
+        timeout=timeout,
+    )
 
 
 def register_in_agentverse(
@@ -305,15 +409,28 @@ def register_in_agentverse(
     agentverse_config: AgentverseConfig | None = None,
     timeout: int = DEFAULT_REQUEST_TIMEOUT,
 ) -> bool:
-    """
-    Register an agent in Agentverse and update its details if provided.
+    """Register an agent in Agentverse (error-safe wrapper).
+
+    This is a convenience wrapper around :func:`_register_in_agentverse`
+    that catches :class:`AgentverseRequestError` and returns ``False``
+    instead of raising. Use this when you want simple boolean success/failure
+    semantics without handling exceptions.
+
+    For error details, use :func:`register_agent` or
+    :func:`register_chat_agent` instead, which raise
+    :class:`AgentverseRequestError` with diagnostic information.
 
     Args:
-        request (AgentverseConnectRequest): The request containing the agent details.
-        identity (Identity): The identity of the agent.
-        agent_details (AgentverseRegistrationRequest): The agent details to update.
-        agentverse_config (AgentverseConfig | None): The configuration for the agentverse API
-        timeout (int): The timeout for the requests
+        request: Connection details including the API token and endpoint.
+        identity: The cryptographic identity of the agent.
+        agent_details: Agent profile data to register.
+        agentverse_config: Custom API configuration. Defaults to the
+            standard Agentverse production endpoint.
+        timeout: HTTP request timeout in seconds. Defaults to 10.
+
+    Returns:
+        ``True`` if registration succeeded, ``False`` if any API call failed.
+        On failure, the error is logged but not raised.
     """
     try:
         _register_in_agentverse(
@@ -331,12 +448,14 @@ def register_in_agentverse(
 
 
 def _update_agent_status(active: bool, identity: Identity):
-    """
-    Update the agent's active/inactive status in the Almanac API.
+    """Update the agent's active/inactive status in the Almanac API.
 
-    Args:
-        active (bool): The status of the agent.
-        identity (Identity): The identity of the agent.
+    Active agents are kept synchronized by Agentverse and remain
+    discoverable. Inactive agents are still registered but will not
+    appear in search results.
+
+    Raises:
+        AgentverseRequestError: If the status update API call fails.
     """
     almanac_api = AgentverseConfig().url + DEFAULT_ALMANAC_API_PATH
 
@@ -357,12 +476,19 @@ def _update_agent_status(active: bool, identity: Identity):
 
 
 def update_agent_status(active: bool, identity: Identity) -> bool:
-    """
-    Update the agent's active/inactive status in the Almanac API.
+    """Update the agent's active/inactive status (error-safe wrapper).
+
+    This is a convenience wrapper that catches :class:`AgentverseRequestError`
+    and returns ``False`` instead of raising.
 
     Args:
-        active (bool): The status of the agent.
-        identity (Identity): The identity of the agent.
+        active: ``True`` to mark the agent as active (discoverable),
+            ``False`` to mark it as inactive.
+        identity: The cryptographic identity of the agent.
+
+    Returns:
+        ``True`` if the status update succeeded, ``False`` otherwise.
+        On failure, the error is logged but not raised.
     """
     try:
         _update_agent_status(active, identity)
@@ -377,7 +503,37 @@ def register_agent(
     agent_registration: AgentverseRegistrationRequest,
     agentverse_config: AgentverseConfig,
     credentials: RegistrationRequestCredentials,
-):
+) -> bool:
+    """Register an agent in Agentverse and optionally set it as active.
+
+    This is the primary registration function. It derives the agent's
+    cryptographic identity from the seed phrase, verifies ownership with
+    Agentverse, registers the agent details, and (if ``active=True`` in
+    the registration request) sets the agent status to active.
+
+    For chat-capable agents, prefer :func:`register_chat_agent` which
+    automatically includes the chat protocol digest.
+
+    Args:
+        agent_registration: The agent details to register (name, endpoint,
+            protocols, metadata, etc.).
+        agentverse_config: API configuration (base URL, HTTP prefix).
+        credentials: Authentication credentials (API key, seed phrase,
+            and optional team).
+
+    Returns:
+        ``True`` if registration (and activation, if requested) succeeded.
+
+    Raises:
+        AgentverseRequestError: If any step of the registration fails.
+            Common causes include invalid API key (HTTP 401), malformed
+            request data (HTTP 406), address conflict (HTTP 409), server
+            errors (HTTP 500), network timeouts, or connection failures.
+            The original exception is available via ``error.from_exc``.
+        ValueError: If the endpoint URL or protocol digests in
+            ``agent_registration`` are malformed (raised during model
+            validation, before any API calls are made).
+    """
     identity = Identity.from_seed(credentials.agent_seed_phrase, 0)
     connect_request = AgentverseConnectRequest(
         user_token=credentials.agentverse_api_key,
@@ -386,28 +542,21 @@ def register_agent(
         team=credentials.team,
     )
 
-    # register the agent to agentverse
-    try:
-        logger.info("registering to Agentverse...")
-        _register_in_agentverse(
-            connect_request,
-            identity,
-            agent_details=agent_registration,
-            agentverse_config=agentverse_config,
-        )
-        logger.info("successfully registered to Agentverse.")
-    except AgentverseRequestError as e:
-        logger.error(f"failed to register to Agentverse. {str(e)}")
-        return
+    logger.info("registering to Agentverse...")
+    _register_in_agentverse(
+        connect_request,
+        identity,
+        agent_details=agent_registration,
+        agentverse_config=agentverse_config,
+    )
+    logger.info("successfully registered to Agentverse.")
 
-    # set agent as active
     if agent_registration.active:
-        try:
-            logger.info("setting agent as active...")
-            _update_agent_status(True, identity)
-            logger.info("successfully set agent to active.")
-        except AgentverseRequestError as e:
-            logger.warning(f"failed to set agent as active. {str(e)}")
+        logger.info("setting agent as active...")
+        _update_agent_status(True, identity)
+        logger.info("successfully set agent to active.")
+
+    return True
 
 
 def register_chat_agent(
@@ -421,7 +570,81 @@ def register_chat_agent(
     avatar_url: str | None = None,
     metadata: AgentMetadata | dict[str, str | list[str] | dict[str, str]] | None = None,
     agentverse_config: AgentverseConfig | None = None,
-):
+) -> bool:
+    """Register a chat-capable agent in Agentverse.
+
+    This is the recommended entry point for registering agents that support
+    the standard chat protocol. It automatically includes the chat protocol
+    digest so the agent is discoverable for chat-based interactions.
+
+    The function performs three steps:
+
+    1. **Identity verification** -- If this is a new agent, proves ownership
+       via a cryptographic challenge signed with the agent's seed phrase.
+    2. **Agent details registration** -- Creates or updates the agent's name,
+       endpoint, readme, avatar, and metadata on Agentverse.
+    3. **Status activation** -- If ``active=True``, marks the agent as active
+       in the Almanac so it remains discoverable.
+
+    Args:
+        name: Display name for the agent on Agentverse (max 80 characters
+            recommended).
+        endpoint: The publicly accessible webhook URL where the agent
+            receives messages. Must include scheme (``https://``).
+        active: Whether to set the agent as active immediately after
+            registration. Active agents are discoverable and kept
+            synchronized by Agentverse.
+        credentials: Authentication credentials. See
+            :class:`RegistrationRequestCredentials`.
+        description: Short description shown on the agent's Agentverse
+            profile page.
+        readme: Longer markdown description of the agent's capabilities.
+            This is displayed on the agent's detail page in Agentverse.
+        avatar_url: URL to the agent's avatar image.
+        metadata: Additional metadata such as categories, tags, geolocation,
+            contact details, and visibility (``is_public``). Can be a dict
+            or an :class:`AgentMetadata` instance.
+        agentverse_config: Custom API configuration. Defaults to the
+            standard Agentverse production endpoint (``agentverse.ai``).
+
+    Returns:
+        ``True`` if registration succeeded.
+
+    Raises:
+        AgentverseRequestError: If any step of the registration or
+            activation fails. See :class:`AgentverseRequestError` for
+            common error messages and their meaning.
+        ValueError: If ``endpoint`` is not a valid URL.
+
+    Example::
+
+        from uagents_core.utils.registration import (
+            AgentverseRequestError,
+            RegistrationRequestCredentials,
+            register_chat_agent,
+        )
+
+        credentials = RegistrationRequestCredentials(
+            agent_seed_phrase="my-secret-seed",
+            agentverse_api_key="av-key-...",
+        )
+
+        try:
+            register_chat_agent(
+                name="Customer Support Agent",
+                endpoint="https://my-server.com/agent/webhook",
+                active=True,
+                credentials=credentials,
+                readme="# Customer Support\\nAnswers product questions.",
+                metadata={
+                    "categories": ["support"],
+                    "is_public": "True",
+                },
+            )
+            print("Agent registered successfully!")
+        except AgentverseRequestError as error:
+            print(f"Registration failed: {error}")
+    """
     chat_protocol = [
         ProtocolSpecification.compute_digest(chat_protocol_spec.manifest())
     ]
@@ -443,7 +666,7 @@ def register_chat_agent(
     )
     config = agentverse_config or AgentverseConfig()
 
-    register_agent(request, config, credentials)
+    return register_agent(request, config, credentials)
 
 
 def register_batch_in_agentverse(
@@ -453,18 +676,24 @@ def register_batch_in_agentverse(
     agentverse_config: AgentverseConfig | None = None,
     timeout: int = DEFAULT_REQUEST_TIMEOUT,
 ) -> bool:
-    """
-    Register multiple agents in Agentverse using the batch endpoint.
+    """Register multiple agents in a single batch request (error-safe).
+
+    .. deprecated::
+        Prefer individual :func:`register_chat_agent` calls. Batch
+        registration does not include identity verification or status
+        activation.
 
     Args:
-        batch_request (BatchRegistrationRequest): The batch registration request containing
-            a list of agents to register.
-        user_token (str): The user's authentication token for Agentverse.
-        agentverse_config (AgentverseConfig | None): The configuration for the agentverse API.
-        timeout (int): The timeout for the request.
+        batch_request: The batch registration request containing a list
+            of agents to register.
+        user_token: The user's Agentverse API key.
+        agentverse_config: Custom API configuration. Defaults to the
+            standard Agentverse production endpoint.
+        timeout: HTTP request timeout in seconds. Defaults to 10.
 
     Returns:
-        bool: True if the batch registration was successful, False otherwise.
+        ``True`` if the batch registration succeeded, ``False`` otherwise.
+        On failure, the error is logged but not raised.
     """
     agentverse_config = agentverse_config or AgentverseConfig()
     agents_api = agentverse_config.agents_api
