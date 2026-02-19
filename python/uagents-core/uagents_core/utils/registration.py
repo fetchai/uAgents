@@ -277,15 +277,12 @@ def _register_in_agentverse(
         metadata=agent_details.metadata,
     )
 
-    try:
-        _send_post_request_agentverse(
-            url=agents_api,
-            headers=headers,
-            data=reg_request,
-            timeout=timeout,
-        )
-    except AgentverseRequestError as e:
-        logger.warning(f"failed to register agent. {str(e)}")
+    _send_post_request_agentverse(
+        url=agents_api,
+        headers=headers,
+        data=reg_request,
+        timeout=timeout,
+    )
 
 
 def register_in_agentverse(
@@ -368,7 +365,16 @@ def register_agent(
     agent_registration: AgentverseRegistrationRequest,
     agentverse_config: AgentverseConfig,
     credentials: RegistrationRequestCredentials,
-):
+) -> bool:
+    """
+    Register an agent in Agentverse and optionally set it as active.
+
+    Returns:
+        True if registration (and activation, if requested) succeeded.
+
+    Raises:
+        AgentverseRequestError: If registration or activation fails.
+    """
     identity = Identity.from_seed(credentials.agent_seed_phrase, 0)
     connect_request = AgentverseConnectRequest(
         user_token=credentials.agentverse_api_key,
@@ -377,28 +383,21 @@ def register_agent(
         team=credentials.team,
     )
 
-    # register the agent to agentverse
-    try:
-        logger.info("registering to Agentverse...")
-        _register_in_agentverse(
-            connect_request,
-            identity,
-            agent_details=agent_registration,
-            agentverse_config=agentverse_config,
-        )
-        logger.info("successfully registered to Agentverse.")
-    except AgentverseRequestError as e:
-        logger.error(f"failed to register to Agentverse. {str(e)}")
-        return
+    logger.info("registering to Agentverse...")
+    _register_in_agentverse(
+        connect_request,
+        identity,
+        agent_details=agent_registration,
+        agentverse_config=agentverse_config,
+    )
+    logger.info("successfully registered to Agentverse.")
 
-    # set agent as active
     if agent_registration.active:
-        try:
-            logger.info("setting agent as active...")
-            _update_agent_status(True, identity)
-            logger.info("successfully set agent to active.")
-        except AgentverseRequestError as e:
-            logger.warning(f"failed to set agent as active. {str(e)}")
+        logger.info("setting agent as active...")
+        _update_agent_status(True, identity)
+        logger.info("successfully set agent to active.")
+
+    return True
 
 
 def register_chat_agent(
@@ -411,7 +410,16 @@ def register_chat_agent(
     avatar_url: str | None = None,
     metadata: AgentMetadata | dict[str, str | list[str] | dict[str, str]] | None = None,
     agentverse_config: AgentverseConfig | None = None,
-):
+) -> bool:
+    """
+    Register a chat-capable agent in Agentverse.
+
+    Returns:
+        True if registration succeeded.
+
+    Raises:
+        AgentverseRequestError: If registration or activation fails.
+    """
     chat_protocol = [
         ProtocolSpecification.compute_digest(chat_protocol_spec.manifest())
     ]
@@ -432,7 +440,7 @@ def register_chat_agent(
     )
     config = agentverse_config or AgentverseConfig()
 
-    register_agent(request, config, credentials)
+    return register_agent(request, config, credentials)
 
 
 def register_batch_in_agentverse(
