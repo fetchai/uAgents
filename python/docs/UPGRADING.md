@@ -4,8 +4,65 @@ This guide helps you migrate between major versions of uAgents and uagents-core.
 
 ## Table of Contents
 
+- [Error Propagation Fix (0.4.x)](#error-propagation-fix-04x)
 - [From uagents-core 0.3.x to 0.4.0](#from-uagents-core-03x-to-040)
 - [Version Compatibility Matrix](#version-compatibility-matrix)
+
+---
+
+## Error Propagation Fix (0.4.x)
+
+### What Changed
+
+`register_agent()` and `register_chat_agent()` now **raise `AgentverseRequestError`** when registration fails, instead of silently swallowing the error and returning `None`.
+
+This is a **behavioral fix** -- the previous behavior was a bug where registration failures were logged but not communicated to callers, making it impossible to detect failed registrations.
+
+### Who Is Affected
+
+If you call `register_agent()` or `register_chat_agent()` **without** a try/except block, your code will now raise an unhandled exception when registration fails (network error, bad credentials, server error, etc.).
+
+### How to Update
+
+Wrap calls in a try/except block:
+
+```python
+from uagents_core.utils.registration import (
+    AgentverseRequestError,
+    RegistrationRequestCredentials,
+    register_chat_agent,
+)
+
+credentials = RegistrationRequestCredentials(
+    agent_seed_phrase="my-seed",
+    agentverse_api_key="my-key",
+)
+
+try:
+    register_chat_agent(
+        name="My Agent",
+        endpoint="https://example.com/webhook",
+        active=True,
+        credentials=credentials,
+    )
+    print("Registration succeeded")
+except AgentverseRequestError as error:
+    print(f"Registration failed: {error}")
+    # Optionally inspect the underlying exception:
+    print(f"Caused by: {error.from_exc}")
+```
+
+### Functions That Raise vs Return
+
+| Function | On failure... | Notes |
+|----------|---------------|-------|
+| `register_chat_agent()` | **Raises** `AgentverseRequestError` | Recommended for chat agents |
+| `register_agent()` | **Raises** `AgentverseRequestError` | Recommended for custom protocols |
+| `register_in_agentverse()` | Returns `False` | Error-safe wrapper, logs internally |
+| `update_agent_status()` | Returns `False` | Error-safe wrapper, logs internally |
+| `register_batch_in_agentverse()` | Returns `False` | Deprecated |
+
+If you prefer boolean return values without exception handling, use `register_in_agentverse()` or `update_agent_status()` instead.
 
 ---
 
@@ -229,11 +286,15 @@ They will continue to work. However, you should migrate to v2 and remove your re
 
 **Q: Can I still use batch registration?**
 
-The function exists for backwards compatibility, but it's deprecated. Use individual `register_in_agentverse()` calls instead.
+The function exists for backwards compatibility, but it's deprecated. Use individual `register_chat_agent()` or `register_agent()` calls instead.
 
 **Q: How do I update an agent's profile after registration?**
 
-Call `register_in_agentverse()` again with the updated details. It will update the existing registration.
+Call `register_chat_agent()` or `register_agent()` again with the updated details. It will update the existing registration.
+
+**Q: How do I handle registration errors?**
+
+Wrap `register_chat_agent()` or `register_agent()` in a try/except for `AgentverseRequestError`. See the [Error Propagation Fix](#error-propagation-fix-04x) section for examples.
 
 **Q: How do I remove an agent from Agentverse?**
 

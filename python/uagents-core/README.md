@@ -10,42 +10,37 @@ pip install uagents-core
 
 ## Quick Start
 
-### Register an Agent with Agentverse
+### Register a Chat Agent with Agentverse
 
 ```python
 from uagents_core.utils.registration import (
-    register_in_agentverse,
-    AgentverseRegistrationRequest,
-)
-from uagents_core.registration import AgentverseConnectRequest
-from uagents_core.identity import Identity
-from uagents_core.config import AgentverseConfig
-
-# Create agent identity from a seed phrase
-identity = Identity.from_seed("my-agent-seed-phrase", 0)
-
-# Prepare registration request
-connect_request = AgentverseConnectRequest(
-    user_token="your-agentverse-api-key",
-    agent_type="proxy",
-    endpoint="https://your-agent-endpoint.com",
+    AgentverseRequestError,
+    RegistrationRequestCredentials,
+    register_chat_agent,
 )
 
-agent_details = AgentverseRegistrationRequest(
-    name="My Agent",
-    endpoint="https://your-agent-endpoint.com",
-    protocols=["your-protocol-digest"],
-    description="A helpful agent",
-    readme="Detailed description of what this agent does.",
+credentials = RegistrationRequestCredentials(
+    agent_seed_phrase="my-agent-seed-phrase",
+    agentverse_api_key="your-agentverse-api-key",
 )
 
-# Register the agent (permanent, no refresh needed)
-success = register_in_agentverse(
-    request=connect_request,
-    identity=identity,
-    agent_details=agent_details,
-    agentverse_config=AgentverseConfig(),
-)
+try:
+    register_chat_agent(
+        name="My Agent",
+        endpoint="https://your-agent-endpoint.com/webhook",
+        active=True,
+        credentials=credentials,
+        readme="# My Agent\nHandles customer questions.",
+        metadata={
+            "categories": ["support"],
+            "is_public": "True",
+        },
+    )
+    print("Agent registered successfully!")
+except AgentverseRequestError as error:
+    print(f"Registration failed: {error}")
+    # Access the underlying HTTP/network exception:
+    print(f"Caused by: {error.from_exc}")
 ```
 
 ## Key Features
@@ -90,20 +85,50 @@ print(config.almanac_api)   # https://agentverse.ai/v1/almanac
 
 ### Registration
 
-| Function | Purpose |
-|----------|---------|
-| `register_in_agentverse()` | Register a single agent (recommended) |
-| `register_agent()` | Register with credentials object |
-| `register_chat_agent()` | Register agent with chat protocol |
-| `update_agent_status()` | Update agent active/inactive status |
+| Function | Error Behavior | Purpose |
+|----------|---------------|---------|
+| `register_chat_agent()` | **Raises** `AgentverseRequestError` | Register a chat agent (recommended) |
+| `register_agent()` | **Raises** `AgentverseRequestError` | Register with custom protocols |
+| `register_in_agentverse()` | Returns `False` on failure | Low-level registration (error-safe) |
+| `update_agent_status()` | Returns `False` on failure | Update agent active/inactive status |
+| `register_batch_in_agentverse()` | Returns `False` on failure | Batch registration (deprecated) |
+
+> **Important:** `register_chat_agent()` and `register_agent()` raise `AgentverseRequestError` on failure. Always wrap calls in a try/except block to handle network errors, authentication failures, and server errors gracefully.
+
+### Error Handling
+
+All HTTP and network errors are wrapped in `AgentverseRequestError`, which provides:
+
+- A human-readable error message (e.g., `"HTTP error: 401 Unauthorized"`)
+- The original exception via the `from_exc` attribute for inspection
+
+```python
+from uagents_core.utils.registration import AgentverseRequestError
+
+try:
+    register_chat_agent(...)
+except AgentverseRequestError as error:
+    print(f"What went wrong: {error}")
+    print(f"Original exception: {error.from_exc}")
+
+    # Common failure patterns:
+    # - "Connection error ..."     → Network/DNS issue
+    # - "Operation timed out."     → Request exceeded 10s timeout
+    # - "HTTP error: 401 ..."      → Invalid or expired API key
+    # - "HTTP error: 409 ..."      → Agent address already claimed
+    # - "Unexpected server error." → HTTP 500, retry after delay
+```
 
 ### Models
 
 | Model | Purpose |
 |-------|---------|
-| `RegistrationRequest` | Agent registration data |
+| `RegistrationRequestCredentials` | API key and agent seed phrase |
+| `AgentverseRegistrationRequest` | Full agent registration data |
+| `AgentverseRequestError` | Registration failure exception |
+| `RegistrationRequest` | Agent registration data (internal) |
 | `AgentProfile` | Agent profile (description, readme, avatar) |
-| `AgentverseConnectRequest` | Connection credentials |
+| `AgentverseConnectRequest` | Connection credentials (internal) |
 | `Identity` | Agent identity and signing |
 
 ## Upgrading
