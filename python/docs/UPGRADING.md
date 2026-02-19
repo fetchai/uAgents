@@ -74,9 +74,9 @@ Version 0.4.0 introduces a **simplified registration model** with significant ar
 
 | Aspect | 0.3.x | 0.4.0 |
 |--------|-------|-------|
-| Registration expiration | 48 hours | **Permanent** (no expiration) |
+| Almanac API registration expiration | 7 days | **Permanent** (linked to user account expiry) |
 | Almanac registration | Separate API call required | **Automatic** (handled by Agentverse) |
-| Periodic refresh | Required every ~46 hours | **Not needed** |
+| Periodic refresh | Required every ~7 days | **Not needed** |
 | Batch registration | Supported | **Deprecated** |
 
 ### Key Benefits
@@ -94,7 +94,7 @@ Version 0.4.0 introduces a **simplified registration model** with significant ar
 | 0.3.x | 0.4.0 | Notes |
 |-------|-------|-------|
 | `AgentRegistrationInput` | `RegistrationRequest` | New model with different fields |
-| `register_batch_in_almanac()` | **Deprecated** | Use `register_in_agentverse()` individually |
+| `register_batch_in_almanac()` | **Deprecated** | Use `register_chat_agent()` or `register_in_agentverse()` individually |
 | N/A | `register_in_agentverse()` | New primary registration function |
 | N/A | DELETE `/v2/agents/{address}` | New agent removal capability |
 
@@ -109,7 +109,7 @@ from uagents_core.registration import RegistrationRequest, AgentProfile
 request = RegistrationRequest(
     address="agent1q...",           # Required: bech32 agent address
     name="My Agent",                # Required: 1-80 characters
-    agent_type="proxy",             # Optional: defaults to "uagent"
+    agent_type="uagent",             # Optional: defaults to "uagent"
     profile=AgentProfile(           # Optional: agent profile
         description="Short desc",   # Max 300 chars
         readme="Detailed readme",   # Max 80000 chars
