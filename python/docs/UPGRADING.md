@@ -4,13 +4,13 @@ This guide helps you migrate between major versions of uAgents and uagents-core.
 
 ## Table of Contents
 
-- [Error Propagation Fix (0.4.x)](#error-propagation-fix-04x)
+- [Error Propagation Fix (0.4.1)](#error-propagation-fix-041)
 - [From uagents-core 0.3.x to 0.4.0](#from-uagents-core-03x-to-040)
 - [Version Compatibility Matrix](#version-compatibility-matrix)
 
 ---
 
-## Error Propagation Fix (0.4.x)
+## Error Propagation Fix (0.4.1)
 
 ### What Changed
 
@@ -294,7 +294,7 @@ Call `register_chat_agent()` or `register_agent()` again with the updated detail
 
 **Q: How do I handle registration errors?**
 
-Wrap `register_chat_agent()` or `register_agent()` in a try/except for `AgentverseRequestError`. See the [Error Propagation Fix](#error-propagation-fix-04x) section for examples.
+Wrap `register_chat_agent()` or `register_agent()` in a try/except for `AgentverseRequestError`. See the [Error Propagation Fix](#error-propagation-fix-041) section for examples.
 
 **Q: How do I remove an agent from Agentverse?**
 
