@@ -1,8 +1,8 @@
 import os
-from typing import cast
 
 from fastapi import FastAPI
 from uagents_core.contrib.protocols.chat import (
+    ChatAcknowledgement,
     ChatMessage,
     TextContent,
 )
@@ -27,10 +27,11 @@ async def healthcheck():
 
 @app.post("/chat")
 async def handle_message(env: Envelope):
-    msg = cast(ChatMessage, parse_envelope(env, ChatMessage))
-    print(f"Received message from {env.sender}: {msg.text()}")
-    send_message_to_agent(
-        destination=env.sender,
-        msg=ChatMessage([TextContent("Thanks for the message!")]),
-        sender=identity,
-    )
+    msg = parse_envelope(env, {ChatMessage, ChatAcknowledgement})
+    if isinstance(msg, ChatMessage) and msg.text():
+        print(f"Received message from {env.sender}: {msg.text()}")
+        send_message_to_agent(
+            destination=env.sender,
+            msg=ChatMessage([TextContent("Thanks for the message!")]),
+            sender=identity,
+        )
