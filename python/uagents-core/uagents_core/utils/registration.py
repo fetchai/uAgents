@@ -118,6 +118,10 @@ class AgentverseRegistrationRequest(BaseModel):
         default=True,
         description="Set agent as active immediately after registration.",
     )
+    track_interactions: bool | None = Field(
+        default=True,
+        description="Whether to track interactions of this agent in Agentverse.",
+    )
 
     @model_validator(mode="after")
     def check_request(self) -> "AgentverseRegistrationRequest":
@@ -368,18 +372,23 @@ def _register_in_agentverse(
         extra=registration_metadata,
     )
 
+    if agent_details.track_interactions:
+        endpoints = [AgentEndpoint(url=agentverse_config.proxy_endpoint, weight=1)]
+    else:
+        endpoints = [AgentEndpoint(url=agent_details.endpoint, weight=1)]
+
     reg_request = RegistrationRequest(
         address=agent_address,
         name=agent_details.name,
         handle=agent_details.handle,
-        url=agent_details.avatar_url,
+        url=agent_details.endpoint,
         agent_type=agent_details.type,
         profile=AgentProfile(
             description=agent_details.description or "",
             readme=agent_details.readme or "",
             avatar_url=agent_details.avatar_url or "",
         ),
-        endpoints=[AgentEndpoint(url=agent_details.endpoint, weight=1)],
+        endpoints=endpoints,
         protocols=agent_details.protocols,
         metadata=agent_details.metadata,
     )
@@ -555,6 +564,7 @@ def register_chat_agent(
     endpoint: str,
     active: bool,
     credentials: RegistrationRequestCredentials,
+    track_interactions: bool = True,
     description: str | None = None,
     readme: str | None = None,
     avatar_url: str | None = None,
@@ -652,6 +662,7 @@ def register_chat_agent(
         readme=readme,
         avatar_url=avatar_url,
         metadata=raw_metadata,
+        track_interactions=track_interactions,
     )
     config = agentverse_config or AgentverseConfig()
 
