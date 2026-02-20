@@ -5,8 +5,8 @@ description = "Adapters for uAgents to integrate with LangChain, CrewAI, MCP, an
 authors = [{ name = "Fetch.AI Limited" }]
 license = { text = "Apache 2.0" }
 readme = "README.md"
-keywords = ["uagents", "agents", "langchain", "crewai", "mcp", "a2a", "fetch.ai"]
-requires-python = ">=3.10,<4.0"
+keywords = ["uagents", "agents", "langchain", "crewai", "mcp", "a2a", "fetch.ai", "composio"]
+requires-python = ">=3.10,<3.14"
 dependencies = [
     "uagents (>=0.22.3)",
     "pydantic (>=2.8,<3.0)",
@@ -21,17 +21,22 @@ dependencies = [
 [project.optional-dependencies]
 # Base package dependencies (installed by default)
 all = [
-    "langchain-core (>=0.3.52,<0.4.0)",
-    "langchain (>=0.3.0)",
-    "langchain-openai (>=0.2.0)",
+    "langchain-core (>=0.3.52)",
     "crewai (==0.203.1)",
     "mcp (>=1.8.1)",
     "a2a-sdk[all,sqlite,sql] (>=0.2.11)",
+    "composio (>=0.8.16)",
+    "composio-langchain (>=0.8.14)",
+    "langchain-openai (>=0.3.33)",
+    "langchain (==1.0.2)",
+    "langgraph (>=0.6.8)",
+    "langgraph-checkpoint-postgres (>=2.0.24)",
+    "psycopg[pool] (>=3.2.10)",
 ]
 
 # LangChain support
 langchain = [
-    "langchain-core (>=0.3.52,<0.4.0)",
+    "langchain-core (>=0.3.52)",
     "langchain (>=0.3.0)",
     "langchain-openai (>=0.2.0)",
 ]
@@ -56,6 +61,16 @@ a2a-outbound = [
     "a2a-sdk[all,sqlite,sql] (>=0.2.11)",
 ]
 
+# Composio support
+composio = [
+    "composio (>=0.8.16)",
+    "composio-langchain (>=0.8.14)",
+    "langchain-openai (>=0.3.33)",
+    "langchain (==1.0.2)",
+    "langgraph (>=0.6.8)",
+    "langgraph-checkpoint-postgres (>=2.0.24)",
+    "psycopg[pool] (>=3.2.10)",
+]
 
 [tool.poetry]
 # install from src/uagents_adapter folder
@@ -95,4 +110,4 @@ select = [
 ignore = ["PLR0913", "PLR0912", "PLR0911", "PLR2004", "PLR0915"]
 
 [tool.ruff.lint.pycodestyle]
-max-line-length = 100 
+max-line-length = 100
