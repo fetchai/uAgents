@@ -41,9 +41,17 @@ from uagents.utils import get_logger
 
 logger: Logger = get_logger("network")
 
+_testnet_config = NetworkConfig(
+    chain_id="gemini-1",
+    url="grpc+https://grpc-gemini.fetch.ai",
+    fee_minimum_gas_price=5000000000,
+    fee_denomination="atestfet",
+    staking_denomination="atestfet",
+    faucet_url="https://faucet-gemini.fetch.ai",
+)
 
-_faucet_api = FaucetApi(NetworkConfig.fetchai_stable_testnet())
-_testnet_ledger = LedgerClient(NetworkConfig.fetchai_stable_testnet())
+_faucet_api = FaucetApi(_testnet_config)
+_testnet_ledger = LedgerClient(_testnet_config)
 _mainnet_ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
 
 RetryDelayFunc = Callable[[int], float]

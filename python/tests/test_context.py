@@ -112,7 +112,6 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             ledger=self.alice._ledger,
             resolver=self.alice._resolver,
             dispenser=self.alice._dispenser,
-            wallet_messaging_client=self.alice._wallet_messaging_client,
             logger=self.alice._logger,
             queries=queries,
             session=None,
