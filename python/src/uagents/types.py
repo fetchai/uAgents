@@ -65,22 +65,6 @@ class AgentGeolocation(BaseModel):
         return round(val, 6)
 
 
-class AgentMetadata(BaseModel):
-    """
-    Model used to validate metadata for an agent.
-
-    Framework specific fields will be added here to ensure valid serialization.
-    Additional fields will simply be passed through.
-    """
-
-    model_config = ConfigDict(
-        extra="allow",
-        arbitrary_types_allowed=True,
-    )
-
-    geolocation: AgentGeolocation | None = None
-
-
 class MsgInfo(BaseModel):
     """
     Represents a message digest containing a message and its schema digest and sender.

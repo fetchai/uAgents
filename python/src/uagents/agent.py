@@ -19,7 +19,13 @@ from uagents_core.config import AgentverseConfig
 from uagents_core.identity import Identity, derive_key_from_seed, is_user_address
 from uagents_core.models import ErrorMessage, Model
 from uagents_core.registration import AgentProfile, RegistrationRequest
-from uagents_core.types import AddressPrefix, AgentEndpoint, AgentInfo, AgentType
+from uagents_core.types import (
+    AddressPrefix,
+    AgentEndpoint,
+    AgentInfo,
+    AgentMetadata,
+    AgentType,
+)
 
 from uagents.asgi import ASGIServer
 from uagents.communication import Dispenser
@@ -69,7 +75,6 @@ from uagents.registration import (
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.storage import KeyValueStore, StorageAPI, get_or_create_private_keys
 from uagents.types import (
-    AgentMetadata,
     AgentNetwork,
     EnvelopeHistory,
     EnvelopeHistoryEntry,
