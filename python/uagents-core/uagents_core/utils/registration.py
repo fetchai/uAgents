@@ -93,11 +93,9 @@ class AgentverseRegistrationRequest(BaseModel):
     protocols: list[str] = Field(
         description="List of protocols supported by the agent."
     )
-    metadata: AgentMetadata | dict[str, str | list[str] | dict[str, str]] | None = (
-        Field(
-            default=None,
-            description="Additional metadata about the agent (e.g. geolocation).",
-        )
+    metadata: AgentMetadata | None = Field(
+        default=None,
+        description="Additional metadata about the agent (e.g. geolocation).",
     )
     type: AgentType = Field(
         default="uagent", description="Agentverse registration type."
@@ -650,6 +648,9 @@ def register_chat_agent(
     chat_protocol = [
         ProtocolSpecification.compute_digest(chat_protocol_spec.manifest())
     ]
+    if isinstance(metadata, dict):
+        metadata = {key: value for key, value in metadata if value is not None}
+        metadata = AgentMetadata(**metadata)
     request = AgentverseRegistrationRequest(
         name=name,
         endpoint=endpoint,
