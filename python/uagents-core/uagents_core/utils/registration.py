@@ -93,9 +93,11 @@ class AgentverseRegistrationRequest(BaseModel):
     protocols: list[str] = Field(
         description="List of protocols supported by the agent."
     )
-    metadata: AgentMetadata | None = Field(
-        default=None,
-        description="Additional metadata about the agent (e.g. geolocation).",
+    metadata: AgentMetadata | dict[str, str | list[str] | dict[str, str]] | None = (
+        Field(
+            default=None,
+            description="Additional metadata about the agent (e.g. geolocation).",
+        )
     )
     type: AgentType = Field(
         default="uagent", description="Agentverse registration type."

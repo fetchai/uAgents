@@ -125,7 +125,7 @@ class RegistrationRequest(BaseModel):
     protocols: list[str] = Field(
         default=[], description="List of supported protocol digests"
     )
-    metadata: AgentMetadata | None = Field(
+    metadata: AgentMetadata | dict[str, Any] | None = Field(
         default=None, description="Optional metadata for the agent"
     )
 
