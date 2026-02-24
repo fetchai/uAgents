@@ -650,9 +650,6 @@ def register_chat_agent(
     chat_protocol = [
         ProtocolSpecification.compute_digest(chat_protocol_spec.manifest())
     ]
-    if isinstance(metadata, dict):
-        metadata = {key: value for key, value in metadata.items() if value is not None}
-        metadata = AgentMetadata(**metadata)
     request = AgentverseRegistrationRequest(
         name=name,
         endpoint=endpoint,
