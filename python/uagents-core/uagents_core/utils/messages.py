@@ -4,6 +4,8 @@ This module provides methods to enable an identity to interact with other agents
 
 import contextlib
 import json
+from datetime import datetime, timezone
+from secrets import token_bytes
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
@@ -19,6 +21,7 @@ from uagents_core.envelope import Envelope
 from uagents_core.identity import Identity
 from uagents_core.logger import get_logger
 from uagents_core.models import Model
+from uagents_core.storage import compute_attestation
 from uagents_core.types import DeliveryStatus, Interaction, JsonStr, MsgStatus, Resolver
 from uagents_core.utils.resolver import AlmanacResolver
 
@@ -35,7 +38,7 @@ def generate_message_envelope(
     protocol_digest: str | None = None,
 ) -> Envelope:
     """
-    Generate an envelope for a message to be sent to an agent.
+    Generate an envelope for a message to be sent to an agent.z
 
     Args:
         destination (str): The address of the target agent.
@@ -94,20 +97,30 @@ def send_message(
 
 
 def record_agent_interaction(
-    interaction: Interaction, agentverse_config: AgentverseConfig
+    interaction: Interaction, identity: Identity, agentverse_config: AgentverseConfig
 ) -> None:
     """
     Record an interaction in agentverse.
 
     Args:
         interaction (Interaction): The interaction to be recorded.
+        identity (Identity): The identity of the agent.
         agentverse_config (AgentverseConfig): The configuration for agentverse.
     """
     interactions_url = agentverse_config.agents_api + "/interactions"
+    attestation = compute_attestation(
+        identity=identity,
+        validity_start=datetime.now(timezone.utc),
+        validity_secs=3600,
+        nonce=token_bytes(32),
+    )
     try:
         response = requests.post(
             url=interactions_url,
-            headers={"content-type": "application/json"},
+            headers={
+                "content-type": "application/json",
+                "Authorization": f"Agent {attestation}",
+            },
             data=interaction.model_dump_json(),
             timeout=DEFAULT_REQUEST_TIMEOUT,
         )
@@ -245,7 +258,8 @@ def send_message_to_agent(
                         source=sender.address,
                         session_id=env.session,
                     ),
-                    agentverse_config,
+                    identity=sender,
+                    agentverse_config=agentverse_config,
                 )
             break
         except requests.RequestException as e:
