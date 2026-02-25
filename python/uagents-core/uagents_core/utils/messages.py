@@ -19,7 +19,7 @@ from uagents_core.envelope import Envelope
 from uagents_core.identity import Identity
 from uagents_core.logger import get_logger
 from uagents_core.models import Model
-from uagents_core.types import DeliveryStatus, JsonStr, MsgStatus, Resolver
+from uagents_core.types import DeliveryStatus, Interaction, JsonStr, MsgStatus, Resolver
 from uagents_core.utils.resolver import AlmanacResolver
 
 logger = get_logger("uagents_core.utils.messages")
@@ -93,6 +93,32 @@ def send_message(
     return response
 
 
+def record_agent_interaction(
+    interaction: Interaction, agentverse_config: AgentverseConfig
+) -> None:
+    """
+    Record an interaction in agentverse.
+
+    Args:
+        interaction (Interaction): The interaction to be recorded.
+        agentverse_config (AgentverseConfig): The configuration for agentverse.
+    """
+    interactions_url = agentverse_config.url + "/interactions"
+    try:
+        response = requests.post(
+            url=interactions_url,
+            headers={"content-type": "application/json"},
+            data=interaction.model_dump_json(),
+            timeout=DEFAULT_REQUEST_TIMEOUT,
+        )
+        response.raise_for_status()
+    except requests.RequestException as e:
+        logger.error(
+            "Failed to track interaction",
+            extra={"error": str(e), "interaction": interaction},
+        )
+
+
 def parse_envelope(
     env: Envelope,
     message_type: type[Model] | set[type[Model]] | None = None,
@@ -153,6 +179,7 @@ def send_message_to_agent(
     sync: bool = False,
     timeout: int = DEFAULT_REQUEST_TIMEOUT,
     response_type: type[Model] | set[type[Model]] | None = None,
+    track_interaction: bool = True,
 ) -> list[MsgStatus] | Model | JsonStr:
     """
     Send a message to an agent with default settings.
@@ -164,11 +191,12 @@ def send_message_to_agent(
         session_id (UUID, optional): The unique identifier for the dialogue between two agents.
         strategy (Literal["first", "random", "all"], optional): The strategy to use when
             selecting an endpoint.
-        agentverse_config (AgentverseConfig, optional): The configuration for the agentverse.
+        agentverse_config (AgentverseConfig, optional): The configuration for agentverse.
         resolver (Resolver, optional): The resolver to use for finding endpoints.
         sync (bool, optional): Whether to send the message synchronously and wait for a response.
         response_type (type[Model] | set[type[Model]] | None, optional):
             The expected response type(s) for a sync message.
+        track_interaction (bool, optional): Whether to track this interaction in agentverse.
 
     Returns:
         list[MsgStatus] | Model | JsonStr: A list of message statuses
@@ -210,6 +238,15 @@ def send_message_to_agent(
                 )
             )
             logger.info("Sent message to agent", extra={"agent_endpoint": endpoint})
+            if track_interaction and endpoint != agentverse_config.proxy_endpoint:
+                record_agent_interaction(
+                    Interaction(
+                        target=destination,
+                        source=sender.address,
+                        session_id=env.session,
+                    ),
+                    agentverse_config,
+                )
             break
         except requests.RequestException as e:
             logger.error("Failed to send message to agent", extra={"error": str(e)})
