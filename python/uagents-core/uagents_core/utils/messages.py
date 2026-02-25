@@ -103,7 +103,7 @@ def record_agent_interaction(
         interaction (Interaction): The interaction to be recorded.
         agentverse_config (AgentverseConfig): The configuration for agentverse.
     """
-    interactions_url = agentverse_config.url + "/interactions"
+    interactions_url = agentverse_config.agents_api + "/interactions"
     try:
         response = requests.post(
             url=interactions_url,
