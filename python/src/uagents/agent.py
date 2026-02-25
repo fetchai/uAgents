@@ -19,7 +19,13 @@ from uagents_core.config import AgentverseConfig
 from uagents_core.identity import Identity, derive_key_from_seed, is_user_address
 from uagents_core.models import ErrorMessage, Model
 from uagents_core.registration import AgentProfile, RegistrationRequest
-from uagents_core.types import AddressPrefix, AgentEndpoint, AgentInfo, AgentType
+from uagents_core.types import (
+    AddressPrefix,
+    AgentEndpoint,
+    AgentInfo,
+    AgentMetadata,
+    AgentType,
+)
 
 from uagents.asgi import ASGIServer
 from uagents.communication import Dispenser
@@ -67,9 +73,8 @@ from uagents.registration import (
     update_agent_status,
 )
 from uagents.resolver import GlobalResolver, Resolver
-from uagents.storage import KeyValueStore, get_or_create_private_keys
+from uagents.storage import KeyValueStore, StorageAPI, get_or_create_private_keys
 from uagents.types import (
-    AgentMetadata,
     AgentNetwork,
     EnvelopeHistory,
     EnvelopeHistoryEntry,
@@ -300,6 +305,7 @@ class Agent(Sink):
         publish_agent_details: bool = True,
         store_message_history: bool = False,
         handle_messages_concurrently: bool = False,
+        agent_storage: StorageAPI | None = None,
     ):
         """
         Initialize an Agent instance.
@@ -333,6 +339,7 @@ class Agent(Sink):
             local agent inspector.
             store_message_history (bool): Store the message history for the agent.
             handle_messages_concurrently (bool): Whether to handle incoming messages concurrently.
+            agent_storage (StorageAPI | None): The storage API to use for agent data storage.
         """
         self._init_done = False
         self._name = name
@@ -369,7 +376,7 @@ class Agent(Sink):
 
         self._ledger = get_ledger(network)
         self._almanac_contract = get_almanac_contract(network)
-        self._storage = KeyValueStore(self.address[0:16])
+        self._storage = agent_storage or KeyValueStore(self.address[0:16])
         self._interval_handlers: list[tuple[IntervalCallback, float]] = []
         self._interval_messages: set[str] = set()
         self._signed_message_handlers: dict[str, MessageCallback] = {}

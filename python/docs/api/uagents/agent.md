@@ -198,7 +198,8 @@ def __init__(name: str | None = None,
              avatar_url: str | None = None,
              publish_agent_details: bool = True,
              store_message_history: bool = False,
-             handle_messages_concurrently: bool = False)
+             handle_messages_concurrently: bool = False,
+             agent_storage: StorageAPI | None = None)
 ```
 
 Initialize an Agent instance.
@@ -233,6 +234,7 @@ Initialize an Agent instance.
   local agent inspector.
 - `store_message_history` _bool_ - Store the message history for the agent.
 - `handle_messages_concurrently` _bool_ - Whether to handle incoming messages concurrently.
+- `agent_storage` _StorageAPI | None_ - The storage API to use for agent data storage.
 
 
 
