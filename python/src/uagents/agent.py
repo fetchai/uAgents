@@ -1156,7 +1156,7 @@ class Agent(Sink):
         if message:
             args.append(message)
 
-        task = self._loop.create_task(handler(*args))  # type: ignore
+        task = asyncio.create_task(handler(*args))  # type: ignore
         self._rest_tasks.add(task)
         task.add_done_callback(self._rest_tasks.discard)
 
@@ -1494,7 +1494,7 @@ class Agent(Sink):
 
             if handler is not None:
                 if self._handle_messages_concurrently:
-                    handler_task = self._loop.create_task(
+                    handler_task = asyncio.create_task(
                         self._handle_message(
                             handler=handler,
                             context=context,
