@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 from datetime import datetime, timezone
 from logging import Logger
@@ -64,6 +65,7 @@ class ASGIServer:
         ] = {}
         self._logger = logger or get_logger("server")
         self._server: uvicorn.Server | None = None
+        self._shutting_down = False
 
     @property
     def server(self) -> uvicorn.Server | None:
@@ -188,9 +190,13 @@ class ASGIServer:
             f"Starting server on http://{HOST}:{self._port} (Press CTRL+C to quit)"
         )
         try:
-            await self._server.serve()
-        except (asyncio.CancelledError, KeyboardInterrupt):
+            with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
+                await self._server.serve()
+        finally:
+            self._shutting_down = True
             self._logger.info("Shutting down server...")
+            await self._server.shutdown()
+            self._logger.info("Shutting down server...complete.")
 
     async def _handle_rest(
         self,
@@ -281,6 +287,14 @@ class ASGIServer:
         scope_type = scope["type"]
         if scope_type == "lifespan" or scope_type != "http":
             return  # lifespan events not implemented and only handle http
+
+        if self._shutting_down:  # should not happen but if it does, return a 503
+            await self._asgi_send(
+                send=send,
+                status_code=503,
+                body={"error": "Unable to process request: agent is shutting down"},
+            )
+            return
 
         headers = CaseInsensitiveDict(scope.get("headers", {}))
         request_method = scope["method"]

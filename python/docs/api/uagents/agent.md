@@ -199,7 +199,8 @@ def __init__(name: str | None = None,
              publish_agent_details: bool = True,
              store_message_history: bool = False,
              handle_messages_concurrently: bool = False,
-             agent_storage: StorageAPI | None = None)
+             shutdown_timeout: float = 60.0,
+             mark_inactive_on_shutdown: bool = True)
 ```
 
 Initialize an Agent instance.
@@ -234,7 +235,11 @@ Initialize an Agent instance.
   local agent inspector.
 - `store_message_history` _bool_ - Store the message history for the agent.
 - `handle_messages_concurrently` _bool_ - Whether to handle incoming messages concurrently.
-- `agent_storage` _StorageAPI | None_ - The storage API to use for agent data storage.
+- `shutdown_timeout` _float_ - Maximum time in seconds to wait for tasks to complete during
+  graceful shutdown. Defaults to 60.0 seconds.
+- `mark_inactive_on_shutdown` _bool_ - Whether to mark the agent as inactive in Almanac
+  during shutdown. Set to False for deployments where a new instance replaces this one
+  (e.g., Kubernetes rolling updates). Defaults to True.
 
 
 
@@ -711,6 +716,15 @@ Handle a REST request.
 
 
 
+#### run_shutdown_tasks
+```python
+async def run_shutdown_tasks()
+```
+
+Perform shutdown actions.
+
+
+
 #### setup
 ```python
 def setup()
@@ -842,7 +856,8 @@ def __init__(agents: list[Agent] | None = None,
              seed: str | None = None,
              network: AgentNetwork = "testnet",
              loop: asyncio.AbstractEventLoop | None = None,
-             log_level: int | str = logging.INFO)
+             log_level: int | str = logging.INFO,
+             shutdown_timeout: int = 60)
 ```
 
 Initialize a Bureau instance.
@@ -860,6 +875,7 @@ Initialize a Bureau instance.
 - `network` _Literal["mainnet", "testnet"]_ - The network to use for the agent.
 - `loop` _asyncio.AbstractEventLoop | None_ - The event loop.
 - `log_level` _int | str_ - The logging level for the bureau.
+- `shutdown_timeout` _int_ - The timeout for shutting down the bureau.
 
 
 

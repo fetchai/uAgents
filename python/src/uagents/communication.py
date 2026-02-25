@@ -5,7 +5,6 @@ import json
 import logging
 import uuid
 from time import time
-from typing import NoReturn
 
 import aiohttp
 from pydantic import UUID4, ValidationError
@@ -35,6 +34,7 @@ class Dispenser:
             tuple[Envelope, list[str], asyncio.Future, bool]
         ] = asyncio.Queue()
         self._msg_cache_ref = msg_cache_ref
+        self._shutting_down = False
 
     def add_envelope(
         self,
@@ -54,12 +54,12 @@ class Dispenser:
         """
         self._envelopes.put_nowait((envelope, endpoints, response_future, sync))
 
-    async def run(self) -> NoReturn:
+    async def run(self) -> None:
         """Run the dispenser routine."""
         while True:
-            env, endpoints, response_future, sync = await self._envelopes.get()
-
             try:
+                env, endpoints, response_future, sync = await self._envelopes.get()
+
                 result: MsgStatus | Envelope = await send_exchange_envelope(
                     envelope=env,
                     endpoints=endpoints,
@@ -71,8 +71,15 @@ class Dispenser:
                     self._msg_cache_ref.add_entry(
                         EnvelopeHistoryEntry.from_envelope(env)
                     )
+            except (asyncio.CancelledError, KeyboardInterrupt):
+                LOGGER.info("Shutting down dispenser...")
+                self._shutting_down = True
             except Exception as err:
                 LOGGER.error(f"Failed to send envelope: {err}")
+
+            if self._shutting_down and self._envelopes.empty():
+                LOGGER.info("Shutting down dispenser...complete")
+                return
 
 
 async def dispatch_local_message(
