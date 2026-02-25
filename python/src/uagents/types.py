@@ -12,7 +12,10 @@ from pydantic import (
 from typing_extensions import Self
 from uagents_core.envelope import Envelope
 from uagents_core.models import Model
-from uagents_core.types import AgentGeolocation, AgentMetadata  # noqa: F401
+from uagents_core.types import (  # noqa: F401 - these classes were defined in this file, keep it here for backwards compatibility!
+    AgentGeolocation,
+    AgentMetadata,
+)
 
 from uagents.config import (
     MESSAGE_HISTORY_MESSAGE_LIMIT,
