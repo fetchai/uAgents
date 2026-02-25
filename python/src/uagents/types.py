@@ -1,19 +1,18 @@
 import logging
 import time
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import (
     UUID4,
     BaseModel,
-    ConfigDict,
     Field,
     field_serializer,
-    field_validator,
 )
-from typing_extensions import Self, deprecated
+from typing_extensions import Self
 from uagents_core.envelope import Envelope
 from uagents_core.models import Model
+from uagents_core.types import AgentGeolocation, AgentMetadata  # noqa: F401
 
 from uagents.config import (
     MESSAGE_HISTORY_MESSAGE_LIMIT,
@@ -47,46 +46,6 @@ class RestHandlerDetails(BaseModel):
     endpoint: str
     request_model: type[Model] | None = None
     response_model: type[Model | BaseModel]
-
-
-@deprecated(
-    """AgentGeolocation is deprecated and will be removed in a future release,
-    use uagents_core.types.AgentGeolocation instead."""
-)
-class AgentGeolocation(BaseModel):
-    model_config = ConfigDict(strict=True, allow_inf_nan=False)
-    latitude: Annotated[float, Field(ge=-90, le=90)]
-    longitude: Annotated[float, Field(ge=-180, le=180)]
-    radius: Annotated[float, Field(ge=0)] = 0
-
-    @field_validator("latitude", "longitude")
-    @classmethod
-    def serialize_precision(cls, val: float) -> float:
-        """
-        Round the latitude and longitude to 6 decimal places.
-        Equivalent to 0.11m precision.
-        """
-        return round(val, 6)
-
-
-@deprecated(
-    """AgentMetadata is deprecated and will be removed in a future release,
-    use uagents_core.types.AgentMetadata instead."""
-)
-class AgentMetadata(BaseModel):
-    """
-    Model used to validate metadata for an agent.
-
-    Framework specific fields will be added here to ensure valid serialization.
-    Additional fields will simply be passed through.
-    """
-
-    model_config = ConfigDict(
-        extra="allow",
-        arbitrary_types_allowed=True,
-    )
-
-    geolocation: AgentGeolocation | None = None
 
 
 class MsgInfo(BaseModel):
