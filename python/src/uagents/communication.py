@@ -54,32 +54,57 @@ class Dispenser:
         """
         self._envelopes.put_nowait((envelope, endpoints, response_future, sync))
 
+    async def _process_envelope(
+        self,
+        env: Envelope,
+        endpoints: list[str],
+        response_future: asyncio.Future,
+        sync: bool,
+    ) -> None:
+        """
+        Process a single envelope by sending it and updating the response future.
+
+        Args:
+            env (Envelope): The envelope to send.
+            endpoints (list[str]): The endpoints to send the envelope to.
+            response_future (asyncio.Future): The future to set the response on.
+            sync (bool): True if the message is synchronous.
+        """
+        try:
+            result: MsgStatus | Envelope = await send_exchange_envelope(
+                envelope=env,
+                endpoints=endpoints,
+                sync=sync,
+            )
+            response_future.set_result(result)
+
+            if self._msg_cache_ref:
+                self._msg_cache_ref.add_entry(EnvelopeHistoryEntry.from_envelope(env))
+        except Exception as err:
+            LOGGER.error(f"Failed to send envelope: {err}")
+            # Set exception on the future so caller knows it failed
+            if not response_future.done():
+                response_future.set_exception(err)
+
     async def run(self) -> None:
         """Run the dispenser routine."""
-        while True:
-            try:
+        try:
+            while True:
                 env, endpoints, response_future, sync = await self._envelopes.get()
+                await self._process_envelope(env, endpoints, response_future, sync)
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            LOGGER.info("Shutting down dispenser...")
+            self._shutting_down = True
 
-                result: MsgStatus | Envelope = await send_exchange_envelope(
-                    envelope=env,
-                    endpoints=endpoints,
-                    sync=sync,
-                )
-                response_future.set_result(result)
+            # Drain remaining messages from queue using get_nowait()
+            while not self._envelopes.empty():
+                try:
+                    env, endpoints, response_future, sync = self._envelopes.get_nowait()
+                    await self._process_envelope(env, endpoints, response_future, sync)
+                except asyncio.QueueEmpty:
+                    break
 
-                if self._msg_cache_ref:
-                    self._msg_cache_ref.add_entry(
-                        EnvelopeHistoryEntry.from_envelope(env)
-                    )
-            except (asyncio.CancelledError, KeyboardInterrupt):
-                LOGGER.info("Shutting down dispenser...")
-                self._shutting_down = True
-            except Exception as err:
-                LOGGER.error(f"Failed to send envelope: {err}")
-
-            if self._shutting_down and self._envelopes.empty():
-                LOGGER.info("Shutting down dispenser...complete")
-                return
+            LOGGER.info("Shutting down dispenser...complete")
 
 
 async def dispatch_local_message(

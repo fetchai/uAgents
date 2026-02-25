@@ -403,6 +403,7 @@ class Agent(Sink):
         self._rest_tasks: set[asyncio.Task] = set()
         self._registration_task: asyncio.Task | None = None
         self._dispenser_task: asyncio.Task | None = None
+        self._message_queue_task: asyncio.Task | None = None
         self._handle_messages_concurrently = handle_messages_concurrently
         self._shutdown_timeout = shutdown_timeout
         self._mark_inactive_on_shutdown = mark_inactive_on_shutdown
@@ -1207,11 +1208,16 @@ class Agent(Sink):
             task.cancel()
         await asyncio.gather(*main_tasks, return_exceptions=True)
 
-        # Step 4: Cancel interval tasks
+        # Step 4: Cancel message queue processor (will drain remaining messages)
+        if self._message_queue_task and not self._message_queue_task.done():
+            self._message_queue_task.cancel()
+            await asyncio.gather(self._message_queue_task, return_exceptions=True)
+
+        # Step 5: Cancel interval tasks
         for task in self._interval_tasks:
             task.cancel()
 
-        # Step 5: Wait for in-progress handlers to complete
+        # Step 6: Wait for in-progress handlers to complete
         all_handler_tasks = list(
             self._rest_tasks | self._message_tasks | self._interval_tasks
         )
@@ -1234,10 +1240,10 @@ class Agent(Sink):
                     f"Error while waiting for handlers to complete: {ex}"
                 )
 
-        # Step 6: Run shutdown handlers
+        # Step 7: Run shutdown handlers
         await self.run_shutdown_tasks()
 
-        # Step 7: Shutdown dispenser, which will try to send any queued outgoing messages first
+        # Step 8: Shutdown dispenser, which will try to send any queued outgoing messages first
         if self._dispenser_task:
             self._dispenser_task.cancel()
             await asyncio.gather(self._dispenser_task, return_exceptions=True)
@@ -1296,7 +1302,7 @@ class Agent(Sink):
     def start_message_receivers(self):
         """Start message receiving tasks for the agent."""
         # start the background message queue processor
-        self._loop.create_task(self._process_message_queue())
+        self._message_queue_task = self._loop.create_task(self._process_message_queue())
 
         # start the wallet messaging client if enabled
         if self._wallet_messaging_client is not None:
@@ -1403,116 +1409,152 @@ class Agent(Sink):
         except Exception as ex:
             self._logger.exception(f"Exception in message handler: {ex}")
 
-    async def _process_message_queue(self):
-        """Process the message queue."""
-        while not self._shutting_down:
-            # get an element from the queue
-            schema_digest, sender, message, session = await self._message_queue.get()
+    async def _process_single_message(
+        self,
+        schema_digest: str,
+        sender: str,
+        message: JsonStr,
+        session: uuid.UUID,
+    ) -> None:
+        """
+        Process a single message from the queue.
 
-            # lookup the model definition
-            model_class: type[Model] | None = self._models.get(schema_digest)
-            if model_class is None:
-                self._logger.warning(
-                    f"Received message with unrecognized schema digest: {schema_digest}"
+        Args:
+            schema_digest (str): The schema digest of the message.
+            sender (str): The sender address.
+            message (JsonStr): The message content.
+            session (uuid.UUID): The session UUID.
+        """
+        # lookup the model definition
+        model_class: type[Model] | None = self._models.get(schema_digest)
+        if model_class is None:
+            self._logger.warning(
+                f"Received message with unrecognized schema digest: {schema_digest}"
+            )
+            return
+
+        protocol_info = self.get_message_protocol(schema_digest)
+        protocol_digest = protocol_info[0] if protocol_info else None
+
+        if self._message_history:
+            self._message_history.add_entry(
+                EnvelopeHistoryEntry(
+                    version=1,
+                    sender=sender,
+                    target=self.address,
+                    session=session,
+                    schema_digest=schema_digest,
+                    protocol_digest=protocol_digest,
+                    payload=message,
                 )
-                continue
-
-            protocol_info = self.get_message_protocol(schema_digest)
-            protocol_digest = protocol_info[0] if protocol_info else None
-
-            if self._message_history:
-                self._message_history.add_entry(
-                    EnvelopeHistoryEntry(
-                        version=1,
-                        sender=sender,
-                        target=self.address,
-                        session=session,
-                        schema_digest=schema_digest,
-                        protocol_digest=protocol_digest,
-                        payload=message,
-                    )
-                )
-
-            context = ExternalContext(
-                agent=AgentRepresentation(
-                    address=self.address,
-                    name=self._name,
-                    identity=self._identity,
-                    prefix=self._prefix,
-                ),
-                storage=self._storage,
-                ledger=self._ledger,
-                resolver=self._resolver,
-                dispenser=self._dispenser,
-                wallet_messaging_client=self._wallet_messaging_client,
-                logger=self._logger,
-                queries=self._queries,
-                session=session,
-                replies=self._replies,
-                message_received=MsgInfo(
-                    message=message, sender=sender, schema_digest=schema_digest
-                ),
-                protocol=protocol_info,
-                message_history=self._message_history,
             )
 
-            # sanity check
-            assert context.session == session, (
-                "Context object should always have message session"
-            )
+        context = ExternalContext(
+            agent=AgentRepresentation(
+                address=self.address,
+                name=self._name,
+                identity=self._identity,
+                prefix=self._prefix,
+            ),
+            storage=self._storage,
+            ledger=self._ledger,
+            resolver=self._resolver,
+            dispenser=self._dispenser,
+            wallet_messaging_client=self._wallet_messaging_client,
+            logger=self._logger,
+            queries=self._queries,
+            session=session,
+            replies=self._replies,
+            message_received=MsgInfo(
+                message=message, sender=sender, schema_digest=schema_digest
+            ),
+            protocol=protocol_info,
+            message_history=self._message_history,
+        )
 
-            # parse the received message
-            try:
-                recovered = model_class.parse_raw(message)
-            except ValidationError as ex:
-                self._logger.warning(f"Unable to parse message: {ex}")
+        # sanity check
+        assert context.session == session, (
+            "Context object should always have message session"
+        )
+
+        # parse the received message
+        try:
+            recovered = model_class.parse_raw(message)
+        except ValidationError as ex:
+            self._logger.warning(f"Unable to parse message: {ex}")
+            await _send_error_message(
+                context,
+                sender,
+                ErrorMessage(
+                    error=f"Message does not conform to expected schema: {ex}"
+                ),
+            )
+            return
+
+        # attempt to find the handler
+        handler: MessageCallback | None = self._unsigned_message_handlers.get(
+            schema_digest
+        )
+        if handler is None:
+            if not is_user_address(sender):
+                handler = self._signed_message_handlers.get(schema_digest)
+            elif schema_digest in self._signed_message_handlers:
                 await _send_error_message(
                     context,
                     sender,
                     ErrorMessage(
-                        error=f"Message does not conform to expected schema: {ex}"
+                        error="Message must be sent from verified agent address"
                     ),
                 )
-                continue
+                return
 
-            # attempt to find the handler
-            handler: MessageCallback | None = self._unsigned_message_handlers.get(
-                schema_digest
-            )
-            if handler is None:
-                if not is_user_address(sender):
-                    handler = self._signed_message_handlers.get(schema_digest)
-                elif schema_digest in self._signed_message_handlers:
-                    await _send_error_message(
-                        context,
-                        sender,
-                        ErrorMessage(
-                            error="Message must be sent from verified agent address"
-                        ),
-                    )
-                    continue
-
-            if handler is not None:
-                if self._handle_messages_concurrently:
-                    handler_task = asyncio.create_task(
-                        self._handle_message(
-                            handler=handler,
-                            context=context,
-                            sender=sender,
-                            model_class=model_class,
-                            message=recovered,
-                        )
-                    )
-                    self._message_tasks.add(handler_task)
-                    handler_task.add_done_callback(self._message_tasks.discard)
-                else:
-                    await self._handle_message(
+        if handler is not None:
+            if self._handle_messages_concurrently:
+                handler_task = asyncio.create_task(
+                    self._handle_message(
                         handler=handler,
                         context=context,
                         sender=sender,
                         model_class=model_class,
                         message=recovered,
                     )
+                )
+                self._message_tasks.add(handler_task)
+                handler_task.add_done_callback(self._message_tasks.discard)
+            else:
+                await self._handle_message(
+                    handler=handler,
+                    context=context,
+                    sender=sender,
+                    model_class=model_class,
+                    message=recovered,
+                )
+
+    async def _process_message_queue(self):
+        """Process the message queue."""
+        try:
+            while True:
+                (
+                    schema_digest,
+                    sender,
+                    message,
+                    session,
+                ) = await self._message_queue.get()
+                await self._process_single_message(
+                    schema_digest, sender, message, session
+                )
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            # Drain remaining messages from queue using get_nowait()
+            while not self._message_queue.empty():
+                try:
+                    schema_digest, sender, message, session = (
+                        self._message_queue.get_nowait()
+                    )
+                    await self._process_single_message(
+                        schema_digest, sender, message, session
+                    )
+                except asyncio.QueueEmpty:
+                    break
 
 
 class Bureau:
@@ -1722,6 +1764,11 @@ class Bureau:
                     self._logger.exception(
                         f"Failed to update agent {agent.name} status to inactive: {ex}"
                     )
+
+            # Cancel agent's message queue processor
+            if agent._message_queue_task and not agent._message_queue_task.done():
+                agent._message_queue_task.cancel()
+                await asyncio.gather(agent._message_queue_task, return_exceptions=True)
 
             # Cancel agent's interval tasks
             for task in agent._interval_tasks:
