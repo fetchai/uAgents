@@ -1693,7 +1693,7 @@ class Bureau:
                     self._logger.exception(f"Failed to register: {ex}")
                     time_to_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
 
-                    await asyncio.sleep(time_to_next_registration)
+                await asyncio.sleep(time_to_next_registration)
         except (KeyboardInterrupt, asyncio.CancelledError):
             pass
         finally:
