@@ -238,7 +238,7 @@ def send_message_to_agent(
                 )
             )
             logger.info("Sent message to agent", extra={"agent_endpoint": endpoint})
-            if track_interaction and endpoint != agentverse_config.proxy_endpoint:
+            if track_interaction and agentverse_config.url not in endpoint:
                 record_agent_interaction(
                     Interaction(
                         target=destination,
