@@ -176,3 +176,11 @@ class AgentMetadata(BaseModel):
     )
 
     geolocation: AgentGeolocation | AgentGeoLocationDetails | None = None
+
+
+class Interaction(BaseModel):
+    """Request payload for recording an agent interaction."""
+
+    target: str = Field(..., description="The address of the target agent")
+    session_id: uuid.UUID = Field(..., description="The session ID of the interaction")
+    source: str = Field(..., description="The address of the source agent")
