@@ -117,7 +117,7 @@ def parse_envelope(
         )
 
         for r_type in response_types:
-            with contextlib.suppress(ValidationError):
+            with contextlib.suppress(ValidationError, TypeError):
                 msg = r_type.parse_raw(message_json)
 
     return msg or message_json

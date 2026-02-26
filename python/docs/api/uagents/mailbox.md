@@ -44,7 +44,7 @@ Registers agent in Agentverse
 
 
 
-#### unregister_in_agentverse[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L155)
+#### unregister_in_agentverse[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L163)
 ```python
 async def unregister_in_agentverse(
         request: AgentverseDisconnectRequest, agent_address: str,
@@ -66,7 +66,7 @@ Unregisters agent in Agentverse
 
 
 
-## MailboxClient Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L186)
+## MailboxClient Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L194)
 
 ```python
 class MailboxClient()
@@ -76,10 +76,20 @@ Client for interacting with the Agentverse mailbox server.
 
 
 
-#### run[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L202)
+#### run[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L212)
 ```python
 async def run()
 ```
 
 Runs the mailbox client.
+
+
+
+#### attestation[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/mailbox.py#L318)
+```python
+@property
+def attestation() -> str
+```
+
+Creates and returns an attestation for the mailbox server.
 

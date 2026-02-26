@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel
+from uagents_core.types import AgentGeolocation
 
 from uagents import Agent
 from uagents.context import InternalContext
@@ -13,7 +14,6 @@ from uagents.experimental.mobility.protocols.base_protocol import (
 )
 from uagents.experimental.search import Agent as SearchResultAgent
 from uagents.experimental.search import geosearch_agents_by_proximity
-from uagents.types import AgentGeolocation
 
 
 class MobilityMetadata(BaseModel):
