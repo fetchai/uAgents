@@ -72,7 +72,7 @@ Handle a readiness probe sent via the HEAD method.
 
 
 
-#### handle_missing_content_type[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/asgi.py#L159)
+#### handle_missing_content_type[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/asgi.py#L164)
 ```python
 async def handle_missing_content_type(headers: CaseInsensitiveDict, send)
 ```
@@ -81,7 +81,7 @@ Handle missing content type header.
 
 
 
-#### serve[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/asgi.py#L171)
+#### serve[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/asgi.py#L176)
 ```python
 async def serve()
 ```
@@ -90,7 +90,7 @@ Start the server.
 
 
 
-#### __call__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/asgi.py#L273)
+#### __call__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/asgi.py#L278)
 ```python
 async def __call__(scope, receive, send)
 ```
