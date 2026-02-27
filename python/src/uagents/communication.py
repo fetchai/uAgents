@@ -34,7 +34,6 @@ class Dispenser:
             tuple[Envelope, list[str], asyncio.Future, bool]
         ] = asyncio.Queue()
         self._msg_cache_ref = msg_cache_ref
-        self._shutting_down = False
 
     def add_envelope(
         self,
@@ -94,7 +93,6 @@ class Dispenser:
                 await self._process_envelope(env, endpoints, response_future, sync)
         except (asyncio.CancelledError, KeyboardInterrupt):
             LOGGER.info("Shutting down dispenser...")
-            self._shutting_down = True
 
             # Drain remaining messages from queue using get_nowait()
             while not self._envelopes.empty():
