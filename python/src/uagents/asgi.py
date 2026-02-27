@@ -137,6 +137,13 @@ class ASGIServer:
 
     async def handle_readiness_probe(self, headers: CaseInsensitiveDict, send):
         """Handle a readiness probe sent via the HEAD method."""
+        # Fail readiness probe immediately during shutdown
+        if self._server and self._server.should_exit:
+            await self._asgi_send(
+                send=send, headers={"x-uagents-status": "not-ready"}
+            )
+            return
+
         if b"x-uagents-address" not in headers:
             await self._asgi_send(
                 send=send, headers={"x-uagents-status": "indeterminate"}
