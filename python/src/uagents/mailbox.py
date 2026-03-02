@@ -320,7 +320,10 @@ class MailboxClient:
         """
         Creates and returns an attestation for the mailbox server.
         """
-        if self._attestation_expiry - datetime.now(timezone.utc).timestamp() < 10:
+        if (
+            self._attestation is None
+            or self._attestation_expiry - datetime.now(timezone.utc).timestamp() < 10
+        ):
             now = datetime.now(timezone.utc)
             self._attestation = compute_attestation(
                 identity=self._identity,

@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 from datetime import datetime, timezone
 from logging import Logger
@@ -137,6 +138,11 @@ class ASGIServer:
 
     async def handle_readiness_probe(self, headers: CaseInsensitiveDict, send):
         """Handle a readiness probe sent via the HEAD method."""
+        # Fail readiness probe immediately during shutdown
+        if self._server and self._server.should_exit:
+            await self._asgi_send(send=send, headers={"x-uagents-status": "not-ready"})
+            return
+
         if b"x-uagents-address" not in headers:
             await self._asgi_send(
                 send=send, headers={"x-uagents-status": "indeterminate"}
@@ -187,10 +193,9 @@ class ASGIServer:
         self._logger.info(
             f"Starting server on http://{HOST}:{self._port} (Press CTRL+C to quit)"
         )
-        try:
+
+        with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
             await self._server.serve()
-        except (asyncio.CancelledError, KeyboardInterrupt):
-            self._logger.info("Shutting down server...")
 
     async def _handle_rest(
         self,
