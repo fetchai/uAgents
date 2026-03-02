@@ -6,7 +6,7 @@ import functools
 import logging
 import os
 import uuid
-from typing import Any, NoReturn
+from typing import Any
 
 import aiohttp
 import requests
@@ -98,7 +98,7 @@ async def _run_interval(
     logger: logging.Logger,
     context_factory: ContextFactory,
     period: float,
-) -> NoReturn:
+) -> None:
     """
     Run the provided interval callback function at a specified period.
 
@@ -109,9 +109,15 @@ async def _run_interval(
         period (float): The time period at which to run the callback function.
     """
     while True:
+        # Shield the handler from cancellation to allow it to complete
+        # Note: KeyboardInterrupt is NOT caught, allowing force-exit on double Ctrl-C
         try:
             ctx = context_factory()
-            await func(ctx)
+            await asyncio.shield(func(ctx))
+        except asyncio.CancelledError:
+            # Graceful shutdown requested - exit after current handler completes
+            logger.debug("Interval task cancelled, exiting after handler completion")
+            return
         except OSError as ex:
             logger.exception(f"OS Error in interval handler: {ex}")
         except RuntimeError as ex:
@@ -119,7 +125,11 @@ async def _run_interval(
         except Exception as ex:
             logger.exception(f"Exception in interval handler: {ex}")
 
-        await asyncio.sleep(period)
+        try:
+            await asyncio.sleep(period)
+        except asyncio.CancelledError:
+            logger.debug("Interval task cancelled during sleep, exiting gracefully")
+            return
 
 
 async def _send_error_message(ctx: Context, destination: str, msg: ErrorMessage):
