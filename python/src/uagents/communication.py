@@ -101,6 +101,9 @@ class Dispenser:
                     await self._process_envelope(env, endpoints, response_future, sync)
                 except asyncio.QueueEmpty:
                     break
+                except Exception as ex:
+                    # Log error but continue draining to prevent message loss
+                    LOGGER.error(f"Error processing envelope during shutdown: {ex}")
 
             LOGGER.info("Shutting down dispenser...complete")
 

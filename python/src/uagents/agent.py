@@ -1561,6 +1561,11 @@ class Agent(Sink):
                     )
                 except asyncio.QueueEmpty:
                     break
+                except Exception as ex:
+                    # Log error but continue draining to prevent message loss
+                    self._logger.error(
+                        f"Error processing message during shutdown: {ex}"
+                    )
 
 
 class Bureau:
