@@ -412,7 +412,6 @@ class Agent(Sink):
         self._handle_messages_concurrently = handle_messages_concurrently
         self._shutdown_timeout = shutdown_timeout
         self._mark_inactive_on_shutdown = mark_inactive_on_shutdown
-        self._shutting_down = False
         self._on_startup = []
         self._on_shutdown = []
         self._network = network
@@ -1204,25 +1203,22 @@ class Agent(Sink):
         if self._mark_inactive_on_shutdown:
             await self._update_agent_status_inactive()
 
-        # Step 2: Signal shutdown to stop accepting new work
-        self._shutting_down = True
-
-        # Step 3: Cancel mailbox and server tasks to stop receiving new messages
+        # Step 2: Cancel mailbox and server tasks to stop receiving new messages
         main_tasks = [t for t in tasks if not t.done()]
         for task in main_tasks:
             task.cancel()
         await asyncio.gather(*main_tasks, return_exceptions=True)
 
-        # Step 4: Cancel message queue processor (will drain remaining messages)
+        # Step 3: Cancel message queue processor (will drain remaining messages)
         if self._message_queue_task and not self._message_queue_task.done():
             self._message_queue_task.cancel()
             await asyncio.gather(self._message_queue_task, return_exceptions=True)
 
-        # Step 5: Cancel interval tasks
+        # Step 4: Cancel interval tasks
         for task in self._interval_tasks:
             task.cancel()
 
-        # Step 6: Wait for in-progress handlers to complete
+        # Step 5: Wait for in-progress handlers to complete
         all_handler_tasks = list(
             self._rest_tasks | self._message_tasks | self._interval_tasks
         )
@@ -1245,10 +1241,10 @@ class Agent(Sink):
                     f"Error while waiting for handlers to complete: {ex}"
                 )
 
-        # Step 7: Run shutdown handlers
+        # Step 6: Run shutdown handlers
         await self.run_shutdown_tasks()
 
-        # Step 8: Shutdown dispenser, which will try to send any queued outgoing messages first
+        # Step 7: Shutdown dispenser, which will try to send any queued outgoing messages first
         if self._dispenser_task:
             self._dispenser_task.cancel()
             await asyncio.gather(self._dispenser_task, return_exceptions=True)
