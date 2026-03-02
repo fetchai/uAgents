@@ -102,8 +102,7 @@ class Dispenser:
                 except asyncio.QueueEmpty:
                     break
                 except Exception as ex:
-                    # Log error but continue draining to prevent message loss
-                    LOGGER.error(f"Error processing envelope during shutdown: {ex}")
+                    LOGGER.exception(f"Error processing envelope during shutdown: {ex}")
 
             LOGGER.info("Shutting down dispenser...complete")
 
