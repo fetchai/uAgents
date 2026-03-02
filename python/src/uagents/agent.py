@@ -109,14 +109,10 @@ async def _run_interval(
         period (float): The time period at which to run the callback function.
     """
     while True:
-        # Shield the handler from cancellation to allow it to complete
-        # Note: KeyboardInterrupt is NOT caught, allowing force-exit on double Ctrl-C
         try:
             ctx = context_factory()
             await asyncio.shield(func(ctx))
         except asyncio.CancelledError:
-            # Graceful shutdown requested - exit after current handler completes
-            logger.debug("Interval task cancelled, exiting after handler completion")
             return
         except OSError as ex:
             logger.exception(f"OS Error in interval handler: {ex}")
@@ -128,7 +124,6 @@ async def _run_interval(
         try:
             await asyncio.sleep(period)
         except asyncio.CancelledError:
-            logger.debug("Interval task cancelled during sleep, exiting gracefully")
             return
 
 
