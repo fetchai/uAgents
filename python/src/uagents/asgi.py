@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 from datetime import datetime, timezone
 from logging import Logger
@@ -192,7 +193,13 @@ class ASGIServer:
         self._logger.info(
             f"Starting server on http://{HOST}:{self._port} (Press CTRL+C to quit)"
         )
-        await self._server.serve()
+        try:
+            with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
+                await self._server.serve()
+        finally:
+            self._logger.info("Shutting down server...")
+            await self._server.shutdown()
+            self._logger.info("Shutting down server...complete.")
 
     async def _handle_rest(
         self,
