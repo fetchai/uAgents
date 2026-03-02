@@ -193,13 +193,9 @@ class ASGIServer:
         self._logger.info(
             f"Starting server on http://{HOST}:{self._port} (Press CTRL+C to quit)"
         )
-        try:
-            with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
-                await self._server.serve()
-        finally:
-            self._logger.info("Shutting down server...")
-            await self._server.shutdown()
-            self._logger.info("Shutting down server...complete.")
+
+        with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
+            await self._server.serve()
 
     async def _handle_rest(
         self,
