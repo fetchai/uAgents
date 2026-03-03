@@ -1821,7 +1821,7 @@ class Bureau:
 
     async def run_async(self):
         """Run the agents managed by the bureau."""
-        tasks = [self._server.serve()]
+        coros = [self._server.serve()]
         if not self._agents:
             self._logger.warning("No agents to run.")
             return
@@ -1832,14 +1832,12 @@ class Bureau:
                 is_mailbox_agent(agent._endpoints, self._agentverse)
                 and agent.mailbox_client is not None
             ):
-                tasks.append(agent.mailbox_client.run())
-        tasks.append(self._schedule_registration())
+                coros.append(agent.mailbox_client.run())
+
+        self._loop.create_task(self._schedule_registration())
 
         # Convert coroutines to tasks
-        tasks = [
-            self._loop.create_task(t) if not isinstance(t, asyncio.Task) else t
-            for t in tasks
-        ]
+        tasks = [self._loop.create_task(coro) for coro in coros]
 
         try:
             await asyncio.gather(*tasks, return_exceptions=True)
@@ -1856,17 +1854,20 @@ class Bureau:
             except Exception as ex:
                 self._logger.exception(f"Error during bureau shutdown: {ex}")
             finally:
-                # Cancel any remaining tasks
-                remaining_tasks = [
-                    t
-                    for t in asyncio.all_tasks(self._loop)
-                    if t is not asyncio.current_task(self._loop) and not t.done()
-                ]
-                if remaining_tasks:
-                    for task in remaining_tasks:
-                        task.cancel()
-                    with contextlib.suppress(Exception):
-                        await asyncio.gather(*remaining_tasks, return_exceptions=True)
+                # Cancel any remaining tasks (check if loop is open to avoid errors on force quit)
+                if not self._loop.is_closed():
+                    remaining_tasks = [
+                        t
+                        for t in asyncio.all_tasks(self._loop)
+                        if t is not asyncio.current_task(self._loop) and not t.done()
+                    ]
+                    if remaining_tasks:
+                        for task in remaining_tasks:
+                            task.cancel()
+                        with contextlib.suppress(Exception):
+                            await asyncio.gather(
+                                *remaining_tasks, return_exceptions=True
+                            )
 
             self._logger.info("Shutting down bureau...complete.")
 

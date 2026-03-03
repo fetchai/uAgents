@@ -44,7 +44,7 @@ Run the dispenser routine.
 
 
 
-#### dispatch_local_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L108)
+#### dispatch_local_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L110)
 ```python
 async def dispatch_local_message(sender: str, destination: str,
                                  schema_digest: str, message: JsonStr,
@@ -55,7 +55,7 @@ Process a message locally.
 
 
 
-#### send_exchange_envelope[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L132)
+#### send_exchange_envelope[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L134)
 ```python
 async def send_exchange_envelope(envelope: Envelope,
                                  endpoints: list[str],
@@ -77,7 +77,7 @@ Method to send an exchange envelope.
 
 
 
-#### dispatch_sync_response_envelope[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L206)
+#### dispatch_sync_response_envelope[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L208)
 ```python
 async def dispatch_sync_response_envelope(
         env: Envelope, endpoint: str) -> MsgStatus | Envelope
@@ -87,7 +87,7 @@ Dispatch a synchronous response envelope locally.
 
 
 
-#### send_message_raw[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L229)
+#### send_message_raw[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L231)
 ```python
 async def send_message_raw(
         destination: str,
@@ -123,7 +123,7 @@ Standalone function to send a message to an agent.
 
 
 
-#### send_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L308)
+#### send_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L310)
 ```python
 async def send_message(
         destination: str,
@@ -157,7 +157,7 @@ Standalone function to send a message to an agent.
 
 
 
-#### send_sync_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L347)
+#### send_sync_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L349)
 ```python
 async def send_sync_message(
     destination: str,
@@ -191,7 +191,7 @@ Standalone function to send a synchronous message to an agent.
 
 
 
-#### enclose_response[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L384)
+#### enclose_response[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L386)
 ```python
 def enclose_response(message: Model,
                      sender: str,
@@ -215,7 +215,7 @@ Enclose a response message within an envelope.
 
 
 
-#### enclose_response_raw[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L409)
+#### enclose_response_raw[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/communication.py#L411)
 ```python
 def enclose_response_raw(json_message: JsonStr,
                          schema_digest: str,
