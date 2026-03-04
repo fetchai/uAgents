@@ -38,7 +38,6 @@ def build_llm_message_history(
         except Exception:
             continue
 
-
         if str(hist_msg.msg_id) == current_id:
             current_already_in_history = True
 
