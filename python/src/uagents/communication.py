@@ -16,10 +16,7 @@ from uagents_core.types import DeliveryStatus, MsgStatus
 from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
 from uagents.dispatch import dispatcher
 from uagents.resolver import GlobalResolver, Resolver
-from uagents.types import (
-    EnvelopeHistory,
-    JsonStr,
-)
+from uagents.types import JsonStr
 from uagents.utils import get_logger
 
 LOGGER: logging.Logger = get_logger("dispenser", logging.DEBUG)
@@ -28,11 +25,10 @@ LOGGER: logging.Logger = get_logger("dispenser", logging.DEBUG)
 class Dispenser:
     """Dispenses messages externally."""
 
-    def __init__(self, msg_cache_ref: EnvelopeHistory | None = None):
+    def __init__(self):
         self._envelopes: asyncio.Queue[
             tuple[Envelope, list[str], asyncio.Future, bool]
         ] = asyncio.Queue()
-        self._msg_cache_ref = msg_cache_ref
 
     def add_envelope(
         self,
