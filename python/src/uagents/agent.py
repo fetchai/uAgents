@@ -406,7 +406,7 @@ class Agent(Sink):
             if enable_agent_inspector or store_message_history
             else None
         )
-        self._dispenser = Dispenser(msg_cache_ref=self._message_history)
+        self._dispenser = Dispenser()
         self._message_queue = asyncio.Queue()
         self._message_tasks: set[asyncio.Task] = set()
         self._interval_tasks: set[asyncio.Task] = set()
