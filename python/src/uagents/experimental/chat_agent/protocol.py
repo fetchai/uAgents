@@ -21,12 +21,8 @@ from uagents.protocol import Protocol
 from uagents_core.types import DeliveryStatus, MsgStatus
 
 
-def build_llm_message_history(
-    ctx: Context, current_msg: ChatMessage
-) -> list[dict[str, str]]:
+def build_llm_message_history(ctx: Context) -> list[dict[str, str]]:
     history: list[dict[str, str]] = []
-    current_id = str(current_msg.msg_id)
-    current_already_in_history = False
 
     for entry in ctx.session_history() or []:
         payload = entry.payload
@@ -38,20 +34,12 @@ def build_llm_message_history(
         except Exception:
             continue
 
-        if str(hist_msg.msg_id) == current_id:
-            current_already_in_history = True
-
         text = hist_msg.text().strip()
         if not text:
             continue
 
         role = "assistant" if entry.sender == ctx.agent.address else "user"
         history.append({"role": role, "content": text})
-
-    if not current_already_in_history:
-        text = current_msg.text().strip()
-        if text:
-            history.append({"role": "user", "content": text})
 
     return history
 
@@ -121,7 +109,7 @@ class ChatProtocol(Protocol):
             if not user_text:
                 return
 
-            messages = build_llm_message_history(ctx, msg)
+            messages = build_llm_message_history(ctx)
 
             try:
                 tool_name, arg_dict, tool_call_id, assistant_msg = self._llm.process(
