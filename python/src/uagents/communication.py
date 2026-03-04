@@ -18,7 +18,6 @@ from uagents.dispatch import dispatcher
 from uagents.resolver import GlobalResolver, Resolver
 from uagents.types import (
     EnvelopeHistory,
-    EnvelopeHistoryEntry,
     JsonStr,
 )
 from uagents.utils import get_logger
@@ -76,9 +75,6 @@ class Dispenser:
                 sync=sync,
             )
             response_future.set_result(result)
-
-            if self._msg_cache_ref:
-                self._msg_cache_ref.add_entry(EnvelopeHistoryEntry.from_envelope(env))
         except Exception as err:
             LOGGER.error(f"Failed to send envelope: {err}")
             # Set exception on the future so caller knows it failed
