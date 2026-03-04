@@ -21,6 +21,42 @@ from uagents.protocol import Protocol
 from uagents_core.types import DeliveryStatus, MsgStatus
 
 
+def build_llm_message_history(
+    ctx: Context, current_msg: ChatMessage
+) -> list[dict[str, str]]:
+    history: list[dict[str, str]] = []
+    current_id = str(current_msg.msg_id)
+    current_already_in_history = False
+
+    for entry in ctx.session_history() or []:
+        payload = entry.payload
+        if not payload:
+            continue
+
+        try:
+            hist_msg = ChatMessage.parse_raw(payload)
+        except Exception:
+            continue
+
+
+        if str(hist_msg.msg_id) == current_id:
+            current_already_in_history = True
+
+        text = hist_msg.text().strip()
+        if not text:
+            continue
+
+        role = "assistant" if entry.sender == ctx.agent.address else "user"
+        history.append({"role": role, "content": text})
+
+    if not current_already_in_history:
+        text = current_msg.text().strip()
+        if text:
+            history.append({"role": "user", "content": text})
+
+    return history
+
+
 class ToolContext(ExternalContext):
     def __init__(self, base: ExternalContext, sender: str):
         self.__dict__ = base.__dict__.copy()
@@ -86,25 +122,7 @@ class ChatProtocol(Protocol):
             if not user_text:
                 return
 
-            messages: list[dict] = []
-
-            session_history = ctx.session_history()
-            if session_history is not None:
-                for entry in session_history:
-                    role = "assistant" if entry.sender == ctx.agent.address else "user"
-                    messages.append(
-                        {
-                            "role": role,
-                            "content": entry.payload,
-                        }
-                    )
-
-            messages.append(
-                {
-                    "role": "user",
-                    "content": user_text,
-                }
-            )
+            messages = build_llm_message_history(ctx, msg)
 
             try:
                 tool_name, arg_dict, tool_call_id, assistant_msg = self._llm.process(
