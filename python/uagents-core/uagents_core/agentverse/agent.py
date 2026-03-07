@@ -169,7 +169,7 @@ def _troubleshoot(
         logger.info(f"[+]  |--> agent is assigned domain {reg.domain_name}")
 
     if len(reg.protocols) == 0:
-        logger.warning("[!] |--> agent have no protocols!.")
+        logger.warning("[!] |--> agent has no protocols!.")
     else:
         chat_proto = ProtocolSpecification.compute_digest(
             chat_protocol_spec.manifest()
