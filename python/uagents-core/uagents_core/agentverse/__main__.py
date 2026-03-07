@@ -6,7 +6,7 @@ from .common import parse_agentverse_config
 from .resolve import resolve
 
 
-def parse_commandline() -> Tuple[argparse.ArgumentParser, argparse.Namespace]:
+def parse_commandline() -> tuple[argparse.ArgumentParser, argparse.Namespace]:
     parser = argparse.ArgumentParser(
         description="Agentverse command line interface tools"
     )
