@@ -1,6 +1,5 @@
 import json
 from datetime import datetime, timezone
-from typing import List
 
 import requests
 from pydantic import ValidationError
@@ -202,7 +201,7 @@ def _troubleshoot(
             logger.warning("[!]  |-->  agent doesn't have any interactions")
 
 
-def _check_connectivity(agent: str, endpoints: List[AgentEndpoint]):
+def _check_connectivity(agent: str, endpoints: list[AgentEndpoint]):
 
     logger.info("[-] checking agents endpoints connectivity...")
     urls = [e.url for e in endpoints]

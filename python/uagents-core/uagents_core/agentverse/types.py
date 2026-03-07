@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List, Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -19,17 +19,17 @@ class AlmanacRegistration(BaseModel):
     expiry: datetime
     status: AgentStatus
     type: AgentType
-    metadata: Dict[str, Any] | None
-    protocols: List[str]
-    endpoints: List[AgentEndpoint]
+    metadata: dict[str, Any] | None
+    protocols: list[str]
+    endpoints: list[AgentEndpoint]
     domain_name: str | None
 
 
 class SearchRecord(BaseModel):
     status: AgentStatus
     type: AgentType
-    metadata: Dict[str, Any] | None
-    protocols: List[AgentProtocol]
+    metadata: dict[str, Any] | None
+    protocols: list[AgentProtocol]
     domain: str | None
 
     name: str
