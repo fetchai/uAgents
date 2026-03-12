@@ -287,7 +287,7 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
         )
 
         if len(msg.content) == 1 and isinstance(msg.content[0], StartSessionContent):
-            return
+            return JSONResponse({})
 
         text = ""
         for item in msg.content:
