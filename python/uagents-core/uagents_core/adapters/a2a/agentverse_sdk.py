@@ -1,12 +1,12 @@
 import importlib
 import inspect
 import json
-import sys
 import logging
-from functools import wraps
-from typing import Tuple, Type, Any, cast
-from secrets import token_bytes
+import sys
 from datetime import datetime, timezone
+from functools import wraps
+from secrets import token_bytes
+from typing import Any, Tuple, Type, cast
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -14,44 +14,37 @@ import a2a
 from a2a.server.apps import A2AStarletteApplication
 from a2a.types import AgentCard
 from pydantic import BaseModel, Field
-from starlette.applications import Starlette
-from starlette.requests import Request
-from starlette.responses import Response, JSONResponse
-from starlette.exceptions import HTTPException
 from starlette import status
-
-from uagents_core.identity import Identity
+from starlette.applications import Starlette
+from starlette.exceptions import HTTPException
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
 from uagents_core.config import AgentverseConfig
-from uagents_core.utils.registration import (
-    _send_post_request_agentverse,
-    AgentverseRequestError,
-)
-from uagents_core.registration import RegistrationRequest, AgentProfile
-from uagents_core.storage import compute_attestation
-from uagents_core.types import AgentEndpoint
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
+    ChatMessage,
     EndSessionContent,
     StartSessionContent,
+    TextContent,
     chat_protocol_spec,
 )
-from uagents_core.protocol import ProtocolSpecification
-from uagents_core.contrib.protocols.chat import (
-    ChatMessage,
-    TextContent,
-)
 from uagents_core.envelope import Envelope
+from uagents_core.identity import Identity, is_user_address
+from uagents_core.protocol import ProtocolSpecification
+from uagents_core.registration import AgentProfile, RegistrationRequest
+from uagents_core.storage import compute_attestation
+from uagents_core.types import AgentEndpoint
 from uagents_core.utils.messages import parse_envelope, send_message_to_agent
-from uagents_core.identity import is_user_address
-
+from uagents_core.utils.registration import (
+    AgentverseRequestError,
+    _send_post_request_agentverse,
+)
 
 DEFAULT_AGENTVERSE_CHAT_ENDPOINT = "/av/chat"
 DEFAULT_HTTP_REQUESTS_TIMEOUT = 3
 AGENT_AUTH_TOKEN_VALIDITY = 60 * 2
 
 for ch in ["uagents_core.utils.resolver", "uagents_core.utils.messages"]:
-    # logger = logging.getLogger(ch)
-    # logger.disabled = True
     logging.getLogger(ch).setLevel(logging.ERROR)
 
 
@@ -195,9 +188,6 @@ def _register_to_agentverse(
     timeout: int = DEFAULT_HTTP_REQUESTS_TIMEOUT,
 ):
     try:
-        # print(
-        #     f"Sending registration request for {request.address} to {agentverse.agents_api}..."
-        # )
         _send_post_request_agentverse(
             url=agentverse.agents_api,
             data=request,
@@ -262,7 +252,6 @@ async def _parse_chat_request(
 
 class AgentverseA2AStarletteApplication(A2AStarletteApplication):
     def __init__(self, *args, **kwargs):
-        # print(f"Using instrumented starlette app..")
         super().__init__(*args, **kwargs)
         self.register()
 
@@ -296,7 +285,6 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
             sender=Identity.from_seed(_agent.uri.key, 0),
             agentverse_config=_agent.uri.agentverse_config,
         )
-        # print(f"<Rx><agv> {msg.model_dump_json()}.")
 
         if len(msg.content) == 1 and isinstance(msg.content[0], StartSessionContent):
             return
@@ -338,10 +326,8 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
         response = ""
 
         try:
-            # print(f"<Tx><a2a> {request}...")
             resp = await super()._handle_requests(a2a_request)
             a2a_response = json.loads(resp.body)
-            # print(f"<Rx><a2a> {a2a_response}.")
             answer = a2a_response.get("result")
             if answer is not None:
                 for part in answer["parts"]:
@@ -366,8 +352,6 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
             ],
         )
 
-        # print(f"<Tx><agv> {av_response.model_dump_json()}...")
-        # await send_message_to_agent(
         send_message_to_agent(
             destination=env.sender,
             msg=av_response,
@@ -400,7 +384,6 @@ def init(
     disable_message_auth: bool = False,
     track_interactions: bool = False,
 ):
-    # print("Instrumenting A2A App...")
 
     # instrument a2a starlette
     patch_a2a_app_builder(AgentverseA2AStarletteApplication)
