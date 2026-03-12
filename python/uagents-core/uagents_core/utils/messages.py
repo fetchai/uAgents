@@ -4,6 +4,8 @@ This module provides methods to enable an identity to interact with other agents
 
 import contextlib
 import json
+from datetime import datetime, timezone
+from secrets import token_bytes
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
@@ -19,7 +21,8 @@ from uagents_core.envelope import Envelope
 from uagents_core.identity import Identity
 from uagents_core.logger import get_logger
 from uagents_core.models import Model
-from uagents_core.types import DeliveryStatus, JsonStr, MsgStatus, Resolver
+from uagents_core.storage import compute_attestation
+from uagents_core.types import DeliveryStatus, Interaction, JsonStr, MsgStatus, Resolver
 from uagents_core.utils.resolver import AlmanacResolver
 
 logger = get_logger("uagents_core.utils.messages")
@@ -35,7 +38,7 @@ def generate_message_envelope(
     protocol_digest: str | None = None,
 ) -> Envelope:
     """
-    Generate an envelope for a message to be sent to an agent.
+    Generate an envelope for a message to be sent to an agent.z
 
     Args:
         destination (str): The address of the target agent.
@@ -91,6 +94,42 @@ def send_message(
     )
     response.raise_for_status()
     return response
+
+
+def record_agent_interaction(
+    interaction: Interaction, identity: Identity, agentverse_config: AgentverseConfig
+) -> None:
+    """
+    Record an interaction in agentverse.
+
+    Args:
+        interaction (Interaction): The interaction to be recorded.
+        identity (Identity): The identity of the agent.
+        agentverse_config (AgentverseConfig): The configuration for agentverse.
+    """
+    interactions_url = agentverse_config.agents_api + "/interactions"
+    attestation = compute_attestation(
+        identity=identity,
+        validity_start=datetime.now(timezone.utc),
+        validity_secs=3600,
+        nonce=token_bytes(32),
+    )
+    try:
+        response = requests.post(
+            url=interactions_url,
+            headers={
+                "content-type": "application/json",
+                "Authorization": f"Agent {attestation}",
+            },
+            data=interaction.model_dump_json(),
+            timeout=DEFAULT_REQUEST_TIMEOUT,
+        )
+        response.raise_for_status()
+    except requests.RequestException as e:
+        logger.error(
+            "Failed to track interaction",
+            extra={"error": str(e), "interaction": interaction},
+        )
 
 
 def parse_envelope(
@@ -153,6 +192,7 @@ def send_message_to_agent(
     sync: bool = False,
     timeout: int = DEFAULT_REQUEST_TIMEOUT,
     response_type: type[Model] | set[type[Model]] | None = None,
+    track_interaction: bool = True,
 ) -> list[MsgStatus] | Model | JsonStr:
     """
     Send a message to an agent with default settings.
@@ -164,11 +204,12 @@ def send_message_to_agent(
         session_id (UUID, optional): The unique identifier for the dialogue between two agents.
         strategy (Literal["first", "random", "all"], optional): The strategy to use when
             selecting an endpoint.
-        agentverse_config (AgentverseConfig, optional): The configuration for the agentverse.
+        agentverse_config (AgentverseConfig, optional): The configuration for agentverse.
         resolver (Resolver, optional): The resolver to use for finding endpoints.
         sync (bool, optional): Whether to send the message synchronously and wait for a response.
         response_type (type[Model] | set[type[Model]] | None, optional):
             The expected response type(s) for a sync message.
+        track_interaction (bool, optional): Whether to track this interaction in agentverse.
 
     Returns:
         list[MsgStatus] | Model | JsonStr: A list of message statuses
@@ -210,6 +251,16 @@ def send_message_to_agent(
                 )
             )
             logger.info("Sent message to agent", extra={"agent_endpoint": endpoint})
+            if track_interaction and agentverse_config.url not in endpoint:
+                record_agent_interaction(
+                    Interaction(
+                        target=destination,
+                        source=sender.address,
+                        session_id=env.session,
+                    ),
+                    identity=sender,
+                    agentverse_config=agentverse_config,
+                )
             break
         except requests.RequestException as e:
             logger.error("Failed to send message to agent", extra={"error": str(e)})
