@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from functools import wraps
 from secrets import token_bytes
 from typing import Any, Tuple, Type, cast
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 from uuid import uuid4
 
 import a2a
@@ -63,26 +63,24 @@ class AgentUri(BaseModel):
         if not parsed.hostname:
             raise ValueError("Hostname is missing.")
         if not parsed.username:
-            raise ValueError("Agent name is missing")
+            raise ValueError("Agent handle is missing")
         if not parsed.password:
             raise ValueError("Agent key is missing.")
+        if not parsed.path or len(parsed.path.split("/")) < 2:
+            raise ValueError("Agent name is missing")
+
+        name = unquote(parsed.path.split("/")[1])
 
         agentverse = AgentverseConfig(
             base_url=parsed.hostname + (f":{parsed.port}" if parsed.port else ""),
             http_prefix=parsed.scheme,
         )
 
-        handle = (
-            parsed.path.split("/")[1]
-            if parsed.path and len(parsed.path.split("/")) > 1
-            else None
-        )
-
         return cls(
             key=parsed.password,
-            name=parsed.username,
+            name=name,
             agentverse_config=agentverse,
-            handle=handle,
+            handle=parsed.username,
         )
 
 
@@ -346,17 +344,14 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
         av_response = ChatMessage(
             timestamp=datetime.now(timezone.utc),
             msg_id=uuid4(),
-            content=[
-                TextContent(type="text", text=response),
-                EndSessionContent(type="end-session"),
-            ],
+            content=[TextContent(type="text", text=response)],
         )
-
         send_message_to_agent(
             destination=env.sender,
             msg=av_response,
             sender=Identity.from_seed(_agent.uri.key, 0),
             agentverse_config=_agent.uri.agentverse_config,
+            session_id=env.session,
         )
 
         return JSONResponse({})

@@ -263,7 +263,13 @@ def send_message_to_agent(
                 )
             break
         except requests.RequestException as e:
-            logger.error("Failed to send message to agent", extra={"error": str(e)})
+            if isinstance(e, requests.HTTPError):
+                logger.error(
+                    f"Failed to send message to agent, returned HTTP error {e.response.status_code}",
+                    extra={"error": str(e)},
+                )
+            else:
+                logger.error("Failed to send message to agent", extra={"error": str(e)})
             status_result.append(
                 MsgStatus(
                     status=DeliveryStatus.FAILED,
