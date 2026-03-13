@@ -14,23 +14,25 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from uagents_core.adapters.common.agentverse import (
-    _register_to_agentverse,
+    CHAT_PROTOCOL,
+    register_to_agentverse_sync,
     generate_agent_auth_token,
 )
 from uagents_core.adapters.common.config import (
     DEFAULT_AGENTVERSE_CHAT_ENDPOINT,
 )
-from uagents_core.adapters.common.starlette import _parse_chat_request
+from uagents_core.adapters.common.starlette import (
+    parse_chat_message_from_request,
+    setup_agent_status_lifespan,
+)
 from uagents_core.adapters.common.types import AgentUri, AgentverseAgent
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
     ChatMessage,
     StartSessionContent,
     TextContent,
-    chat_protocol_spec,
 )
 from uagents_core.identity import Identity
-from uagents_core.protocol import ProtocolSpecification
 from uagents_core.registration import AgentProfile, RegistrationRequest
 from uagents_core.types import AgentEndpoint
 from uagents_core.utils.messages import send_message_to_agent
@@ -103,9 +105,7 @@ def _generate_registration_request(
             f"{card.url.strip('/')}/{DEFAULT_AGENTVERSE_CHAT_ENDPOINT.strip('/')}"
         )
         request.endpoints = [AgentEndpoint(url=chat_url, weight=1)]
-        request.protocols = [
-            ProtocolSpecification.compute_digest(chat_protocol_spec.manifest())
-        ]
+        request.protocols = [CHAT_PROTOCOL]
 
         if not request.profile.description:
             request.profile.description = card.description
@@ -117,18 +117,6 @@ def _generate_registration_request(
     return request
 
 
-def register_to_agentverse(
-    agent: AgentverseAgent, card: AgentCard | None = None, active: bool = False
-):
-
-    request = _generate_registration_request(agent, card)
-    auth_header = {
-        "Authorization": f"Agent {generate_agent_auth_token(Identity.from_seed(agent.uri.key, 0))}"
-    }
-
-    _register_to_agentverse(request, auth_header, agent.uri.agentverse_config)
-
-
 class AgentverseA2AStarletteApplication(A2AStarletteApplication):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -136,6 +124,9 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
 
     @wraps(A2AStarletteApplication.build)
     def build(self, *args, **kwargs) -> Starlette:
+
+        kwargs["lifespan"] = setup_agent_status_lifespan(kwargs.get("lifespan", None))
+
         app = super().build(*args, **kwargs)
         app.add_route(
             name="Agentverse chat messages handler",
@@ -146,11 +137,12 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
         return app
 
     async def _handle_requests(self, request: Request) -> Response:
-        print(f"Got an a2a message {request}")
         return await super()._handle_requests(request)
 
     async def _chat(self, request: Request) -> Response:
-        env, msg = await _parse_chat_request(request, _agent.verify_envelope)
+        env, msg = await parse_chat_message_from_request(
+            request, _agent.options.verify_envelope
+        )
 
         if isinstance(msg, ChatAcknowledgement):
             return JSONResponse({})
@@ -243,7 +235,12 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
         if _agent is None:
             raise RuntimeError("Not initialised.")
 
-        register_to_agentverse(_agent, self.agent_card)
+        request = _generate_registration_request(_agent, self.agent_card)
+        token = generate_agent_auth_token(Identity.from_seed(_agent.uri.key, 0))
+
+        register_to_agentverse_sync(
+            request, {"Authorization": f"Agent {token}"}, _agent.uri.agentverse_config
+        )
 
 
 def patch_a2a_app_builder(new_builder: Type):
