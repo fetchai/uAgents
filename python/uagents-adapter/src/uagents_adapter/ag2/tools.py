@@ -159,7 +159,7 @@ class AG2RegisterTool(BaseRegisterTool):
 
         _chat_handlers_registered = False
         try:
-            from uagents.experimental.dialogues import (
+            from uagents_core.contrib.protocols.chat import (
                 ChatAcknowledgement,
                 ChatMessage,
             )
