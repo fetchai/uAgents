@@ -1172,15 +1172,16 @@ class Agent(Sink):
 
         return await task
 
-    async def _update_agent_status_inactive(self):
-        """Update agent registration status to inactive."""
+    async def _update_agent_status(self, active: bool):
+        """Update agent registration status."""
         try:
             status = AgentStatusUpdate(
-                agent_identifier=self.identifier, is_active=False
+                agent_identifier=self.identifier, is_active=active
             )
             status.sign(self._identity)
             await update_agent_status(status, self._almanac_api_url)
-            self._logger.info("Agent registration status updated to inactive")
+            label = "active" if active else "inactive"
+            self._logger.info(f"Agent registration status updated to {label}")
         except Exception as ex:
             self._logger.exception(f"Failed to update agent registration status: {ex}")
 
@@ -1206,7 +1207,7 @@ class Agent(Sink):
 
         # Register as inactive in the Almanac (if configured)
         if self._mark_inactive_on_shutdown:
-            await self._update_agent_status_inactive()
+            await self._update_agent_status(active=False)
 
         # Cancel mailbox and server tasks to stop receiving new messages
         main_tasks = [t for t in tasks if not t.done()]
@@ -1285,6 +1286,7 @@ class Agent(Sink):
 
     async def run_startup_tasks(self):
         """Start startup tasks for the agent."""
+        await self._update_agent_status(active=True)
         for handler in self._on_startup:
             try:
                 ctx = self._build_context()
@@ -1770,7 +1772,7 @@ class Bureau:
             # Set agent as inactive in Almanac if configured to do so
             if agent._mark_inactive_on_shutdown:
                 try:
-                    await agent._update_agent_status_inactive()
+                    await agent._update_agent_status(active=False)
                 except Exception as ex:
                     self._logger.exception(
                         f"Failed to update agent {agent.name} status to inactive: {ex}"
