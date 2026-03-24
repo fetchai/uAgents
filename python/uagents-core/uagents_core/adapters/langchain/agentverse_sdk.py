@@ -5,6 +5,7 @@ import os
 import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from secrets import token_bytes
 from typing import Any, Tuple, Type, cast
 from urllib.parse import unquote, urlparse
 from uuid import uuid4
@@ -30,13 +31,13 @@ from uagents_core.contrib.protocols.chat import (
 from uagents_core.envelope import Envelope
 from uagents_core.identity import Identity, is_user_address
 from uagents_core.protocol import ProtocolSpecification
-from uagents_core.registration import AgentProfile
+from uagents_core.registration import AgentProfile, RegistrationRequest
+from uagents_core.storage import compute_attestation
+from uagents_core.types import AgentEndpoint
 from uagents_core.utils.messages import parse_envelope, send_message_to_agent
 from uagents_core.utils.registration import (
-    AgentverseRegistrationRequest,
     AgentverseRequestError,
-    RegistrationRequestCredentials,
-    register_agent,
+    _send_post_request_agentverse,
 )
 
 DEFAULT_AGENTVERSE_CHAT_ENDPOINT = "/av/chat"
@@ -44,6 +45,7 @@ DEFAULT_HTTP_REQUESTS_TIMEOUT = 3
 DEFAULT_LANGGRAPH_INTERNAL_BASE_URL = "http://langgraph.internal"
 DEFAULT_LANGGRAPH_ASSISTANT_ID = "agent"
 DEFAULT_HTTP_TIMEOUT = 60.0
+AGENT_AUTH_TOKEN_VALIDITY = 60 * 2
 
 for ch in ["uagents_core.utils.resolver", "uagents_core.utils.messages"]:
     logging.getLogger(ch).setLevel(logging.ERROR)
@@ -99,10 +101,6 @@ class LangGraphAdapterConfig(BaseModel):
     chat_endpoint: str = DEFAULT_AGENTVERSE_CHAT_ENDPOINT
     debug_http_response: bool = False
     register_on_startup: bool = True
-    public_url: str | None = None
-    agentverse_api_key: str | None = None
-    register_handle: bool = False
-    track_interactions: bool = False
 
 
 _agent: AgentverseAgent | None = None
@@ -121,17 +119,20 @@ def bootstrap_env() -> None:
     os.environ.setdefault("REDIS_URI", "redis://127.0.0.1:6379/0")
 
 
+def generate_agent_auth_token(identity: Identity) -> str:
+    return compute_attestation(
+        identity,
+        datetime.now(timezone.utc),
+        AGENT_AUTH_TOKEN_VALIDITY,
+        token_bytes(32),
+    )
+
+
 def _combine_url(base: str, path: str) -> str:
     return f"{base.rstrip('/')}/{path.lstrip('/')}"
 
 
 def _resolve_public_url() -> str | None:
-    if _config is None:
-        return None
-
-    if _config.public_url:
-        return _config.public_url
-
     return os.getenv("LANGGRAPH_API_URL")
 
 
@@ -185,45 +186,60 @@ def _generate_registration_request(
     agent: AgentverseAgent,
     config: LangGraphAdapterConfig,
     public_url: str,
-) -> AgentverseRegistrationRequest:
-    endpoint = _combine_url(public_url, config.chat_endpoint)
+) -> RegistrationRequest:
+    identity = Identity.from_seed(agent.uri.key, 0)
 
-    description = None
-    readme = None
-    avatar_url = None
+    profile_data = agent.profile.model_dump() if agent.profile is not None else {}
+    profile = AgentProfile(**profile_data)
 
-    if agent.profile is not None:
-        description = agent.profile.description or None
-        readme = agent.profile.readme or None
-        avatar_url = agent.profile.avatar_url or None
+    if not profile.description:
+        profile.description = (
+            f"LangGraph agent '{config.assistant_id}' bridged to Agentverse."
+        )
 
-    if not readme:
-        readme = _generate_readme(agent, config, public_url)
+    if not profile.readme:
+        profile.readme = _generate_readme(agent, config, public_url)
 
-    return AgentverseRegistrationRequest(
+    request = RegistrationRequest(
+        address=identity.address,
         name=agent.uri.name,
-        endpoint=endpoint,
-        protocols=[
-            ProtocolSpecification.compute_digest(chat_protocol_spec.manifest())
-        ],
+        handle=agent.uri.handle,
+        agent_type="uagent",
+        profile=profile,
         metadata=agent.metadata,
-        type="uagent",
-        description=description
-        or f"LangGraph agent '{config.assistant_id}' bridged to Agentverse.",
-        readme=readme,
-        avatar_url=avatar_url,
-        handle=agent.uri.handle if config.register_handle else None,
-        active=True,
-        track_interactions=config.track_interactions,
     )
+
+    request.url = public_url
+    request.endpoints = [
+        AgentEndpoint(
+            url=_combine_url(public_url, config.chat_endpoint),
+            weight=1,
+        )
+    ]
+    request.protocols = [
+        ProtocolSpecification.compute_digest(chat_protocol_spec.manifest())
+    ]
+
+    return request
 
 
 def _register_to_agentverse(
-    request: AgentverseRegistrationRequest,
+    request: RegistrationRequest,
+    headers: dict[str, str],
     agentverse: AgentverseConfig,
-    credentials: RegistrationRequestCredentials,
+    timeout: int = DEFAULT_HTTP_REQUESTS_TIMEOUT,
 ) -> None:
-    register_agent(request, agentverse, credentials)
+    try:
+        _send_post_request_agentverse(
+            url=agentverse.agents_api,
+            data=request,
+            headers=headers,
+            timeout=timeout,
+        )
+    except AgentverseRequestError:
+        raise
+    except Exception:
+        raise
 
 
 def register_to_agentverse(
@@ -234,20 +250,17 @@ def register_to_agentverse(
     if public_url is None:
         raise RuntimeError("Could not resolve public URL for registration.")
 
-    api_key = config.agentverse_api_key or os.getenv("AGENTVERSE_API_KEY")
-    if not api_key:
-        raise RuntimeError(
-            "Agentverse API key is missing. Pass agentverse_api_key=... to init(...) "
-            "or set AGENTVERSE_API_KEY in the environment."
-        )
-
-    credentials = RegistrationRequestCredentials(
-        agentverse_api_key=api_key,
-        agent_seed_phrase=agent.uri.key,
-    )
-
+    identity = Identity.from_seed(agent.uri.key, 0)
     request = _generate_registration_request(agent, config, public_url)
-    _register_to_agentverse(request, agent.uri.agentverse_config, credentials)
+    auth_header = {
+        "Authorization": f"Agent {generate_agent_auth_token(identity)}"
+    }
+
+    _register_to_agentverse(
+        request=request,
+        headers=auth_header,
+        agentverse=agent.uri.agentverse_config,
+    )
 
 
 def verify_envelope(envelope: Envelope) -> bool:
@@ -555,9 +568,6 @@ def init(
     profile: AgentProfile | None = None,
     metadata: dict[str, Any] | None = None,
     disable_message_auth: bool = False,
-    assistant_id: str = DEFAULT_LANGGRAPH_ASSISTANT_ID,
-    chat_endpoint: str = DEFAULT_AGENTVERSE_CHAT_ENDPOINT,
-    agentverse_api_key: str | None = None,
 ) -> None:
     global _agent, _config, _registered
     _registered = False
@@ -569,11 +579,7 @@ def init(
         verify_envelope=(not disable_message_auth),
     )
 
-    _config = LangGraphAdapterConfig(
-        assistant_id=assistant_id,
-        chat_endpoint=chat_endpoint,
-        agentverse_api_key=agentverse_api_key,
-    )
+    _config = LangGraphAdapterConfig()
 
 
 def run() -> None:
@@ -581,7 +587,6 @@ def run() -> None:
         raise RuntimeError("Adapter not initialised. Call init(...) first.")
 
     bootstrap_env()
-
     patch_langgraph_app(AgentverseLangGraphApplication)
 
     from langgraph_cli.cli import cli
