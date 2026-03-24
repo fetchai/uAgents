@@ -24,8 +24,13 @@ from uagents_core.adapters.common.config import (
 from uagents_core.adapters.common.starlette import (
     parse_chat_message_from_request,
     setup_agent_status_lifespan,
+    set_app_state,
 )
-from uagents_core.adapters.common.types import AgentUri, AgentverseAgent
+from uagents_core.adapters.common.types import (
+    AgentStarletteState,
+    AgentUri,
+    AgentverseAgent,
+)
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
     ChatMessage,
@@ -35,7 +40,7 @@ from uagents_core.contrib.protocols.chat import (
 from uagents_core.identity import Identity
 from uagents_core.registration import AgentProfile, RegistrationRequest
 from uagents_core.types import AgentEndpoint
-from uagents_core.utils.messages import send_message_to_agent
+from uagents_core.adapters.common.agentverse import send_message_to_agent
 
 _agent: AgentverseAgent | None = None
 
@@ -88,10 +93,9 @@ def _generate_readme(card: AgentCard) -> str:
 def _generate_registration_request(
     agent: AgentverseAgent, card: AgentCard | None = None
 ) -> RegistrationRequest:
-    identity = Identity.from_seed(agent.uri.key, 0)
 
     request = RegistrationRequest(
-        address=identity.address,
+        address=agent.uri.identity.address,
         name=agent.uri.name,
         handle=agent.uri.handle,
         agent_type="a2a",
@@ -134,6 +138,12 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
             methods=["POST"],
             route=self._chat,
         )
+
+        set_app_state(
+            app,
+            AgentStarletteState(key=_agent.uri.key, agentverse=_agent.uri.agentverse),
+        )
+
         return app
 
     async def _handle_requests(self, request: Request) -> Response:
@@ -148,13 +158,13 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
             return JSONResponse({})
 
         # await send_message_to_agent(
-        send_message_to_agent(
+        await send_message_to_agent(
             destination=env.sender,
             msg=ChatAcknowledgement(
                 timestamp=datetime.now(), acknowledged_msg_id=msg.msg_id
             ),
-            sender=Identity.from_seed(_agent.uri.key, 0),
-            agentverse_config=_agent.uri.agentverse_config,
+            sender=_agent.uri.identity,
+            agentverse_config=_agent.uri.agentverse,
         )
 
         if len(msg.content) == 1 and isinstance(msg.content[0], StartSessionContent):
@@ -219,11 +229,11 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
             msg_id=uuid4(),
             content=[TextContent(type="text", text=response)],
         )
-        send_message_to_agent(
+        await send_message_to_agent(
             destination=env.sender,
             msg=av_response,
-            sender=Identity.from_seed(_agent.uri.key, 0),
-            agentverse_config=_agent.uri.agentverse_config,
+            sender=_agent.uri.identity,
+            agentverse_config=_agent.uri.agentverse,
             session_id=env.session,
         )
 
@@ -236,10 +246,10 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
             raise RuntimeError("Not initialised.")
 
         request = _generate_registration_request(_agent, self.agent_card)
-        token = generate_agent_auth_token(Identity.from_seed(_agent.uri.key, 0))
+        token = generate_agent_auth_token(_agent.uri.identity)
 
         register_to_agentverse_sync(
-            request, {"Authorization": f"Agent {token}"}, _agent.uri.agentverse_config
+            request, {"Authorization": f"Agent {token}"}, _agent.uri.agentverse
         )
 
 
