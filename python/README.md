@@ -33,19 +33,17 @@ pip install uagents-core
    ```bash
    cd python
    uv sync
-   source .venv/bin/activate
-   pre-commit install
+   uv run pre-commit install
    ```
 
 3. Run tests:
    ```bash
-   pytest
+   uv run pytest
    ```
-   Or without activating the venv: `uv run pytest`.
 
 4. Format and lint:
    ```bash
-   ruff check --fix && ruff format
+   uv run ruff check --fix && uv run ruff format
    ```
 
 ## Documentation
