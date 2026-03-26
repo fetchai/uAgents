@@ -28,16 +28,18 @@ homepage = "https://fetch.ai"
 repository = "https://github.com/fetchai/uAgents"
 documentation = "https://fetch.ai/docs"
 
-[tool.poetry]
-packages = [{ include = "uagents_core" }]
-
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.11.0"
-pre-commit = "^4.1.0"
+[dependency-groups]
+dev = [
+    "ruff>=0.11.0,<0.12",
+    "pre-commit>=4.1.0,<5",
+]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling>=1.26.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["uagents_core"]
 
 [tool.ruff]
 target-version = "py312"

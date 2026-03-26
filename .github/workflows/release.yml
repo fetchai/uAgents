@@ -28,12 +28,8 @@ jobs:
       with:
           python-version: '3.11'
 
-    - name: Install Poetry
-      run: |
-        export POETRY_HOME=/opt/poetry
-        python3 -m venv $POETRY_HOME
-        $POETRY_HOME/bin/pip install poetry==1.4.0
-        $POETRY_HOME/bin/poetry --version
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
 
     - name: Run release script
       env:
@@ -44,7 +40,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GH_TOKEN: ${{ github.token }}
       run: |
-        pip install tomli packaging poetry pydantic pydantic-settings
+        pip install tomli packaging pydantic pydantic-settings
         git config --global user.email "ci-bot@fetch.ai"
         git config --global user.name "CI BOT"
 

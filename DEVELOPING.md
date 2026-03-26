@@ -26,18 +26,17 @@
 
 ## <a name="setup"></a> Setting up a New Development Environment
 
-The easiest way to get set up for development is to install Python (`3.10` to `3.13`) and [poetry](https://pypi.org/project/poetry/), and then run the following from the top-level project directory:
+The easiest way to get set up for development is to install Python (`3.10` to `3.13`) and [uv](https://docs.astral.sh/uv/), and then run the following from the top-level project directory:
 
 ```bash
   cd python
-  poetry install
-  poetry shell
-  pre-commit install
+  uv sync
+  uv run pre-commit install
 ```
 
 ## <a name="dev"></a>Development
 
-When developing for `uAgents` make sure to have the poetry shell active. This ensures that linting and formatting will automatically be checked during `git commit`.
+When developing for `uAgents` make sure your virtual environment is active (for example the one created by `uv sync` at `python/.venv`). This ensures that linting and formatting will automatically be checked during `git commit`.
 
 We are using [Ruff](https://github.com/astral-sh/ruff) with added rules for formatting and linting.
 Please consider adding `ruff` to your IDE to speed up the development process and ensure you only commit clean code.
@@ -45,7 +44,7 @@ Please consider adding `ruff` to your IDE to speed up the development process an
 Alternately you can invoke ruff by typing the following from within the `./python` folder
 
 ```bash
-  ruff check --fix && ruff format
+  uv run ruff check --fix && uv run ruff format
 ```
 
 ## <a name="test"></a>Testing
@@ -53,7 +52,7 @@ Alternately you can invoke ruff by typing the following from within the `./pytho
 To run tests use the following command:
 
 ```bash
-  pytest
+  uv run pytest
 ```
 
 ## <a name="contributing"></a>Contributing
