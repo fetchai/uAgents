@@ -5,7 +5,6 @@ import json
 import logging
 import uuid
 from time import time
-from typing import NoReturn
 
 import aiohttp
 from pydantic import UUID4, ValidationError
@@ -17,11 +16,7 @@ from uagents_core.types import DeliveryStatus, MsgStatus
 from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
 from uagents.dispatch import dispatcher
 from uagents.resolver import GlobalResolver, Resolver
-from uagents.types import (
-    EnvelopeHistory,
-    EnvelopeHistoryEntry,
-    JsonStr,
-)
+from uagents.types import JsonStr
 from uagents.utils import get_logger
 
 LOGGER: logging.Logger = get_logger("dispenser", logging.DEBUG)
@@ -30,11 +25,10 @@ LOGGER: logging.Logger = get_logger("dispenser", logging.DEBUG)
 class Dispenser:
     """Dispenses messages externally."""
 
-    def __init__(self, msg_cache_ref: EnvelopeHistory | None = None):
+    def __init__(self):
         self._envelopes: asyncio.Queue[
             tuple[Envelope, list[str], asyncio.Future, bool]
         ] = asyncio.Queue()
-        self._msg_cache_ref = msg_cache_ref
 
     def add_envelope(
         self,
@@ -54,25 +48,55 @@ class Dispenser:
         """
         self._envelopes.put_nowait((envelope, endpoints, response_future, sync))
 
-    async def run(self) -> NoReturn:
+    async def _process_envelope(
+        self,
+        env: Envelope,
+        endpoints: list[str],
+        response_future: asyncio.Future,
+        sync: bool,
+    ) -> None:
+        """
+        Process a single envelope by sending it and updating the response future.
+
+        Args:
+            env (Envelope): The envelope to send.
+            endpoints (list[str]): The endpoints to send the envelope to.
+            response_future (asyncio.Future): The future to set the response on.
+            sync (bool): True if the message is synchronous.
+        """
+        try:
+            result: MsgStatus | Envelope = await send_exchange_envelope(
+                envelope=env,
+                endpoints=endpoints,
+                sync=sync,
+            )
+            response_future.set_result(result)
+        except Exception as err:
+            LOGGER.error(f"Failed to send envelope: {err}")
+            # Set exception on the future so caller knows it failed
+            if not response_future.done():
+                response_future.set_exception(err)
+
+    async def run(self) -> None:
         """Run the dispenser routine."""
-        while True:
-            env, endpoints, response_future, sync = await self._envelopes.get()
+        try:
+            while True:
+                env, endpoints, response_future, sync = await self._envelopes.get()
+                await self._process_envelope(env, endpoints, response_future, sync)
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            LOGGER.info("Shutting down dispenser...")
 
-            try:
-                result: MsgStatus | Envelope = await send_exchange_envelope(
-                    envelope=env,
-                    endpoints=endpoints,
-                    sync=sync,
-                )
-                response_future.set_result(result)
+            # Drain remaining messages from queue using get_nowait()
+            while not self._envelopes.empty():
+                try:
+                    env, endpoints, response_future, sync = self._envelopes.get_nowait()
+                    await self._process_envelope(env, endpoints, response_future, sync)
+                except asyncio.QueueEmpty:
+                    break
+                except Exception as ex:
+                    LOGGER.exception(f"Error processing envelope during shutdown: {ex}")
 
-                if self._msg_cache_ref:
-                    self._msg_cache_ref.add_entry(
-                        EnvelopeHistoryEntry.from_envelope(env)
-                    )
-            except Exception as err:
-                LOGGER.error(f"Failed to send envelope: {err}")
+            LOGGER.info("Shutting down dispenser...complete")
 
 
 async def dispatch_local_message(

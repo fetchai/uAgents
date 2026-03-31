@@ -1,6 +1,6 @@
 [project]
 name = "uagents-core"
-version = "0.4.3"
+version = "0.4.5a2"
 description = "Core components for agent based systems"
 authors = [
     { name = "Ed FitzGerald", email = "edward.fitzgerald@fetch.ai" },
@@ -19,6 +19,9 @@ dependencies = [
     "ecdsa (>=0.19.0,<1.0)",
     "requests (>=2.32.3,<3.0)",
 ]
+
+[project.optional-dependencies]
+a2a = ["a2a-sdk (>=0.3.20,<0.4.0)"]
 
 [project.urls]
 homepage = "https://fetch.ai"

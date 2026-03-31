@@ -6,7 +6,7 @@ import functools
 import logging
 import os
 import uuid
-from typing import Any, NoReturn
+from typing import Any
 
 import aiohttp
 import requests
@@ -73,7 +73,7 @@ from uagents.registration import (
     update_agent_status,
 )
 from uagents.resolver import GlobalResolver, Resolver
-from uagents.storage import KeyValueStore, StorageAPI, get_or_create_private_keys
+from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.types import (
     AgentNetwork,
     EnvelopeHistory,
@@ -98,7 +98,7 @@ async def _run_interval(
     logger: logging.Logger,
     context_factory: ContextFactory,
     period: float,
-) -> NoReturn:
+) -> None:
     """
     Run the provided interval callback function at a specified period.
 
@@ -111,7 +111,9 @@ async def _run_interval(
     while True:
         try:
             ctx = context_factory()
-            await func(ctx)
+            await asyncio.shield(func(ctx))
+        except asyncio.CancelledError:
+            return
         except OSError as ex:
             logger.exception(f"OS Error in interval handler: {ex}")
         except RuntimeError as ex:
@@ -119,7 +121,10 @@ async def _run_interval(
         except Exception as ex:
             logger.exception(f"Exception in interval handler: {ex}")
 
-        await asyncio.sleep(period)
+        try:
+            await asyncio.sleep(period)
+        except asyncio.CancelledError:
+            return
 
 
 async def _send_error_message(ctx: Context, destination: str, msg: ErrorMessage):
@@ -305,7 +310,8 @@ class Agent(Sink):
         publish_agent_details: bool = True,
         store_message_history: bool = False,
         handle_messages_concurrently: bool = False,
-        agent_storage: StorageAPI | None = None,
+        shutdown_timeout: float = 60.0,
+        mark_inactive_on_shutdown: bool = True,
     ):
         """
         Initialize an Agent instance.
@@ -339,7 +345,11 @@ class Agent(Sink):
             local agent inspector.
             store_message_history (bool): Store the message history for the agent.
             handle_messages_concurrently (bool): Whether to handle incoming messages concurrently.
-            agent_storage (StorageAPI | None): The storage API to use for agent data storage.
+            shutdown_timeout (float): Maximum time in seconds to wait for tasks to complete during
+            graceful shutdown. Defaults to 60.0 seconds.
+            mark_inactive_on_shutdown (bool): Whether to mark the agent as inactive in Almanac
+            during shutdown. Set to False for deployments where a new instance replaces this one
+            (e.g., Kubernetes rolling updates). Defaults to True.
         """
         self._init_done = False
         self._name = name
@@ -376,7 +386,7 @@ class Agent(Sink):
 
         self._ledger = get_ledger(network)
         self._almanac_contract = get_almanac_contract(network)
-        self._storage = agent_storage or KeyValueStore(self.address[0:16])
+        self._storage = KeyValueStore(self.address[0:16])
         self._interval_handlers: list[tuple[IntervalCallback, float]] = []
         self._interval_messages: set[str] = set()
         self._signed_message_handlers: dict[str, MessageCallback] = {}
@@ -396,10 +406,17 @@ class Agent(Sink):
             if enable_agent_inspector or store_message_history
             else None
         )
-        self._dispenser = Dispenser(msg_cache_ref=self._message_history)
+        self._dispenser = Dispenser()
         self._message_queue = asyncio.Queue()
         self._message_tasks: set[asyncio.Task] = set()
+        self._interval_tasks: set[asyncio.Task] = set()
+        self._rest_tasks: set[asyncio.Task] = set()
+        self._registration_task: asyncio.Task | None = None
+        self._dispenser_task: asyncio.Task | None = None
+        self._message_queue_task: asyncio.Task | None = None
         self._handle_messages_concurrently = handle_messages_concurrently
+        self._shutdown_timeout = shutdown_timeout
+        self._mark_inactive_on_shutdown = mark_inactive_on_shutdown
         self._on_startup = []
         self._on_shutdown = []
         self._network = network
@@ -871,17 +888,22 @@ class Agent(Sink):
         This method registers with the Almanac contract and schedules the next
         registration.
         """
-        while True:
-            time_until_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
-            try:
-                await self.register()
-            except InsufficientFundsError:
-                time_until_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
-            except Exception as ex:
-                self._logger.exception(f"Failed to register: {ex}")
-                time_until_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
+        try:
+            while True:
+                time_until_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
+                try:
+                    await self.register()
+                except InsufficientFundsError:
+                    time_until_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
+                except Exception as ex:
+                    self._logger.exception(f"Failed to register: {ex}")
+                    time_until_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
 
-            await asyncio.sleep(time_until_next_registration)
+                await asyncio.sleep(time_until_next_registration)
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            pass
+        finally:
+            self._logger.info("Stopping registration loop.")
 
     def on_interval(
         self,
@@ -1144,19 +1166,27 @@ class Agent(Sink):
         if message:
             args.append(message)
 
-        return await handler(*args)  # type: ignore
+        task = asyncio.create_task(handler(*args))  # type: ignore
+        self._rest_tasks.add(task)
+        task.add_done_callback(self._rest_tasks.discard)
 
-    async def _shutdown(self):
-        """Perform shutdown actions."""
+        return await task
+
+    async def _update_agent_status(self, active: bool):
+        """Update agent registration status."""
         try:
             status = AgentStatusUpdate(
-                agent_identifier=self.identifier, is_active=False
+                agent_identifier=self.identifier, is_active=active
             )
             status.sign(self._identity)
             await update_agent_status(status, self._almanac_api_url)
+            label = "active" if active else "inactive"
+            self._logger.info(f"Agent registration status updated to {label}")
         except Exception as ex:
             self._logger.exception(f"Failed to update agent registration status: {ex}")
 
+    async def run_shutdown_tasks(self):
+        """Perform shutdown actions."""
         for handler in self._on_shutdown:
             try:
                 ctx = self._build_context()
@@ -1167,6 +1197,63 @@ class Agent(Sink):
                 self._logger.exception(f"Runtime Error in shutdown handler: {ex}")
             except Exception as ex:
                 self._logger.exception(f"Exception in shutdown handler: {ex}")
+
+    async def _shutdown(self, tasks: list[asyncio.Task]):
+        """Perform graceful agent shutdown."""
+        # Stop the registration loop
+        if self._registration_task:
+            self._registration_task.cancel()
+            await asyncio.gather(self._registration_task, return_exceptions=True)
+
+        # Register as inactive in the Almanac (if configured)
+        if self._mark_inactive_on_shutdown:
+            await self._update_agent_status(active=False)
+
+        # Cancel mailbox and server tasks to stop receiving new messages
+        main_tasks = [t for t in tasks if not t.done()]
+        for task in main_tasks:
+            task.cancel()
+        await asyncio.gather(*main_tasks, return_exceptions=True)
+
+        # Cancel message queue processor (will drain remaining messages)
+        if self._message_queue_task and not self._message_queue_task.done():
+            self._message_queue_task.cancel()
+            await asyncio.gather(self._message_queue_task, return_exceptions=True)
+
+        # Cancel interval tasks
+        for task in self._interval_tasks:
+            task.cancel()
+
+        # Wait for in-progress handlers to complete
+        all_handler_tasks = list(
+            self._rest_tasks | self._message_tasks | self._interval_tasks
+        )
+        if all_handler_tasks:
+            try:
+                self._logger.info(
+                    f"Waiting for {len(all_handler_tasks)} handler tasks to complete..."
+                )
+                await asyncio.wait_for(
+                    asyncio.gather(*all_handler_tasks, return_exceptions=True),
+                    timeout=self._shutdown_timeout,
+                )
+                self._logger.info("All handlers completed successfully")
+            except asyncio.TimeoutError:
+                self._logger.warning(
+                    f"Some handlers did not complete within {self._shutdown_timeout}s timeout"
+                )
+            except Exception as ex:
+                self._logger.exception(
+                    f"Error while waiting for handlers to complete: {ex}"
+                )
+
+        # Run shutdown handlers
+        await self.run_shutdown_tasks()
+
+        # Shutdown dispenser, which will try to send any queued outgoing messages first
+        if self._dispenser_task:
+            self._dispenser_task.cancel()
+            await asyncio.gather(self._dispenser_task, return_exceptions=True)
 
     def setup(self):
         """
@@ -1185,7 +1272,9 @@ class Agent(Sink):
         """Start the registration loop."""
         if self._registration_policy:
             if self._endpoints:
-                self._loop.create_task(self._schedule_registration())
+                self._registration_task = self._loop.create_task(
+                    self._schedule_registration()
+                )
             else:
                 self._logger.warning(
                     "No endpoints provided. Skipping registration: Agent won't be reachable."
@@ -1193,10 +1282,11 @@ class Agent(Sink):
 
     def start_message_dispenser(self):
         """Start the message dispenser."""
-        self._loop.create_task(self._dispenser.run())
+        self._dispenser_task = self._loop.create_task(self._dispenser.run())
 
     async def run_startup_tasks(self):
         """Start startup tasks for the agent."""
+        await self._update_agent_status(active=True)
         for handler in self._on_startup:
             try:
                 ctx = self._build_context()
@@ -1211,14 +1301,16 @@ class Agent(Sink):
     def start_interval_tasks(self):
         """Start interval tasks for the agent."""
         for func, period in self._interval_handlers:
-            self._loop.create_task(
+            task = self._loop.create_task(
                 _run_interval(func, self._logger, self._build_context, period)
             )
+            self._interval_tasks.add(task)
+            task.add_done_callback(self._interval_tasks.discard)
 
     def start_message_receivers(self):
         """Start message receiving tasks for the agent."""
         # start the background message queue processor
-        self._loop.create_task(self._process_message_queue())
+        self._message_queue_task = self._loop.create_task(self._process_message_queue())
 
         # start the wallet messaging client if enabled
         if self._wallet_messaging_client is not None:
@@ -1245,23 +1337,47 @@ class Agent(Sink):
         """Create all tasks for the agent."""
         self.setup()
 
-        tasks = [self.start_server()]
+        coros = [self.start_server()]
 
         # remove server task if mailbox is enabled and no REST handlers are defined
         if self._use_mailbox and not self._rest_handlers:
-            _ = tasks.pop()
+            _ = coros.pop()
         if self._use_mailbox and self._mailbox_client is not None:
-            tasks.append(self._mailbox_client.run())
+            coros.append(self._mailbox_client.run())
+
+        # Convert coroutines to tasks
+        tasks = [self._loop.create_task(coro) for coro in coros]
 
         try:
             await asyncio.gather(*tasks, return_exceptions=True)
         except (asyncio.CancelledError, KeyboardInterrupt):
             pass
         finally:
-            await self._shutdown()
-            tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
-            _ = [task.cancel() for task in tasks]
-            await asyncio.gather(*tasks)
+            self._logger.info("Shutting down agent...")
+            try:
+                await asyncio.wait_for(
+                    self._shutdown(tasks), timeout=self._shutdown_timeout
+                )
+            except asyncio.TimeoutError:
+                self._logger.warning(
+                    f"Shutdown did not complete within {self._shutdown_timeout}s timeout"
+                )
+            except Exception as ex:
+                self._logger.exception(f"Error during shutdown: {ex}")
+            finally:
+                # Cancel any remaining tasks
+                remaining_tasks = [
+                    t
+                    for t in asyncio.all_tasks(self._loop)
+                    if t is not asyncio.current_task(self._loop) and not t.done()
+                ]
+                if remaining_tasks:
+                    for task in remaining_tasks:
+                        task.cancel()
+                    with contextlib.suppress(Exception):
+                        await asyncio.gather(*remaining_tasks, return_exceptions=True)
+
+            self._logger.info("Shutting down agent...complete.")
 
     def run(self):
         """
@@ -1304,115 +1420,156 @@ class Agent(Sink):
         except Exception as ex:
             self._logger.exception(f"Exception in message handler: {ex}")
 
-    async def _process_message_queue(self) -> NoReturn:
-        """Process the message queue."""
-        while True:
-            # get an element from the queue
-            schema_digest, sender, message, session = await self._message_queue.get()
+    async def _process_single_message(
+        self,
+        schema_digest: str,
+        sender: str,
+        message: JsonStr,
+        session: uuid.UUID,
+    ) -> None:
+        """
+        Process a single message from the queue.
 
-            # lookup the model definition
-            model_class: type[Model] | None = self._models.get(schema_digest)
-            if model_class is None:
-                self._logger.warning(
-                    f"Received message with unrecognized schema digest: {schema_digest}"
+        Args:
+            schema_digest (str): The schema digest of the message.
+            sender (str): The sender address.
+            message (JsonStr): The message content.
+            session (uuid.UUID): The session UUID.
+        """
+        # lookup the model definition
+        model_class: type[Model] | None = self._models.get(schema_digest)
+        if model_class is None:
+            self._logger.warning(
+                f"Received message with unrecognized schema digest: {schema_digest}"
+            )
+            return
+
+        protocol_info = self.get_message_protocol(schema_digest)
+        protocol_digest = protocol_info[0] if protocol_info else None
+
+        if self._message_history:
+            self._message_history.add_entry(
+                EnvelopeHistoryEntry(
+                    version=1,
+                    sender=sender,
+                    target=self.address,
+                    session=session,
+                    schema_digest=schema_digest,
+                    protocol_digest=protocol_digest,
+                    payload=message,
                 )
-                continue
-
-            protocol_info = self.get_message_protocol(schema_digest)
-            protocol_digest = protocol_info[0] if protocol_info else None
-
-            if self._message_history:
-                self._message_history.add_entry(
-                    EnvelopeHistoryEntry(
-                        version=1,
-                        sender=sender,
-                        target=self.address,
-                        session=session,
-                        schema_digest=schema_digest,
-                        protocol_digest=protocol_digest,
-                        payload=message,
-                    )
-                )
-
-            context = ExternalContext(
-                agent=AgentRepresentation(
-                    address=self.address,
-                    name=self._name,
-                    identity=self._identity,
-                    prefix=self._prefix,
-                ),
-                storage=self._storage,
-                ledger=self._ledger,
-                resolver=self._resolver,
-                dispenser=self._dispenser,
-                wallet_messaging_client=self._wallet_messaging_client,
-                logger=self._logger,
-                queries=self._queries,
-                session=session,
-                replies=self._replies,
-                message_received=MsgInfo(
-                    message=message, sender=sender, schema_digest=schema_digest
-                ),
-                protocol=protocol_info,
-                message_history=self._message_history,
             )
 
-            # sanity check
-            assert context.session == session, (
-                "Context object should always have message session"
-            )
+        context = ExternalContext(
+            agent=AgentRepresentation(
+                address=self.address,
+                name=self._name,
+                identity=self._identity,
+                prefix=self._prefix,
+            ),
+            storage=self._storage,
+            ledger=self._ledger,
+            resolver=self._resolver,
+            dispenser=self._dispenser,
+            wallet_messaging_client=self._wallet_messaging_client,
+            logger=self._logger,
+            queries=self._queries,
+            session=session,
+            replies=self._replies,
+            message_received=MsgInfo(
+                message=message, sender=sender, schema_digest=schema_digest
+            ),
+            protocol=protocol_info,
+            message_history=self._message_history,
+        )
 
-            # parse the received message
-            try:
-                recovered = model_class.parse_raw(message)
-            except ValidationError as ex:
-                self._logger.warning(f"Unable to parse message: {ex}")
+        # sanity check
+        assert context.session == session, (
+            "Context object should always have message session"
+        )
+
+        # parse the received message
+        try:
+            recovered = model_class.parse_raw(message)
+        except ValidationError as ex:
+            self._logger.warning(f"Unable to parse message: {ex}")
+            await _send_error_message(
+                context,
+                sender,
+                ErrorMessage(
+                    error=f"Message does not conform to expected schema: {ex}"
+                ),
+            )
+            return
+
+        # attempt to find the handler
+        handler: MessageCallback | None = self._unsigned_message_handlers.get(
+            schema_digest
+        )
+        if handler is None:
+            if not is_user_address(sender):
+                handler = self._signed_message_handlers.get(schema_digest)
+            elif schema_digest in self._signed_message_handlers:
                 await _send_error_message(
                     context,
                     sender,
                     ErrorMessage(
-                        error=f"Message does not conform to expected schema: {ex}"
+                        error="Message must be sent from verified agent address"
                     ),
                 )
-                continue
+                return
 
-            # attempt to find the handler
-            handler: MessageCallback | None = self._unsigned_message_handlers.get(
-                schema_digest
-            )
-            if handler is None:
-                if not is_user_address(sender):
-                    handler = self._signed_message_handlers.get(schema_digest)
-                elif schema_digest in self._signed_message_handlers:
-                    await _send_error_message(
-                        context,
-                        sender,
-                        ErrorMessage(
-                            error="Message must be sent from verified agent address"
-                        ),
-                    )
-                    continue
-
-            if handler is not None:
-                if self._handle_messages_concurrently:
-                    handler_task = self._loop.create_task(
-                        self._handle_message(
-                            handler=handler,
-                            context=context,
-                            sender=sender,
-                            model_class=model_class,
-                            message=recovered,
-                        )
-                    )
-                    self._message_tasks.add(handler_task)
-                    handler_task.add_done_callback(self._message_tasks.discard)
-                else:
-                    await self._handle_message(
+        if handler is not None:
+            if self._handle_messages_concurrently:
+                handler_task = asyncio.create_task(
+                    self._handle_message(
                         handler=handler,
                         context=context,
                         sender=sender,
                         model_class=model_class,
                         message=recovered,
+                    )
+                )
+                self._message_tasks.add(handler_task)
+                handler_task.add_done_callback(self._message_tasks.discard)
+            else:
+                await self._handle_message(
+                    handler=handler,
+                    context=context,
+                    sender=sender,
+                    model_class=model_class,
+                    message=recovered,
+                )
+
+    async def _process_message_queue(self):
+        """Process the message queue."""
+        try:
+            while True:
+                (
+                    schema_digest,
+                    sender,
+                    message,
+                    session,
+                ) = await self._message_queue.get()
+                await self._process_single_message(
+                    schema_digest, sender, message, session
+                )
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            # Drain remaining messages from queue using get_nowait()
+            while not self._message_queue.empty():
+                try:
+                    schema_digest, sender, message, session = (
+                        self._message_queue.get_nowait()
+                    )
+                    await self._process_single_message(
+                        schema_digest, sender, message, session
+                    )
+                except asyncio.QueueEmpty:
+                    break
+                except Exception as ex:
+                    # Log error but continue draining to prevent message loss
+                    self._logger.error(
+                        f"Error processing message during shutdown: {ex}"
                     )
 
 
@@ -1451,6 +1608,7 @@ class Bureau:
         network: AgentNetwork = "testnet",
         loop: asyncio.AbstractEventLoop | None = None,
         log_level: int | str = logging.INFO,
+        shutdown_timeout: int = 60,
     ):
         """
         Initialize a Bureau instance.
@@ -1467,6 +1625,7 @@ class Bureau:
             network (Literal["mainnet", "testnet"]): The network to use for the agent.
             loop (asyncio.AbstractEventLoop | None): The event loop.
             log_level (int | str): The logging level for the bureau.
+            shutdown_timeout (int): The timeout for shutting down the bureau.
         """
         self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
         self._agents: list[Agent] = []
@@ -1483,6 +1642,7 @@ class Bureau:
         self._endpoints = parse_endpoint_config(
             endpoint, self._agentverse, False, False, self._logger
         )
+        self._shutdown_timeout = shutdown_timeout
         self._use_mailbox = any(
             is_mailbox_agent(agent._endpoints, self._agentverse)
             for agent in self._agents
@@ -1580,21 +1740,93 @@ class Bureau:
         if not any(agent._endpoints for agent in self._agents):
             return
 
-        while True:
-            time_to_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
-            try:
-                await self._registration_policy.register()
-            except InsufficientFundsError:
-                time_to_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
-            except Exception as ex:
-                self._logger.exception(f"Failed to register: {ex}")
-                time_to_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
+        try:
+            while True:
+                time_to_next_registration = REGISTRATION_UPDATE_INTERVAL_SECONDS
+                try:
+                    await self._registration_policy.register()
+                except InsufficientFundsError:
+                    time_to_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
+                except Exception as ex:
+                    self._logger.exception(f"Failed to register: {ex}")
+                    time_to_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
 
-            await asyncio.sleep(time_to_next_registration)
+                await asyncio.sleep(time_to_next_registration)
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            pass
+        finally:
+            self._logger.info("Stopping registration loop.")
+
+    async def _shutdown(self, tasks: list[asyncio.Task]):
+        """Perform graceful bureau shutdown."""
+        # Cancel server and mailbox tasks to stop receiving new messages
+        main_tasks = [t for t in tasks if not t.done()]
+        for task in main_tasks:
+            task.cancel()
+        await asyncio.gather(*main_tasks, return_exceptions=True)
+
+        # Shutdown each agent
+        for agent in self._agents:
+            # If agent is running its own registration loop, stop it
+            if agent._registration_task:
+                agent._registration_task.cancel()
+                await asyncio.gather(agent._registration_task, return_exceptions=True)
+
+            # Set agent as inactive in Almanac if configured to do so
+            if agent._mark_inactive_on_shutdown:
+                try:
+                    await agent._update_agent_status(active=False)
+                except Exception as ex:
+                    self._logger.exception(
+                        f"Failed to update agent {agent.name} status to inactive: {ex}"
+                    )
+
+            # Cancel agent's message queue processor
+            if agent._message_queue_task and not agent._message_queue_task.done():
+                agent._message_queue_task.cancel()
+                await asyncio.gather(agent._message_queue_task, return_exceptions=True)
+
+            # Cancel agent's interval tasks
+            for task in agent._interval_tasks:
+                task.cancel()
+
+            # Wait for agent's handlers to complete
+            all_handler_tasks = list(
+                agent._rest_tasks | agent._message_tasks | agent._interval_tasks
+            )
+            if all_handler_tasks:
+                try:
+                    self._logger.info(
+                        f"Waiting for {len(all_handler_tasks)} handler "
+                        f"tasks from agent {agent.name} to complete..."
+                    )
+                    await asyncio.wait_for(
+                        asyncio.gather(*all_handler_tasks, return_exceptions=True),
+                        timeout=agent._shutdown_timeout,
+                    )
+                    self._logger.info(
+                        f"All handlers for agent {agent.name} completed successfully"
+                    )
+                except asyncio.TimeoutError:
+                    self._logger.warning(
+                        f"Some handlers for agent {agent.name} did not complete within timeout"
+                    )
+                except Exception as ex:
+                    self._logger.exception(
+                        f"Error while waiting for agent {agent.name} handlers: {ex}"
+                    )
+
+            # Run agent's shutdown handlers
+            await agent.run_shutdown_tasks()
+
+            # Shutdown agent's dispenser
+            if agent._dispenser_task:
+                agent._dispenser_task.cancel()
+                await asyncio.gather(agent._dispenser_task, return_exceptions=True)
 
     async def run_async(self):
         """Run the agents managed by the bureau."""
-        tasks = [self._server.serve()]
+        coros = [self._server.serve()]
         if not self._agents:
             self._logger.warning("No agents to run.")
             return
@@ -1605,19 +1837,44 @@ class Bureau:
                 is_mailbox_agent(agent._endpoints, self._agentverse)
                 and agent.mailbox_client is not None
             ):
-                tasks.append(agent.mailbox_client.run())
+                coros.append(agent.mailbox_client.run())
+
         self._loop.create_task(self._schedule_registration())
+
+        # Convert coroutines to tasks
+        tasks = [self._loop.create_task(coro) for coro in coros]
 
         try:
             await asyncio.gather(*tasks, return_exceptions=True)
         except (asyncio.CancelledError, KeyboardInterrupt):
             pass
         finally:
-            for agent in self._agents:
-                await agent._shutdown()
-            tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
-            _ = [task.cancel() for task in tasks]
-            await asyncio.gather(*tasks)
+            self._logger.info("Shutting down bureau...")
+            try:
+                await asyncio.wait_for(
+                    self._shutdown(tasks), timeout=self._shutdown_timeout
+                )
+            except asyncio.TimeoutError:
+                self._logger.warning("Bureau shutdown did not complete within timeout")
+            except Exception as ex:
+                self._logger.exception(f"Error during bureau shutdown: {ex}")
+            finally:
+                # Cancel any remaining tasks (check if loop is open to avoid errors on force quit)
+                if not self._loop.is_closed():
+                    remaining_tasks = [
+                        t
+                        for t in asyncio.all_tasks(self._loop)
+                        if t is not asyncio.current_task(self._loop) and not t.done()
+                    ]
+                    if remaining_tasks:
+                        for task in remaining_tasks:
+                            task.cancel()
+                        with contextlib.suppress(Exception):
+                            await asyncio.gather(
+                                *remaining_tasks, return_exceptions=True
+                            )
+
+            self._logger.info("Shutting down bureau...complete.")
 
     def run(self):
         """Run the bureau."""
