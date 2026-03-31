@@ -159,7 +159,9 @@ class AlmanacApiRegistrationPolicy(AgentRegistrationPolicy):
             else:
                 self._logger.warning("Registration on Almanac API failed")
         except Exception as ex:
-            self._logger.warning(f"Registration on Almanac API failed: {ex}", exc_info=True)
+            self._logger.warning(
+                f"Registration on Almanac API failed: {ex}", exc_info=True
+            )
 
 
 class BatchAlmanacApiRegistrationPolicy(BatchRegistrationPolicy):
@@ -214,7 +216,9 @@ class BatchAlmanacApiRegistrationPolicy(BatchRegistrationPolicy):
             else:
                 self._logger.warning("Batch registration on Almanac API failed")
         except Exception as ex:
-            self._logger.warning(f"Batch registration on Almanac API failed: {ex}", exc_info=True)
+            self._logger.warning(
+                f"Batch registration on Almanac API failed: {ex}", exc_info=True
+            )
 
 
 class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
