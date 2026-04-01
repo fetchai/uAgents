@@ -13,6 +13,7 @@ from a2a.types import AgentCard
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+from starlette.background import BackgroundTask
 from uagents_core.adapters.common.agentverse import (
     CHAT_PROTOCOL,
     register_to_agentverse_sync,
@@ -37,6 +38,7 @@ from uagents_core.contrib.protocols.chat import (
     StartSessionContent,
     TextContent,
 )
+from uagents_core.envelope import Envelope
 from uagents_core.identity import Identity
 from uagents_core.registration import AgentProfile, RegistrationRequest
 from uagents_core.types import AgentEndpoint
@@ -170,6 +172,16 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
         if len(msg.content) == 1 and isinstance(msg.content[0], StartSessionContent):
             return JSONResponse({})
 
+        return JSONResponse(
+            {},
+            background=BackgroundTask(
+                self._process_chat_message, request=request, env=env, msg=msg
+            ),
+        )
+
+    async def _process_chat_message(
+        self, request: Request, env: Envelope, msg: ChatMessage
+    ):
         text = ""
         for item in msg.content:
             if isinstance(item, TextContent):
@@ -236,8 +248,6 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
             agentverse_config=_agent.uri.agentverse,
             session_id=env.session,
         )
-
-        return JSONResponse({})
 
     def register(self):
         global _agent
