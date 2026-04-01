@@ -29,7 +29,7 @@ async def parse_chat_message_from_request(
         env = Envelope.model_validate(await request.json())
         if verify and not verify_envelope(env):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Unvalid envelope"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid envelope"
             )
         msg = cast(
             ChatMessage | ChatAcknowledgement | str,
