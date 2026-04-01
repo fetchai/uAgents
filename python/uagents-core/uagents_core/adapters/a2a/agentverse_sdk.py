@@ -1,103 +1,48 @@
 import importlib
 import inspect
 import json
-import logging
 import sys
 from datetime import datetime, timezone
 from functools import wraps
-from secrets import token_bytes
-from typing import Any, Tuple, Type, cast
-from urllib.parse import unquote, urlparse
+from typing import Any, Type
 from uuid import uuid4
 
 import a2a
 from a2a.server.apps import A2AStarletteApplication
 from a2a.types import AgentCard
-from pydantic import BaseModel, Field
-from starlette import status
 from starlette.applications import Starlette
-from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
-from uagents_core.config import AgentverseConfig
+from uagents_core.adapters.common.agentverse import (
+    CHAT_PROTOCOL,
+    register_to_agentverse_sync,
+    generate_agent_auth_token,
+)
+from uagents_core.adapters.common.config import (
+    DEFAULT_AGENTVERSE_CHAT_ENDPOINT,
+)
+from uagents_core.adapters.common.starlette import (
+    parse_chat_message_from_request,
+    setup_agent_status_lifespan,
+    set_app_state,
+)
+from uagents_core.adapters.common.types import (
+    AgentStarletteState,
+    AgentUri,
+    AgentverseAgent,
+)
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
     ChatMessage,
-    EndSessionContent,
     StartSessionContent,
     TextContent,
-    chat_protocol_spec,
 )
-from uagents_core.envelope import Envelope
-from uagents_core.identity import Identity, is_user_address
-from uagents_core.protocol import ProtocolSpecification
+from uagents_core.identity import Identity
 from uagents_core.registration import AgentProfile, RegistrationRequest
-from uagents_core.storage import compute_attestation
 from uagents_core.types import AgentEndpoint
-from uagents_core.utils.messages import parse_envelope, send_message_to_agent
-from uagents_core.utils.registration import (
-    AgentverseRequestError,
-    _send_post_request_agentverse,
-)
-
-DEFAULT_AGENTVERSE_CHAT_ENDPOINT = "/av/chat"
-DEFAULT_HTTP_REQUESTS_TIMEOUT = 3
-AGENT_AUTH_TOKEN_VALIDITY = 60 * 2
-
-for ch in ["uagents_core.utils.resolver", "uagents_core.utils.messages"]:
-    logging.getLogger(ch).setLevel(logging.ERROR)
-
-
-class AgentUri(BaseModel):
-    key: str
-    name: str
-    agentverse_config: AgentverseConfig
-    handle: str | None = None
-
-    @classmethod
-    def from_str(cls, uri: str) -> "AgentUri":
-        parsed = urlparse(uri)
-
-        if not parsed.scheme:
-            raise ValueError("Scheme is missing.")
-        if not parsed.hostname:
-            raise ValueError("Hostname is missing.")
-        if not parsed.username:
-            raise ValueError("Agent handle is missing")
-        if not parsed.password:
-            raise ValueError("Agent key is missing.")
-        if not parsed.path or len(parsed.path.split("/")) < 2:
-            raise ValueError("Agent name is missing")
-
-        name = unquote(parsed.path.split("/")[1])
-
-        agentverse = AgentverseConfig(
-            base_url=parsed.hostname + (f":{parsed.port}" if parsed.port else ""),
-            http_prefix=parsed.scheme,
-        )
-
-        return cls(
-            key=parsed.password,
-            name=name,
-            agentverse_config=agentverse,
-            handle=parsed.username,
-        )
-
-
-class AgentverseAgent(BaseModel):
-    uri: AgentUri
-    profile: AgentProfile | None = None
-    metadata: dict[str, Any] | None = None
-    verify_envelope: bool
-
+from uagents_core.adapters.common.agentverse import send_message_to_agent
 
 _agent: AgentverseAgent | None = None
-
-
-def generate_agent_auth_token(id: Identity) -> str:
-    return compute_attestation(
-        id, datetime.now(timezone.utc), AGENT_AUTH_TOKEN_VALIDITY, token_bytes(32)
-    )
 
 
 def _generate_readme(card: AgentCard) -> str:
@@ -148,10 +93,9 @@ def _generate_readme(card: AgentCard) -> str:
 def _generate_registration_request(
     agent: AgentverseAgent, card: AgentCard | None = None
 ) -> RegistrationRequest:
-    identity = Identity.from_seed(agent.uri.key, 0)
 
     request = RegistrationRequest(
-        address=identity.address,
+        address=agent.uri.identity.address,
         name=agent.uri.name,
         handle=agent.uri.handle,
         agent_type="a2a",
@@ -165,9 +109,7 @@ def _generate_registration_request(
             f"{card.url.strip('/')}/{DEFAULT_AGENTVERSE_CHAT_ENDPOINT.strip('/')}"
         )
         request.endpoints = [AgentEndpoint(url=chat_url, weight=1)]
-        request.protocols = [
-            ProtocolSpecification.compute_digest(chat_protocol_spec.manifest())
-        ]
+        request.protocols = [CHAT_PROTOCOL]
 
         if not request.profile.description:
             request.profile.description = card.description
@@ -179,75 +121,6 @@ def _generate_registration_request(
     return request
 
 
-def _register_to_agentverse(
-    request: RegistrationRequest,
-    headers: dict[str, str],
-    agentverse: AgentverseConfig,
-    timeout: int = DEFAULT_HTTP_REQUESTS_TIMEOUT,
-):
-    try:
-        _send_post_request_agentverse(
-            url=agentverse.agents_api,
-            data=request,
-            headers=headers,
-            timeout=timeout,
-        )
-    except AgentverseRequestError as e:
-        raise
-    except Exception as e:
-        raise
-
-
-def register_to_agentverse(
-    agent: AgentverseAgent, card: AgentCard | None = None, active: bool = False
-):
-
-    request = _generate_registration_request(agent, card)
-    auth_header = {
-        "Authorization": f"Agent {generate_agent_auth_token(Identity.from_seed(agent.uri.key, 0))}"
-    }
-
-    _register_to_agentverse(request, auth_header, agent.uri.agentverse_config)
-
-
-def verify_envelope(envelope: Envelope) -> bool:
-    try:
-        if is_user_address(envelope.sender):
-            return True
-        return envelope.verify()
-    except Exception:
-        return False
-
-
-async def _parse_chat_request(
-    request: Request, verify: bool
-) -> Tuple[Envelope, ChatMessage | ChatAcknowledgement]:
-    malformed_exc = HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Malformed envelope or chat message",
-    )
-
-    try:
-        env = Envelope.model_validate(await request.json())
-        if verify and not verify_envelope(env):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Unvalid envelope"
-            )
-        msg = cast(ChatMessage, parse_envelope(env, ChatMessage))
-        return env, msg
-    except HTTPException:
-        raise
-    except TypeError:
-        try:
-            msg = cast(ChatAcknowledgement, parse_envelope(env, ChatAcknowledgement))
-            return env, msg
-        except:
-            raise malformed_exc
-    except Exception as e:
-        print(f"Failed to parse chat message : {str(e)}")
-        raise malformed_exc
-
-
 class AgentverseA2AStarletteApplication(A2AStarletteApplication):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -255,6 +128,9 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
 
     @wraps(A2AStarletteApplication.build)
     def build(self, *args, **kwargs) -> Starlette:
+
+        kwargs["lifespan"] = setup_agent_status_lifespan(kwargs.get("lifespan", None))
+
         app = super().build(*args, **kwargs)
         app.add_route(
             name="Agentverse chat messages handler",
@@ -262,26 +138,33 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
             methods=["POST"],
             route=self._chat,
         )
+
+        set_app_state(
+            app,
+            AgentStarletteState(key=_agent.uri.key, agentverse=_agent.uri.agentverse),
+        )
+
         return app
 
     async def _handle_requests(self, request: Request) -> Response:
-        print(f"Got an a2a message {request}")
         return await super()._handle_requests(request)
 
     async def _chat(self, request: Request) -> Response:
-        env, msg = await _parse_chat_request(request, _agent.verify_envelope)
+        env, msg = await parse_chat_message_from_request(
+            request, _agent.options.verify_envelope
+        )
 
         if isinstance(msg, ChatAcknowledgement):
             return JSONResponse({})
 
         # await send_message_to_agent(
-        send_message_to_agent(
+        await send_message_to_agent(
             destination=env.sender,
             msg=ChatAcknowledgement(
                 timestamp=datetime.now(), acknowledged_msg_id=msg.msg_id
             ),
-            sender=Identity.from_seed(_agent.uri.key, 0),
-            agentverse_config=_agent.uri.agentverse_config,
+            sender=_agent.uri.identity,
+            agentverse_config=_agent.uri.agentverse,
         )
 
         if len(msg.content) == 1 and isinstance(msg.content[0], StartSessionContent):
@@ -346,11 +229,11 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
             msg_id=uuid4(),
             content=[TextContent(type="text", text=response)],
         )
-        send_message_to_agent(
+        await send_message_to_agent(
             destination=env.sender,
             msg=av_response,
-            sender=Identity.from_seed(_agent.uri.key, 0),
-            agentverse_config=_agent.uri.agentverse_config,
+            sender=_agent.uri.identity,
+            agentverse_config=_agent.uri.agentverse,
             session_id=env.session,
         )
 
@@ -362,7 +245,12 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
         if _agent is None:
             raise RuntimeError("Not initialised.")
 
-        register_to_agentverse(_agent, self.agent_card)
+        request = _generate_registration_request(_agent, self.agent_card)
+        token = generate_agent_auth_token(_agent.uri.identity)
+
+        register_to_agentverse_sync(
+            request, {"Authorization": f"Agent {token}"}, _agent.uri.agentverse
+        )
 
 
 def patch_a2a_app_builder(new_builder: Type):
