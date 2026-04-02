@@ -4,6 +4,7 @@ This package provides adapters for integrating [uAgents](https://github.com/fetc
 
 - **LangChain Adapter**: Convert LangChain agents to uAgents
 - **CrewAI Adapter**: Convert CrewAI crews to uAgents
+- **AG2 Adapter**: Convert AG2 (formerly AutoGen) multi-agent conversations to uAgents
 - **MCP Server Adapter**: Integrate Model Control Protocol (MCP) servers with uAgents
 - **A2A Outbound Adapter**: Bridges uAgents and A2A servers 
 - **A2A Inbound Adapter**: Bridge Agentverse agents to A2A protocol for AI assistants
@@ -19,6 +20,9 @@ pip install "uagents-adapter[langchain]"
 
 # Install with CrewAI support
 pip install "uagents-adapter[crewai]"
+
+# Install with AG2 support
+pip install "uagents-adapter[ag2]"
 
 # Install with MCP support
 pip install "uagents-adapter[mcp]"
@@ -115,6 +119,65 @@ result = register_tool.invoke({
 })
 
 print(f"Created uAgent '{result['agent_name']}' with address {result['agent_address']} on port {result['agent_port']}")
+```
+
+## AG2 Adapter
+
+The AG2 adapter allows you to convert any AG2 (formerly AutoGen) multi-agent conversation into a uAgent that can interact with other agents in the Agentverse ecosystem.
+
+```python
+import os
+from autogen import ConversableAgent, LLMConfig
+from autogen.agentchat import initiate_group_chat
+from autogen.agentchat.group.patterns import AutoPattern
+from uagents_adapter import AG2RegisterTool
+
+llm_config = LLMConfig({"model": "gpt-4o-mini", "api_key": os.environ["OPENAI_API_KEY"]})
+
+# Define a callable that runs your AG2 agents
+def run_research(query: str) -> str:
+    researcher = ConversableAgent(
+        name="researcher",
+        system_message="You are a skilled researcher.",
+        llm_config=llm_config,
+    )
+    writer = ConversableAgent(
+        name="writer",
+        system_message="You are a skilled writer.",
+        llm_config=llm_config,
+    )
+    user = ConversableAgent(name="user", human_input_mode="NEVER")
+    pattern = AutoPattern(
+        initial_agent=researcher,
+        agents=[researcher, writer],
+        user_agent=user,
+        group_manager_args={"llm_config": llm_config},
+    )
+    result, ctx, last = initiate_group_chat(
+        pattern=pattern,
+        messages=query,
+        max_rounds=10,
+    )
+    for msg in reversed(result.chat_history):
+        content = msg.get("content", "")
+        if content and "TERMINATE" not in content:
+            return content
+    return "Complete."
+
+# Create AG2 register tool
+register_tool = AG2RegisterTool()
+
+# Register the AG2 agents as a uAgent
+result = register_tool.invoke({
+    "agent_runner": run_research,
+    "name": "ag2-research-team",
+    "port": 8001,
+    "description": "Research team powered by AG2",
+    "mailbox": True,
+    "api_token": "YOUR_AGENTVERSE_API_TOKEN",  # Optional: for Agentverse registration
+})
+
+print(result)
 ```
 
 ## MCP Server Adapter
