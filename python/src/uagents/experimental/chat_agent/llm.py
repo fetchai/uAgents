@@ -164,4 +164,12 @@ class LLM:
         except Exception as e:
             raise RuntimeError(f"LLM completion call failed: {e}") from e
 
-        return (resp.choices[0].message.content or "").strip()  # type: ignore
+        text = (resp.choices[0].message.content or "").strip()  # type: ignore
+
+        if "<tool_call>" in text or "</tool_call>" in text:
+            return (
+                "Sorry, I had trouble processing that request. "
+                "Could you try rephrasing it?"
+            )
+
+        return text
