@@ -33,6 +33,7 @@ FINAL_SYSTEM_PROMPT = (
     "Return only the final human-readable answer."
 )
 
+
 def build_llm_message_history(ctx: Context) -> list[dict[str, str]]:
     history: list[dict[str, str]] = []
 
@@ -176,7 +177,7 @@ class ChatProtocol(Protocol):
 
             followup_messages = [
                 {"role": "system", "content": FINAL_SYSTEM_PROMPT},
-                messages[-1], 
+                messages[-1],
                 tool_result_message,
             ]
 
