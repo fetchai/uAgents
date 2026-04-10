@@ -275,7 +275,7 @@ class SingleA2AAdapter:
 
         Returns either a text string or AP2 objects (CartMandate, PaymentSuccess/Failure).
         """
-        async with httpx.AsyncClient() as httpx_client:
+        async with httpx.AsyncClient(follow_redirects=True) as httpx_client:
             try:
                 # Try the correct A2A endpoint format
                 if isinstance(message, dict):
@@ -659,7 +659,7 @@ class MultiA2AAdapter:
         self.discovered_agents = {}
         self.agent_health = {}
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(follow_redirects=True) as client:
             for config in self.agent_configs:
                 try:
                     # Prefer new endpoint; fallback to legacy for compatibility
@@ -885,7 +885,7 @@ class MultiA2AAdapter:
                 "Authorization": f"Bearer {self.llm_api_key}",
             }
 
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(follow_redirects=True) as client:
                 response = await client.post(
                     url, headers=headers, json=payload, timeout=10
                 )
@@ -945,7 +945,7 @@ class MultiA2AAdapter:
 
         Returns either a text string or AP2 objects (CartMandate, PaymentSuccess/Failure).
         """
-        async with httpx.AsyncClient() as httpx_client:
+        async with httpx.AsyncClient(follow_redirects=True) as httpx_client:
             try:
                 # Prepare A2A message payload
                 if isinstance(message, dict):
