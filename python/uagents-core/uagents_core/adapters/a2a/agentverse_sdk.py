@@ -10,22 +10,31 @@ from uuid import uuid4
 import a2a
 from a2a.server.apps import A2AStarletteApplication
 from a2a.types import AgentCard
+from httpx import HTTPStatusError
 from starlette.applications import Starlette
+from starlette.background import BackgroundTask
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
-from starlette.background import BackgroundTask
 from uagents_core.adapters.common.agentverse import (
     CHAT_PROTOCOL,
-    register_to_agentverse_sync,
     generate_agent_auth_token,
+    register_to_agentverse_sync,
+    send_message_to_agent,
 )
 from uagents_core.adapters.common.config import (
     DEFAULT_AGENTVERSE_CHAT_ENDPOINT,
 )
+from uagents_core.adapters.common.events import (
+    FAILED_INIT_ERROR_FORMAT,
+    Event,
+    handle_init_errors,
+)
+from uagents_core.adapters.common.helpers import utc_now
+from uagents_core.adapters.common.logger import logger
 from uagents_core.adapters.common.starlette import (
     parse_chat_message_from_request,
-    setup_agent_status_lifespan,
     set_app_state,
+    setup_agent_status_lifespan,
 )
 from uagents_core.adapters.common.types import (
     AgentStarletteState,
@@ -39,10 +48,8 @@ from uagents_core.contrib.protocols.chat import (
     TextContent,
 )
 from uagents_core.envelope import Envelope
-from uagents_core.identity import Identity
 from uagents_core.registration import AgentProfile, RegistrationRequest
 from uagents_core.types import AgentEndpoint
-from uagents_core.adapters.common.agentverse import send_message_to_agent
 
 _agent: AgentverseAgent | None = None
 
@@ -126,25 +133,33 @@ def _generate_registration_request(
 class AgentverseA2AStarletteApplication(A2AStarletteApplication):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.register()
+        with handle_init_errors(_agent.uri):
+            self.register()
 
     @wraps(A2AStarletteApplication.build)
     def build(self, *args, **kwargs) -> Starlette:
 
-        kwargs["lifespan"] = setup_agent_status_lifespan(kwargs.get("lifespan", None))
+        with handle_init_errors(_agent.uri):
+            kwargs["lifespan"] = setup_agent_status_lifespan(
+                kwargs.get("lifespan", None)
+            )
 
         app = super().build(*args, **kwargs)
-        app.add_route(
-            name="Agentverse chat messages handler",
-            path=DEFAULT_AGENTVERSE_CHAT_ENDPOINT,
-            methods=["POST"],
-            route=self._chat,
-        )
 
-        set_app_state(
-            app,
-            AgentStarletteState(key=_agent.uri.key, agentverse=_agent.uri.agentverse),
-        )
+        with handle_init_errors(_agent.uri):
+            app.add_route(
+                name="Agentverse chat messages handler",
+                path=DEFAULT_AGENTVERSE_CHAT_ENDPOINT,
+                methods=["POST"],
+                route=self._chat,
+            )
+
+            set_app_state(
+                app,
+                AgentStarletteState(
+                    key=_agent.uri.key, agentverse=_agent.uri.agentverse
+                ),
+            )
 
         return app
 
@@ -277,17 +292,25 @@ def init(
     disable_message_auth: bool = False,
     track_interactions: bool = False,
 ):
+    uri = None
 
-    # instrument a2a starlette
-    patch_a2a_app_builder(AgentverseA2AStarletteApplication)
-    gl = inspect.stack()[1].frame.f_globals
-    gl["A2AStarletteApplication"] = AgentverseA2AStarletteApplication
+    try:
+        uri = AgentUri.from_str(agent)
+    except Exception as e:
+        logger.error(FAILED_INIT_ERROR_FORMAT.format(f"malformed agent URI: {str(e)}"))
+        return
 
-    # store the agent info
-    global _agent
-    _agent = AgentverseAgent(
-        uri=AgentUri.from_str(agent),
-        profile=profile,
-        metadata=metadata,
-        verify_envelope=(not disable_message_auth),
-    )
+    with handle_init_errors(uri):
+        # instrument a2a starlette
+        patch_a2a_app_builder(AgentverseA2AStarletteApplication)
+        gl = inspect.stack()[1].frame.f_globals
+        gl["A2AStarletteApplication"] = AgentverseA2AStarletteApplication
+
+        # store the agent info
+        global _agent
+        _agent = AgentverseAgent(
+            uri=uri,
+            profile=profile,
+            metadata=metadata,
+            verify_envelope=(not disable_message_auth),
+        )
