@@ -7,6 +7,8 @@ from typing import Any
 
 _JSON_KEY_LINE = re.compile(r'^(\s*)("[^"\\]*(?:\\.[^"\\]*)*")\s*(:)(.*)$')
 
+_section_needs_gap = [False]
+
 
 def use_color() -> bool:
     if os.environ.get("NO_COLOR"):
@@ -40,19 +42,14 @@ def cyan(text: str) -> str:
     return _wrap_sgr("36", text)
 
 
-_need_section_gap = False
-
-
 def reset_sections() -> None:
-    global _need_section_gap
-    _need_section_gap = False
+    _section_needs_gap[0] = False
 
 
 def section(title: str) -> None:
-    global _need_section_gap
-    if _need_section_gap:
+    if _section_needs_gap[0]:
         print()
-    _need_section_gap = True
+    _section_needs_gap[0] = True
     if use_color():
         print(f"\033[1;2m{title}\033[0m")
     else:
@@ -85,13 +82,7 @@ def print_json(data: Any, *, indent: int = 2) -> None:
     for line in text.splitlines():
         m = _JSON_KEY_LINE.match(line)
         if m:
-            print(
-                gutter
-                + m.group(1)
-                + cyan(m.group(2))
-                + m.group(3)
-                + m.group(4)
-            )
+            print(gutter + m.group(1) + cyan(m.group(2)) + m.group(3) + m.group(4))
         else:
             print(gutter + line)
 

@@ -120,7 +120,7 @@ def _profile(
     else:
         metadata = reg.metadata
 
-    rec_protocols = [p.digest.lstrip("proto:") for p in rec.protocols]
+    rec_protocols = [p.digest.removeprefix("proto:") for p in rec.protocols]
     if Counter(reg.protocols) != Counter(rec_protocols):
         cross_warn("Mismatched protocols.")
         out.list_diff(reg.protocols, rec_protocols)
@@ -189,7 +189,7 @@ def _troubleshoot(
     else:
         chat_proto = ProtocolSpecification.compute_digest(
             chat_protocol_spec.manifest()
-        ).lstrip("proto:")
+        ).removeprefix("proto:")
         if chat_proto in reg.protocols:
             out.ok("Chat protocol supported")
         else:

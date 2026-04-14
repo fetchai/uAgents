@@ -32,7 +32,7 @@ repository = "https://github.com/fetchai/uAgents"
 documentation = "https://fetch.ai/docs"
 
 [project.scripts]
-agentverse = "uagents_core.agentverse.__main__:main"
+av = "uagents_core.agentverse.__main__:main"
 
 [tool.poetry]
 packages = [{ include = "uagents_core" }]
