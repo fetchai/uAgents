@@ -467,7 +467,7 @@ class InternalContext(Context):
         result = None
         if parsed_address:
             if sync or wait_for_response:
-                dispatcher.register_pending_response(
+                await dispatcher.register_pending_response(
                     sender=self.agent.address,
                     destination=parsed_address,
                     session=self._session,
