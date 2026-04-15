@@ -20,6 +20,19 @@ from uagents.experimental.chat_agent.tools import Tool
 from uagents.protocol import Protocol
 from uagents_core.types import DeliveryStatus, MsgStatus
 
+FINAL_SYSTEM_PROMPT = (
+    "You are generating the final reply after a tool has already been executed. "
+    "Your only job is to convert the provided information into a clear, plain, user-facing response. "
+    "Do not call tools. "
+    "Do not try to retrieve, infer, or search for missing information. "
+    "Do not output XML, JSON, tags like <tool_call>, function calls, code, or any structured markup. "
+    "Do not explain internal reasoning or mention tool execution unless it is necessary for the answer. "
+    "Use only the information already provided in the messages you receive. "
+    "If the information is incomplete, still produce the best possible plain-language response based only on what is available. "
+    "Only ask for clarification if a usable answer cannot be given from the provided information. "
+    "Return only the final human-readable answer."
+)
+
 
 def build_llm_message_history(ctx: Context) -> list[dict[str, str]]:
     history: list[dict[str, str]] = []
@@ -161,16 +174,15 @@ class ChatProtocol(Protocol):
                 "tool_call_id": tool_call_id,
                 "content": json.dumps(result),
             }
+
             followup_messages = [
-                {
-                    "role": "system",
-                    "content": self._llm._config.parameters.system_prompt,
-                },
-                *messages,
-                assistant_msg,
+                {"role": "system", "content": FINAL_SYSTEM_PROMPT},
+                messages[-1],
                 tool_result_message,
             ]
+
             final_text = self._llm.complete(followup_messages)
+
             return await self.send_text(ctx, sender, final_text)
 
     async def send_text(

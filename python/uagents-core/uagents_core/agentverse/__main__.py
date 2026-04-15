@@ -23,7 +23,10 @@ def parse_commandline() -> tuple[argparse.ArgumentParser, argparse.Namespace]:
         help="Agent profile information and troubleshooting",
         description="Agent profile information and troubleshooting",
     )
-    agent.add_argument("-a", "--address", required=True, help="Agent address")
+    agent.add_argument(
+        "identifier",
+        help="Agent identifier: bech32 address, marketplace handle, or domain name",
+    )
     agent.add_argument(
         "-p",
         "--show-profile",
@@ -43,10 +46,16 @@ def parse_commandline() -> tuple[argparse.ArgumentParser, argparse.Namespace]:
         "--check-connectivity",
         required=False,
         action="store_true",
-        help="Check registred agent endpoint connectivity ",
+        help="Check registered agent endpoint connectivity",
     )
     agent.add_argument(
         "--all", required=False, action="store_true", help="Run all checks"
+    )
+    agent.add_argument(
+        "--raw",
+        required=False,
+        action="store_true",
+        help="Print full almanac and marketplace records",
     )
     agent.set_defaults(op="agent")
 
@@ -58,25 +67,32 @@ def parse_commandline() -> tuple[argparse.ArgumentParser, argparse.Namespace]:
         description="Resolve agent address, handle, domain name",
     )
     resolve.add_argument(
-        "identifier", help="Agent address, handle, or domain name to resolve"
+        "identifier",
+        help="Agent identifier: bech32 address, marketplace handle, or domain name",
     )
     resolve.set_defaults(op="resolve")
 
     return parser, parser.parse_args()
 
 
-if __name__ == "__main__":
+def main() -> int:
     parser, args = parse_commandline()
 
     if args.op == "agent":
         check_agent(
-            args.address,
-            show_profile=args.all or args.show_profile,
+            args.identifier,
+            show_profile=args.all or args.show_profile or args.raw,
             full_readme=args.all or args.full_readme,
             check_connectivity=args.all or args.check_connectivity,
+            include_raw_records=args.raw,
             agentverse=args.av,
         )
     elif args.op == "resolve":
         resolve(args.identifier, agentverse=args.av)
     else:
         parser.print_help()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

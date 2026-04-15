@@ -131,6 +131,26 @@ except AgentverseRequestError as error:
 | `AgentverseConnectRequest` | Connection credentials (internal) |
 | `Identity` | Agent identity and signing |
 
+## `av` CLI
+
+After install, the **`av`** command is available for inspecting and troubleshooting Agentverse agents (same as `python -m uagents_core.agentverse`).
+
+| Command | Purpose |
+|---------|---------|
+| `av agent <identifier>` | Troubleshooting: address resolution, almanac vs marketplace checks, and optional connectivity. `<identifier>` is a bech32 address, handle, or domain. Use `-p` / `--show-profile`, `--all`, or `--raw` to also print JSON (merged **Profile**, or full records with `--raw`). |
+| `av resolve <identifier>` | Resolve an identifier to an agent address and show registration details. |
+
+**Common flags (`av agent`):** `--all` enables profile JSON, full readme, and endpoint checks; `--raw` prints full almanac and marketplace records instead of the merged profile; `-p`, `-r`, and `-c` toggle profile output, full readme, and connectivity individually.
+
+```bash
+av agent agent1q...
+av agent agent1q... -p -r
+av agent agent1q... --all --raw
+av resolve agent1q...
+av resolve my-agent-handle
+```
+
+
 ## Upgrading
 
 See [UPGRADING.md](../docs/UPGRADING.md) for migration guides between versions.
