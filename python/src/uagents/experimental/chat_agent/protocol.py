@@ -136,12 +136,7 @@ class ChatProtocol(Protocol):
                 messages = build_llm_message_history(ctx)
 
             try:
-                (
-                    tool_name,
-                    arg_dict,
-                    tool_call_id,
-                    assistant_msg,
-                ) = await self._llm.process(messages)
+                tool_name, arg_dict, tool_call_id, _ = await self._llm.process(messages)
 
             except Exception as e:
                 ctx.logger.error(f"LLM failed: {e}")

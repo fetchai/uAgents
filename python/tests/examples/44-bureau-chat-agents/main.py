@@ -4,13 +4,14 @@ from uagents_core.contrib.protocols.chat import ChatMessage, TextContent
 
 from protocols import listen_proto, word_counter_proto
 
+# Chat agent with no protocols / tools
 space_expert = ChatAgent(
     name="space-expert",
     instructions="You are an expert in deep space exploration.",
 )
 
+# Chat agent with a simple protocol
 word_counter = ChatAgent(name="word-counter")
-
 word_counter.include(word_counter_proto)
 
 questioner = Agent(name="questioner")
