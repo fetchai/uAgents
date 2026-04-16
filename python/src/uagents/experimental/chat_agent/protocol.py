@@ -108,7 +108,7 @@ class ChatProtocol(Protocol):
 
         @self.on_message(ChatAcknowledgement)
         async def _ack(ctx: Context, sender: str, msg: ChatAcknowledgement):
-            ctx.logger.info(
+            ctx.logger.debug(
                 f"Got an acknowledgement from {sender} for {msg.acknowledged_msg_id}"
             )
 
