@@ -1,14 +1,29 @@
+import asyncio
+import atexit
+import contextlib
 import json
 import logging
 import os
 from typing import Any, cast
 
 import litellm
-from litellm import completion
+from litellm import acompletion
+from litellm.llms.custom_httpx.async_client_cleanup import close_litellm_async_clients
 from litellm.types.utils import ModelResponse
 from pydantic import BaseModel, ConfigDict
 
 from uagents.experimental.chat_agent.tools import Tool
+
+
+# LiteLLM keeps shared HTTP clients; they must be closed when the process exits. The
+# library registers its own atexit hook, but we also run this so cleanup is awaited
+# reliably (e.g. after Bureau/agent teardown when no asyncio loop is running).
+def _litellm_cleanup_on_exit() -> None:
+    with contextlib.suppress(Exception):
+        asyncio.run(close_litellm_async_clients())
+
+
+atexit.register(_litellm_cleanup_on_exit)
 
 # Suppress litellm logging
 litellm.suppress_debug_info = True
@@ -19,11 +34,22 @@ DEFAULT_TEMPERATURE = 0.0
 DEFAULT_MAX_TOKENS = 1024
 DEFAULT_SYSTEM_PROMPT = (
     "You are an AI agent built on the uAgents framework and ChatProtocol. "
+    "Respond clearly and concisely to the incoming request, using session history "
+    "as warranted, to provide context for the response."
+)
+
+INSTRUCTIONS_PREAMBLE = (
+    "The following additional instructions describe how this agent should behave "
+    "and are to be strictly followed: "
+)
+
+TOOL_USAGE_PROMPT = (
     "Respond to user queries using the most relevant one of the available tools. "
-    "If insufficient information is provided to invoke a tool, you may "
-    "ask for more details but do not guess. "
-    "Use ONLY the tools explicitly provided to you; do not claim or attempt capabilities outside those tools"
-    "If the request cannot be completed with the available tools, ask a clarifying question about what tool-enabled action to take."
+    "If insufficient information is provided to invoke a tool, you may ask for"
+    "more details but do not guess. Use ONLY the tools explicitly provided to you; "
+    "do not claim or attempt capabilities outside those tools. If the request cannot "
+    "be completed with the available tools, ask a clarifying question about what "
+    "tool-enabled action to take."
 )
 
 
@@ -58,9 +84,12 @@ class LLMConfig(BaseModel):
 
 
 class LLM:
-    def __init__(self, config: LLMConfig, tools: dict[str, Tool]):
+    def __init__(
+        self, config: LLMConfig, tools: dict[str, Tool], instructions: str | None = None
+    ):
         self._config = config
         self._tools = tools
+        self._instructions = instructions
 
     def _build_tool_specs(self) -> list[dict[str, Any]]:
         return [tool.tool_spec() for tool in self._tools.values()]
@@ -104,7 +133,16 @@ class LLM:
 
         return (tool_name, args_dict, tool_call_id)
 
-    def process(
+    def _system_content(self, tools_specs: list[dict[str, Any]]) -> str:
+        parts: list[str] = [DEFAULT_SYSTEM_PROMPT.strip()]
+        instructions = (self._instructions or "").strip()
+        if instructions:
+            parts.append(f"{INSTRUCTIONS_PREAMBLE}{instructions}")
+        if tools_specs:
+            parts.append(TOOL_USAGE_PROMPT.strip())
+        return "\n\n".join(parts)
+
+    async def process(
         self,
         message_history: list[dict[str, str]],
     ) -> tuple[str, dict, str | None, dict]:
@@ -114,30 +152,27 @@ class LLM:
         messages = [
             {
                 "role": "system",
-                "content": self._config.parameters.system_prompt,
+                "content": self._system_content(tools_specs),
             },
             *message_history,
         ]
 
         kwargs = self._get_base_kwargs(messages, exclude_params={"system_prompt"})
 
-        # Add tools if available
         if tools_specs:
             kwargs["tools"] = tools_specs
         else:
             kwargs.pop("tool_choice", None)
+            kwargs.pop("parallel_tool_calls", None)
 
         try:
-            resp = cast(ModelResponse, completion(**kwargs))
+            resp = cast(ModelResponse, await acompletion(**kwargs))
         except Exception as e:
             raise RuntimeError(f"LLM call failed: {e}") from e
 
         message_obj = resp.choices[0].message
 
-        if isinstance(message_obj, dict):
-            msg = message_obj
-        else:
-            msg = message_obj.model_dump()
+        msg = message_obj if isinstance(message_obj, dict) else message_obj.model_dump()
 
         tool_calls = msg.get("tool_calls") or []
 
@@ -153,14 +188,14 @@ class LLM:
 
         raise RuntimeError("LLM returned neither tool_calls nor content.")
 
-    def complete(self, messages: list[dict]) -> str:
+    async def complete(self, messages: list[dict]) -> str:
         """Finalize a chat turn after tool execution."""
         kwargs = self._get_base_kwargs(
             messages, exclude_params={"system_prompt", "tool_choice"}
         )
 
         try:
-            resp = cast(ModelResponse, completion(**kwargs))
+            resp = cast(ModelResponse, await acompletion(**kwargs))
         except Exception as e:
             raise RuntimeError(f"LLM completion call failed: {e}") from e
 
