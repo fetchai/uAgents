@@ -310,6 +310,7 @@ class Protocol:
         model: type[Model],
         replies: type[Model] | set[type[Model]] | None = None,
         allow_unverified: bool = False,
+        allowed_senders: set[str] | None = None,
     ) -> Callable:
         """
         Decorator to register a message handler for the protocol.
@@ -318,6 +319,8 @@ class Protocol:
             model (type[Model]): The message model type.
             replies (type[Model] | set[type[Model]] | None): The associated reply types.
             allow_unverified (bool, optional): Whether to allow unverified messages.
+            allowed_senders (set[str] | None): Optional set of agent addresses permitted to
+                trigger this handler. Messages from other senders are silently dropped.
 
         Returns:
             Callable: The decorator to register the message handler.
@@ -341,7 +344,7 @@ class Protocol:
             def handler(*args, **kwargs):
                 return func(*args, **kwargs)
 
-            self._add_message_handler(model, func, replies, allow_unverified)
+            self._add_message_handler(model, func, replies, allow_unverified, allowed_senders)
 
             return handler
 
@@ -353,6 +356,7 @@ class Protocol:
         func: MessageCallback,
         replies: type[Model] | set[type[Model]] | None,
         allow_unverified: bool = False,
+        allowed_senders: set[str] | None = None,
     ):
         """
         Add a message handler to the protocol.
@@ -362,8 +366,24 @@ class Protocol:
             func (MessageCallback): The message handler function.
             replies (type[Model] | set[type[Model]] | None): The associated reply types.
             allow_unverified (bool, optional): Whether to allow unverified messages.
+            allowed_senders (set[str] | None): Optional set of agent addresses permitted to
+                trigger this handler. Messages from other senders are silently dropped.
         """
         model_digest = Model.build_schema_digest(model)
+
+        if allowed_senders is not None:
+            _allowed = frozenset(allowed_senders)
+            _orig_func = func
+
+            async def _guarded(ctx, sender, msg):
+                if sender not in _allowed:
+                    logger.warning(
+                        f"Unauthorized sender '{sender}' for handler of '{model.__name__}'"
+                    )
+                    return
+                return await _orig_func(ctx, sender, msg)
+
+            func = _guarded
 
         # update the model database
         self._models[model_digest] = model
