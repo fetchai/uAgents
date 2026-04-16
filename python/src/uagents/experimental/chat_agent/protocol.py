@@ -125,15 +125,23 @@ class ChatProtocol(Protocol):
             if any(isinstance(item, StartSessionContent) for item in msg.content):
                 ctx.logger.info(f"Got a start session message from {sender}")
 
-            user_text = msg.text()
-            if not user_text:
+            msg_text = msg.text().strip()
+            if not msg_text:
                 return
 
-            user_stripped = user_text.strip()
+            msg_dict = {"role": "user", "content": msg_text}
             if ctx._message_history is None:
-                messages = [{"role": "user", "content": user_stripped}]
+                messages = [msg_dict]
             else:
                 messages = build_llm_message_history(ctx)
+                # Session history should already include incoming message
+                # if not (e.g. first message edge cases), append so process/complete never see [].
+                if (
+                    not messages
+                    or messages[-1].get("role") != "user"
+                    or messages[-1].get("content") != msg_text
+                ):
+                    messages = [*messages, msg_dict]
 
             try:
                 tool_name, arg_dict, tool_call_id, _ = await self._llm.process(messages)
@@ -186,7 +194,7 @@ class ChatProtocol(Protocol):
 
             followup_messages = [
                 {"role": "system", "content": FINAL_SYSTEM_PROMPT},
-                messages[-1],
+                msg_dict,
                 tool_result_message,
             ]
 

@@ -45,7 +45,7 @@ INSTRUCTIONS_PREAMBLE = (
 
 TOOL_USAGE_PROMPT = (
     "Respond to user queries using the most relevant one of the available tools. "
-    "If insufficient information is provided to invoke a tool, you may ask for"
+    "If insufficient information is provided to invoke a tool, you may ask for "
     "more details but do not guess. Use ONLY the tools explicitly provided to you; "
     "do not claim or attempt capabilities outside those tools. If the request cannot "
     "be completed with the available tools, ask a clarifying question about what "
