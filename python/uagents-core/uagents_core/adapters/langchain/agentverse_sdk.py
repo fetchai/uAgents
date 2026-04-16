@@ -5,47 +5,48 @@ import os
 import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from secrets import token_bytes
-from typing import Any, Tuple, Type, cast
-from urllib.parse import unquote, urlparse
-from uuid import uuid4
+from typing import Any, Type, cast
+from urllib.parse import urlparse
+from uuid import UUID, NAMESPACE_URL, uuid4, uuid5
 
 import httpx
 from dotenv import load_dotenv
 from pydantic import BaseModel
-from starlette import status
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Mount, Route
 
-from uagents_core.config import AgentverseConfig
+from uagents_core.adapters.common.agentverse import (
+    CHAT_PROTOCOL,
+    generate_agent_auth_token,
+    register_to_agentverse_sync,
+)
+from uagents_core.adapters.common.config import DEFAULT_AGENTVERSE_CHAT_ENDPOINT
+from uagents_core.adapters.common.starlette import parse_chat_message_from_request
+from uagents_core.adapters.common.types import (
+    AgentOptions,
+    AgentStarletteState,
+    AgentUri,
+    AgentverseAgent,
+)
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
     ChatMessage,
     StartSessionContent,
     TextContent,
-    chat_protocol_spec,
 )
 from uagents_core.envelope import Envelope
-from uagents_core.identity import Identity, is_user_address
-from uagents_core.protocol import ProtocolSpecification
+from uagents_core.identity import Identity
 from uagents_core.registration import AgentProfile, RegistrationRequest
-from uagents_core.storage import compute_attestation
 from uagents_core.types import AgentEndpoint
-from uagents_core.utils.messages import parse_envelope, send_message_to_agent
-from uagents_core.utils.registration import (
-    AgentverseRequestError,
-    _send_post_request_agentverse,
-)
+from uagents_core.utils.messages import send_message_to_agent
+from uagents_core.utils.registration import AgentverseRequestError
 
-DEFAULT_AGENTVERSE_CHAT_ENDPOINT = "/av/chat"
-DEFAULT_HTTP_REQUESTS_TIMEOUT = 3
 DEFAULT_LANGGRAPH_INTERNAL_BASE_URL = "http://langgraph.internal"
 DEFAULT_LANGGRAPH_ASSISTANT_ID = "agent"
 DEFAULT_HTTP_TIMEOUT = 60.0
-AGENT_AUTH_TOKEN_VALIDITY = 60 * 2
 
 for ch in ["uagents_core.utils.resolver", "uagents_core.utils.messages"]:
     logging.getLogger(ch).setLevel(logging.ERROR)
@@ -53,47 +54,9 @@ for ch in ["uagents_core.utils.resolver", "uagents_core.utils.messages"]:
 logger = logging.getLogger(__name__)
 
 
-class AgentUri(BaseModel):
-    key: str
-    name: str
-    agentverse_config: AgentverseConfig
-    handle: str | None = None
-
-    @classmethod
-    def from_str(cls, uri: str) -> "AgentUri":
-        parsed = urlparse(uri)
-
-        if not parsed.scheme:
-            raise ValueError("Scheme is missing.")
-        if not parsed.hostname:
-            raise ValueError("Hostname is missing.")
-        if not parsed.username:
-            raise ValueError("Agent handle is missing.")
-        if not parsed.password:
-            raise ValueError("Agent key is missing.")
-        if not parsed.path or len(parsed.path.split("/")) < 2:
-            raise ValueError("Agent name is missing.")
-
-        name = unquote(parsed.path.split("/")[1])
-
-        agentverse = AgentverseConfig(
-            base_url=parsed.hostname + (f":{parsed.port}" if parsed.port else ""),
-            http_prefix=parsed.scheme,
-        )
-
-        return cls(
-            key=parsed.password,
-            name=name,
-            agentverse_config=agentverse,
-            handle=parsed.username,
-        )
-
-
-class AgentverseAgent(BaseModel):
-    uri: AgentUri
-    profile: AgentProfile | None = None
-    metadata: dict[str, Any] | None = None
-    verify_envelope: bool
+class LangGraphAgentStarletteState(AgentStarletteState):
+    assistant_id: str
+    chat_endpoint: str
 
 
 class LangGraphAdapterConfig(BaseModel):
@@ -101,6 +64,8 @@ class LangGraphAdapterConfig(BaseModel):
     chat_endpoint: str = DEFAULT_AGENTVERSE_CHAT_ENDPOINT
     debug_http_response: bool = False
     register_on_startup: bool = True
+    use_threads: bool = True
+    multitask_strategy: str = "enqueue"
 
 
 _agent: AgentverseAgent | None = None
@@ -119,13 +84,20 @@ def bootstrap_env() -> None:
     os.environ.setdefault("REDIS_URI", "redis://127.0.0.1:6379/0")
 
 
-def generate_agent_auth_token(identity: Identity) -> str:
-    return compute_attestation(
-        identity,
-        datetime.now(timezone.utc),
-        AGENT_AUTH_TOKEN_VALIDITY,
-        token_bytes(32),
-    )
+def _require_agent() -> AgentverseAgent:
+    if _agent is None:
+        raise RuntimeError("Adapter not initialised. Call init(...) first.")
+    return _agent
+
+
+def _require_config() -> LangGraphAdapterConfig:
+    if _config is None:
+        raise RuntimeError("Adapter not initialised. Call init(...) first.")
+    return _config
+
+
+def _get_sender_identity() -> Identity:
+    return _require_agent().uri.identity
 
 
 def _combine_url(base: str, path: str) -> str:
@@ -161,6 +133,20 @@ def _is_publicly_reachable_url(url: str | None) -> bool:
         return False
 
 
+def _session_to_thread_id(session: Any) -> str | None:
+    if session is None:
+        return None
+
+    session_str = str(session).strip()
+    if not session_str:
+        return None
+
+    try:
+        return str(UUID(session_str))
+    except ValueError:
+        return str(uuid5(NAMESPACE_URL, f"agentverse-session:{session_str}"))
+
+
 def _generate_readme(
     agent: AgentverseAgent,
     config: LangGraphAdapterConfig,
@@ -187,7 +173,7 @@ def _generate_registration_request(
     config: LangGraphAdapterConfig,
     public_url: str,
 ) -> RegistrationRequest:
-    identity = Identity.from_seed(agent.uri.key, 0)
+    identity = agent.uri.identity
 
     profile_data = agent.profile.model_dump() if agent.profile is not None else {}
     profile = AgentProfile(**profile_data)
@@ -216,30 +202,9 @@ def _generate_registration_request(
             weight=1,
         )
     ]
-    request.protocols = [
-        ProtocolSpecification.compute_digest(chat_protocol_spec.manifest())
-    ]
+    request.protocols = [CHAT_PROTOCOL]
 
     return request
-
-
-def _register_to_agentverse(
-    request: RegistrationRequest,
-    headers: dict[str, str],
-    agentverse: AgentverseConfig,
-    timeout: int = DEFAULT_HTTP_REQUESTS_TIMEOUT,
-) -> None:
-    try:
-        _send_post_request_agentverse(
-            url=agentverse.agents_api,
-            data=request,
-            headers=headers,
-            timeout=timeout,
-        )
-    except AgentverseRequestError:
-        raise
-    except Exception:
-        raise
 
 
 def register_to_agentverse(
@@ -250,57 +215,28 @@ def register_to_agentverse(
     if public_url is None:
         raise RuntimeError("Could not resolve public URL for registration.")
 
-    identity = Identity.from_seed(agent.uri.key, 0)
     request = _generate_registration_request(agent, config, public_url)
     auth_header = {
-        "Authorization": f"Agent {generate_agent_auth_token(identity)}"
+        "Authorization": f"Agent {generate_agent_auth_token(agent.uri.identity)}"
     }
 
-    _register_to_agentverse(
-        request=request,
-        headers=auth_header,
-        agentverse=agent.uri.agentverse_config,
+    register_to_agentverse_sync(
+        request,
+        auth_header,
+        agent.uri.agentverse,
     )
 
 
-def verify_envelope(envelope: Envelope) -> bool:
-    try:
-        if is_user_address(envelope.sender):
-            return True
-        return envelope.verify()
-    except Exception:
-        return False
+def _set_app_state(app: Starlette) -> None:
+    config = _require_config()
+    agent = _require_agent()
 
-
-async def _parse_chat_request(
-    request: Request,
-    verify: bool,
-) -> Tuple[Envelope, ChatMessage | ChatAcknowledgement]:
-    malformed_exc = HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Malformed envelope or chat message",
+    app.state.agent = LangGraphAgentStarletteState(
+        key=agent.uri.key,
+        agentverse=agent.uri.agentverse,
+        assistant_id=config.assistant_id,
+        chat_endpoint=config.chat_endpoint,
     )
-
-    try:
-        env = Envelope.model_validate(await request.json())
-        if verify and not verify_envelope(env):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid envelope",
-            )
-        msg = cast(ChatMessage, parse_envelope(env, ChatMessage))
-        return env, msg
-    except HTTPException:
-        raise
-    except TypeError:
-        try:
-            msg = cast(ChatAcknowledgement, parse_envelope(env, ChatAcknowledgement))
-            return env, msg
-        except Exception:
-            raise malformed_exc
-    except Exception as e:
-        logger.exception("Failed to parse chat message: %s", str(e))
-        raise malformed_exc
 
 
 class AgentverseLangGraphApplication:
@@ -313,11 +249,27 @@ class AgentverseLangGraphApplication:
             return f"{self.lg_config.MOUNT_PREFIX}/runs/wait"
         return "/runs/wait"
 
+    def _get_thread_runs_wait_path(self, thread_id: str) -> str:
+        if getattr(self.lg_config, "MOUNT_PREFIX", None):
+            return f"{self.lg_config.MOUNT_PREFIX}/threads/{thread_id}/runs/wait"
+        return f"/threads/{thread_id}/runs/wait"
+
+    def _extract_text_content(self, msg: ChatMessage) -> str:
+        return msg.text()
+
     def _extract_last_ai_text(self, data: dict[str, Any]) -> str:
-        messages = data.get("messages", [])
+        messages = data.get("messages")
+        if not isinstance(messages, list):
+            values = data.get("values", {})
+            if isinstance(values, dict):
+                messages = values.get("messages", [])
+            else:
+                messages = []
 
         for msg in reversed(messages):
-            if msg.get("type") != "ai":
+            msg_type = msg.get("type")
+            msg_role = msg.get("role")
+            if msg_type not in {"ai", "assistant"} and msg_role != "assistant":
                 continue
 
             content = msg.get("content", "")
@@ -336,15 +288,25 @@ class AgentverseLangGraphApplication:
 
         return ""
 
-    def _extract_text_content(self, msg: ChatMessage) -> str:
-        return msg.text()
+    def _build_runs_wait_payload(
+        self,
+        text: str,
+        env: Envelope | None = None,
+    ) -> dict[str, Any]:
+        config = _require_config()
 
-    def _build_runs_wait_payload(self, text: str) -> dict[str, Any]:
-        if _config is None:
-            raise RuntimeError("Adapter not initialised.")
+        metadata: dict[str, Any] = {}
+        if env is not None:
+            metadata = {
+                "agentverse_sender": env.sender,
+                "agentverse_target": env.target,
+                "agentverse_session": str(env.session) if env.session else None,
+            }
+            metadata = {k: v for k, v in metadata.items() if v is not None}
 
-        return {
-            "assistant_id": _config.assistant_id,
+        payload: dict[str, Any] = {
+            "assistant_id": config.assistant_id,
+            "multitask_strategy": config.multitask_strategy,
             "input": {
                 "messages": [
                     {
@@ -355,8 +317,22 @@ class AgentverseLangGraphApplication:
             },
         }
 
-    async def _call_runs_wait(self, text: str) -> dict[str, Any]:
-        payload = self._build_runs_wait_payload(text)
+        if metadata:
+            payload["metadata"] = metadata
+
+        return payload
+
+    async def _call_runs_wait(self, text: str, env: Envelope) -> dict[str, Any]:
+        config = _require_config()
+
+        payload = self._build_runs_wait_payload(text, env)
+        path = self._get_runs_wait_path()
+
+        if config.use_threads:
+            thread_id = _session_to_thread_id(env.session)
+            if thread_id is not None:
+                path = self._get_thread_runs_wait_path(thread_id)
+                payload["if_not_exists"] = "create"
 
         transport = httpx.ASGITransport(app=self.original_app)
         async with httpx.AsyncClient(
@@ -364,7 +340,7 @@ class AgentverseLangGraphApplication:
             base_url=DEFAULT_LANGGRAPH_INTERNAL_BASE_URL,
             timeout=DEFAULT_HTTP_TIMEOUT,
         ) as client:
-            response = await client.post(self._get_runs_wait_path(), json=payload)
+            response = await client.post(path, json=payload)
 
         if response.status_code >= 400:
             raise RuntimeError(
@@ -379,18 +355,17 @@ class AgentverseLangGraphApplication:
         msg: ChatMessage,
         sender_identity: Identity,
     ) -> None:
-        if _agent is None:
-            raise RuntimeError("Adapter not initialised.")
+        agent = _require_agent()
 
         await asyncio.to_thread(
             send_message_to_agent,
-            destination=env.sender,
-            msg=ChatAcknowledgement(
+            env.sender,
+            ChatAcknowledgement(
                 timestamp=datetime.now(timezone.utc),
                 acknowledged_msg_id=msg.msg_id,
             ),
-            sender=sender_identity,
-            agentverse_config=_agent.uri.agentverse_config,
+            sender_identity,
+            agentverse_config=agent.uri.agentverse,
         )
 
     async def _send_reply(
@@ -399,8 +374,7 @@ class AgentverseLangGraphApplication:
         response_text: str,
         sender_identity: Identity,
     ) -> None:
-        if _agent is None:
-            raise RuntimeError("Adapter not initialised.")
+        agent = _require_agent()
 
         av_response = ChatMessage(
             timestamp=datetime.now(timezone.utc),
@@ -410,73 +384,24 @@ class AgentverseLangGraphApplication:
 
         await asyncio.to_thread(
             send_message_to_agent,
-            destination=env.sender,
-            msg=av_response,
-            sender=sender_identity,
-            agentverse_config=_agent.uri.agentverse_config,
+            env.sender,
+            av_response,
+            sender_identity,
             session_id=env.session,
+            agentverse_config=agent.uri.agentverse,
         )
 
-    async def _chat(self, request: Request) -> Response:
-        if _agent is None or _config is None:
-            return JSONResponse({"error": "Adapter not initialised."}, status_code=500)
-
-        logger.info("Received request on %s", _config.chat_endpoint)
-
-        try:
-            env, msg = await _parse_chat_request(request, _agent.verify_envelope)
-        except HTTPException as e:
-            logger.error("Failed to parse incoming chat request: %s", e.detail)
-            return JSONResponse({"detail": e.detail}, status_code=e.status_code)
-
-        logger.info("Received envelope from %s to %s", env.sender, env.target)
-
-        if isinstance(msg, ChatAcknowledgement):
-            logger.info("Received ChatAcknowledgement")
-            return JSONResponse({})
-
-        sender_identity = Identity.from_seed(_agent.uri.key, 0)
-
-        if len(msg.content) == 1 and isinstance(msg.content[0], StartSessionContent):
-            await self._send_ack(env, msg, sender_identity)
-            return JSONResponse({})
-
-        text = self._extract_text_content(msg)
-        logger.info("Received ChatMessage text: %s", text)
-
-        if _config.debug_http_response:
-            try:
-                data = await self._call_runs_wait(text)
-                response_text = (
-                    self._extract_last_ai_text(data)
-                    or "Sorry, I received an empty response."
-                )
-            except Exception as e:
-                logger.exception(
-                    "Failed to process request by LangGraph agent: %s", str(e)
-                )
-                return JSONResponse(
-                    {"error": "langgraph call failed", "detail": str(e)},
-                    status_code=502,
-                )
-
-            body: dict[str, Any] = {"response": response_text, "raw": data}
-            return JSONResponse(body)
-
-        try:
-            await self._send_ack(env, msg, sender_identity)
-        except Exception as e:
-            logger.exception("Failed to send acknowledgement: %s", str(e))
-            return JSONResponse(
-                {"error": "failed to send acknowledgement", "detail": str(e)},
-                status_code=502,
-            )
-
+    async def _process_and_reply(
+        self,
+        env: Envelope,
+        text: str,
+        sender_identity: Identity,
+    ) -> None:
         if not text.strip():
             response_text = "I did not receive any text content."
         else:
             try:
-                data = await self._call_runs_wait(text)
+                data = await self._call_runs_wait(text, env)
                 response_text = self._extract_last_ai_text(data)
                 if not response_text:
                     response_text = "Sorry, I received an empty response."
@@ -490,18 +415,71 @@ class AgentverseLangGraphApplication:
             await self._send_reply(env, response_text, sender_identity)
         except Exception as e:
             logger.exception("Failed to send reply: %s", str(e))
+
+    async def _chat(self, request: Request) -> Response:
+        agent = _require_agent()
+        config = _require_config()
+
+        logger.info("Received request on %s", config.chat_endpoint)
+
+        try:
+            env, msg = await parse_chat_message_from_request(
+                request, agent.options.verify_envelope
+            )
+        except HTTPException as e:
+            logger.error("Failed to parse incoming chat request: %s", e.detail)
+            return JSONResponse({"detail": e.detail}, status_code=e.status_code)
+
+        logger.info("Received envelope from %s to %s", env.sender, env.target)
+
+        if isinstance(msg, ChatAcknowledgement):
+            logger.info("Received ChatAcknowledgement")
+            return JSONResponse({})
+
+        sender_identity = _get_sender_identity()
+
+        if len(msg.content) == 1 and isinstance(msg.content[0], StartSessionContent):
+            await self._send_ack(env, cast(ChatMessage, msg), sender_identity)
+            return JSONResponse({})
+
+        text = self._extract_text_content(cast(ChatMessage, msg))
+        logger.info("Received ChatMessage text: %s", text)
+
+        if config.debug_http_response:
+            try:
+                data = await self._call_runs_wait(text, env)
+                response_text = (
+                    self._extract_last_ai_text(data)
+                    or "Sorry, I received an empty response."
+                )
+            except Exception as e:
+                logger.exception(
+                    "Failed to process request by LangGraph agent: %s", str(e)
+                )
+                return JSONResponse(
+                    {"error": "langgraph call failed", "detail": str(e)},
+                    status_code=502,
+                )
+
+            return JSONResponse({"response": response_text, "raw": data})
+
+        try:
+            await self._send_ack(env, cast(ChatMessage, msg), sender_identity)
+        except Exception as e:
+            logger.exception("Failed to send acknowledgement: %s", str(e))
             return JSONResponse(
-                {"error": "failed to send reply", "detail": str(e)},
+                {"error": "failed to send acknowledgement", "detail": str(e)},
                 status_code=502,
             )
 
+        asyncio.create_task(self._process_and_reply(env, text, sender_identity))
         return JSONResponse({})
 
     def register(self) -> None:
         global _registered
 
-        if _agent is None or _config is None:
-            raise RuntimeError("Not initialised.")
+        agent = _require_agent()
+        config = _require_config()
 
         public_url = _resolve_public_url()
         if not _is_publicly_reachable_url(public_url):
@@ -511,18 +489,18 @@ class AgentverseLangGraphApplication:
             )
             return
 
-        register_to_agentverse(_agent, _config)
+        register_to_agentverse(agent, config)
         _registered = True
 
         logger.info(
             "Registered LangGraph agent '%s' with endpoint %s",
-            _agent.uri.name,
-            _combine_url(public_url, _config.chat_endpoint),
+            agent.uri.name,
+            _combine_url(public_url, config.chat_endpoint),
         )
 
     def build(self) -> Starlette:
-        if _agent is None or _config is None:
-            raise RuntimeError("Not initialised.")
+        _require_agent()
+        config = _require_config()
 
         original_lifespan = self.original_app.router.lifespan_context
 
@@ -531,7 +509,7 @@ class AgentverseLangGraphApplication:
             async with original_lifespan(self.original_app):
                 global _registered
 
-                if _config.register_on_startup and not _registered:
+                if config.register_on_startup and not _registered:
                     try:
                         self.register()
                     except AgentverseRequestError as e:
@@ -543,7 +521,12 @@ class AgentverseLangGraphApplication:
 
         app = Starlette(
             routes=[
-                Route(_config.chat_endpoint, self._chat, methods=["POST"]),
+                Route(
+                    path=config.chat_endpoint,
+                    endpoint=self._chat,
+                    methods=["POST"],
+                    name="Agentverse chat messages handler",
+                ),
                 Mount("", app=self.original_app),
             ],
             lifespan=wrapped_lifespan,
@@ -551,6 +534,7 @@ class AgentverseLangGraphApplication:
         )
 
         app.state = self.original_app.state
+        _set_app_state(app)
         return app
 
 
@@ -576,15 +560,15 @@ def init(
         uri=AgentUri.from_str(agent),
         profile=profile,
         metadata=metadata,
-        verify_envelope=(not disable_message_auth),
+        options=AgentOptions(verify_envelope=(not disable_message_auth)),
     )
 
     _config = LangGraphAdapterConfig()
 
 
 def run() -> None:
-    if _agent is None or _config is None:
-        raise RuntimeError("Adapter not initialised. Call init(...) first.")
+    _require_agent()
+    _require_config()
 
     bootstrap_env()
     patch_langgraph_app(AgentverseLangGraphApplication)
