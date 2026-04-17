@@ -467,7 +467,7 @@ class Agent(Sink):
         # define default error message handler
         @self.on_message(ErrorMessage)
         async def _handle_error_message(ctx: Context, sender: str, msg: ErrorMessage):
-            ctx.logger.exception(f"Received error message from {sender}: {msg.error}")
+            ctx.logger.warning(f"Received error message from {sender}: {msg.error}")
 
         # define default rest message handlers if agent inspector is enabled
         if enable_agent_inspector:
