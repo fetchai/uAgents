@@ -1,8 +1,11 @@
 from typing import Any, Callable
 
-from uagents_core.models import Model
+from uagents_core.models import ErrorMessage, Model
 
 from uagents.protocol import Protocol
+
+# Models that must never be exposed as LLM function tools (transport / system).
+_EXCLUDED_TOOL_MODELS: frozenset[type[Model]] = frozenset({ErrorMessage})
 
 
 class Tool:
@@ -39,6 +42,8 @@ def extract_tools_from_protocol(proto: Protocol) -> list[Tool]:
     }
 
     for digest, model_cls in proto.models.items():
+        if model_cls in _EXCLUDED_TOOL_MODELS:
+            continue
         handler_fn = all_handlers.get(digest)
         if handler_fn is None:
             continue

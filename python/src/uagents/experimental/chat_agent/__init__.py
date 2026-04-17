@@ -14,6 +14,7 @@ class ChatAgent(Agent):
         self,
         *args,
         llm_config: Optional[LLMConfig] = None,
+        instructions: str | None = None,
         publish_agent_details: bool = True,
         store_message_history: bool = True,
         **kwargs,
@@ -30,6 +31,7 @@ class ChatAgent(Agent):
         self._chat_proto = ChatProtocol(
             llm_config=llm_config or LLMConfig.asi1(),
             tools=self._tools,
+            instructions=instructions,
         )
 
         super().include(self._chat_proto, publish_manifest=True)

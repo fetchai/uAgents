@@ -12,24 +12,30 @@ from uagents_core.contrib.protocols.chat import (
     TextContent,
     chat_protocol_spec,
 )
+from uagents_core.types import DeliveryStatus, MsgStatus
+
 from uagents import Context, Model
 from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
 from uagents.context import ExternalContext
 from uagents.experimental.chat_agent.llm import LLM, LLMConfig
 from uagents.experimental.chat_agent.tools import Tool
 from uagents.protocol import Protocol
-from uagents_core.types import DeliveryStatus, MsgStatus
 
 FINAL_SYSTEM_PROMPT = (
     "You are generating the final reply after a tool has already been executed. "
-    "Your only job is to convert the provided information into a clear, plain, user-facing response. "
+    "Your only job is to convert the provided information into a clear, plain, "
+    "user-facing response. "
     "Do not call tools. "
     "Do not try to retrieve, infer, or search for missing information. "
-    "Do not output XML, JSON, tags like <tool_call>, function calls, code, or any structured markup. "
-    "Do not explain internal reasoning or mention tool execution unless it is necessary for the answer. "
+    "Do not output XML, JSON, tags like <tool_call>, function calls, code, or "
+    "any structured markup. "
+    "Do not explain internal reasoning or mention tool execution unless it is "
+    "necessary for the answer. "
     "Use only the information already provided in the messages you receive. "
-    "If the information is incomplete, still produce the best possible plain-language response based only on what is available. "
-    "Only ask for clarification if a usable answer cannot be given from the provided information. "
+    "If the information is incomplete, still produce the best possible "
+    "plain-language response based only on what is available. "
+    "Only ask for clarification if a usable answer cannot be given from the "
+    "provided information. "
     "Return only the final human-readable answer."
 )
 
@@ -93,15 +99,16 @@ class ChatProtocol(Protocol):
         *,
         llm_config: LLMConfig,
         tools: dict[str, Tool],
+        instructions: str | None = None,
     ):
         super().__init__(spec=chat_protocol_spec)
 
-        self._llm = LLM(config=llm_config, tools=tools)
+        self._llm = LLM(config=llm_config, tools=tools, instructions=instructions)
         self._tools = tools
 
         @self.on_message(ChatAcknowledgement)
         async def _ack(ctx: Context, sender: str, msg: ChatAcknowledgement):
-            ctx.logger.info(
+            ctx.logger.debug(
                 f"Got an acknowledgement from {sender} for {msg.acknowledged_msg_id}"
             )
 
@@ -118,16 +125,26 @@ class ChatProtocol(Protocol):
             if any(isinstance(item, StartSessionContent) for item in msg.content):
                 ctx.logger.info(f"Got a start session message from {sender}")
 
-            user_text = msg.text()
-            if not user_text:
+            msg_text = msg.text().strip()
+            if not msg_text:
                 return
 
-            messages = build_llm_message_history(ctx)
+            msg_dict = {"role": "user", "content": msg_text}
+            if ctx._message_history is None:
+                messages = [msg_dict]
+            else:
+                messages = build_llm_message_history(ctx)
+                # Session history should already include incoming message
+                # if not (e.g. first message edge cases), append so process/complete never see [].
+                if (
+                    not messages
+                    or messages[-1].get("role") != "user"
+                    or messages[-1].get("content") != msg_text
+                ):
+                    messages = [*messages, msg_dict]
 
             try:
-                tool_name, arg_dict, tool_call_id, assistant_msg = self._llm.process(
-                    messages
-                )
+                tool_name, arg_dict, tool_call_id, _ = await self._llm.process(messages)
 
             except Exception as e:
                 ctx.logger.error(f"LLM failed: {e}")
@@ -177,11 +194,11 @@ class ChatProtocol(Protocol):
 
             followup_messages = [
                 {"role": "system", "content": FINAL_SYSTEM_PROMPT},
-                messages[-1],
+                msg_dict,
                 tool_result_message,
             ]
 
-            final_text = self._llm.complete(followup_messages)
+            final_text = await self._llm.complete(followup_messages)
 
             return await self.send_text(ctx, sender, final_text)
 
