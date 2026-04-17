@@ -5,7 +5,7 @@ import logging
 import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from time import time
+from time import monotonic, time
 from typing import TYPE_CHECKING, Any
 
 import requests
@@ -630,47 +630,89 @@ class InternalContext(Context):
             )
             return None, msg_status
 
+        response_types: set[type[Model]] = (
+            {response_type} if isinstance(response_type, type) else response_type
+        )
         response_msg: MsgInfo | None = await dispatcher.wait_for_response(
             self.agent.address, parsed_address, self._session, timeout
         )
 
-        if response_msg is None:
-            log(self.logger, logging.ERROR, "Timeout waiting for response")
-            return None, MsgStatus(
-                status=DeliveryStatus.FAILED,
-                detail="Timeout waiting for response",
-                destination=destination,
-                endpoint="",
-                session=self._session,
-            )
-
-        response_types: set[type[Model]] = (
-            {response_type} if isinstance(response_type, type) else response_type
-        )
-
+        response_type_digests = {
+            Model.build_schema_digest(r_type): r_type for r_type in response_types
+        }
+        deadline = monotonic() + timeout
         response: Model | None = None
-        for r_type in response_types:
-            if response_msg.schema_digest == Model.build_schema_digest(r_type):
+        saw_unexpected_response = False
+
+        while True:
+            if response_msg is None:
+                dispatcher.cancel_pending_response(
+                    self.agent.address, parsed_address, self._session
+                )
+                if saw_unexpected_response:
+                    log(
+                        logger=self.logger,
+                        level=logging.ERROR,
+                        message="Timed out after receiving only unexpected response types",
+                    )
+                    return None, MsgStatus(
+                        status=DeliveryStatus.FAILED,
+                        detail="Received unexpected response type",
+                        destination=destination,
+                        endpoint="",
+                        session=self._session,
+                    )
+
+                log(self.logger, logging.ERROR, "Timeout waiting for response")
+                return None, MsgStatus(
+                    status=DeliveryStatus.FAILED,
+                    detail="Timeout waiting for response",
+                    destination=destination,
+                    endpoint="",
+                    session=self._session,
+                )
+
+            response_cls = response_type_digests.get(response_msg.schema_digest)
+            if response_cls is not None:
                 try:
-                    response = r_type.parse_raw(response_msg.message)
+                    response = response_cls.parse_raw(response_msg.message)
                     break
                 except ValidationError:
                     pass
 
-        if response is None:
+            remaining_timeout = deadline - monotonic()
+            if remaining_timeout <= 0:
+                log(
+                    logger=self.logger,
+                    level=logging.ERROR,
+                    message=f"Received unexpected response before timeout: {response_msg}",
+                )
+                dispatcher.cancel_pending_response(
+                    self.agent.address, parsed_address, self._session
+                )
+                msg_status = MsgStatus(
+                    status=DeliveryStatus.FAILED,
+                    detail="Received unexpected response type",
+                    destination=destination,
+                    endpoint="",
+                    session=self._session,
+                )
+                return None, msg_status
+
             log(
                 logger=self.logger,
-                level=logging.ERROR,
-                message=f"Received unexpected response: {response_msg}",
+                level=logging.WARNING,
+                message=f"Ignoring unexpected response while waiting for {response_types}: {response_msg}",
             )
-            msg_status = MsgStatus(
-                status=DeliveryStatus.FAILED,
-                detail="Received unexpected response type",
-                destination=destination,
-                endpoint="",
-                session=self._session,
+            saw_unexpected_response = True
+            response_msg = await dispatcher.wait_for_response(
+                self.agent.address,
+                parsed_address,
+                self._session,
+                remaining_timeout,
             )
 
+        dispatcher.cancel_pending_response(self.agent.address, parsed_address, self._session)
         return response, msg_status
 
     async def send_wallet_message(
