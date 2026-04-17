@@ -1,6 +1,6 @@
 import asyncio
 from abc import ABC, abstractmethod
-from asyncio import Future
+from asyncio import Future, Queue
 from typing import Any
 from uuid import UUID
 
@@ -36,21 +36,20 @@ class Dispatcher:
 
     def __init__(self):
         self._sinks: dict[str, set[Sink]] = {}
-        self._pending_responses: dict[PendingResponseKey, Future[MsgInfo]] = {}
+        self._pending_responses: dict[PendingResponseKey, Queue[MsgInfo]] = {}
 
     @property
     def sinks(self) -> dict[str, set[Sink]]:
         return self._sinks
 
     @property
-    def pending_responses(self) -> dict[PendingResponseKey, Future[MsgInfo]]:
+    def pending_responses(self) -> dict[PendingResponseKey, Queue[MsgInfo]]:
         return self._pending_responses
 
     async def register_pending_response(
         self, sender: str, destination: str, session: UUID
     ):
-        loop = asyncio.get_running_loop()
-        self._pending_responses[(sender, destination, session)] = loop.create_future()
+        self._pending_responses[(sender, destination, session)] = asyncio.Queue()
 
     def cancel_pending_response(self, sender: str, destination: str, session: UUID):
         key: tuple[str, str, UUID] = (sender, destination, session)
@@ -62,15 +61,12 @@ class Dispatcher:
     ) -> MsgInfo | None:
         key: tuple[str, str, UUID] = (sender, destination, session)
         try:
-            response = await asyncio.wait_for(self._pending_responses[key], timeout)
+            response = await asyncio.wait_for(self._pending_responses[key].get(), timeout)
         except asyncio.TimeoutError:
             response = None
         except KeyError:
             # Key was removed before wait_for completed
             response = None
-        finally:
-            # Safe deletion - only delete if key exists
-            self._pending_responses.pop(key, None)
         return response
 
     def dispatch_pending_response(
@@ -84,7 +80,7 @@ class Dispatcher:
         key = (destination, sender, session)
         response = MsgInfo(message=message, sender=sender, schema_digest=schema_digest)
         if key in self._pending_responses:
-            self._pending_responses[key].set_result(response)
+            self._pending_responses[key].put_nowait(response)
             return True
         return False
 
