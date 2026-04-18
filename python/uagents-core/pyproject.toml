@@ -25,6 +25,13 @@ a2a = [
     "a2a-sdk (>=0.3.20,<0.4.0)",
     "httpx (>=0.28.1,<0.29.0)",
 ]
+langgraph = [
+    "httpx (>=0.28.1,<0.29.0)",
+    "python-dotenv (>=1.0.0,<2.0)",
+    "starlette (>=0.37.0,<1.0)",
+    "langgraph-cli (>=0.4.0,<1.0)",
+    "langgraph-api (>=0.2.0,<1.0)",
+]
 
 [project.urls]
 homepage = "https://fetch.ai"
@@ -33,6 +40,7 @@ documentation = "https://fetch.ai/docs"
 
 [project.scripts]
 av = "uagents_core.agentverse.__main__:main"
+langgraph-av = "uagents_core.adapters.langchain.__main__:main"
 
 [tool.poetry]
 packages = [{ include = "uagents_core" }]
