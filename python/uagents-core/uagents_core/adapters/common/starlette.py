@@ -5,7 +5,7 @@ from starlette import status
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
-from uagents_core.adapters.common.agentverse import verify_envelope
+from uagents_core.adapters.common.agentverse import set_agent_status, verify_envelope
 from uagents_core.adapters.common.types import AgentStarletteState
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
@@ -14,7 +14,6 @@ from uagents_core.contrib.protocols.chat import (
 from uagents_core.envelope import Envelope
 from uagents_core.identity import Identity
 from uagents_core.utils.messages import parse_envelope
-from uagents_core.adapters.common.agentverse import set_agent_status
 
 
 async def parse_chat_message_from_request(
