@@ -5,7 +5,7 @@ from secrets import token_bytes
 from uuid import UUID
 
 import httpx
-
+import requests
 from pydantic import BaseModel
 from uagents_core.adapters.common.config import (
     AGENT_AUTH_TOKEN_VALIDITY,
@@ -14,20 +14,18 @@ from uagents_core.adapters.common.config import (
 from uagents_core.config import AgentverseConfig
 from uagents_core.contrib.protocols.chat import chat_protocol_spec
 from uagents_core.envelope import Envelope
-from uagents_core.identity import Identity
-from uagents_core.models import Model
-from uagents_core.types import JsonStr
 from uagents_core.identity import Identity, is_user_address
+from uagents_core.models import Model
 from uagents_core.protocol import ProtocolSpecification
-from uagents_core.registration import RegistrationRequest, AgentStatusUpdate
+from uagents_core.registration import AgentStatusUpdate, RegistrationRequest
 from uagents_core.storage import compute_attestation
+from uagents_core.types import JsonStr
 from uagents_core.utils.messages import generate_message_envelope, parse_envelope_raw
 from uagents_core.utils.registration import (
     AgentverseRequestError,
     _send_post_request_agentverse,
 )
 from uagents_core.utils.resolver import AlmanacResolver
-
 
 CHAT_PROTOCOL = ProtocolSpecification.compute_digest(chat_protocol_spec.manifest())
 
@@ -145,3 +143,23 @@ async def send_message_to_agent(
         return parse_envelope_raw(response.text, response_type)
 
     return None
+
+
+def _post_data_sync(
+    url: str,
+    data: BaseModel,
+    headers: dict[str, str] | None = None,
+    timeout: int = DEFAULT_HTTP_REQUESTS_TIMEOUT,
+) -> requests.Response:
+    headers = headers or dict()
+    headers["Content-Type"] = "application/json"
+
+    response = requests.post(
+        url=url,
+        data=json.dumps(data.model_dump(mode="json")),
+        headers=headers,
+        timeout=timeout,
+    )
+    response.raise_for_status()
+
+    return response
