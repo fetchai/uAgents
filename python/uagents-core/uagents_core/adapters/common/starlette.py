@@ -5,8 +5,9 @@ from starlette import status
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
-from uagents_core.adapters.common.agentverse import verify_envelope
-from uagents_core.adapters.common.types import AgentStarletteState
+from uagents_core.adapters.common.agentverse import set_agent_status, verify_envelope
+from uagents_core.adapters.common.events import dispatch_event
+from uagents_core.adapters.common.types import AgentBatchEvents, AgentStarletteState
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
     ChatMessage,
@@ -14,7 +15,6 @@ from uagents_core.contrib.protocols.chat import (
 from uagents_core.envelope import Envelope
 from uagents_core.identity import Identity
 from uagents_core.utils.messages import parse_envelope
-from uagents_core.adapters.common.agentverse import set_agent_status
 
 
 async def parse_chat_message_from_request(
@@ -46,9 +46,17 @@ async def parse_chat_message_from_request(
 
 @asynccontextmanager
 async def agent_status_lifespan(app: Starlette):
-    await set_agent_status(app.state.agent.identity, True, app.state.agent.agentverse)
+    if hasattr(app.state, "agent"):
+        agent = app.state.agent
+        await set_agent_status(agent.identity, True, agent.agentverse)
+        # TODO(LR): make dispatch_event asynchronous
+        dispatch_event(agent, AgentBatchEvents.from_message("Agent Started"))
     yield
-    await set_agent_status(app.state.agent.identity, False, app.state.agent.agentverse)
+    if hasattr(app.state, "agent"):
+        agent = app.state.agent
+        await set_agent_status(agent.identity, False, agent.agentverse)
+        # TODO(LR): make dispatch_event asynchronous
+        dispatch_event(agent, AgentBatchEvents.from_message("Agent Stopped"))
 
 
 def setup_agent_status_lifespan(
