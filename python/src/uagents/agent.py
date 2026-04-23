@@ -947,6 +947,7 @@ class Agent(Sink):
         model: type[Model],
         replies: type[Model] | set[type[Model]] | None = None,
         allow_unverified: bool = False,
+        allowed_senders: set[str] | None = None,
     ):
         """
         Decorator to register an message handler for the provided message model.
@@ -955,11 +956,13 @@ class Agent(Sink):
             model (type[Model]): The message model.
             replies (type[Model] | set[type[Model]] | None): Optional reply models.
             allow_unverified (bool): Allow unverified messages.
+            allowed_senders (set[str] | None): Optional set of agent addresses permitted to
+                trigger this handler. Messages from other senders are silently dropped.
 
         Returns:
             Callable: The decorator function for registering message handlers.
         """
-        return self._protocol.on_message(model, replies, allow_unverified)
+        return self._protocol.on_message(model, replies, allow_unverified, allowed_senders)
 
     def on_event(self, event_type: str):
         """
