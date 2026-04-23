@@ -22,6 +22,7 @@ from uagents_core.adapters.common.agentverse import (
     CHAT_PROTOCOL,
     generate_agent_auth_token,
     register_to_agentverse_sync,
+    send_message_to_agent,
 )
 from uagents_core.adapters.common.config import DEFAULT_AGENTVERSE_CHAT_ENDPOINT
 from uagents_core.adapters.common.starlette import parse_chat_message_from_request
@@ -41,7 +42,6 @@ from uagents_core.envelope import Envelope
 from uagents_core.identity import Identity
 from uagents_core.registration import AgentProfile, RegistrationRequest
 from uagents_core.types import AgentEndpoint
-from uagents_core.utils.messages import send_message_to_agent
 from uagents_core.utils.registration import AgentverseRequestError
 
 DEFAULT_LANGGRAPH_INTERNAL_BASE_URL = "http://langgraph.internal"
@@ -357,8 +357,7 @@ class AgentverseLangGraphApplication:
     ) -> None:
         agent = _require_agent()
 
-        await asyncio.to_thread(
-            send_message_to_agent,
+        await send_message_to_agent(
             env.sender,
             ChatAcknowledgement(
                 timestamp=datetime.now(timezone.utc),
@@ -382,8 +381,7 @@ class AgentverseLangGraphApplication:
             content=[TextContent(type="text", text=response_text)],
         )
 
-        await asyncio.to_thread(
-            send_message_to_agent,
+        await send_message_to_agent(
             env.sender,
             av_response,
             sender_identity,
