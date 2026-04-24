@@ -35,6 +35,10 @@ class Response(Model):
     text: str
 
 
+class Acknowledgement(Model):
+    status: str
+
+
 endpoints = ["http://localhost:8000"]
 
 incoming = Incoming(text="hello")
@@ -598,6 +602,41 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         # Assertions
         self.assertEqual(status, exp_msg_status)
         self.assertEqual(len(dispatcher.pending_responses), 0)
+
+    async def test_send_and_receive_async_ignores_intermediate_wrong_response_type(self):
+        context = self.alice._build_context()
+
+        proto = Protocol()
+
+        @proto.on_message(model=Message)
+        async def _(ctx, sender, msg):
+            await ctx.send(sender, Acknowledgement(status="accepted"))
+            await asyncio.sleep(0.1)
+            await ctx.send(sender, Incoming(text="hello"))
+
+        temp_agent = Agent(name="temp", seed="temp recovery phrase")
+        temp_agent.include(proto)
+        self.loop.create_task(temp_agent._process_message_queue())
+        self.loop.create_task(temp_agent._dispenser.run())
+
+        try:
+            response, status = await context.send_and_receive(
+                temp_agent.address, msg, response_type=Incoming, timeout=5
+            )
+
+            exp_msg_status = MsgStatus(
+                status=DeliveryStatus.DELIVERED,
+                detail="Message dispatched locally",
+                destination=temp_agent.address,
+                endpoint="",
+                session=context.session,
+            )
+
+            self.assertEqual(status, exp_msg_status)
+            self.assertEqual(response, incoming)
+            self.assertEqual(len(dispatcher.pending_responses), 0)
+        finally:
+            dispatcher.unregister(temp_agent.address, temp_agent)
 
 
 class TestMessageHistory(unittest.IsolatedAsyncioTestCase):
