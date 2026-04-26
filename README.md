@@ -124,3 +124,11 @@ This project, uAgents, is provided "as-is" without any warranty, express or impl
 ## License
 
 The uAgents project is licensed under [Apache License 2.0](https://github.com/fetchai/uAgents/blob/main/LICENSE).
+
+## 💰 Bounty Contribution
+
+- **Task:** [PROPOSAL] Integrate x402 (x402.dev) for enabling agentic commerce
+- **Reward:** $2
+- **Source:** GitHub-Paid
+- **Date:** 2026-04-27
+
