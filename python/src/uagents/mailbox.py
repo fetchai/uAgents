@@ -212,7 +212,7 @@ class MailboxClient:
     async def run(self):
         """Runs the mailbox client."""
         self._logger.info(f"Starting mailbox client for {self._agentverse.url}")
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         loop.create_task(self._check_mailbox_loop())
 
     async def _check_mailbox_loop(self):
@@ -320,7 +320,10 @@ class MailboxClient:
         """
         Creates and returns an attestation for the mailbox server.
         """
-        if self._attestation_expiry - datetime.now(timezone.utc).timestamp() < 10:
+        if (
+            self._attestation is None
+            or self._attestation_expiry - datetime.now(timezone.utc).timestamp() < 10
+        ):
             now = datetime.now(timezone.utc)
             self._attestation = compute_attestation(
                 identity=self._identity,

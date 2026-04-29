@@ -23,8 +23,6 @@ def sign_registration(
 def sign_arbitrary(identity: Identity, data: bytes) -> tuple[str, str]:
     """
     Sign arbitrary data with the given identity.
-
-    Only used for wallet messaging.
     """
     sign_doc = {
         "chain_id": "",

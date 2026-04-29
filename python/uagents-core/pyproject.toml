@@ -1,6 +1,6 @@
 [project]
 name = "uagents-core"
-version = "0.4.0"
+version = "0.4.5a3"
 description = "Core components for agent based systems"
 authors = [
     { name = "Ed FitzGerald", email = "edward.fitzgerald@fetch.ai" },
@@ -8,6 +8,7 @@ authors = [
     { name = "Alejandro Morales", email = "alejandro.madrigal@fetch.ai" },
     { name = "Florian Wilde", email = "florian.wilde@fetch.ai" },
     { name = "Attila Bagoly", email = "attila.bagoly@fetch.ai" },
+    { name = "Devon Bleibtrey", email = "devon.bleibtrey@flockx.io" },
 ]
 license = { text = "Apache 2.0" }
 readme = "README.md"
@@ -16,13 +17,30 @@ dependencies = [
     "pydantic (>=2.8,<3.0)",
     "bech32 (>=1.2.0,<2.0)",
     "ecdsa (>=0.19.0,<1.0)",
+    "httpx (>=0.28.1,<0.29.0)",
     "requests (>=2.32.3,<3.0)",
+]
+
+[project.optional-dependencies]
+a2a = [
+    "a2a-sdk (>=0.3.20,<0.4.0)",
+]
+langgraph = [
+    "httpx (>=0.28.1,<0.29.0)",
+    "python-dotenv (>=1.0.0,<2.0)",
+    "starlette (>=0.37.0,<1.0)",
+    "langgraph-cli (>=0.4.0,<1.0)",
+    "langgraph-api (>=0.2.0,<1.0)",
 ]
 
 [project.urls]
 homepage = "https://fetch.ai"
 repository = "https://github.com/fetchai/uAgents"
 documentation = "https://fetch.ai/docs"
+
+[project.scripts]
+av = "uagents_core.agentverse.__main__:main"
+langgraph-av = "uagents_core.adapters.langchain.__main__:main"
 
 [tool.poetry]
 packages = [{ include = "uagents_core" }]

@@ -264,16 +264,6 @@ Send a message to the specified destination and receive a response.
 
   tuple[Model | None, MsgStatus]: The response message if received and delivery status
 
-
-
-#### send_wallet_message[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L246)
-```python
-@abstractmethod
-async def send_wallet_message(destination: str, text: str, msg_type: int = 1)
-```
-
-Send a message to the wallet of the specified destination.
-
 **Arguments**:
 
 - `destination` _str_ - The destination address to send the message to.

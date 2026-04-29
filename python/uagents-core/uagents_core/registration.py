@@ -7,7 +7,7 @@ from typing import Any
 from pydantic import AliasChoices, BaseModel, Field
 
 from uagents_core.identity import Identity, parse_identifier
-from uagents_core.types import AgentEndpoint, AgentInfo, AgentType
+from uagents_core.types import AgentEndpoint, AgentInfo, AgentMetadata, AgentType
 
 
 class AgentRegistrationPolicy(ABC):
@@ -125,7 +125,7 @@ class RegistrationRequest(BaseModel):
     protocols: list[str] = Field(
         default=[], description="List of supported protocol digests"
     )
-    metadata: dict[str, Any] | None = Field(
+    metadata: AgentMetadata | dict[str, Any] | None = Field(
         default=None, description="Optional metadata for the agent"
     )
 

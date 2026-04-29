@@ -140,6 +140,9 @@ ts at which the agent is reachable.
 - `_dispatcher` - The dispatcher for internal handling/sorting of messages.
 - `_dispenser` - The dispatcher for external message handling.
 - `_message_queue` - Asynchronous queue for incoming messages.
+- `_message_tasks` - A set for storing message handler tasks
+  to prevent the GC from deleting them.
+- `_handle_messages_concurrently` _bool_ - Whether to handle incoming messages concurrently.
 - `_on_startup` _list[Callable]_ - List of functions to run on agent startup.
 - `_on_shutdown` _list[Callable]_ - List of functions to run on agent shutdown.
 - `_version` _str_ - The version of the agent.
@@ -180,7 +183,6 @@ def __init__(name: str | None = None,
              proxy: bool = False,
              resolve: Resolver | None = None,
              registration_policy: AgentRegistrationPolicy | None = None,
-             enable_wallet_messaging: bool | dict[str, str] = False,
              wallet_key_derivation_index: int = 0,
              max_resolver_endpoints: int | None = None,
              version: str | None = None,
@@ -194,7 +196,10 @@ def __init__(name: str | None = None,
              handle: str | None = None,
              avatar_url: str | None = None,
              publish_agent_details: bool = True,
-             store_message_history: bool = False)
+             store_message_history: bool = False,
+             handle_messages_concurrently: bool = False,
+             shutdown_timeout: float = 60.0,
+             mark_inactive_on_shutdown: bool = True)
 ```
 
 Initialize an Agent instance.
@@ -210,9 +215,6 @@ Initialize an Agent instance.
 - `proxy` _bool_ - True if the agent will receive messages via an Agentverse proxy endpoint.
 - `resolve` _Resolver | None_ - The resolver to use for agent communication.
 - `registration_policy` _AgentRegistrationPolicy | None_ - The agent registration policy.
-- `enable_wallet_messaging` _bool | dict[str, str]_ - Whether to enable
-  wallet messaging. If '{"chain_id": CHAIN_ID}' is provided, this sets the chain ID for
-  the messaging server.
 - `wallet_key_derivation_index` _int_ - The index used for deriving the wallet key.
 - `max_resolver_endpoints` _int | None_ - The maximum number of endpoints to resolve.
 - `version` _str | None_ - The version of the agent.
@@ -228,21 +230,12 @@ Initialize an Agent instance.
 - `publish_agent_details` _bool_ - Publish agent details to Agentverse on connection via
   local agent inspector.
 - `store_message_history` _bool_ - Store the message history for the agent.
-
-
-
-#### initialize_wallet_messaging
-```python
-def initialize_wallet_messaging(enable_wallet_messaging: bool
-                                | dict[str, str])
-```
-
-Initialize wallet messaging for the agent.
-
-**Arguments**:
-
-- `enable_wallet_messaging` _bool | dict[str, str]_ - Wallet messaging configuration.
-
+- `handle_messages_concurrently` _bool_ - Whether to handle incoming messages concurrently.
+- `shutdown_timeout` _float_ - Maximum time in seconds to wait for tasks to complete during
+  graceful shutdown. Defaults to 60.0 seconds.
+- `mark_inactive_on_shutdown` _bool_ - Whether to mark the agent as inactive in Almanac
+  during shutdown. Set to False for deployments where a new instance replaces this one
+  (e.g., Kubernetes rolling updates). Defaults to True.
 
 
 #### name
@@ -628,16 +621,6 @@ def on_rest_post(endpoint: str, request: type[Model], response: type[Model])
 Add a handler for a POST REST endpoint.
 
 
-
-#### on_wallet_message
-```python
-def on_wallet_message()
-```
-
-Add a handler for wallet messages.
-
-
-
 #### include
 ```python
 def include(protocol: Protocol, publish_manifest: bool = False)
@@ -701,6 +684,15 @@ Handle a REST request.
 - `method` _RestMethod_ - The REST method.
 - `endpoint` _str_ - The REST endpoint.
 - `message` _Model_ - The message content.
+
+
+
+#### run_shutdown_tasks
+```python
+async def run_shutdown_tasks()
+```
+
+Perform shutdown actions.
 
 
 
@@ -835,7 +827,8 @@ def __init__(agents: list[Agent] | None = None,
              seed: str | None = None,
              network: AgentNetwork = "testnet",
              loop: asyncio.AbstractEventLoop | None = None,
-             log_level: int | str = logging.INFO)
+             log_level: int | str = logging.INFO,
+             shutdown_timeout: int = 60)
 ```
 
 Initialize a Bureau instance.
@@ -853,6 +846,7 @@ Initialize a Bureau instance.
 - `network` _Literal["mainnet", "testnet"]_ - The network to use for the agent.
 - `loop` _asyncio.AbstractEventLoop | None_ - The event loop.
 - `log_level` _int | str_ - The logging level for the bureau.
+- `shutdown_timeout` _int_ - The timeout for shutting down the bureau.
 
 
 
