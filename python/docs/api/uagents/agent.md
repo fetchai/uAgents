@@ -157,6 +157,7 @@ ts at which the agent is reachable.
 - `_metadata` _dict[str, Any]_ - Metadata associated with the agent.
 - `_readme` _str | None_ - The agent's README file.
 - `_avatar_url` _str | None_ - The URL for the agent's avatar image on Agentverse.
+- `_banner_url` _str | None_ - The URL for the agent's profile banner image on Agentverse.
   
   Properties:
 - `name` _str_ - The name of the agent.
@@ -196,6 +197,7 @@ def __init__(name: str | None = None,
              description: str | None = None,
              handle: str | None = None,
              avatar_url: str | None = None,
+             banner_url: str | None = None,
              publish_agent_details: bool = True,
              store_message_history: bool = False,
              handle_messages_concurrently: bool = False,
@@ -231,6 +233,7 @@ Initialize an Agent instance.
 - `description` _str | None_ - A short description of the agent.
 - `handle` _str | None_ - A unique handle for the agent on Agentverse.
 - `avatar_url` _str | None_ - The URL for the agent's avatar image on Agentverse.
+- `banner_url` _str | None_ - The URL for the agent's profile banner image on Agentverse.
 - `publish_agent_details` _bool_ - Publish agent details to Agentverse on connection via
   local agent inspector.
 - `store_message_history` _bool_ - Store the message history for the agent.

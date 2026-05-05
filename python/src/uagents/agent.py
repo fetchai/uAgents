@@ -269,6 +269,7 @@ class Agent(Sink):
         _metadata (dict[str, Any]): Metadata associated with the agent.
         _readme (str | None): The agent's README file.
         _avatar_url (str | None): The URL for the agent's avatar image on Agentverse.
+        _banner_url (str | None): The URL for the agent's profile banner image on Agentverse.
 
     Properties:
         name (str): The name of the agent.
@@ -307,6 +308,7 @@ class Agent(Sink):
         description: str | None = None,
         handle: str | None = None,
         avatar_url: str | None = None,
+        banner_url: str | None = None,
         publish_agent_details: bool = True,
         store_message_history: bool = False,
         handle_messages_concurrently: bool = False,
@@ -341,6 +343,7 @@ class Agent(Sink):
             description (str | None): A short description of the agent.
             handle (str | None): A unique handle for the agent on Agentverse.
             avatar_url (str | None): The URL for the agent's avatar image on Agentverse.
+            banner_url (str | None): The URL for the agent's profile banner image on Agentverse.
             publish_agent_details (bool): Publish agent details to Agentverse on connection via
             local agent inspector.
             store_message_history (bool): Store the message history for the agent.
@@ -445,6 +448,7 @@ class Agent(Sink):
             self._readme = None
         self._description = description
         self._avatar_url = avatar_url
+        self._banner_url = banner_url
 
         self.initialize_wallet_messaging(enable_wallet_messaging)
 
@@ -503,6 +507,7 @@ class Agent(Sink):
                         description=description or "",
                         readme=self._readme or "",
                         avatar_url=avatar_url or "",
+                        banner_url=banner_url or "",
                     )
                     if publish_agent_details
                     else AgentProfile()

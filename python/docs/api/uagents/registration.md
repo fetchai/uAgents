@@ -39,7 +39,7 @@ Send a POST request to the Almanac API.
 
 
 
-## LedgerBasedRegistrationPolicy Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L220)
+## LedgerBasedRegistrationPolicy Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L224)
 
 ```python
 class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy)
@@ -47,7 +47,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy)
 
 
 
-#### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L283)
+#### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L287)
 ```python
 async def register(agent_identifier: str,
                    identity: Identity,

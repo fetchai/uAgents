@@ -111,6 +111,10 @@ class AgentverseRegistrationRequest(BaseModel):
         default=None,
         description="Agent avatar URL to be shown on its Agentverse profile.",
     )
+    banner_url: str | None = Field(
+        default=None,
+        description="Agent profile banner URL to be shown on its Agentverse profile.",
+    )
     handle: str | None = Field(
         default=None,
         max_length=40,
@@ -389,6 +393,7 @@ def _register_in_agentverse(
             description=agent_details.description or "",
             readme=agent_details.readme or "",
             avatar_url=agent_details.avatar_url or "",
+            banner_url=agent_details.banner_url or "",
         ),
         endpoints=endpoints,
         protocols=agent_details.protocols,
@@ -570,6 +575,7 @@ def register_chat_agent(
     description: str | None = None,
     readme: str | None = None,
     avatar_url: str | None = None,
+    banner_url: str | None = None,
     metadata: AgentMetadata | dict[str, str | list[str] | dict[str, str]] | None = None,
     agentverse_config: AgentverseConfig | None = None,
 ) -> bool:
@@ -584,7 +590,7 @@ def register_chat_agent(
     1. **Identity verification** -- If this is a new agent, proves ownership
        via a cryptographic challenge signed with the agent's seed phrase.
     2. **Agent details registration** -- Creates or updates the agent's name,
-       endpoint, readme, avatar, and metadata on Agentverse.
+       endpoint, readme, avatar, banner, and metadata on Agentverse.
     3. **Status activation** -- If ``active=True``, marks the agent as active
        in the Almanac so it remains discoverable.
 
@@ -603,6 +609,7 @@ def register_chat_agent(
         readme: Longer markdown description of the agent's capabilities.
             This is displayed on the agent's detail page in Agentverse.
         avatar_url: URL to the agent's avatar image.
+        banner_url: URL to the agent's profile banner image.
         metadata: Additional metadata such as categories, tags, geolocation,
             contact details, and visibility (``is_public``). Can be a dict
             or an :class:`AgentMetadata` instance.
@@ -658,6 +665,7 @@ def register_chat_agent(
         description=description,
         readme=readme,
         avatar_url=avatar_url,
+        banner_url=banner_url,
         metadata=metadata,
         track_interactions=track_interactions,
     )
