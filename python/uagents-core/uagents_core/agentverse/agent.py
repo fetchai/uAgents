@@ -1,4 +1,4 @@
-import json
+from collections import Counter
 from datetime import datetime, timezone
 
 import requests
@@ -10,28 +10,36 @@ from uagents_core.protocol import ProtocolSpecification
 from uagents_core.types import AgentEndpoint
 from uagents_core.utils.resolver import AlmanacResolver
 
+from . import output as out
 from .common import (
     DEFAULT_REQUESTS_TIMEOUT,
     _datetime_fmt,
-    logger,
+    compact_timedelta,
 )
 from .types import (
     AlmanacRegistration,
     SearchRecord,
 )
 
+_IGNORED_METADATA_KEYS = frozenset({"contact_details"})
+
+
+def _metadata_for_compare(meta: dict | None) -> dict:
+    if meta is None:
+        return {}
+    return {k: v for k, v in meta.items() if k not in _IGNORED_METADATA_KEYS}
+
 
 def _get_almanac_registration(
     agent: str, agentverse: AgentverseConfig
 ) -> AlmanacRegistration | None:
-
     try:
         response = requests.get(
             url=f"{agentverse.almanac_api}/agents/{agent}",
             timeout=DEFAULT_REQUESTS_TIMEOUT,
         )
         if response.status_code == 404:
-            logger.error("[!] agent not registered to almanac")
+            out.err("Agent not registered in the almanac")
             return None
         else:
             response.raise_for_status()
@@ -39,9 +47,9 @@ def _get_almanac_registration(
         return AlmanacRegistration.model_validate(response.json())
 
     except requests.RequestException as e:
-        logger.error(f"[!] failed to fetch almanac registration {e}.")
+        out.err(f"Failed to fetch almanac registration ({e})")
     except (KeyError, ValidationError) as e:
-        logger.error(f"[!] failed to parse almanac registration {e}.")
+        out.err(f"Failed to parse almanac registration ({e})")
 
     return None
 
@@ -61,54 +69,67 @@ def _get_search_record(agent: str, agentverse: AgentverseConfig) -> SearchRecord
         return SearchRecord.model_validate(agents[0])
 
     except requests.RequestException as e:
-        logger.error(f"[!] failed to fetch search record {e}.")
+        out.err(f"Failed to fetch search record ({e})")
     except (KeyError, ValidationError) as e:
-        logger.error(f"[!] failed to parse search record {e}.")
+        out.err(f"Failed to parse search record ({e})")
 
     return None
 
 
 def _profile(
-    reg: AlmanacRegistration, rec: SearchRecord, full_readme: bool = False
+    reg: AlmanacRegistration | None, rec: SearchRecord | None, full_readme: bool = False
 ) -> dict:
     if reg is None and rec is None:
         return {}
 
     elif reg is None:
-        logger.warning("Agent registration is missing.")
+        out.warn("Agent registration is missing (marketplace only).")
         return rec.model_dump(mode="json")
 
     elif rec is None:
-        logger.warning("Agent profile is missing.")
+        out.warn("Agent profile is missing (almanac only).")
         return reg.model_dump(mode="json")
 
+    cross_heading_shown = False
+
+    def cross_warn(message: str) -> None:
+        nonlocal cross_heading_shown
+        if not cross_heading_shown:
+            out.section("Almanac vs marketplace")
+            cross_heading_shown = True
+        out.warn(message)
+
     if reg.type != rec.type:
-        logger.warning("Mismatched agent type.")
+        cross_warn("Mismatched agent type.")
         type = f"{reg.type}/{rec.type}"
     else:
         type = reg.type
 
     if reg.status != rec.status:
-        logger.warning(f"Mismatched agent status.")
+        cross_warn("Mismatched status.")
         status = f"{reg.status}/{rec.status}"
     else:
         status = reg.status
 
-    if reg.metadata != rec.metadata:
-        logger.warning(f"Mismatched agent metadata.")
+    meta_left = _metadata_for_compare(reg.metadata)
+    meta_right = _metadata_for_compare(rec.metadata)
+    if meta_left != meta_right:
+        cross_warn("Mismatched metadata.")
+        out.dict_diff(meta_left, meta_right)
         metadata = f"{reg.metadata}/{rec.metadata}"
     else:
         metadata = reg.metadata
 
-    rec_protocols = [p.digest.lstrip("proto:") for p in rec.protocols]
-    if reg.protocols != rec_protocols:
-        logger.warning(f"Mismatched agent protocols.")
+    rec_protocols = [p.digest.removeprefix("proto:") for p in rec.protocols]
+    if Counter(reg.protocols) != Counter(rec_protocols):
+        cross_warn("Mismatched protocols.")
+        out.list_diff(reg.protocols, rec_protocols)
         protocols = {"s": [p.model_dump() for p in rec.protocols], "a": reg.protocols}
     else:
         protocols = [p.model_dump() for p in rec.protocols]
 
     if reg.domain_name != rec.domain:
-        logger.warning(f"Mismatched agent domain.")
+        cross_warn("Mismatched domain.")
         domain = f"{reg.domain_name}/{rec.domain}"
     else:
         domain = reg.domain_name
@@ -138,72 +159,68 @@ def _troubleshoot(
     rec: SearchRecord | None,
     agentverse: AgentverseConfig,
 ):
-
-    logger.info("[-] checking agent address resolution...")
+    out.section("Address resolution")
     endpoints = AlmanacResolver(agentverse_config=agentverse).sync_resolve(agent)
 
     if len(endpoints) == 0:
-        logger.error("[!] couldn't resolve agent address.")
+        out.err("Could not resolve agent address.")
     else:
-        logger.info(f"[+] agent available at {', '.join(endpoints)}.")
+        out.ok(f"Available at {', '.join(endpoints)}")
 
-    logger.info("[-] checking almanac registration...")
-
-    logger.info(f"[+]  |--> agent is registred as {reg.type}.")
+    out.section("Almanac")
+    out.ok(f"Agent type: {reg.type}")
 
     now = datetime.now(timezone.utc)
     if now > reg.expiry:
-        logger.error(f"[!] |--> agent registration expired {now - reg.expiry} ago.")
+        out.err(f"Registration expired {compact_timedelta(now - reg.expiry)} ago.")
     else:
-        logger.info(
-            f"[+]  |--> agent regisration is up to date ({reg.expiry - now} to go)."
-        )
+        out.ok(f"Registration valid ({compact_timedelta(reg.expiry - now)} remaining)")
 
     if reg.status == "active":
-        logger.info("[+]  |--> agent is active.")
+        out.ok("Status is active")
     else:
-        logger.error("[!] |--> agent is inactive")
+        out.err("Status is not active")
 
     if reg.domain_name is not None:
-        logger.info(f"[+]  |--> agent is assigned domain {reg.domain_name}")
+        out.ok(f"Domain assigned: {reg.domain_name}")
 
     if len(reg.protocols) == 0:
-        logger.warning("[!] |--> agent has no protocols!.")
+        out.warn("No protocols registered")
     else:
         chat_proto = ProtocolSpecification.compute_digest(
             chat_protocol_spec.manifest()
-        ).lstrip("proto:")
+        ).removeprefix("proto:")
         if chat_proto in reg.protocols:
-            logger.info(f"[+]  |--> agent supports the chat protocol.")
+            out.ok("Chat protocol supported")
         else:
-            logger.error(f"[!] |--> agent does not support the chat protocol.")
+            out.err("Chat protocol not supported")
 
     if reg.metadata is not None:
         sanitised = {k: v for k, v in reg.metadata.items() if v is not None}
-        logger.info(f"[+]  |--> agent metadata {sanitised}")
+        if sanitised:
+            out.info(f"Metadata: {sanitised}")
 
     if rec is not None:
-        logger.info("[-] checking marketplace profile...")
+        out.section("Marketplace")
 
         if len(rec.readme) > 0:
-            logger.info("[+]  |--> agent provided a readme file.")
+            out.ok("Readme present")
         else:
-            logger.warning("[!]  |--> agent doesn't have a readme file.")
+            out.warn("No readme")
 
         if rec.handle is not None and len(rec.handle) > 0:
-            logger.info("[+]  |--> agent is assigned a handle")
+            out.ok(f"Handle: {rec.handle}")
         else:
-            logger.warning("[!]  |--> agent is not assigned a handle")
+            out.warn("No handle assigned")
 
         if rec.total_interactions > 1:
-            logger.info("[+]  |-->  agent have interactions")
+            out.ok(f"Interactions: {rec.total_interactions}")
         else:
-            logger.warning("[!]  |-->  agent doesn't have any interactions")
+            out.warn("No meaningful interaction count yet")
 
 
 def _check_connectivity(agent: str, endpoints: list[AgentEndpoint]):
-
-    logger.info("[-] checking agents endpoints connectivity...")
+    out.section("Endpoint connectivity")
     urls = [e.url for e in endpoints]
 
     for url in urls:
@@ -218,20 +235,20 @@ def _check_connectivity(agent: str, endpoints: list[AgentEndpoint]):
             if resp.ok:
                 success = True
             else:
-                msg = f"returned code {resp.status_code} ({resp.text})"
+                msg = f"HTTP {resp.status_code} ({resp.text})"
         except requests.exceptions.ConnectionError:
-            msg = "couldn't connect"
+            msg = "could not connect"
         except requests.exceptions.Timeout:
             msg = "request timed out"
         except requests.exceptions.RequestException as e:
-            msg = f"error occured {e}"
+            msg = str(e)
 
         if responsive and success:
-            logger.info(f"[+]  |--> url {url} is reachable.")
+            out.ok(f"{url} — reachable")
         elif responsive:
-            logger.warning(f"[+]  |--> url {url} is reachable but {msg}.")
+            out.warn(f"{url} — responded but {msg}")
         else:
-            logger.error(f"[!]  |--> url {url} is not reachable ({msg})")
+            out.err(f"{url} — not reachable ({msg})")
 
 
 def check_agent(
@@ -239,8 +256,10 @@ def check_agent(
     show_profile: bool = True,
     full_readme: bool = False,
     check_connectivity: bool = True,
+    include_raw_records: bool = False,
     agentverse: AgentverseConfig | None = None,
 ):
+    out.reset_sections()
     agentverse = agentverse or AgentverseConfig()
     registration = _get_almanac_registration(agent, agentverse)
     record = _get_search_record(agent, agentverse)
@@ -258,4 +277,28 @@ def check_agent(
         _check_connectivity(agent, registration.endpoints)
 
     if show_profile and len(profile) > 0:
-        print(json.dumps(profile, indent=2))
+        if include_raw_records:
+            if registration is not None:
+                out.section("Full Almanac Record")
+                out.print_json(registration.model_dump(mode="json"))
+            if record is not None:
+                out.section("Full Marketplace Record")
+                mkt = record.model_dump(mode="json")
+                if full_readme and mkt.get("readme"):
+                    readme_raw = mkt.pop("readme")
+                    out.print_json(mkt)
+                    print()
+                    out.section("Readme")
+                    out.print_readme(readme_raw)
+                else:
+                    out.print_json(mkt)
+        else:
+            out.section("Profile")
+            if full_readme and profile.get("readme"):
+                profile_for_json = {k: v for k, v in profile.items() if k != "readme"}
+                out.print_json(profile_for_json)
+                print()
+                out.section("Readme")
+                out.print_readme(profile["readme"])
+            else:
+                out.print_json(profile)

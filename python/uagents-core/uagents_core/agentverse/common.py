@@ -1,13 +1,15 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from uagents_core.config import AgentverseConfig
-from uagents_core.logger import get_logger
 
-logger = get_logger("uagents_core.agentverse")
 logging.getLogger("uagents_core.utils.resolver").setLevel(logging.ERROR)
 
 DEFAULT_REQUESTS_TIMEOUT = 10
+
+
+def compact_timedelta(td: timedelta) -> str:
+    return str(td).split(".", maxsplit=1)[0]
 
 
 def parse_agentverse_config(url: str) -> AgentverseConfig:

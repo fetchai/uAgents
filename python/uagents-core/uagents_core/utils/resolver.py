@@ -3,6 +3,7 @@
 import urllib.parse
 from typing import Any
 
+import httpx
 import requests
 
 from uagents_core.config import (
@@ -63,6 +64,48 @@ def lookup_address_for_domain(
         return weighted_random_sample(addresses, weights=weights, k=1)[0]
 
 
+async def lookup_address_for_domain_async(
+    agent_identifier: str,
+    *,
+    agentverse_config: AgentverseConfig | None = None,
+) -> str | None:
+    agentverse_config = agentverse_config or AgentverseConfig()
+    almanac_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_ALMANAC_API_PATH)
+    timeout = httpx.Timeout(DEFAULT_REQUEST_TIMEOUT)
+
+    prefix, domain, _ = parse_identifier(agent_identifier)
+    if not domain:
+        logger.error(
+            "No domain provided in agent identifier",
+            extra={"identifier": agent_identifier},
+        )
+        return None
+
+    params = {"prefix": prefix} if prefix else None
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        try:
+            response = await client.get(
+                f"{almanac_api}/domains/{domain}",
+                params=params,
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as e:
+            logger.error(
+                msg="Error looking up domain",
+                extra={"domain": domain, "exception": str(e)},
+            )
+            return None
+        domain_record = Domain.model_validate(response.json())
+        agent_records = domain_record.assigned_agents
+        if len(agent_records) == 0:
+            return None
+        if len(agent_records) == 1:
+            return agent_records[0].address
+        addresses = [val.address for val in agent_records]
+        weights = [val.weight for val in agent_records]
+        return weighted_random_sample(addresses, weights=weights, k=1)[0]
+
+
 def lookup_endpoint_for_agent(
     agent_identifier: str,
     *,
@@ -76,7 +119,7 @@ def lookup_endpoint_for_agent(
         destination (str): The destination address to look up.
 
     Returns:
-        List[str]: The endpoint(s) for the agent.
+        list[str]: The endpoint(s) for the agent.
     """
 
     agentverse_config = agentverse_config or AgentverseConfig()
@@ -90,6 +133,8 @@ def lookup_endpoint_for_agent(
                 agent_identifier=agent_identifier,
                 agentverse_config=agentverse_config,
             )
+            if not agent_address:
+                return []
         else:
             logger.error(
                 "No address or domain provided in identifier",
@@ -135,6 +180,81 @@ def lookup_endpoint_for_agent(
     return []
 
 
+async def lookup_endpoint_for_agent_async(
+    agent_identifier: str,
+    *,
+    max_endpoints: int = DEFAULT_MAX_ENDPOINTS,
+    agentverse_config: AgentverseConfig | None = None,
+) -> list[str]:
+    """
+    Resolve the endpoints for an agent using the Almanac API asynchronously.
+
+    Args:
+        agent_identifier (str): The identifier of the agent to resolve.
+        max_endpoints (int): The maximum number of endpoints to return.
+        agentverse_config (AgentverseConfig): The agentverse configuration.
+
+    Returns:
+        list[str]: The endpoint(s) for the agent.
+    """
+    agentverse_config = agentverse_config or AgentverseConfig()
+    almanac_api = urllib.parse.urljoin(agentverse_config.url, DEFAULT_ALMANAC_API_PATH)
+    timeout = httpx.Timeout(DEFAULT_REQUEST_TIMEOUT)
+    prefix, domain, agent_address = parse_identifier(agent_identifier)
+
+    if not agent_address:
+        if domain:
+            agent_address = await lookup_address_for_domain_async(
+                agent_identifier=agent_identifier,
+                agentverse_config=agentverse_config,
+            )
+            if not agent_address:
+                return []
+        else:
+            logger.error(
+                "No address or domain provided in identifier",
+                extra={"identifier": agent_identifier},
+            )
+            return []
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        request_meta: dict[str, Any] = {
+            "agent_address": agent_address,
+            "lookup_url": almanac_api,
+        }
+        logger.debug(msg="looking up endpoint for agent", extra=request_meta)
+        try:
+            params = {"prefix": prefix} if prefix else None
+            response = await client.get(
+                f"{almanac_api}/agents/{agent_address}",
+                params=params,
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as e:
+            request_meta["exception"] = e
+            logger.error(msg="Error looking up agent endpoint", extra=request_meta)
+            return []
+
+        request_meta["response_status"] = response.status_code
+        logger.info(
+            msg="Got response looking up agent endpoint",
+            extra=request_meta,
+        )
+
+        endpoints: list = response.json().get("endpoints", [])
+
+        if len(endpoints) > 0:
+            urls = [val.get("url") for val in endpoints]
+            weights = [val.get("weight") for val in endpoints]
+            return weighted_random_sample(
+                items=urls,
+                weights=weights,
+                k=min(max_endpoints, len(endpoints)),
+            )
+
+    return []
+
+
 class AlmanacResolver(Resolver):
     def __init__(
         self, max_endpoints: int = 1, agentverse_config: AgentverseConfig | None = None
@@ -143,7 +263,7 @@ class AlmanacResolver(Resolver):
         self.max_endpoints = max_endpoints
 
     async def resolve(self, destination: str) -> tuple[str | None, list[str]]:
-        endpoints = lookup_endpoint_for_agent(
+        endpoints = await lookup_endpoint_for_agent_async(
             agent_identifier=destination,
             max_endpoints=self.max_endpoints,
             agentverse_config=self.agentverse_config,

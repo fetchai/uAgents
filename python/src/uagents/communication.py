@@ -70,12 +70,13 @@ class Dispenser:
                 endpoints=endpoints,
                 sync=sync,
             )
-            response_future.set_result(result)
-        except Exception as err:
-            LOGGER.error(f"Failed to send envelope: {err}")
-            # Set exception on the future so caller knows it failed
             if not response_future.done():
-                response_future.set_exception(err)
+                response_future.set_result(result)
+        except Exception as err:
+            if response_future.done():
+                return
+            LOGGER.error(f"Failed to send envelope: {err}")
+            response_future.set_exception(err)
 
     async def run(self) -> None:
         """Run the dispenser routine."""
