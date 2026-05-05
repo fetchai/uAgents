@@ -81,8 +81,9 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         async def _(ctx, sender, msg):
             pass
 
-        @proto1.on_message(model=Message, replies=Incoming)
+        @proto1.on_message(model=Message, replies={Incoming, Response})
         async def _(ctx, sender, msg):
+            await ctx.send(sender, Response(text="response"))
             await asyncio.sleep(1.1)
             await ctx.send(sender, incoming)
 
@@ -481,14 +482,15 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(dispatcher.pending_responses), 0)
 
     async def test_send_and_receive_async_success(self):
+        # Bob's handler sends a Response on the same session before the
+        # awaited Incoming arrives. The Response is routed to the regular handler
+        # while the Incoming is routed to the response future.
         context = self.alice._build_context()
 
-        # Perform the actual operation
         response, status = await context.send_and_receive(
             self.bob.address, msg, response_type=Incoming, timeout=5
         )
 
-        # Define the expected message status
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.DELIVERED,
             detail="Message dispatched locally",
@@ -497,7 +499,6 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             session=context.session,
         )
 
-        # Assertions
         self.assertEqual(status, exp_msg_status)
         self.assertEqual(response, incoming)
         self.assertEqual(len(dispatcher.pending_responses), 0)
@@ -529,21 +530,19 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         class WrongMessage(Model):
             wrong: str
 
-        # Perform the actual operation
         response, status = await context.send_and_receive(
-            self.bob.address, msg, response_type=WrongMessage, timeout=5
+            self.bob.address, msg, response_type=WrongMessage, timeout=2
         )
 
-        # Define the expected message status
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.FAILED,
-            detail="Received unexpected response type",
+            detail="Timeout waiting for response",
             destination=self.bob.address,
             endpoint="",
             session=context.session,
         )
 
-        # Assertions
+        self.assertIsNone(response)
         self.assertEqual(status, exp_msg_status)
         self.assertEqual(len(dispatcher.pending_responses), 0)
 
@@ -581,21 +580,19 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         class WrongAgain(Model):
             wrong: str
 
-        # Perform the actual operation
         response, status = await context.send_and_receive(
-            self.bob.address, msg, response_type={WrongMessage, WrongAgain}, timeout=5
+            self.bob.address, msg, response_type={WrongMessage, WrongAgain}, timeout=2
         )
 
-        # Define the expected message status
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.FAILED,
-            detail="Received unexpected response type",
+            detail="Timeout waiting for response",
             destination=self.bob.address,
             endpoint="",
             session=context.session,
         )
 
-        # Assertions
+        self.assertIsNone(response)
         self.assertEqual(status, exp_msg_status)
         self.assertEqual(len(dispatcher.pending_responses), 0)
 

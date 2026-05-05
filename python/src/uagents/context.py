@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any
 
 import requests
 from cosmpy.aerial.client import LedgerClient
-from pydantic.v1 import ValidationError
 from uagents_core.envelope import Envelope
 from uagents_core.identity import parse_identifier
 from uagents_core.models import ERROR_MESSAGE_DIGEST, ErrorMessage, Model
@@ -460,6 +459,7 @@ class InternalContext(Context):
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
         protocol_digest: str | None = None,
         queries: dict[str, asyncio.Future] | None = None,
+        expected_response_digests: set[str] | None = None,
     ) -> MsgStatus:
         # Extract address from destination agent identifier if present
         _, _, parsed_address = parse_identifier(destination)
@@ -471,6 +471,7 @@ class InternalContext(Context):
                     sender=self.agent.address,
                     destination=parsed_address,
                     session=self._session,
+                    expected_schema_digests=expected_response_digests,
                 )
             # Handle local dispatch of messages
             if dispatcher.contains(parsed_address):
@@ -613,6 +614,13 @@ class InternalContext(Context):
         """
         schema_digest = Model.build_schema_digest(message)
 
+        response_types: set[type[Model]] = (
+            {response_type} if isinstance(response_type, type) else response_type
+        )
+        response_type_by_digest: dict[str, type[Model]] = {
+            Model.build_schema_digest(r_type): r_type for r_type in response_types
+        }
+
         msg_status: MsgStatus = await self.send_raw(
             destination=destination,
             message_schema_digest=schema_digest,
@@ -620,6 +628,7 @@ class InternalContext(Context):
             sync=sync,
             wait_for_response=True,
             timeout=timeout,
+            expected_response_digests=set(response_type_by_digest),
         )
 
         _, _, parsed_address = parse_identifier(destination)
@@ -644,34 +653,8 @@ class InternalContext(Context):
                 session=self._session,
             )
 
-        response_types: set[type[Model]] = (
-            {response_type} if isinstance(response_type, type) else response_type
-        )
-
-        response: Model | None = None
-        for r_type in response_types:
-            if response_msg.schema_digest == Model.build_schema_digest(r_type):
-                try:
-                    response = r_type.parse_raw(response_msg.message)
-                    break
-                except ValidationError:
-                    pass
-
-        if response is None:
-            log(
-                logger=self.logger,
-                level=logging.ERROR,
-                message=f"Received unexpected response: {response_msg}",
-            )
-            msg_status = MsgStatus(
-                status=DeliveryStatus.FAILED,
-                detail="Received unexpected response type",
-                destination=destination,
-                endpoint="",
-                session=self._session,
-            )
-
-        return response, msg_status
+        r_type = response_type_by_digest[response_msg.schema_digest]
+        return r_type.parse_raw(response_msg.message), msg_status
 
     async def send_wallet_message(
         self,
