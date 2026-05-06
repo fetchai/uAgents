@@ -7,7 +7,7 @@ from uuid import UUID
 import httpx
 import requests
 from pydantic import BaseModel
-from uagents_core.adapters.common.config import (
+from uagents_core.agentverse.sdk.common.config import (
     AGENT_AUTH_TOKEN_VALIDITY,
     DEFAULT_HTTP_REQUESTS_TIMEOUT,
 )
@@ -31,7 +31,7 @@ CHAT_PROTOCOL = ProtocolSpecification.compute_digest(chat_protocol_spec.manifest
 
 
 for ch in ["uagents_core.utils.resolver", "uagents_core.utils.messages", "httpx"]:
-    logging.getLogger(ch).setLevel(logging.ERROR)
+    logging.getLogger(ch).setLevel(logging.CRITICAL)
 
 
 def generate_agent_auth_token(id: Identity) -> str:
@@ -53,9 +53,9 @@ def register_to_agentverse_sync(
             headers=headers,
             timeout=timeout,
         )
-    except AgentverseRequestError as e:
+    except AgentverseRequestError:
         raise
-    except Exception as e:
+    except Exception:
         raise
 
 

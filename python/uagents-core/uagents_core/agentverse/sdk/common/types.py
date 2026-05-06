@@ -1,4 +1,5 @@
 import platform
+from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property
 from importlib.metadata import PackageNotFoundError, version
@@ -7,7 +8,7 @@ from urllib.parse import unquote, urlparse
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
-from uagents_core.adapters.common.helpers import utc_now
+from uagents_core.agentverse.sdk.common.helpers import utc_now
 from uagents_core.config import AgentverseConfig
 from uagents_core.identity import Identity
 from uagents_core.registration import AgentProfile
@@ -72,11 +73,15 @@ class AgentverseAgent(BaseModel):
     options: AgentOptions = AgentOptions()
 
 
-class AgentStarletteState(BaseModel):
+@dataclass
+class AgentContext:
+    agent: AgentverseAgent | None = None
+
+
+@dataclass
+class AgentStarletteState:
     key: str
     agentverse: AgentverseConfig
-
-    model_config = ConfigDict(frozen=True)
 
     @cached_property
     def identity(self) -> Identity:
@@ -159,12 +164,14 @@ class AgentBatchEvents(BaseModel):
     events: list[BatchEvent] = Field(description="Individual events in the batch")
 
     @classmethod
-    def from_exception(cls, exception: Exception, traceback: str) -> "AgentBatchEvents":
+    def from_exception(
+        cls, exception: Exception, traceback: str, category: EventCategory = "system"
+    ) -> "AgentBatchEvents":
         return cls(
             platform=PLATFORM_METADATA,
             events=[
                 BatchEvent(
-                    category="system",
+                    category=category,
                     kind="error",
                     timestamp=utc_now(),
                     exception=exception.__class__.__qualname__,

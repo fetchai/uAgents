@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel
-
 from uagents_core.types import AgentEndpoint
 
 AgentStatus = Literal["active", "inactive", "offline"]

@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 
 import requests
-
 from uagents_core.config import AgentverseConfig
 
 from . import output as out

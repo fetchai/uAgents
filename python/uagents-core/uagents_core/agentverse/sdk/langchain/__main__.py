@@ -55,21 +55,31 @@ def _extract_config_path(argv: list[str]) -> str:
     for i, arg in enumerate(argv):
         if arg == "--config" and i + 1 < len(argv):
             return argv[i + 1]
+        if arg.startswith("--config="):
+            return arg.split("=", 1)[1]
     return "langgraph.json"
 
 
 def _preload_graph_modules_from_config(config_path: str) -> None:
-    """Import each graph module so module-level ``init()`` runs before LangGraph starts."""
+    """Import each graph module so module-level ``init()`` runs before LangGraph starts.
+
+    Non-fatal: if the config is missing or malformed, we skip preloading and
+    let the LangGraph CLI report the error with its own diagnostics.
+    """
     config_file = Path(config_path).resolve()
     if not config_file.exists():
-        raise FileNotFoundError(f"Config not found: {config_file}")
+        return
+
+    try:
+        raw = json.loads(config_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return
+
+    graphs = raw.get("graphs", {})
+    if not isinstance(graphs, dict) or not graphs:
+        return
 
     project_root = config_file.parent
-    raw = json.loads(config_file.read_text(encoding="utf-8"))
-    graphs = raw.get("graphs", {})
-
-    if not isinstance(graphs, dict) or not graphs:
-        raise RuntimeError(f"No graphs in {config_file}")
 
     _prepend_import_paths(project_root)
 
@@ -77,7 +87,10 @@ def _preload_graph_modules_from_config(config_path: str) -> None:
     import_modules: dict[str, Any] = {}
 
     for graph_id, spec in graphs.items():
-        path_or_module, variable_name = _parse_graph_entry(graph_id, spec)
+        try:
+            path_or_module, variable_name = _parse_graph_entry(graph_id, spec)
+        except RuntimeError:
+            continue
 
         is_file = (
             "/" in path_or_module
@@ -85,30 +98,32 @@ def _preload_graph_modules_from_config(config_path: str) -> None:
             or path_or_module.startswith(".")
         )
 
-        if is_file:
-            file_path = (project_root / path_or_module).resolve()
-            if not file_path.exists():
-                raise FileNotFoundError(f"Graph file not found: {file_path}")
+        try:
+            if is_file:
+                file_path = (project_root / path_or_module).resolve()
+                if not file_path.exists():
+                    continue
 
-            if file_path not in file_modules:
-                module_name = (
-                    path_or_module.replace("/", "__")
-                    .replace(".py", "")
-                    .replace(" ", "_")
-                    .lstrip(".")
-                ) or f"agentverse_user_graph_{graph_id}"
-                file_modules[file_path] = _load_module_from_file(file_path, module_name)
+                if file_path not in file_modules:
+                    module_name = (
+                        path_or_module.replace("/", "__")
+                        .replace(".py", "")
+                        .replace(" ", "_")
+                        .lstrip(".")
+                    ) or f"agentverse_user_graph_{graph_id}"
+                    file_modules[file_path] = _load_module_from_file(
+                        file_path, module_name
+                    )
 
-            module = file_modules[file_path]
-        else:
-            if path_or_module not in import_modules:
-                import_modules[path_or_module] = importlib.import_module(path_or_module)
-            module = import_modules[path_or_module]
-
-        if not hasattr(module, variable_name):
-            raise AttributeError(
-                f"Graph '{graph_id}': no variable '{variable_name}' in {module.__name__}."
-            )
+                module = file_modules[file_path]
+            else:
+                if path_or_module not in import_modules:
+                    import_modules[path_or_module] = importlib.import_module(
+                        path_or_module
+                    )
+                module = import_modules[path_or_module]
+        except Exception:
+            continue
 
 
 def main() -> int:
@@ -116,7 +131,7 @@ def main() -> int:
     config_path = _extract_config_path(argv)
     _preload_graph_modules_from_config(config_path)
 
-    from uagents_core.adapters.langchain import agentverse_sdk
+    from uagents_core.agentverse.sdk.langchain import agentverse_sdk
 
     sys.argv = [sys.argv[0], *argv]
     agentverse_sdk.run()
