@@ -14,6 +14,7 @@ from starlette.background import BackgroundTask
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Mount, Route
+
 from uagents_core.agentverse.sdk.common.av import (
     CHAT_PROTOCOL,
     generate_agent_auth_token,
@@ -27,7 +28,7 @@ from uagents_core.agentverse.sdk.common.events import (
     report_error,
 )
 from uagents_core.agentverse.sdk.common.helpers import utc_now
-from uagents_core.agentverse.sdk.common.logger import logger
+from uagents_core.agentverse.sdk.common.logger import configure, log_sdk, logger
 from uagents_core.agentverse.sdk.common.starlette import (
     parse_chat_message_from_request,
     report_error_starlette,
@@ -204,10 +205,13 @@ class AgentverseLangGraphApplication:
                 self._registered = True
 
     def register(self) -> None:
+        logger.debug("Registering with agentverse...")
+
         if _ctx.agent is None or _ctx.config is None:
             raise RuntimeError("Not initialised.")
 
         register_to_agentverse(_ctx.agent, _ctx.config)
+        logger.info("Registered with agentverse")
 
     def build(self) -> Starlette:
         if _ctx.agent is None or not self._registered:
@@ -246,9 +250,13 @@ class AgentverseLangGraphApplication:
 
     @report_error_starlette(_ctx, "user")
     async def _chat(self, request: Request) -> Response:
+        logger.debug("Received chat request")
+        logger.debug("Request: %s", request)
+
         env, msg = await parse_chat_message_from_request(
             request, _ctx.agent.options.verify_envelope, _ctx.agent.uri.identity.address
         )
+        logger.debug("Chat message from %s", env.sender)
 
         if isinstance(msg, ChatAcknowledgement):
             return JSONResponse({})
@@ -266,6 +274,8 @@ class AgentverseLangGraphApplication:
         env: Envelope,
         msg: ChatMessage,
     ) -> None:
+        logger.debug("Processing chat message from %s...", env.sender)
+
         sender_identity = _ctx.agent.uri.identity
 
         await self._send_ack(env, msg, sender_identity)
@@ -275,17 +285,26 @@ class AgentverseLangGraphApplication:
 
         text = msg.text()
 
+        logger.debug("Processing chat message by LangGraph...")
+
         try:
             data = await self._call_runs_wait(text, env)
             response_text = self._extract_last_ai_text(data)
         except (json.JSONDecodeError, KeyError):
+            logger.error("Malformed response from LangGraph")
             response_text = (
                 "Sorry, malformed response from the agent, please retry later."
             )
-        except Exception:
+        except Exception as e:
+            logger.error(
+                "Failed to process chat message by LangGraph with error: %s", e
+            )
             response_text = "Sorry, agent failed to process request"
 
+        logger.debug("Chat message processed by LangGraph")
+
         await self._send_reply(env, response_text, sender_identity)
+        logger.debug("Reply sent to %s", env.sender)
 
     def _get_runs_wait_path(self) -> str:
         if getattr(self.lg_config, "MOUNT_PREFIX", None):
@@ -440,11 +459,16 @@ def init(
 ):
     uri = None
 
+    logger.debug("Initialising agent %s...", agent)
+
     try:
         uri = AgentUri.from_str(agent)
     except Exception as e:
-        logger.error(FAILED_INIT_ERROR_FORMAT.format(f"malformed agent URI: {str(e)}"))
+        log_sdk(FAILED_INIT_ERROR_FORMAT.format(f"malformed agent URI: {e}"))
         return
+
+    if uri.log_level is not None:
+        configure(uri.log_level)
 
     with handle_init_errors(uri):
         _ctx.agent = AgentverseAgent(
@@ -456,6 +480,8 @@ def init(
 
         _ctx.config = LangGraphAdapterConfig()
 
+    logger.info("Initialised agent %s", uri.name)
+
 
 def run() -> None:
     if _ctx.agent is not None and _ctx.config is not None:
@@ -466,6 +492,8 @@ def run() -> None:
 
         if "--no-reload" not in sys.argv:
             sys.argv.append("--no-reload")
+
+    logger.info("Starting LangGraph CLI...")
 
     from langgraph_cli.cli import cli
 

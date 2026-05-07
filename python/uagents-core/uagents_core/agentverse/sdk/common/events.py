@@ -4,12 +4,13 @@ import traceback
 from typing import Callable
 
 from requests import HTTPError
+
 from uagents_core.agentverse.sdk.common.av import (
     _post_data_sync,
     generate_agent_auth_token,
 )
 from uagents_core.agentverse.sdk.common.helpers import utc_now
-from uagents_core.agentverse.sdk.common.logger import logger
+from uagents_core.agentverse.sdk.common.logger import log_sdk, logger
 from uagents_core.agentverse.sdk.common.types import (
     AgentBatchEvents,
     AgentContext,
@@ -44,17 +45,18 @@ def handle_init_errors(uri: AgentUri):
     try:
         yield
     except Exception as e:
+        logger.error("Init error suppressed: %s", e)
         event = AgentBatchEvents.from_exception(e, traceback.format_exc())
         try:
             dispatch_event(uri, event)
         except HTTPError as dispatch_exception:
-            logger.error(
+            log_sdk(
                 FAILED_INIT_ERROR_FORMAT.format(
                     dispatch_exception.response.status_code + str(utc_now().timestamp())
                 )
             )
         except Exception as generic_exception:
-            logger.error(FAILED_INIT_ERROR_FORMAT.format(str(generic_exception)))
+            log_sdk(FAILED_INIT_ERROR_FORMAT.format(str(generic_exception)))
 
 
 def report_error(
@@ -66,11 +68,15 @@ def report_error(
             try:
                 return await func(*args, **kwargs)
             except Exception as e:
+                logger.error("Error reported: %s", e)
                 event = AgentBatchEvents.from_exception(
                     e, traceback.format_exc(), category
                 )
                 if ctx.agent is not None:
-                    dispatch_event(ctx.agent.uri, event)
+                    try:
+                        dispatch_event(ctx.agent.uri, event)
+                    except Exception as e:
+                        logger.error("Error dispatching event: %s", e)
                 if reraise:
                     raise e
 

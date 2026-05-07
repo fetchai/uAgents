@@ -13,6 +13,7 @@ from starlette.applications import Starlette
 from starlette.background import BackgroundTask
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+
 from uagents_core.agentverse.sdk.common.av import (
     CHAT_PROTOCOL,
     generate_agent_auth_token,
@@ -28,7 +29,7 @@ from uagents_core.agentverse.sdk.common.events import (
     report_error,
 )
 from uagents_core.agentverse.sdk.common.helpers import utc_now
-from uagents_core.agentverse.sdk.common.logger import logger
+from uagents_core.agentverse.sdk.common.logger import configure, log_sdk, logger
 from uagents_core.agentverse.sdk.common.starlette import (
     parse_chat_message_from_request,
     report_error_starlette,
@@ -142,6 +143,8 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
                 self._registered = True
 
     def register(self):
+        logger.debug("Registering with agentverse...")
+
         if _ctx.agent is None:
             raise RuntimeError("Not initialised.")
 
@@ -151,6 +154,7 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
         register_to_agentverse_sync(
             request, {"Authorization": f"Agent {token}"}, _ctx.agent.uri.agentverse
         )
+        logger.info("Registered with agentverse")
 
     @wraps(A2AStarletteApplication.build)
     def build(self, *args, **kwargs) -> Starlette:
@@ -186,6 +190,7 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
         env, msg = await parse_chat_message_from_request(
             request, agent.options.verify_envelope, agent.uri.identity.address
         )
+        logger.debug("Chat message from %s", env.sender)
 
         if isinstance(msg, ChatAcknowledgement):
             return JSONResponse({})
@@ -201,6 +206,8 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
     async def _process_chat_message_bg(
         self, request: Request, env: Envelope, msg: ChatMessage
     ):
+        logger.debug("Processing chat message from %s...", env.sender)
+
         agent = _ctx.agent
         await send_message_to_agent(
             destination=env.sender,
@@ -233,6 +240,8 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
             },
         }
 
+        logger.debug("Processing chat message by a2a server...")
+
         async def a2a_receive():
             return {
                 "type": "http.request",
@@ -256,9 +265,15 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
                     response += part["text"]
 
         except (json.JSONDecodeError, KeyError):
+            logger.error("Malformed response from a2a server")
             response = "Sorry, malformed response from the agent, please retry later."
-        except Exception:
+        except Exception as e:
+            logger.error(
+                "Failed to process chat message by a2a server with error: %s", e
+            )
             response = "Sorry, agent failed to process request"
+
+        logger.debug("Chat message processed by a2a server")
 
         # send the response back to the user
         av_response = ChatMessage(
@@ -273,6 +288,7 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
             agentverse_config=_ctx.agent.uri.agentverse,
             session_id=env.session,
         )
+        logger.debug("Reply sent to %s", env.sender)
 
 
 def patch_a2a_app_builder(new_builder: Type):
@@ -290,11 +306,16 @@ def init(
 ):
     uri = None
 
+    logger.debug("Initialising agent %s...", agent)
+
     try:
         uri = AgentUri.from_str(agent)
     except Exception as e:
-        logger.error(FAILED_INIT_ERROR_FORMAT.format(f"malformed agent URI: {str(e)}"))
+        log_sdk(FAILED_INIT_ERROR_FORMAT.format(f"malformed agent URI: {e}"))
         return
+
+    if uri.log_level is not None:
+        configure(uri.log_level)
 
     with handle_init_errors(uri):
         # instrument a2a starlette
@@ -309,3 +330,5 @@ def init(
             metadata=metadata,
             options=AgentOptions(verify_envelope=(not disable_message_auth)),
         )
+
+    logger.info("Initialised agent %s", uri.name)

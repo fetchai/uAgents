@@ -7,6 +7,7 @@ from uuid import UUID
 import httpx
 import requests
 from pydantic import BaseModel
+
 from uagents_core.agentverse.sdk.common.config import (
     AGENT_AUTH_TOKEN_VALIDITY,
     DEFAULT_HTTP_REQUESTS_TIMEOUT,

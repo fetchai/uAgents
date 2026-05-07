@@ -1,13 +1,15 @@
+import logging
 import platform
 from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property
 from importlib.metadata import PackageNotFoundError, version
 from typing import Any, Literal
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
+
 from uagents_core.agentverse.sdk.common.helpers import utc_now
 from uagents_core.config import AgentverseConfig
 from uagents_core.identity import Identity
@@ -24,6 +26,7 @@ class AgentUri(BaseModel):
     name: str
     agentverse: AgentverseConfig
     handle: str | None = None
+    log_level: int | None = None
 
     model_config = ConfigDict(frozen=True)
 
@@ -53,11 +56,21 @@ class AgentUri(BaseModel):
             http_prefix=parsed.scheme,
         )
 
+        log_level = None
+        log_param = parse_qs(parsed.query).get("log")
+        if log_param:
+            raw = log_param[0].upper()
+            level = getattr(logging, raw, None)
+            if level is None:
+                raise ValueError("Unknown log level")
+            log_level = level
+
         return cls(
             key=parsed.password,
             name=name,
             agentverse=agentverse,
             handle=parsed.username,
+            log_level=log_level,
         )
 
 
