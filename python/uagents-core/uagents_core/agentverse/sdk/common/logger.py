@@ -48,10 +48,24 @@ def _has_structlog():
         return False
 
 
+class _SmartHandler(logging.StreamHandler):
+    """Emits with our formatter until structlog appears, then steps aside."""
+
+    _structlog_active = False
+
+    def emit(self, record):
+        if not self._structlog_active and _has_structlog():
+            self._structlog_active = True
+            logger.propagate = True
+        if self._structlog_active:
+            return
+        super().emit(record)
+
+
 def configure(level: int):
     logger.setLevel(level)
-    if not logger.handlers and not _has_structlog():
-        handler = logging.StreamHandler()
+    if not logger.handlers:
+        handler = _SmartHandler()
         handler.setLevel(0)
         handler.setFormatter(_make_formatter())
         logger.addHandler(handler)

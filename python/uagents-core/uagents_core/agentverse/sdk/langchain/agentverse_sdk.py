@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import sys
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, Type, cast
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
@@ -47,6 +48,7 @@ from uagents_core.agentverse.sdk.langchain.config import (
     DEFAULT_HTTP_TIMEOUT,
     DEFAULT_LANGGRAPH_ASSISTANT_ID,
     DEFAULT_LANGGRAPH_INTERNAL_BASE_URL,
+    DEFAULT_LANGGRAPH_PORT,
 )
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
@@ -95,8 +97,12 @@ def _combine_url(base: str, path: str) -> str:
     return f"{base.rstrip('/')}/{path.lstrip('/')}"
 
 
-def _resolve_public_url() -> str | None:
-    return os.getenv("LANGGRAPH_API_URL")
+def _resolve_url() -> str:
+    return (
+        os.getenv("LANGGRAPH_API_URL")
+        or os.getenv("AGENT_PUBLIC_URL")
+        or f"http://localhost:{os.getenv('PORT', DEFAULT_LANGGRAPH_PORT)}"
+    )
 
 
 def _session_to_thread_id(session: Any) -> str | None:
@@ -177,11 +183,8 @@ def register_to_agentverse(
     agent: AgentverseAgent,
     config: LangGraphAdapterConfig,
 ) -> None:
-    public_url = _resolve_public_url()
-    if public_url is None:
-        raise RuntimeError("Could not resolve public URL for registration.")
 
-    request = _generate_registration_request(agent, config, public_url)
+    request = _generate_registration_request(agent, config, _resolve_url())
     auth_header = {
         "Authorization": f"Agent {generate_agent_auth_token(agent.uri.identity)}"
     }
@@ -197,12 +200,6 @@ class AgentverseLangGraphApplication:
     def __init__(self, original_app: Starlette, lg_config: Any):
         self.original_app = original_app
         self.lg_config = lg_config
-        self._registered = False
-
-        if _ctx.agent is not None:
-            with handle_init_errors(_ctx.agent.uri):
-                self.register()
-                self._registered = True
 
     def register(self) -> None:
         logger.debug("Registering with agentverse...")
@@ -213,13 +210,25 @@ class AgentverseLangGraphApplication:
         register_to_agentverse(_ctx.agent, _ctx.config)
         logger.info("Registered with agentverse")
 
+    def _wrap_lifespan(self, existing_lifespan):
+        status_lifespan = setup_agent_status_lifespan(existing_lifespan)
+
+        @asynccontextmanager
+        async def lifespan(app: Starlette):
+            with handle_init_errors(_ctx.agent.uri):
+                self.register()
+            async with status_lifespan(app):
+                yield
+
+        return lifespan
+
     def build(self) -> Starlette:
-        if _ctx.agent is None or not self._registered:
+        if _ctx.agent is None:
             return self.original_app
 
         with handle_init_errors(_ctx.agent.uri):
             original_lifespan = self.original_app.router.lifespan_context
-            lifespan = setup_agent_status_lifespan(original_lifespan)
+            lifespan = self._wrap_lifespan(original_lifespan)
 
             app = Starlette(
                 routes=[
