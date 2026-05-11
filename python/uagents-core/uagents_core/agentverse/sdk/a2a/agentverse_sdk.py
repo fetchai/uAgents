@@ -1,6 +1,5 @@
 import importlib
 import inspect
-import json
 import sys
 from functools import wraps
 from typing import Any, Type
@@ -8,14 +7,19 @@ from uuid import uuid4
 
 import a2a
 from a2a.server.apps import A2AStarletteApplication
-from a2a.types import AgentCard
+from a2a.types import Message as A2AMessage
+from a2a.types import (
+    MessageSendParams,
+    Part,
+    TextPart,
+)
 from starlette.applications import Starlette
 from starlette.background import BackgroundTask
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
-
+from uagents_core.agentverse.sdk.a2a.content import extract_content, is_task_complete
+from uagents_core.agentverse.sdk.a2a.profile import _generate_registration_request
 from uagents_core.agentverse.sdk.common.av import (
-    CHAT_PROTOCOL,
     generate_agent_auth_token,
     register_to_agentverse_sync,
     send_message_to_agent,
@@ -44,97 +48,23 @@ from uagents_core.agentverse.sdk.common.types import (
     AgentverseAgent,
 )
 from uagents_core.contrib.protocols.chat import (
+    AgentContent,
     ChatAcknowledgement,
     ChatMessage,
     StartSessionContent,
     TextContent,
 )
 from uagents_core.envelope import Envelope
-from uagents_core.registration import AgentProfile, RegistrationRequest
-from uagents_core.types import AgentEndpoint
+from uagents_core.registration import AgentProfile
 
 _ctx = AgentContext()
 
 
-def _generate_readme(card: AgentCard) -> str:
-    title = (
-        f"{card.name} by {card.provider.organization}"
-        if card.provider is not None
-        else card.name
-    )
-
-    skills = []
-
-    for skill in card.skills:
-        examples = (
-            "Examples\n" + "\n\n".join([f"- `{eg}`" for eg in skill.examples])
-            if skill.examples is not None
-            else None
-        )
-        skills.append(f"### {skill.name}\n{skill.description}\n\n{examples or ''}")
-    skills = "\n".join(skills)
-
-    about = (
-        f"Learn more about [{card.name}]({card.documentation_url})."
-        if card.documentation_url is not None
-        else ""
-    )
-    about += (
-        f"\n\nLearn more about [{card.provider.organization}]({card.provider.url})."
-        if card.provider is not None
-        else ""
-    )
-    about = f"## About\n{about}" if about else ""
-
-    readme = f"""
-# {title}
-{card.description}
-
-## What this agent can do (Skills)
-
-{skills}
-
-
-{about}
-            """
-
-    return readme
-
-
-def _generate_registration_request(
-    agent: AgentverseAgent, card: AgentCard | None = None
-) -> RegistrationRequest:
-
-    request = RegistrationRequest(
-        address=agent.uri.identity.address,
-        name=agent.uri.name,
-        handle=agent.uri.handle,
-        agent_type="a2a",
-        profile=agent.profile or AgentProfile(),
-        metadata=agent.metadata,
-    )
-
-    if card:
-        request.url = card.documentation_url
-        chat_url = (
-            f"{card.url.strip('/')}/{DEFAULT_AGENTVERSE_CHAT_ENDPOINT.strip('/')}"
-        )
-        request.endpoints = [AgentEndpoint(url=chat_url, weight=1)]
-        request.protocols = [CHAT_PROTOCOL]
-
-        if not request.profile.description:
-            request.profile.description = card.description
-        if not request.profile.readme:
-            request.profile.readme = _generate_readme(card)
-        if not request.profile.avatar_url:
-            request.profile.avatar_url = card.icon_url
-
-    return request
-
-
 class AgentverseA2AStarletteApplication(A2AStarletteApplication):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, agent_card, http_handler, **kwargs):
+        self._request_handler = http_handler
+        self._session_contexts: dict[str, str] = {}
+        super().__init__(agent_card, http_handler, **kwargs)
         self._registered = False
 
         if _ctx.agent is not None:
@@ -221,74 +151,66 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
         if len(msg.content) == 1 and isinstance(msg.content[0], StartSessionContent):
             return
 
-        a2a_msg = {
-            "jsonrpc": "2.0",
-            "id": str(msg.msg_id),
-            "method": "message/send",
-            "params": {
-                "message": {
-                    "kind": "message",
-                    "role": "user",
-                    "messageId": str(uuid4()),
-                    "parts": [
-                        {
-                            "kind": "text",
-                            "text": msg.text(),
-                        }
-                    ],
-                }
-            },
-        }
+        context_id = self._session_contexts.get(env.session)
+        params = MessageSendParams(
+            message=A2AMessage(
+                role="user",
+                messageId=str(uuid4()),
+                contextId=context_id,
+                parts=[Part(root=TextPart(text=msg.text()))],
+            ),
+        )
 
         logger.debug("Processing chat message by a2a server...")
 
-        async def a2a_receive():
-            return {
-                "type": "http.request",
-                "body": json.dumps(a2a_msg).encode(),
-                "more_body": False,
-            }
-
-        a2a_request = Request(
-            scope=request.scope, receive=a2a_receive, send=request._send
-        )
-        response = ""
-
         try:
-            resp = await super()._handle_requests(a2a_request)
-            a2a_response = json.loads(resp.body)
-            answer = a2a_response.get("result")
-            if answer is not None:
-                for part in answer["parts"]:
-                    if part["kind"] != "text":
-                        continue
-                    response += part["text"]
+            async for event in self._request_handler.on_message_send_stream(params):
+                if is_task_complete(event):
+                    self._session_contexts.pop(env.session, None)
+                else:
+                    self._session_contexts[env.session] = event.contextId
 
-        except (json.JSONDecodeError, KeyError):
-            logger.error("Malformed response from a2a server")
-            response = "Sorry, malformed response from the agent, please retry later."
+                content = extract_content(event)
+                if content:
+                    await self._send_reply(
+                        content=content,
+                        destination=env.sender,
+                        session_id=env.session,
+                    )
         except Exception as e:
-            logger.error(
-                "Failed to process chat message by a2a server with error: %s", e
+            logger.error("A2A agent error: %s", e)
+            await self._send_reply(
+                content=[
+                    TextContent(
+                        type="text",
+                        text="Agent failed to process request, please retry later.",
+                    )
+                ],
+                destination=env.sender,
+                session_id=env.session,
             )
-            response = "Sorry, agent failed to process request"
+            raise
 
         logger.debug("Chat message processed by a2a server")
 
-        # send the response back to the user
-        av_response = ChatMessage(
-            timestamp=utc_now(),
-            msg_id=uuid4(),
-            content=[TextContent(type="text", text=response)],
-        )
+    async def _send_reply(
+        self,
+        content: list[AgentContent],
+        destination: str,
+        session_id: str | None = None,
+    ):
+        agent = _ctx.agent
         await send_message_to_agent(
-            destination=env.sender,
-            msg=av_response,
-            sender=_ctx.agent.uri.identity,
-            agentverse_config=_ctx.agent.uri.agentverse,
-            session_id=env.session,
+            destination=destination,
+            msg=ChatMessage(
+                timestamp=utc_now(),
+                msg_id=uuid4(),
+                content=content,
+            ),
+            sender=agent.uri.identity,
+            agentverse_config=agent.uri.agentverse,
+            session_id=session_id,
         )
-        logger.debug("Reply sent to %s", env.sender)
 
 
 def patch_a2a_app_builder(new_builder: Type):

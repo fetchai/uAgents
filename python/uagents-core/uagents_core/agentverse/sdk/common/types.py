@@ -9,7 +9,6 @@ from urllib.parse import parse_qs, unquote, urlparse
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
-
 from uagents_core.agentverse.sdk.common.helpers import utc_now
 from uagents_core.config import AgentverseConfig
 from uagents_core.identity import Identity

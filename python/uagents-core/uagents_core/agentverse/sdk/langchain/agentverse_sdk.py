@@ -15,7 +15,6 @@ from starlette.background import BackgroundTask
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Mount, Route
-
 from uagents_core.agentverse.sdk.common.av import (
     CHAT_PROTOCOL,
     generate_agent_auth_token,
