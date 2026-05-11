@@ -1,24 +1,30 @@
+import functools
 from contextlib import _AsyncGeneratorContextManager, asynccontextmanager
-from typing import cast
+from typing import Callable, cast
 
 from starlette import status
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
-from uagents_core.adapters.common.agentverse import set_agent_status, verify_envelope
-from uagents_core.adapters.common.events import dispatch_event
-from uagents_core.adapters.common.types import AgentBatchEvents, AgentStarletteState
+
+from uagents_core.agentverse.sdk.common.av import set_agent_status, verify_envelope
+from uagents_core.agentverse.sdk.common.events import dispatch_event, report_error
+from uagents_core.agentverse.sdk.common.types import (
+    AgentBatchEvents,
+    AgentContext,
+    AgentStarletteState,
+    EventCategory,
+)
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
     ChatMessage,
 )
 from uagents_core.envelope import Envelope
-from uagents_core.identity import Identity
 from uagents_core.utils.messages import parse_envelope
 
 
 async def parse_chat_message_from_request(
-    request: Request, verify: bool
+    request: Request, verify: bool, expected_address: str | None = None
 ) -> tuple[Envelope, ChatMessage | ChatAcknowledgement]:
     malformed_exc = HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
@@ -31,6 +37,11 @@ async def parse_chat_message_from_request(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid envelope"
             )
+        if expected_address is not None and env.target != expected_address:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Wrong destination address",
+            )
         msg = cast(
             ChatMessage | ChatAcknowledgement | str,
             parse_envelope(env, {ChatMessage, ChatAcknowledgement}),
@@ -40,8 +51,7 @@ async def parse_chat_message_from_request(
 
         return env, msg
     except Exception as e:
-        print(f"Failed to parse chat message : {str(e)}")
-        raise malformed_exc
+        raise malformed_exc from e
 
 
 @asynccontextmanager
@@ -67,12 +77,32 @@ def setup_agent_status_lifespan(
 
     @asynccontextmanager
     async def combined_lifespan(app: Starlette):
-        async with agent_status_lifespan(app):
-            async with existing_lifespan(app):
-                yield
+        async with agent_status_lifespan(app), existing_lifespan(app):
+            yield
 
     return combined_lifespan
 
 
 def set_app_state(app: Starlette, agent: AgentStarletteState):
     app.state.agent = agent
+
+
+def report_error_starlette(ctx: AgentContext, category: EventCategory = "user"):
+    def decorator(func: Callable):
+        reported = report_error(ctx, category, reraise=True)(func)
+
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            try:
+                return await reported(*args, **kwargs)
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to process request",
+                ) from e
+
+        return wrapper
+
+    return decorator
