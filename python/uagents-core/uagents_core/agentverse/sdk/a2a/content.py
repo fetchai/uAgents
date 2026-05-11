@@ -57,8 +57,8 @@ def parts_to_agent_content(parts: list[Part]) -> list[AgentContent]:
                 metadata: dict[str, str] = {}
                 if file.name:
                     metadata["name"] = file.name
-                if file.mimeType:
-                    metadata["mime_type"] = file.mimeType
+                if file.mime_type:
+                    metadata["mime_type"] = file.mime_type
                 content.append(
                     ResourceContent(
                         resource_id=uuid4(),
@@ -70,7 +70,7 @@ def parts_to_agent_content(parts: list[Part]) -> list[AgentContent]:
                 # asset_id, but POST /v1/storage/assets/ requires a user Bearer
                 # token — agent attestation tokens can only PUT to existing
                 # assets.  Use a data: URI to preserve content inline.
-                mime = file.mimeType or "application/octet-stream"
+                mime = file.mime_type or "application/octet-stream"
                 uri = f"data:{mime};base64,{file.bytes}"
                 metadata: dict[str, str] = {"mime_type": mime}
                 if file.name:

@@ -55,7 +55,8 @@ from uagents_core.contrib.protocols.chat import (
     TextContent,
 )
 from uagents_core.envelope import Envelope
-from uagents_core.registration import AgentProfile
+from uagents_core.registration import AgentProfile, RegistrationRequest
+from uagents_core.types import AgentEndpoint
 
 _ctx = AgentContext()
 

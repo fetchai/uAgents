@@ -27,27 +27,23 @@ pip install uagents-core
 
 ## Development Setup
 
-1. Install Poetry:
-   ```bash
-   pip install poetry
-   ```
+1. Install [uv](https://docs.astral.sh/uv/getting-started/) (or `pip install uv`).
 
 2. Install dependencies:
    ```bash
    cd python
-   poetry install
-   poetry shell
-   pre-commit install
+   uv sync
+   uv run pre-commit install
    ```
 
 3. Run tests:
    ```bash
-   pytest
+   uv run pytest
    ```
 
 4. Format and lint:
    ```bash
-   ruff check --fix && ruff format
+   uv run ruff check --fix && uv run ruff format
    ```
 
 ## Documentation

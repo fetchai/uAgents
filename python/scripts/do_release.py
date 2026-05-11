@@ -96,7 +96,8 @@ def make_release(current_version: Version, package: str) -> None:
 def build_packages(package: str):
     """Build packages."""
     subprocess.check_call(
-        "poetry build", cwd=str(get_package_path(package)), shell=True
+        ["uv", "build", "--no-sources"],
+        cwd=str(get_package_path(package)),
     )
 
 
@@ -110,10 +111,16 @@ class ReleaseTool:
     def upload_packages(self):
         """Upload packages to PYPI."""
         result = subprocess.run(
-            f"poetry publish --skip-existing --username {self._settings.pypi_username} "
-            f"--password {self._settings.pypi_password} --verbose",
+            [
+                "uv",
+                "publish",
+                "-u",
+                self._settings.pypi_username,
+                "-p",
+                self._settings.pypi_password,
+                "-v",
+            ],
             check=True,
-            shell=True,
             cwd=str(get_package_path(self._settings.package)),
             stdout=sys.stdout,
             stderr=sys.stderr,
