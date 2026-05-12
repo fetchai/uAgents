@@ -17,6 +17,7 @@ from starlette.applications import Starlette
 from starlette.background import BackgroundTask
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+
 from uagents_core.agentverse.sdk.a2a.content import extract_content, is_task_complete
 from uagents_core.agentverse.sdk.a2a.profile import _generate_registration_request
 from uagents_core.agentverse.sdk.common.av import (

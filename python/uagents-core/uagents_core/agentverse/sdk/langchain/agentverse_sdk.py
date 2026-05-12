@@ -9,19 +9,17 @@ from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 import httpx
 from dotenv import load_dotenv
-from pydantic import BaseModel
 from starlette.applications import Starlette
 from starlette.background import BackgroundTask
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Mount, Route
+
 from uagents_core.agentverse.sdk.common.av import (
-    CHAT_PROTOCOL,
     generate_agent_auth_token,
     register_to_agentverse_sync,
     send_message_to_agent,
 )
-from uagents_core.agentverse.sdk.common.config import DEFAULT_AGENTVERSE_CHAT_ENDPOINT
 from uagents_core.agentverse.sdk.common.events import (
     FAILED_INIT_ERROR_FORMAT,
     handle_init_errors,
@@ -48,8 +46,12 @@ from uagents_core.agentverse.sdk.langchain.config import (
     DEFAULT_LANGGRAPH_ASSISTANT_ID,
     DEFAULT_LANGGRAPH_INTERNAL_BASE_URL,
     DEFAULT_LANGGRAPH_PORT,
+    LangGraphAdapterConfig,
 )
+from uagents_core.agentverse.sdk.langchain.content import extract_ai_content
+from uagents_core.agentverse.sdk.langchain.profile import _generate_registration_request
 from uagents_core.contrib.protocols.chat import (
+    AgentContent,
     ChatAcknowledgement,
     ChatMessage,
     StartSessionContent,
@@ -57,8 +59,7 @@ from uagents_core.contrib.protocols.chat import (
 )
 from uagents_core.envelope import Envelope
 from uagents_core.identity import Identity
-from uagents_core.registration import AgentProfile, RegistrationRequest
-from uagents_core.types import AgentEndpoint
+from uagents_core.registration import AgentProfile
 
 for ch in ["uagents_core.utils.resolver", "uagents_core.utils.messages"]:
     logging.getLogger(ch).setLevel(logging.ERROR)
@@ -68,13 +69,6 @@ for ch in ["uagents_core.utils.resolver", "uagents_core.utils.messages"]:
 class LangGraphAgentStarletteState(AgentStarletteState):
     assistant_id: str = ""
     chat_endpoint: str = ""
-
-
-class LangGraphAdapterConfig(BaseModel):
-    assistant_id: str = DEFAULT_LANGGRAPH_ASSISTANT_ID
-    chat_endpoint: str = DEFAULT_AGENTVERSE_CHAT_ENDPOINT
-    use_threads: bool = True
-    multitask_strategy: str = "enqueue"
 
 
 @dataclass
@@ -90,10 +84,6 @@ def bootstrap_env() -> None:
 
     for key, value in DEFAULT_ENV_VARS.items():
         os.environ.setdefault(key, value)
-
-
-def _combine_url(base: str, path: str) -> str:
-    return f"{base.rstrip('/')}/{path.lstrip('/')}"
 
 
 def _resolve_url() -> str:
@@ -116,66 +106,6 @@ def _session_to_thread_id(session: Any) -> str | None:
         return str(UUID(session_str))
     except ValueError:
         return str(uuid5(NAMESPACE_URL, f"agentverse-session:{session_str}"))
-
-
-def _generate_readme(
-    agent: AgentverseAgent,
-    config: LangGraphAdapterConfig,
-    public_url: str,
-) -> str:
-    chat_url = _combine_url(public_url, config.chat_endpoint)
-
-    return f"""# {agent.uri.name}
-LangGraph agent bridged to Agentverse.
-
-## What this agent can do
-- Receive Agentverse chat messages at `{config.chat_endpoint}`
-- Forward incoming text to LangGraph assistant `{config.assistant_id}`
-- Return the model response back through the Agentverse chat protocol
-
-## Endpoints
-- Base URL: {public_url}
-- Chat endpoint: {chat_url}
-"""
-
-
-def _generate_registration_request(
-    agent: AgentverseAgent,
-    config: LangGraphAdapterConfig,
-    public_url: str,
-) -> RegistrationRequest:
-    identity = agent.uri.identity
-
-    profile_data = agent.profile.model_dump() if agent.profile is not None else {}
-    profile = AgentProfile(**profile_data)
-
-    if not profile.description:
-        profile.description = (
-            f"LangGraph agent '{config.assistant_id}' bridged to Agentverse."
-        )
-
-    if not profile.readme:
-        profile.readme = _generate_readme(agent, config, public_url)
-
-    request = RegistrationRequest(
-        address=identity.address,
-        name=agent.uri.name,
-        handle=agent.uri.handle,
-        agent_type="uagent",
-        profile=profile,
-        metadata=agent.metadata,
-    )
-
-    request.url = public_url
-    request.endpoints = [
-        AgentEndpoint(
-            url=_combine_url(public_url, config.chat_endpoint),
-            weight=1,
-        )
-    ]
-    request.protocols = [CHAT_PROTOCOL]
-
-    return request
 
 
 def register_to_agentverse(
@@ -297,21 +227,23 @@ class AgentverseLangGraphApplication:
 
         try:
             data = await self._call_runs_wait(text, env)
-            response_text = self._extract_last_ai_text(data)
+            content = extract_ai_content(data)
         except (json.JSONDecodeError, KeyError):
             logger.error("Malformed response from LangGraph")
-            response_text = (
-                "Sorry, malformed response from the agent, please retry later."
-            )
+            content = [
+                TextContent(
+                    text="Sorry, malformed response from the agent, please retry later."
+                )
+            ]
         except Exception as e:
             logger.error(
                 "Failed to process chat message by LangGraph with error: %s", e
             )
-            response_text = "Sorry, agent failed to process request"
+            content = [TextContent(text="Sorry, agent failed to process request")]
 
         logger.debug("Chat message processed by LangGraph")
 
-        await self._send_reply(env, response_text, sender_identity)
+        await self._send_reply(env, content, sender_identity)
         logger.debug("Reply sent to %s", env.sender)
 
     def _get_runs_wait_path(self) -> str:
@@ -323,34 +255,6 @@ class AgentverseLangGraphApplication:
         if getattr(self.lg_config, "MOUNT_PREFIX", None):
             return f"{self.lg_config.MOUNT_PREFIX}/threads/{thread_id}/runs/wait"
         return f"/threads/{thread_id}/runs/wait"
-
-    def _extract_last_ai_text(self, data: dict[str, Any]) -> str:
-        messages = data.get("messages")
-        if not isinstance(messages, list):
-            values = data.get("values", {})
-            messages = values.get("messages", []) if isinstance(values, dict) else []
-
-        for msg in reversed(messages):
-            msg_type = msg.get("type")
-            msg_role = msg.get("role")
-            if msg_type not in {"ai", "assistant"} and msg_role != "assistant":
-                continue
-
-            content = msg.get("content", "")
-
-            if isinstance(content, str):
-                return content
-
-            if isinstance(content, list):
-                parts: list[str] = []
-                for block in content:
-                    if isinstance(block, dict) and block.get("type") == "text":
-                        text = block.get("text", "")
-                        if text:
-                            parts.append(text)
-                return "\n".join(parts)
-
-        return ""
 
     def _build_runs_wait_payload(
         self,
@@ -432,13 +336,13 @@ class AgentverseLangGraphApplication:
     async def _send_reply(
         self,
         env: Envelope,
-        response_text: str,
+        content: list[AgentContent],
         sender_identity: Identity,
     ) -> None:
         av_response = ChatMessage(
             timestamp=utc_now(),
             msg_id=uuid4(),
-            content=[TextContent(type="text", text=response_text)],
+            content=content or [TextContent(text="")],
         )
 
         await send_message_to_agent(

@@ -4,6 +4,7 @@ import traceback
 from typing import Callable
 
 from requests import HTTPError
+
 from uagents_core.agentverse.sdk.common.av import (
     _post_data_sync,
     generate_agent_auth_token,

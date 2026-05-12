@@ -6,6 +6,7 @@ from starlette import status
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
+
 from uagents_core.agentverse.sdk.common.av import set_agent_status, verify_envelope
 from uagents_core.agentverse.sdk.common.events import dispatch_event, report_error
 from uagents_core.agentverse.sdk.common.types import (

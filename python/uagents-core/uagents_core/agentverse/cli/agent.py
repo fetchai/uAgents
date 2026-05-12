@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 import requests
 from pydantic import ValidationError
+
 from uagents_core.config import AgentverseConfig
 from uagents_core.contrib.protocols.chat import chat_protocol_spec
 from uagents_core.protocol import ProtocolSpecification

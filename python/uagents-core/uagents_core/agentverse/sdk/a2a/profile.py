@@ -1,4 +1,5 @@
 from a2a.types import AgentCard
+
 from uagents_core.agentverse.sdk.common.av import CHAT_PROTOCOL
 from uagents_core.agentverse.sdk.common.config import (
     DEFAULT_AGENTVERSE_CHAT_ENDPOINT,

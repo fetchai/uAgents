@@ -1,9 +1,33 @@
-"""Conversion and inspection of A2A types for Agentverse chat.
+"""Conversion of A2A streaming events to Agentverse chat AgentContent.
 
-Contains:
-- parts_to_agent_content: converts A2A Part objects to AgentContent
-- extract_content: converts A2A streaming Event objects to AgentContent
-- is_task_complete: checks whether an Event signals the end of a task
+This module processes events from on_message_send_stream, converting A2A Part
+and Task types to chat protocol AgentContent. It also determines when a task's
+lifecycle is over so the caller can clean up session state.
+
+References used for conversion logic:
+
+A2A protocol spec (Part, TaskState, Artifact, streaming events):
+  https://a2aproject.github.io/A2A/latest/specification/
+
+Part (Section 4.1.6 — must contain exactly one of: text, raw, url, data):
+  https://a2aproject.github.io/A2A/latest/specification/#416-part
+
+TaskState (Section 4.1.9 — terminal states: completed, failed, canceled, rejected):
+  https://a2aproject.github.io/A2A/latest/specification/#419-taskstate
+
+Streaming events (Section 4.2 — TaskStatusUpdateEvent, TaskArtifactUpdateEvent):
+  https://a2aproject.github.io/A2A/latest/specification/#42-streaming-events
+
+A2A Python SDK types (Pydantic models with snake_case fields, camelCase JSON aliases):
+  Part = RootModel[TextPart | FilePart | DataPart]
+  FilePart.file: FileWithBytes | FileWithUri
+  FileWithUri: uri (str), mime_type (str | None), name (str | None)
+  FileWithBytes: bytes (str, base64), mime_type (str | None), name (str | None)
+  TaskState enum: submitted, working, input_required, completed, canceled,
+    failed, rejected, auth_required, unknown
+  TaskStatus: state (TaskState), message (Message | None)
+  Event = Message | Task | TaskStatusUpdateEvent | TaskArtifactUpdateEvent
+    (type alias from a2a.server.events.event_queue)
 """
 
 from __future__ import annotations
@@ -26,6 +50,7 @@ from a2a.types import (
     TaskStatusUpdateEvent,
     TextPart,
 )
+
 from uagents_core.contrib.protocols.chat import (
     AgentContent,
     Resource,
@@ -65,7 +90,7 @@ def parts_to_agent_content(parts: list[Part]) -> list[AgentContent]:
                         resource=Resource(uri=file.uri, metadata=metadata),
                     )
                 )
-            if isinstance(file, FileWithBytes):
+            elif isinstance(file, FileWithBytes):
                 # Ideally we would upload to ExternalStorage and reference the
                 # asset_id, but POST /v1/storage/assets/ requires a user Bearer
                 # token — agent attestation tokens can only PUT to existing
