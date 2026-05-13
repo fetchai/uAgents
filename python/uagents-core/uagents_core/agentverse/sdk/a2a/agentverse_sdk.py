@@ -11,6 +11,7 @@ from a2a.types import Message as A2AMessage
 from a2a.types import (
     MessageSendParams,
     Part,
+    Role,
     TextPart,
 )
 from starlette.applications import Starlette
@@ -56,8 +57,7 @@ from uagents_core.contrib.protocols.chat import (
     TextContent,
 )
 from uagents_core.envelope import Envelope
-from uagents_core.registration import AgentProfile, RegistrationRequest
-from uagents_core.types import AgentEndpoint
+from uagents_core.registration import AgentProfile
 
 _ctx = AgentContext()
 
@@ -90,7 +90,6 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
 
     @wraps(A2AStarletteApplication.build)
     def build(self, *args, **kwargs) -> Starlette:
-
         if _ctx.agent is not None and self._registered:
             with handle_init_errors(_ctx.agent.uri):
                 kwargs["lifespan"] = setup_agent_status_lifespan(kwargs.get("lifespan"))
@@ -156,9 +155,9 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
         context_id = self._session_contexts.get(env.session)
         params = MessageSendParams(
             message=A2AMessage(
-                role="user",
-                messageId=str(uuid4()),
-                contextId=context_id,
+                role=Role.user,
+                message_id=str(uuid4()),
+                context_id=context_id,
                 parts=[Part(root=TextPart(text=msg.text()))],
             ),
         )
@@ -170,7 +169,9 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
                 if is_task_complete(event):
                     self._session_contexts.pop(env.session, None)
                 else:
-                    self._session_contexts[env.session] = event.contextId
+                    next_context_id = getattr(event, "context_id", None)
+                    if next_context_id is not None:
+                        self._session_contexts[env.session] = next_context_id
 
                 content = extract_content(event)
                 if content:
