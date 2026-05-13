@@ -157,8 +157,8 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
         params = MessageSendParams(
             message=A2AMessage(
                 role="user",
-                messageId=str(uuid4()),
-                contextId=context_id,
+                message_id=str(uuid4()),
+                context_id=context_id,
                 parts=[Part(root=TextPart(text=msg.text()))],
             ),
         )
@@ -170,7 +170,7 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
                 if is_task_complete(event):
                     self._session_contexts.pop(env.session, None)
                 else:
-                    self._session_contexts[env.session] = event.contextId
+                    self._session_contexts[env.session] = event.context_id
 
                 content = extract_content(event)
                 if content:
