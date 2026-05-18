@@ -2929,7 +2929,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.8.3,<4.0" },
-    { name = "cosmpy", specifier = "==0.12.0" },
+    { name = "cosmpy", specifier = ">=0.12.0" },
     { name = "litellm", marker = "extra == 'all'", specifier = ">=1.78.6,<2.0" },
     { name = "litellm", marker = "extra == 'llm'", specifier = ">=1.78.6,<2.0" },
     { name = "pydantic", specifier = ">=2.8,<3.0" },
