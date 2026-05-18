@@ -173,7 +173,7 @@ ts at which the agent is reachable.
 
 
 #### __init__
-```python[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/agent.py#L204)
+```python[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/agent.py#L240)
 def __init__(name: str | None = None,
              port: int | None = None,
              seed: str | None = None,
@@ -236,6 +236,7 @@ Initialize an Agent instance.
 - `mark_inactive_on_shutdown` _bool_ - Whether to mark the agent as inactive in Almanac
   during shutdown. Set to False for deployments where a new instance replaces this one
   (e.g., Kubernetes rolling updates). Defaults to True.
+
 
 
 #### name
@@ -619,6 +620,7 @@ def on_rest_post(endpoint: str, request: type[Model], response: type[Model])
 ```
 
 Add a handler for a POST REST endpoint.
+
 
 
 #### include

@@ -1,6 +1,7 @@
 import asyncio
 from abc import ABC, abstractmethod
 from asyncio import Future
+from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
@@ -9,6 +10,20 @@ from uagents_core.models import Model
 from uagents.types import JsonStr, MsgInfo, RestMethod
 
 PendingResponseKey = tuple[str, str, UUID]
+
+
+@dataclass
+class PendingResponse:
+    future: Future[MsgInfo]
+    expected_schema_digests: set[str] | None = None
+
+    def accepts(self, schema_digest: str) -> bool:
+        """Whether an incoming message should resolve this response slot."""
+        if self.future.done():
+            return False
+        if self.expected_schema_digests is None:
+            return True
+        return schema_digest in self.expected_schema_digests
 
 
 class Sink(ABC):
@@ -36,21 +51,28 @@ class Dispatcher:
 
     def __init__(self):
         self._sinks: dict[str, set[Sink]] = {}
-        self._pending_responses: dict[PendingResponseKey, Future[MsgInfo]] = {}
+        self._pending_responses: dict[PendingResponseKey, PendingResponse] = {}
 
     @property
     def sinks(self) -> dict[str, set[Sink]]:
         return self._sinks
 
     @property
-    def pending_responses(self) -> dict[PendingResponseKey, Future[MsgInfo]]:
+    def pending_responses(self) -> dict[PendingResponseKey, PendingResponse]:
         return self._pending_responses
 
     async def register_pending_response(
-        self, sender: str, destination: str, session: UUID
+        self,
+        sender: str,
+        destination: str,
+        session: UUID,
+        expected_schema_digests: set[str] | None = None,
     ):
         loop = asyncio.get_running_loop()
-        self._pending_responses[(sender, destination, session)] = loop.create_future()
+        self._pending_responses[(sender, destination, session)] = PendingResponse(
+            future=loop.create_future(),
+            expected_schema_digests=expected_schema_digests,
+        )
 
     def cancel_pending_response(self, sender: str, destination: str, session: UUID):
         key: tuple[str, str, UUID] = (sender, destination, session)
@@ -62,7 +84,9 @@ class Dispatcher:
     ) -> MsgInfo | None:
         key: tuple[str, str, UUID] = (sender, destination, session)
         try:
-            response = await asyncio.wait_for(self._pending_responses[key], timeout)
+            response = await asyncio.wait_for(
+                self._pending_responses[key].future, timeout
+            )
         except asyncio.TimeoutError:
             response = None
         except KeyError:
@@ -82,9 +106,11 @@ class Dispatcher:
         message: JsonStr,
     ) -> bool:
         key = (destination, sender, session)
-        response = MsgInfo(message=message, sender=sender, schema_digest=schema_digest)
-        if key in self._pending_responses:
-            self._pending_responses[key].set_result(response)
+        pending = self._pending_responses.get(key)
+        if pending is not None and pending.accepts(schema_digest):
+            pending.future.set_result(
+                MsgInfo(message=message, sender=sender, schema_digest=schema_digest)
+            )
             return True
         return False
 
