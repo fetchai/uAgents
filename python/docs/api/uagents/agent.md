@@ -173,7 +173,7 @@ ts at which the agent is reachable.
 
 
 #### __init__
-```python[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/agent.py#L204)
+```python[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/agent.py#L240)
 def __init__(name: str | None = None,
              port: int | None = None,
              seed: str | None = None,
@@ -183,7 +183,6 @@ def __init__(name: str | None = None,
              proxy: bool = False,
              resolve: Resolver | None = None,
              registration_policy: AgentRegistrationPolicy | None = None,
-             enable_wallet_messaging: bool | dict[str, str] = False,
              wallet_key_derivation_index: int = 0,
              max_resolver_endpoints: int | None = None,
              version: str | None = None,
@@ -216,9 +215,6 @@ Initialize an Agent instance.
 - `proxy` _bool_ - True if the agent will receive messages via an Agentverse proxy endpoint.
 - `resolve` _Resolver | None_ - The resolver to use for agent communication.
 - `registration_policy` _AgentRegistrationPolicy | None_ - The agent registration policy.
-- `enable_wallet_messaging` _bool | dict[str, str]_ - Whether to enable
-  wallet messaging. If '{"chain_id": CHAIN_ID}' is provided, this sets the chain ID for
-  the messaging server.
 - `wallet_key_derivation_index` _int_ - The index used for deriving the wallet key.
 - `max_resolver_endpoints` _int | None_ - The maximum number of endpoints to resolve.
 - `version` _str | None_ - The version of the agent.
@@ -240,20 +236,6 @@ Initialize an Agent instance.
 - `mark_inactive_on_shutdown` _bool_ - Whether to mark the agent as inactive in Almanac
   during shutdown. Set to False for deployments where a new instance replaces this one
   (e.g., Kubernetes rolling updates). Defaults to True.
-
-
-
-#### initialize_wallet_messaging
-```python
-def initialize_wallet_messaging(enable_wallet_messaging: bool
-                                | dict[str, str])
-```
-
-Initialize wallet messaging for the agent.
-
-**Arguments**:
-
-- `enable_wallet_messaging` _bool | dict[str, str]_ - Wallet messaging configuration.
 
 
 
@@ -638,15 +620,6 @@ def on_rest_post(endpoint: str, request: type[Model], response: type[Model])
 ```
 
 Add a handler for a POST REST endpoint.
-
-
-
-#### on_wallet_message
-```python
-def on_wallet_message()
-```
-
-Add a handler for wallet messages.
 
 
 
