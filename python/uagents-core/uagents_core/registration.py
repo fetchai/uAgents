@@ -93,6 +93,11 @@ class AgentProfile(BaseModel):
         max_length=4000,
         description="URL to the agent's avatar image",
     )
+    banner_url: str = Field(
+        default="",
+        max_length=4000,
+        description="URL to the agent's profile banner image",
+    )
 
 
 class RegistrationRequest(BaseModel):
@@ -182,6 +187,7 @@ class AgentUpdates(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     readme: str | None = Field(default=None, max_length=80000)
     avatar_url: str | None = Field(default=None, max_length=4000)
+    banner_url: str | None = Field(default=None, max_length=4000)
     short_description: str | None = Field(default=None, max_length=300)
     agent_type: str = "custom"
 
