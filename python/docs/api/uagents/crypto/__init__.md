@@ -21,5 +21,3 @@ def sign_arbitrary(identity: Identity, data: bytes) -> tuple[str, str]
 
 Sign arbitrary data with the given identity.
 
-Only used for wallet messaging.
-
