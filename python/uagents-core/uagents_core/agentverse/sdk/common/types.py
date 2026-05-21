@@ -14,6 +14,7 @@ from uagents_core.agentverse.sdk.common.helpers import utc_now
 from uagents_core.config import AgentverseConfig
 from uagents_core.identity import Identity
 from uagents_core.registration import AgentProfile
+from uagents_core.storage import ExternalStorage
 
 try:
     sdk_version = version("uagents-core")
@@ -74,9 +75,15 @@ class AgentUri(BaseModel):
         )
 
 
-# TODO
 class AgentOptions(BaseModel):
     verify_envelope: bool = True
+    enable_storage: bool = Field(
+        default=False,
+        description=(
+            "When true, upload binary file parts to Agentverse storage instead of "
+            "inline data URIs. Requires storage delegation granted by the user."
+        ),
+    )
 
 
 class AgentverseAgent(BaseModel):
@@ -89,6 +96,7 @@ class AgentverseAgent(BaseModel):
 @dataclass
 class AgentContext:
     agent: AgentverseAgent | None = None
+    storage: "ExternalStorage | None" = None
 
 
 @dataclass

@@ -3,10 +3,13 @@ import struct
 from datetime import datetime
 from secrets import token_bytes
 
+import httpx
 import requests
 
-from uagents_core.config import AgentverseConfig
+from uagents_core.config import AgentverseConfig, DEFAULT_REQUEST_TIMEOUT
 from uagents_core.identity import Identity
+
+_STORAGE_REQUEST_TIMEOUT = 10
 
 
 def compute_attestation(
@@ -44,7 +47,7 @@ class ExternalStorage:
             raise ValueError(
                 "Either an identity or an API token must be provided for authentication"
             )
-        self.storage_url = storage_url or AgentverseConfig().storage_endpoint
+        self.storage_url = storage_url or AgentverseConfig().storage_api
 
     def _make_attestation(self) -> str:
         nonce = token_bytes(32)
@@ -64,6 +67,29 @@ class ExternalStorage:
         if self.identity:
             return {"Authorization": f"Agent {self._make_attestation()}"}
         raise RuntimeError("No identity or API token available for authentication")
+
+    def grant_delegation(
+        self,
+        agent_address: str,
+        timeout: int = DEFAULT_REQUEST_TIMEOUT,
+    ) -> dict:
+        """Grant the user behind this client's API token permission to create assets as ``agent_address``.
+
+        Calls ``PUT /v1/storage/assets/delegations/{agent_address}`` with a user Bearer token.
+        """
+        if not self.api_token:
+            raise RuntimeError("API token required to grant storage delegation")
+        url = f"{self.storage_url}/assets/delegations/{agent_address}"
+        response = requests.put(
+            url=url,
+            headers={"Authorization": f"Bearer {self.api_token}"},
+            timeout=timeout,
+        )
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"Storage delegation failed: {response.status_code}, {response.text}"
+            )
+        return response.json()
 
     def upload(
         self,
@@ -106,6 +132,30 @@ class ExternalStorage:
 
         return response.json()
 
+    def _create_asset_request(
+        self,
+        name: str,
+        content: bytes,
+        mime_type: str,
+        lifetime_hours: int,
+    ) -> tuple[str, dict[str, str], dict]:
+        if not (self.api_token or self.identity):
+            raise RuntimeError(
+                "Either an API token or agent identity is required to create assets"
+            )
+        headers = self._get_auth_header()
+        headers["Content-Type"] = "application/json"
+        return (
+            f"{self.storage_url}/assets/",
+            headers,
+            {
+                "name": name,
+                "mime_type": mime_type,
+                "contents": base64.b64encode(content).decode(),
+                "lifetime_hours": lifetime_hours,
+            },
+        )
+
     def create_asset(
         self,
         name: str,
@@ -113,23 +163,14 @@ class ExternalStorage:
         mime_type: str = "text/plain",
         lifetime_hours: int = 24,
     ) -> str:
-        if not self.api_token:
-            raise RuntimeError("API token required to create assets")
-        url = f"{self.storage_url}/assets/"
-        headers = self._get_auth_header()
-        headers["Content-Type"] = "application/json"
-        payload = {
-            "name": name,
-            "mime_type": mime_type,
-            "contents": base64.b64encode(content).decode(),
-            "lifetime_hours": lifetime_hours,
-        }
-
+        url, headers, payload = self._create_asset_request(
+            name, content, mime_type, lifetime_hours
+        )
         response = requests.post(
             url=url,
             json=payload,
             headers=headers,
-            timeout=10,
+            timeout=_STORAGE_REQUEST_TIMEOUT,
         )
         if response.status_code != 201:
             raise RuntimeError(
@@ -137,6 +178,28 @@ class ExternalStorage:
             )
 
         return response.json()["asset_id"]
+
+    async def create_asset_async(
+        self,
+        name: str,
+        content: bytes,
+        mime_type: str = "text/plain",
+        lifetime_hours: int = 24,
+    ) -> str:
+        url, headers, payload = self._create_asset_request(
+            name, content, mime_type, lifetime_hours
+        )
+        async with httpx.AsyncClient(timeout=_STORAGE_REQUEST_TIMEOUT) as client:
+            response = await client.post(url=url, json=payload, headers=headers)
+        if response.status_code != 201:
+            raise RuntimeError(
+                f"Asset creation failed: {response.status_code}, {response.text}"
+            )
+
+        return response.json()["asset_id"]
+
+    def asset_uri(self, asset_id: str) -> str:
+        return f"agent-storage://{self.storage_url}/{asset_id}"
 
     def set_permissions(
         self, asset_id: str, agent_address: str, read: bool = True, write: bool = True

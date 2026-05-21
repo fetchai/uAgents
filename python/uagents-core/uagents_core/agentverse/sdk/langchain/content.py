@@ -51,18 +51,25 @@ Content block TypedDicts (all share: url, base64, file_id, mime_type, id, index,
 
 from __future__ import annotations
 
+import base64
 from typing import Any
 from uuid import uuid4
 
+from pydantic.v1 import UUID4
+
+from uagents_core.agentverse.sdk.common.events import report_error
+from uagents_core.agentverse.sdk.common.types import AgentContext
 from uagents_core.contrib.protocols.chat import (
     AgentContent,
     Resource,
     ResourceContent,
     TextContent,
 )
-
-
-def extract_ai_content(data: dict[str, Any]) -> list[AgentContent]:
+async def extract_ai_content(
+    data: dict[str, Any],
+    *,
+    ctx: AgentContext | None = None,
+) -> list[AgentContent]:
     """Extract AgentContent from all AI messages in a /runs/wait response.
 
     Expects ``data["messages"]`` — the MessagesState convention for /runs/wait.
@@ -79,13 +86,17 @@ def extract_ai_content(data: dict[str, Any]) -> list[AgentContent]:
         if msg.get("type") != "ai":
             continue
 
-        content.extend(message_content_to_agent_content(msg.get("content", "")))
+        content.extend(
+            await message_content_to_agent_content(msg.get("content", ""), ctx=ctx)
+        )
 
     return content
 
 
-def message_content_to_agent_content(
+async def message_content_to_agent_content(
     content: str | list[dict[str, Any]],
+    *,
+    ctx: AgentContext | None = None,
 ) -> list[AgentContent]:
     """Convert a single LangChain message's ``content`` field to AgentContent.
 
@@ -101,14 +112,18 @@ def message_content_to_agent_content(
             if not isinstance(block, dict):
                 continue
 
-            converted = _convert_content_block(block)
+            converted = await _convert_content_block(block, ctx=ctx)
             if converted is not None:
                 result.append(converted)
 
     return result
 
 
-def _convert_content_block(block: dict[str, Any]) -> AgentContent | None:
+async def _convert_content_block(
+    block: dict[str, Any],
+    *,
+    ctx: AgentContext | None = None,
+) -> AgentContent | None:
     block_type = block.get("type", "")
 
     if block_type == "text":
@@ -116,7 +131,7 @@ def _convert_content_block(block: dict[str, Any]) -> AgentContent | None:
         return TextContent(text=text) if text else None
 
     if block_type == "image":
-        return _convert_media_block(block, fallback_mime=None)
+        return await _convert_media_block(block, fallback_mime=None, ctx=ctx)
 
     if block_type == "image_url":
         try:
@@ -133,19 +148,21 @@ def _convert_content_block(block: dict[str, Any]) -> AgentContent | None:
         )
 
     if block_type in ("audio", "video", "file"):
-        return _convert_media_block(block, fallback_mime=None)
+        return await _convert_media_block(block, fallback_mime=None, ctx=ctx)
 
     return None
 
 
-def _convert_media_block(
+async def _convert_media_block(
     block: dict[str, Any],
     fallback_mime: str | None,
+    *,
+    ctx: AgentContext | None = None,
 ) -> AgentContent | None:
     """Convert image/audio/video/file content blocks to ResourceContent.
 
-    Supports both URL-based and base64-based blocks. For base64 blocks, a
-    data: URI is constructed inline (same approach as A2A FileWithBytes).
+    Supports both URL-based and base64-based blocks. For base64 blocks, uploads
+    to Agentverse storage when ``ctx.storage`` is set; otherwise uses a data: URI.
     """
     metadata: dict[str, str] = {}
     for key in ("mime_type", "file_id", "id", "index"):
@@ -164,6 +181,30 @@ def _convert_media_block(
     if b64:
         mime = metadata.get("mime_type") or fallback_mime or "application/octet-stream"
         metadata["mime_type"] = mime
+
+        if ctx is not None and ctx.storage is not None:
+            storage = ctx.storage
+
+            @report_error(ctx, "system", reraise=False, log=False)
+            async def _upload() -> ResourceContent:
+                raw = base64.b64decode(b64)
+                asset_id = await storage.create_asset_async(
+                    name=metadata.get("name", "langgraph-file"),
+                    content=raw,
+                    mime_type=mime,
+                )
+                return ResourceContent(
+                    resource_id=UUID4(asset_id),
+                    resource=Resource(
+                        uri=storage.asset_uri(asset_id),
+                        metadata=metadata,
+                    ),
+                )
+
+            uploaded = await _upload()
+            if uploaded is not None:
+                return uploaded
+
         uri = f"data:{mime};base64,{b64}"
         return ResourceContent(
             resource_id=uuid4(),

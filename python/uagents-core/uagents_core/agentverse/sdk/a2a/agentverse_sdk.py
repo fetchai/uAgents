@@ -25,6 +25,7 @@ from uagents_core.agentverse.sdk.common.av import (
     register_to_agentverse_sync,
     send_message_to_agent,
 )
+from uagents_core.agentverse.sdk.common.storage import setup_agent_storage
 from uagents_core.agentverse.sdk.common.config import (
     DEFAULT_AGENTVERSE_CHAT_ENDPOINT,
 )
@@ -86,6 +87,10 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
         register_to_agentverse_sync(
             request, {"Authorization": f"Agent {token}"}, _ctx.agent.uri.agentverse
         )
+
+        if _ctx.agent is not None:
+            setup_agent_storage(_ctx, _ctx.agent)
+
         logger.info("Registered with agentverse")
 
     @wraps(A2AStarletteApplication.build)
@@ -172,7 +177,7 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
                 else:
                     self._session_contexts[env.session] = event.context_id
 
-                content = extract_content(event)
+                content = await extract_content(event, ctx=_ctx)
                 if content:
                     await self._send_reply(
                         content=content,
@@ -227,6 +232,7 @@ def init(
     profile: AgentProfile | None = None,
     metadata: dict[str, Any] | None = None,
     disable_message_auth: bool = False,
+    enable_storage: bool = False,
 ):
     uri = None
 
@@ -252,7 +258,10 @@ def init(
             uri=uri,
             profile=profile,
             metadata=metadata,
-            options=AgentOptions(verify_envelope=(not disable_message_auth)),
+            options=AgentOptions(
+                verify_envelope=(not disable_message_auth),
+                enable_storage=enable_storage,
+            ),
         )
 
     logger.info("Initialised agent %s", uri.name)

@@ -59,14 +59,12 @@ async def agent_status_lifespan(app: Starlette):
     if hasattr(app.state, "agent"):
         agent = app.state.agent
         await set_agent_status(agent.identity, True, agent.agentverse)
-        # TODO(LR): make dispatch_event asynchronous
-        dispatch_event(agent, AgentBatchEvents.from_message("Agent Started"))
+        await dispatch_event(agent, AgentBatchEvents.from_message("Agent Started"))
     yield
     if hasattr(app.state, "agent"):
         agent = app.state.agent
         await set_agent_status(agent.identity, False, agent.agentverse)
-        # TODO(LR): make dispatch_event asynchronous
-        dispatch_event(agent, AgentBatchEvents.from_message("Agent Stopped"))
+        await dispatch_event(agent, AgentBatchEvents.from_message("Agent Stopped"))
 
 
 def setup_agent_status_lifespan(

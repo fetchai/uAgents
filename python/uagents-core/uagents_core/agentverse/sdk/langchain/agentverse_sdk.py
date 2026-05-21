@@ -20,6 +20,7 @@ from uagents_core.agentverse.sdk.common.av import (
     register_to_agentverse_sync,
     send_message_to_agent,
 )
+from uagents_core.agentverse.sdk.common.storage import setup_agent_storage
 from uagents_core.agentverse.sdk.common.events import (
     FAILED_INIT_ERROR_FORMAT,
     handle_init_errors,
@@ -123,6 +124,7 @@ def register_to_agentverse(
         auth_header,
         agent.uri.agentverse,
     )
+    setup_agent_storage(_ctx, agent)
 
 
 class AgentverseLangGraphApplication:
@@ -227,7 +229,7 @@ class AgentverseLangGraphApplication:
 
         try:
             data = await self._call_runs_wait(text, env)
-            content = extract_ai_content(data)
+            content = await extract_ai_content(data, ctx=_ctx)
         except (json.JSONDecodeError, KeyError):
             logger.error("Malformed response from LangGraph")
             content = [
@@ -368,6 +370,7 @@ def init(
     profile: AgentProfile | None = None,
     metadata: dict[str, Any] | None = None,
     disable_message_auth: bool = False,
+    enable_storage: bool = False,
 ):
     uri = None
 
@@ -387,7 +390,10 @@ def init(
             uri=uri,
             profile=profile,
             metadata=metadata,
-            options=AgentOptions(verify_envelope=(not disable_message_auth)),
+            options=AgentOptions(
+                verify_envelope=(not disable_message_auth),
+                enable_storage=enable_storage,
+            ),
         )
 
         _ctx.config = LangGraphAdapterConfig()
