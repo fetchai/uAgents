@@ -612,7 +612,7 @@ wheels = [
 
 [[package]]
 name = "cosmpy"
-version = "0.12.0"
+version = "0.12.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bcrypt" },
@@ -622,6 +622,7 @@ dependencies = [
     { name = "googleapis-common-protos" },
     { name = "grpcio" },
     { name = "jsonschema" },
+    { name = "packaging" },
     { name = "protobuf" },
     { name = "pycryptodome" },
     { name = "pynacl" },
@@ -631,9 +632,9 @@ dependencies = [
     { name = "sortedcontainers" },
     { name = "virtualenv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/64/89/ba34a45f88dc22feb8b00924533f3b21ffe3e649701a688ef820a9e25793/cosmpy-0.12.0.tar.gz", hash = "sha256:a635baa7c4754cf78bec66bd5161345a7d1966f9507f600a9ab475110bc3b485", size = 265885, upload-time = "2026-05-18T19:10:16.291Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9d/3a/8a8113f18fd61b15e983e70110bd890f80dd686ce4ce3f6994437e43d0fc/cosmpy-0.12.1.tar.gz", hash = "sha256:96818c8857a52d58c504466ffc6e9c99c5530d6b3ec764cdacf19c6f06b2c681", size = 265878, upload-time = "2026-05-21T11:40:06.158Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/61/09/7b737352520cabdfd4f6b6658a2c0d87664f90db71e0a3fcd0c46bcde4f4/cosmpy-0.12.0-py3-none-any.whl", hash = "sha256:f95b43d6feb124b215921a8f9c1dda7b5a421223aebda6dbecd5993abad4df9d", size = 609358, upload-time = "2026-05-18T19:10:17.979Z" },
+    { url = "https://files.pythonhosted.org/packages/73/81/4f34d65abf11ef314f5da8d174b95e862b10daef2b10c720f81af5d769c8/cosmpy-0.12.1-py3-none-any.whl", hash = "sha256:6fe2a046b143047c9b5bb79da1e4c7a6c488771895742c934a2f215ff5adfc7a", size = 609371, upload-time = "2026-05-21T11:40:07.303Z" },
 ]
 
 [[package]]
@@ -2896,7 +2897,7 @@ wheels = [
 
 [[package]]
 name = "uagents"
-version = "0.24.2"
+version = "0.25.1"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -2929,11 +2930,11 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.8.3,<4.0" },
-    { name = "cosmpy", specifier = ">=0.12.0" },
+    { name = "cosmpy", specifier = ">=0.12.1" },
     { name = "litellm", marker = "extra == 'all'", specifier = ">=1.78.6,<2.0" },
     { name = "litellm", marker = "extra == 'llm'", specifier = ">=1.78.6,<2.0" },
     { name = "pydantic", specifier = ">=2.8,<3.0" },
-    { name = "uagents-core", specifier = ">=0.4.3" },
+    { name = "uagents-core", specifier = ">=0.4.5" },
     { name = "uvicorn", specifier = ">=0.30.1,<1.0" },
 ]
 provides-extras = ["all", "wallet", "llm"]
@@ -2952,17 +2953,18 @@ dev = [
 
 [[package]]
 name = "uagents-core"
-version = "0.4.4"
+version = "0.4.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bech32" },
     { name = "ecdsa" },
+    { name = "httpx" },
     { name = "pydantic" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/bc/da/ff342037ad42ec6a1199a7ba6bf48fbdd143fa7a7b093629ec02a4292634/uagents_core-0.4.4.tar.gz", hash = "sha256:f31fe3db3d9fab5c096ce5dc047bd5ec02e0a21b71d6382a1eb7d6e9770c4d55", size = 24823, upload-time = "2026-02-26T12:04:52.032Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ef/2d/17643a7b0c12fb8c90f37e591c191b3474a5f0e31383b8b92306310e88e1/uagents_core-0.4.5.tar.gz", hash = "sha256:003093abc29467b8fed4dd04ed8f31b791d2370cb8599398fce30322d1419257", size = 202951, upload-time = "2026-05-21T08:43:00.018Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/85/09/1ebd2c2684d11cf094072d4cae71b3a962823b9fa5c7aeecd904faa7b802/uagents_core-0.4.4-py3-none-any.whl", hash = "sha256:e6babb0eb51435c3bd06ffa6900c8a5097f5d3e35a3789d0bed7bc9733a95a43", size = 31240, upload-time = "2026-02-26T12:04:53.01Z" },
+    { url = "https://files.pythonhosted.org/packages/da/3e/18eb5bf0110d759ecc5ec94ccf104d3b38698315d308d587bb08ca1507d9/uagents_core-0.4.5-py3-none-any.whl", hash = "sha256:f6f7c9453ee8f7960a587c350a0b7093adb3fc60e8fa85d329ca262fb2ff5cc9", size = 64074, upload-time = "2026-05-21T08:42:58.549Z" },
 ]
 
 [[package]]
