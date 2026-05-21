@@ -1,9 +1,8 @@
 from uagents_core.agentverse.sdk.common.av import CHAT_PROTOCOL
 from uagents_core.agentverse.sdk.common.types import AgentverseAgent
+from uagents_core.agentverse.sdk.langchain.config import LangGraphAdapterConfig
 from uagents_core.registration import AgentProfile, RegistrationRequest
 from uagents_core.types import AgentEndpoint
-
-from uagents_core.agentverse.sdk.langchain.config import LangGraphAdapterConfig
 
 
 def _combine_url(base: str, path: str) -> str:

@@ -37,7 +37,6 @@ import json
 from uuid import uuid4
 
 from a2a.server.events.event_queue import Event
-from pydantic.v1 import UUID4
 from a2a.types import (
     DataPart,
     FilePart,
@@ -52,6 +51,7 @@ from a2a.types import (
     TaskStatusUpdateEvent,
     TextPart,
 )
+from pydantic.v1 import UUID4
 
 from uagents_core.agentverse.sdk.common.events import report_error
 from uagents_core.agentverse.sdk.common.types import AgentContext
@@ -61,6 +61,8 @@ from uagents_core.contrib.protocols.chat import (
     ResourceContent,
     TextContent,
 )
+
+
 async def parts_to_agent_content(
     parts: list[Part],
     *,
@@ -163,29 +165,19 @@ async def extract_content(
     Returns an empty list when there is no content to forward.
     """
     if isinstance(event, Message):
-        return await parts_to_agent_content(
-            event.parts, ctx=ctx
-        )
+        return await parts_to_agent_content(event.parts, ctx=ctx)
 
     if isinstance(event, TaskArtifactUpdateEvent):
-        return await parts_to_agent_content(
-            event.artifact.parts, ctx=ctx
-        )
+        return await parts_to_agent_content(event.artifact.parts, ctx=ctx)
 
     if isinstance(event, TaskStatusUpdateEvent):
-        return await _extract_status_content(
-            event.status, event.final, ctx=ctx
-        )
+        return await _extract_status_content(event.status, event.final, ctx=ctx)
 
     if isinstance(event, Task):
         content: list[AgentContent] = []
         if event.artifacts:
             for artifact in event.artifacts:
-                content.extend(
-                    await parts_to_agent_content(
-                        artifact.parts, ctx=ctx
-                    )
-                )
+                content.extend(await parts_to_agent_content(artifact.parts, ctx=ctx))
         return content or await _extract_status_content(
             event.status, final=True, ctx=ctx
         )
@@ -228,9 +220,7 @@ async def _extract_status_content(
     state = status.state
 
     if status.message and status.message.parts:
-        return await parts_to_agent_content(
-            status.message.parts, ctx=ctx
-        )
+        return await parts_to_agent_content(status.message.parts, ctx=ctx)
 
     if state == TaskState.working:
         return [TextContent(type="text", text="Agent is working on your request...")]

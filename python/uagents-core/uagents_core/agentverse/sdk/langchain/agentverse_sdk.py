@@ -20,7 +20,6 @@ from uagents_core.agentverse.sdk.common.av import (
     register_to_agentverse_sync,
     send_message_to_agent,
 )
-from uagents_core.agentverse.sdk.common.storage import setup_agent_storage
 from uagents_core.agentverse.sdk.common.events import (
     FAILED_INIT_ERROR_FORMAT,
     handle_init_errors,
@@ -34,6 +33,7 @@ from uagents_core.agentverse.sdk.common.starlette import (
     set_app_state,
     setup_agent_status_lifespan,
 )
+from uagents_core.agentverse.sdk.common.storage import setup_agent_storage
 from uagents_core.agentverse.sdk.common.types import (
     AgentContext,
     AgentOptions,
@@ -44,7 +44,6 @@ from uagents_core.agentverse.sdk.common.types import (
 from uagents_core.agentverse.sdk.langchain.config import (
     DEFAULT_ENV_VARS,
     DEFAULT_HTTP_TIMEOUT,
-    DEFAULT_LANGGRAPH_ASSISTANT_ID,
     DEFAULT_LANGGRAPH_INTERNAL_BASE_URL,
     DEFAULT_LANGGRAPH_PORT,
     LangGraphAdapterConfig,
@@ -113,7 +112,6 @@ def register_to_agentverse(
     agent: AgentverseAgent,
     config: LangGraphAdapterConfig,
 ) -> None:
-
     request = _generate_registration_request(agent, config, _resolve_url())
     auth_header = {
         "Authorization": f"Agent {generate_agent_auth_token(agent.uri.identity)}"

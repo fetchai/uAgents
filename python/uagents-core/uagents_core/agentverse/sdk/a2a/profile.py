@@ -57,7 +57,6 @@ def _generate_readme(card: AgentCard) -> str:
 def _generate_registration_request(
     agent: AgentverseAgent, card: AgentCard | None = None
 ) -> RegistrationRequest:
-
     request = RegistrationRequest(
         address=agent.uri.identity.address,
         name=agent.uri.name,

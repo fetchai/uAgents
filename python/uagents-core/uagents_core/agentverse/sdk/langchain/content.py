@@ -65,6 +65,8 @@ from uagents_core.contrib.protocols.chat import (
     ResourceContent,
     TextContent,
 )
+
+
 async def extract_ai_content(
     data: dict[str, Any],
     *,

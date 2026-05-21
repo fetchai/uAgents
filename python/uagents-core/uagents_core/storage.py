@@ -6,7 +6,7 @@ from secrets import token_bytes
 import httpx
 import requests
 
-from uagents_core.config import AgentverseConfig, DEFAULT_REQUEST_TIMEOUT
+from uagents_core.config import DEFAULT_REQUEST_TIMEOUT, AgentverseConfig
 from uagents_core.identity import Identity
 
 _STORAGE_REQUEST_TIMEOUT = 10
@@ -73,7 +73,7 @@ class ExternalStorage:
         agent_address: str,
         timeout: int = DEFAULT_REQUEST_TIMEOUT,
     ) -> dict:
-        """Grant the user behind this client's API token permission to create assets as ``agent_address``.
+        """Grant permission to create assets to ``agent_address``.
 
         Calls ``PUT /v1/storage/assets/delegations/{agent_address}`` with a user Bearer token.
         """

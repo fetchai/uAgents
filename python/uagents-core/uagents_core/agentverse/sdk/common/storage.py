@@ -2,7 +2,9 @@ from uagents_core.agentverse.sdk.common.types import AgentContext, AgentverseAge
 from uagents_core.storage import ExternalStorage
 
 
-def setup_agent_storage(ctx: AgentContext, agent: AgentverseAgent) -> ExternalStorage | None:
+def setup_agent_storage(
+    ctx: AgentContext, agent: AgentverseAgent
+) -> ExternalStorage | None:
     """Configure ``ctx.storage`` for delegated asset uploads when enabled on the agent.
 
     Delegation to create storage assets must already be granted by the user.

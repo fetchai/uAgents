@@ -25,7 +25,6 @@ from uagents_core.agentverse.sdk.common.av import (
     register_to_agentverse_sync,
     send_message_to_agent,
 )
-from uagents_core.agentverse.sdk.common.storage import setup_agent_storage
 from uagents_core.agentverse.sdk.common.config import (
     DEFAULT_AGENTVERSE_CHAT_ENDPOINT,
 )
@@ -42,6 +41,7 @@ from uagents_core.agentverse.sdk.common.starlette import (
     set_app_state,
     setup_agent_status_lifespan,
 )
+from uagents_core.agentverse.sdk.common.storage import setup_agent_storage
 from uagents_core.agentverse.sdk.common.types import (
     AgentContext,
     AgentOptions,
@@ -57,8 +57,7 @@ from uagents_core.contrib.protocols.chat import (
     TextContent,
 )
 from uagents_core.envelope import Envelope
-from uagents_core.registration import AgentProfile, RegistrationRequest
-from uagents_core.types import AgentEndpoint
+from uagents_core.registration import AgentProfile
 
 _ctx = AgentContext()
 
@@ -95,7 +94,6 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
 
     @wraps(A2AStarletteApplication.build)
     def build(self, *args, **kwargs) -> Starlette:
-
         if _ctx.agent is not None and self._registered:
             with handle_init_errors(_ctx.agent.uri):
                 kwargs["lifespan"] = setup_agent_status_lifespan(kwargs.get("lifespan"))
