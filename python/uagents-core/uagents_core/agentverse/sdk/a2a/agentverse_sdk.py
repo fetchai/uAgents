@@ -3,7 +3,7 @@ import inspect
 import sys
 from functools import wraps
 from typing import Any, Type
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import a2a
 from a2a.server.apps import A2AStarletteApplication
@@ -27,12 +27,15 @@ from uagents_core.agentverse.sdk.common.av import (
 )
 from uagents_core.agentverse.sdk.common.config import (
     DEFAULT_AGENTVERSE_CHAT_ENDPOINT,
+    DEFAULT_EMPTY_RESPONSE_TEXT,
 )
 from uagents_core.agentverse.sdk.common.events import (
     FAILED_INIT_ERROR_FORMAT,
+    chat_error_on_fail,
     handle_init_errors,
-    report_error,
+    report_error_reply,
 )
+from uagents_core.agentverse.sdk.common.storage import upload_to_storage_safe
 from uagents_core.agentverse.sdk.common.helpers import utc_now
 from uagents_core.agentverse.sdk.common.logger import configure, log_sdk, logger
 from uagents_core.agentverse.sdk.common.starlette import (
@@ -56,8 +59,7 @@ from uagents_core.contrib.protocols.chat import (
     TextContent,
 )
 from uagents_core.envelope import Envelope
-from uagents_core.registration import AgentProfile, RegistrationRequest
-from uagents_core.types import AgentEndpoint
+from uagents_core.registration import AgentProfile
 
 _ctx = AgentContext()
 
@@ -114,6 +116,8 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
                     ),
                 )
 
+            logger.info("Successfully added agentverse chat messages handler")
+
         return app
 
     @report_error_starlette(_ctx, "user")
@@ -130,25 +134,28 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
         return JSONResponse(
             {},
             background=BackgroundTask(
-                self._process_chat_message_bg, request=request, env=env, msg=msg
+                self._process_chat_message_bg, env=env, msg=msg
             ),
         )
 
-    @report_error(_ctx, "user")
+    @report_error_reply(_ctx, "user")
     async def _process_chat_message_bg(
-        self, request: Request, env: Envelope, msg: ChatMessage
+        self, env: Envelope, msg: ChatMessage
     ):
         logger.debug("Processing chat message from %s...", env.sender)
 
-        agent = _ctx.agent
-        await send_message_to_agent(
-            destination=env.sender,
-            msg=ChatAcknowledgement(
-                timestamp=utc_now(), acknowledged_msg_id=msg.msg_id
-            ),
-            sender=agent.uri.identity,
-            agentverse_config=agent.uri.agentverse,
-        )
+        async with chat_error_on_fail(
+            "Failed to send ack", category="user", include_exc=False
+        ):
+            await send_message_to_agent(
+                destination=env.sender,
+                msg=ChatAcknowledgement(
+                    timestamp=utc_now(), acknowledged_msg_id=msg.msg_id
+                ),
+                sender=_ctx.agent.uri.identity,
+                session_id=env.session,
+                agentverse_config=_ctx.agent.uri.agentverse,
+            )
 
         if len(msg.content) == 1 and isinstance(msg.content[0], StartSessionContent):
             return
@@ -165,33 +172,34 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
 
         logger.debug("Processing chat message by a2a server...")
 
-        try:
-            async for event in self._request_handler.on_message_send_stream(params):
-                if is_task_complete(event):
-                    self._session_contexts.pop(env.session, None)
-                else:
-                    self._session_contexts[env.session] = event.contextId
+        replied = False
+        final = False
 
-                content = extract_content(event)
-                if content:
+        async for event in self._request_handler.on_message_send_stream(params):
+            if is_task_complete(event):
+                final = True
+                self._session_contexts.pop(env.session, None)
+            else:
+                self._session_contexts[env.session] = event.context_id
+
+            async with chat_error_on_fail(
+                "Failed to parse agent response, please retry later"
+            ):
+                content = await extract_content(
+                    event,
+                    lambda blob, mime: upload_to_storage_safe(blob, mime, _ctx.agent.uri),
+                )
+
+            if content or (final and not replied):
+                replied = True
+                async with chat_error_on_fail(
+                    "Failed to send reply", category="user", include_exc=False
+                ):
                     await self._send_reply(
-                        content=content,
+                        content=content or [TextContent(text=DEFAULT_EMPTY_RESPONSE_TEXT)],
                         destination=env.sender,
                         session_id=env.session,
                     )
-        except Exception as e:
-            logger.error("A2A agent error: %s", e)
-            await self._send_reply(
-                content=[
-                    TextContent(
-                        type="text",
-                        text="Agent failed to process request, please retry later.",
-                    )
-                ],
-                destination=env.sender,
-                session_id=env.session,
-            )
-            raise
 
         logger.debug("Chat message processed by a2a server")
 
@@ -199,7 +207,7 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
         self,
         content: list[AgentContent],
         destination: str,
-        session_id: str | None = None,
+        session_id: UUID | None = None,
     ):
         agent = _ctx.agent
         await send_message_to_agent(

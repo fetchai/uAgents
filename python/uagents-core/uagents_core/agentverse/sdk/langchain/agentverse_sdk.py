@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import sys
@@ -20,10 +19,14 @@ from uagents_core.agentverse.sdk.common.av import (
     register_to_agentverse_sync,
     send_message_to_agent,
 )
+from uagents_core.agentverse.sdk.common.config import (
+    DEFAULT_EMPTY_RESPONSE_TEXT,
+)
 from uagents_core.agentverse.sdk.common.events import (
     FAILED_INIT_ERROR_FORMAT,
+    chat_error_on_fail,
     handle_init_errors,
-    report_error,
+    report_error_reply,
 )
 from uagents_core.agentverse.sdk.common.helpers import utc_now
 from uagents_core.agentverse.sdk.common.logger import configure, log_sdk, logger
@@ -43,11 +46,11 @@ from uagents_core.agentverse.sdk.common.types import (
 from uagents_core.agentverse.sdk.langchain.config import (
     DEFAULT_ENV_VARS,
     DEFAULT_HTTP_TIMEOUT,
-    DEFAULT_LANGGRAPH_ASSISTANT_ID,
     DEFAULT_LANGGRAPH_INTERNAL_BASE_URL,
     DEFAULT_LANGGRAPH_PORT,
     LangGraphAdapterConfig,
 )
+from uagents_core.agentverse.sdk.common.storage import upload_to_storage_safe
 from uagents_core.agentverse.sdk.langchain.content import extract_ai_content
 from uagents_core.agentverse.sdk.langchain.profile import _generate_registration_request
 from uagents_core.contrib.protocols.chat import (
@@ -152,7 +155,7 @@ class AgentverseLangGraphApplication:
         return lifespan
 
     def build(self) -> Starlette:
-        if _ctx.agent is None:
+        if _ctx.agent is None or _ctx.config is None:
             return self.original_app
 
         with handle_init_errors(_ctx.agent.uri):
@@ -189,7 +192,6 @@ class AgentverseLangGraphApplication:
     @report_error_starlette(_ctx, "user")
     async def _chat(self, request: Request) -> Response:
         logger.debug("Received chat request")
-        logger.debug("Request: %s", request)
 
         env, msg = await parse_chat_message_from_request(
             request, _ctx.agent.options.verify_envelope, _ctx.agent.uri.identity.address
@@ -206,7 +208,7 @@ class AgentverseLangGraphApplication:
             ),
         )
 
-    @report_error(_ctx, "user")
+    @report_error_reply(_ctx, "user")
     async def _process_and_reply(
         self,
         env: Envelope,
@@ -216,7 +218,10 @@ class AgentverseLangGraphApplication:
 
         sender_identity = _ctx.agent.uri.identity
 
-        await self._send_ack(env, msg, sender_identity)
+        async with chat_error_on_fail(
+            "Failed to send ack", category="user", include_exc=False
+        ):
+            await self._send_ack(env, msg, sender_identity)
 
         if len(msg.content) == 1 and isinstance(msg.content[0], StartSessionContent):
             return
@@ -225,26 +230,23 @@ class AgentverseLangGraphApplication:
 
         logger.debug("Processing chat message by LangGraph...")
 
-        try:
-            data = await self._call_runs_wait(text, env)
-            content = extract_ai_content(data)
-        except (json.JSONDecodeError, KeyError):
-            logger.error("Malformed response from LangGraph")
-            content = [
-                TextContent(
-                    text="Sorry, malformed response from the agent, please retry later."
-                )
-            ]
-        except Exception as e:
-            logger.error(
-                "Failed to process chat message by LangGraph with error: %s", e
+        data = await self._call_runs_wait(text, env)
+
+        async with chat_error_on_fail(
+            "Failed to parse agent response, please retry later"
+        ):
+            content = await extract_ai_content(
+                data,
+                lambda blob, mime: upload_to_storage_safe(blob, mime, _ctx.agent.uri),
             )
-            content = [TextContent(text="Sorry, agent failed to process request")]
 
         logger.debug("Chat message processed by LangGraph")
 
-        await self._send_reply(env, content, sender_identity)
-        logger.debug("Reply sent to %s", env.sender)
+        async with chat_error_on_fail(
+            "Failed to send reply", category="user", include_exc=False
+        ):
+            await self._send_reply(env, content, sender_identity)
+            logger.debug("Reply sent to %s", env.sender)
 
     def _get_runs_wait_path(self) -> str:
         if getattr(self.lg_config, "MOUNT_PREFIX", None):
@@ -330,6 +332,7 @@ class AgentverseLangGraphApplication:
                 acknowledged_msg_id=msg.msg_id,
             ),
             sender_identity,
+            session_id=env.session,
             agentverse_config=_ctx.agent.uri.agentverse,
         )
 
@@ -342,7 +345,7 @@ class AgentverseLangGraphApplication:
         av_response = ChatMessage(
             timestamp=utc_now(),
             msg_id=uuid4(),
-            content=content or [TextContent(text="")],
+            content=content or [TextContent(text=DEFAULT_EMPTY_RESPONSE_TEXT)],
         )
 
         await send_message_to_agent(

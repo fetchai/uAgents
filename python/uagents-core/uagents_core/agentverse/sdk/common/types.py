@@ -1,5 +1,6 @@
 import logging
 import platform
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property
@@ -19,6 +20,8 @@ try:
     sdk_version = version("uagents-core")
 except PackageNotFoundError:
     sdk_version = "0.0.0"
+
+Uploader = Callable[[bytes, str], Awaitable[str | None]]
 
 
 class AgentUri(BaseModel):

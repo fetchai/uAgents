@@ -51,9 +51,14 @@ Content block TypedDicts (all share: url, base64, file_id, mime_type, id, index,
 
 from __future__ import annotations
 
+import base64
+import json
 from typing import Any
+from urllib.parse import unquote_to_bytes
 from uuid import uuid4
 
+from uagents_core.agentverse.sdk.common.logger import logger
+from uagents_core.agentverse.sdk.common.types import Uploader
 from uagents_core.contrib.protocols.chat import (
     AgentContent,
     Resource,
@@ -62,12 +67,38 @@ from uagents_core.contrib.protocols.chat import (
 )
 
 
-def extract_ai_content(data: dict[str, Any]) -> list[AgentContent]:
+class SummariseData:
+    """Lazy log formatter that truncates long string values in nested dicts."""
+
+    __slots__ = ("_data", "_max_len")
+
+    def __init__(self, data: dict[str, Any], max_len: int = 200):
+        self._data = data
+        self._max_len = max_len
+
+    def __str__(self) -> str:
+        return json.dumps(self._trim(self._data), indent=2, default=str)
+
+    def _trim(self, obj):
+        if isinstance(obj, str):
+            return f"{obj[:self._max_len]}..." if len(obj) > self._max_len else obj
+        if isinstance(obj, dict):
+            return {k: self._trim(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [self._trim(item) for item in obj]
+        return obj
+
+
+async def extract_ai_content(
+    data: dict[str, Any], upload: Uploader | None = None
+) -> list[AgentContent]:
     """Extract AgentContent from all AI messages in a /runs/wait response.
 
     Expects ``data["messages"]`` — the MessagesState convention for /runs/wait.
     Processes every AI message in order.
     """
+    logger.debug("LangGraph response: %s", SummariseData(data))
+
     messages = data.get("messages")
     if not isinstance(messages, list):
         messages = []
@@ -76,16 +107,18 @@ def extract_ai_content(data: dict[str, Any]) -> list[AgentContent]:
     for msg in messages:
         if not isinstance(msg, dict):
             continue
-        if msg.get("type") != "ai":
+        if msg.get("type") not in ("ai", "tool"):
             continue
 
-        content.extend(message_content_to_agent_content(msg.get("content", "")))
+        content.extend(
+            await message_content_to_agent_content(msg.get("content", ""), upload)
+        )
 
     return content
 
 
-def message_content_to_agent_content(
-    content: str | list[dict[str, Any]],
+async def message_content_to_agent_content(
+    content: str | list[dict[str, Any]], upload: Uploader | None = None
 ) -> list[AgentContent]:
     """Convert a single LangChain message's ``content`` field to AgentContent.
 
@@ -101,22 +134,24 @@ def message_content_to_agent_content(
             if not isinstance(block, dict):
                 continue
 
-            converted = _convert_content_block(block)
+            converted = await _convert_content_block(block, upload)
             if converted is not None:
                 result.append(converted)
 
     return result
 
 
-def _convert_content_block(block: dict[str, Any]) -> AgentContent | None:
+async def _convert_content_block(
+    block: dict[str, Any], upload: Uploader | None = None
+) -> AgentContent | None:
     block_type = block.get("type", "")
 
     if block_type == "text":
         text = block.get("text", "")
         return TextContent(text=text) if text else None
 
-    if block_type == "image":
-        return _convert_media_block(block, fallback_mime=None)
+    if block_type in ("image", "audio", "video", "file"):
+        return await _convert_media_block(block, upload, fallback_mime=None)
 
     if block_type == "image_url":
         try:
@@ -125,27 +160,47 @@ def _convert_content_block(block: dict[str, Any]) -> AgentContent | None:
             metadata: dict[str, str] = (
                 {"detail": str(detail)} if detail is not None else {}
             )
+            return await _convert_data_url(url, upload, metadata)
         except (KeyError, TypeError):
-            return None
-        return ResourceContent(
-            resource_id=uuid4(),
-            resource=Resource(uri=url, metadata=metadata),
-        )
-
-    if block_type in ("audio", "video", "file"):
-        return _convert_media_block(block, fallback_mime=None)
+            return TextContent(text="[image_url: malformed block]")
 
     return None
 
 
-def _convert_media_block(
+async def _convert_data_url(
+    url: str, upload: Uploader | None, metadata: dict[str, str]
+) -> ResourceContent:
+    """Convert an image_url URL to ResourceContent, uploading data: URIs when possible."""
+    uri = url
+
+    if url.startswith("data:") and upload is not None:
+        try:
+            header, data = url.removeprefix("data:").split(",", 1)
+            parts = header.split(";")
+            mime = parts[0] or "text/plain"
+            if "base64" in parts[1:]:
+                content = base64.b64decode(data)
+            else:
+                content = unquote_to_bytes(data)
+            uri = await upload(content, mime) or url
+        except (ValueError, base64.binascii.Error):
+            pass
+
+    return ResourceContent(
+        resource_id=uuid4(),
+        resource=Resource(uri=uri, metadata=metadata),
+    )
+
+
+async def _convert_media_block(
     block: dict[str, Any],
+    upload: Uploader | None,
     fallback_mime: str | None,
 ) -> AgentContent | None:
     """Convert image/audio/video/file content blocks to ResourceContent.
 
-    Supports both URL-based and base64-based blocks. For base64 blocks, a
-    data: URI is constructed inline (same approach as A2A FileWithBytes).
+    For base64 blocks, attempts upload via the provided callable first.
+    Falls back to a data: URI if upload is not provided or returns None.
     """
     metadata: dict[str, str] = {}
     for key in ("mime_type", "file_id", "id", "index"):
@@ -164,7 +219,11 @@ def _convert_media_block(
     if b64:
         mime = metadata.get("mime_type") or fallback_mime or "application/octet-stream"
         metadata["mime_type"] = mime
-        uri = f"data:{mime};base64,{b64}"
+
+        uri = await upload(base64.b64decode(b64), mime) if upload else None
+        if uri is None:
+            uri = f"data:{mime};base64,{b64}"
+
         return ResourceContent(
             resource_id=uuid4(),
             resource=Resource(uri=uri, metadata=metadata),
