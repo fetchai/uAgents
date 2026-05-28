@@ -1,9 +1,13 @@
+import json
+from datetime import datetime, timezone
+from typing import Any
 from uuid import uuid4
 
 from uagents import Context, Protocol
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
     ChatMessage,
+    EndSessionContent,
     MetadataContent,
     TextContent,
     chat_protocol_spec,
@@ -36,8 +40,52 @@ MENU_CAROUSEL = CarouselCardPayload(
     ],
 )
 
+MENU_INTRO = "Pick a snack from the menu:"
+
 host_proto = Protocol(spec=chat_protocol_spec)
 picker_proto = Protocol(spec=chat_protocol_spec)
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _chat(content: list) -> ChatMessage:
+    return ChatMessage(timestamp=_now(), msg_id=uuid4(), content=content)
+
+
+def _parse_ui_selection(text: str) -> dict[str, Any] | None:
+    """ASI UI follow-up: @agent… {"item_id":"apple","approved":true}"""
+    start = text.find("{")
+    if start == -1:
+        return None
+    try:
+        data = json.loads(text[start:])
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    item_id = data.get("item_id")
+    if not item_id:
+        return None
+    return {"item_id": str(item_id)}
+
+
+async def _confirm_order(ctx: Context, sender: str, selection: dict[str, Any]) -> None:
+    item_id = selection["item_id"]
+    ctx.logger.info("Order confirmed: %s", item_id)
+    await ctx.send(
+        sender,
+        _chat(
+            [
+                TextContent(
+                    type="text",
+                    text=f"Got it — ordering {item_id} for you.",
+                ),
+                EndSessionContent(type="end-session"),
+            ]
+        ),
+    )
 
 
 @host_proto.on_message(ChatAcknowledgement)
@@ -47,31 +95,37 @@ async def host_ack(_ctx: Context, _sender: str, _msg: ChatAcknowledgement):
 
 @host_proto.on_message(ChatMessage)
 async def host_handle_chat(ctx: Context, sender: str, msg: ChatMessage):
+    await ctx.send(
+        sender,
+        ChatAcknowledgement(timestamp=_now(), acknowledged_msg_id=msg.msg_id),
+    )
+
+    text = msg.text()
+
     for block in msg.content:
         if not isinstance(block, MetadataContent):
             continue
         response = extract_card_response(block)
-        if response is None:
-            continue
-        if response.cancelled:
-            ctx.logger.info("Picker cancelled the card")
-        elif response.selection is not None:
-            ctx.logger.info("Picker selected: %s", response.selection)
-        await ctx.send(sender, ChatAcknowledgement(acknowledged_msg_id=msg.msg_id))
+        if response and response.selection:
+            await _confirm_order(ctx, sender, response.selection)
+            return
+
+    selection = _parse_ui_selection(text)
+    if selection:
+        await _confirm_order(ctx, sender, selection)
         return
 
-    if msg.text().strip().lower() != "menu":
-        return
-
-    await ctx.send(
-        sender,
-        ChatMessage(
-            [
-                TextContent("Choose a snack:"),
-                create_card_content(MENU_CAROUSEL, card_id=uuid4()),
-            ]
-        ),
-    )
+    if "menu" in text.lower():
+        ctx.logger.info("Sending menu card")
+        await ctx.send(
+            sender,
+            _chat(
+                [
+                    TextContent(type="text", text=MENU_INTRO),
+                    create_card_content(MENU_CAROUSEL, card_id=uuid4()),
+                ]
+            ),
+        )
 
 
 @picker_proto.on_message(ChatAcknowledgement)
@@ -92,10 +146,9 @@ async def picker_handle_chat(ctx: Context, sender: str, msg: ChatMessage):
             ctx.logger.warning("Expected a carousel card with at least one item")
             return
         selection = payload.items[0].primary_cta.selection
-        ctx.logger.info("Replying with selection: %s", selection)
         await ctx.send(
             sender,
-            ChatMessage(
+            _chat(
                 [
                     create_card_response_content(
                         card_id=card.card_id,
@@ -106,4 +159,7 @@ async def picker_handle_chat(ctx: Context, sender: str, msg: ChatMessage):
         )
         return
 
-    await ctx.send(sender, ChatAcknowledgement(acknowledged_msg_id=msg.msg_id))
+    await ctx.send(
+        sender,
+        ChatAcknowledgement(timestamp=_now(), acknowledged_msg_id=msg.msg_id),
+    )

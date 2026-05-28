@@ -32,6 +32,7 @@ CARD_PROTOCOL_VERSION = "1"
 MAX_ELEMENT_TREE_DEPTH = 8
 
 META_CARD_PROTOCOL_VERSION = "card_protocol_version"
+META_REQUIRES_CARD_INTERACTION = "requires_card_interaction"
 META_CARD_ID = "card_id"
 META_CARD_KIND = "card_kind"
 META_CARD_PAYLOAD = "card_payload"
@@ -414,8 +415,9 @@ def create_card_content(
     card_kind = card_kind_for_payload(card.payload)
     metadata: dict[str, str] = {
         META_CARD_PROTOCOL_VERSION: CARD_PROTOCOL_VERSION,
+        META_REQUIRES_CARD_INTERACTION: "true",
         META_CARD_KIND: card_kind,
-        META_CARD_PAYLOAD: card.payload.model_dump_json(),
+        META_CARD_PAYLOAD: card.payload.model_dump_json(exclude_none=True),
     }
     if card.card_id is not None:
         metadata[META_CARD_ID] = str(card.card_id)

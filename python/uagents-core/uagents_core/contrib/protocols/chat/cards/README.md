@@ -1,41 +1,35 @@
 # Interactive cards (metadata path)
 
-Structured UI cards (carousel, detail, form, review, custom element tree) sent inside
-`MetadataContent` blocks on the existing chat protocol. No protocol digest change.
+Structured UI cards in `MetadataContent` on the chat protocol. No digest change.
 
-**Import path:** `uagents_core.contrib.protocols.chat.cards`
+**Import:** `uagents_core.contrib.protocols.chat.cards`
 
-Always build and parse card blocks with the helpers — do not hand-roll metadata keys
-unless you are implementing a non-Python consumer.
+Use the helpers for metadata keys — do not hand-roll them in Python.
 
 | Helper | Role |
 |--------|------|
-| `create_card_content()` | Card request → `MetadataContent` |
-| `create_card_response_content()` | Card response → `MetadataContent` |
-| `extract_card()` | `MetadataContent` → `Card` or `None` |
-| `extract_card_response()` | `MetadataContent` → `CardResponse` or `None` |
+| `create_card_content()` | Request → `MetadataContent` |
+| `create_card_response_content()` | Response → `MetadataContent` |
+| `extract_card()` | Request block → `Card` or `None` |
+| `extract_card_response()` | Response block → `CardResponse` or `None` |
 
-Payload shapes: `CarouselCardPayload`, `DetailCardPayload`, `FormCardPayload`,
-`ReviewCardPayload`, `CustomCardPayload`. Validate ad hoc dicts with
-`validate_card_payload(card_kind, payload)`.
+Payload types: `CarouselCardPayload`, `DetailCardPayload`, `FormCardPayload`,
+`ReviewCardPayload`, `CustomCardPayload`. Ad hoc dicts: `validate_card_payload(card_kind, payload)`.
 
-## Metadata convention (version `"1"`)
+## Wire format (version `"1"`)
 
-**Request** — `card_protocol_version`, `card_kind`, `card_payload` (JSON). Optional:
-`card_id`, `is_terminal`, `preferred_drawer_width_px`.
+**Request** — `card_protocol_version`, `requires_card_interaction` (`"true"`), `card_kind`,
+`card_payload` (JSON). Optional: `card_id`, `is_terminal`, `preferred_drawer_width_px`.
 
-**Response** — `card_protocol_version` without `card_kind`. Optional: `card_id`, `text`,
-`selection` (JSON object of JSON primitives), `cancelled`.
+**Response** — `card_protocol_version`, no `card_kind`. Optional: `card_id`, `text`,
+`selection` (JSON primitives), `cancelled`.
 
-A block is a **request** when `card_kind` is present; a **response** when it is absent.
+Request blocks include `card_kind`; response blocks do not.
 
 ## Example
 
-This module lives in **uagents-core**. Send chat messages with
-`uagents_core.utils.messages.send_message_to_agent`, not `ctx.send` from the full
-`uagents` agent runtime.
-
-Agent sends a carousel card, then handles the user's structured reply:
+Send with `send_message_to_agent` (`uagents_core.utils.messages`). In the uAgents runtime
+you may use `ctx.send` instead.
 
 ```python
 from uuid import uuid4
@@ -54,71 +48,70 @@ from uagents_core.identity import Identity
 from uagents_core.utils.messages import parse_envelope, send_message_to_agent
 
 identity = Identity.from_seed("your-seed-phrase", 0)
-recipient = "agent1q..."  # destination agent address
 
-payload = CarouselCardPayload(
-    title="Choose a flight",
-    items=[
-        CarouselItem(
-            id="off_1",
-            title="British Airways",
-            primary_cta=CtaAction(label="Select", selection={"offer_id": "off_1"}),
-        )
-    ],
-)
-
+# Outbound card request
 send_message_to_agent(
-    destination=recipient,
+    destination="agent1q...",
     msg=ChatMessage(
         [
-            TextContent("Here are some options:"),
-            create_card_content(payload, card_id=uuid4()),
+            TextContent("Pick one:"),
+            create_card_content(
+                CarouselCardPayload(
+                    title="Snacks",
+                    items=[
+                        CarouselItem(
+                            id="apple",
+                            title="Apple",
+                            primary_cta=CtaAction(
+                                label="Order", selection={"item_id": "apple"}
+                            ),
+                        ),
+                        CarouselItem(
+                            id="banana",
+                            title="Banana",
+                            primary_cta=CtaAction(
+                                label="Order", selection={"item_id": "banana"}
+                            ),
+                        ),
+                    ],
+                ),
+                card_id=uuid4(),
+            ),
         ]
     ),
     sender=identity,
 )
 
-# In your inbound handler: parse the envelope, then scan MetadataContent blocks.
+# Inbound: prefer MetadataContent (standard)
 msg = parse_envelope(env, ChatMessage)
-card = None
-for block in msg.content:
-    if isinstance(block, MetadataContent):
-        card = extract_card(block)
-        if card is not None:
-            break
-
-if card is None:
-    return
-
-send_message_to_agent(
-    destination=env.sender,
-    msg=ChatMessage(
-        [
-            create_card_response_content(
-                card_id=card.card_id,
-                selection={"offer_id": "off_1"},
-            )
-        ]
-    ),
-    sender=identity,
-)
-
-response = None
 for block in msg.content:
     if isinstance(block, MetadataContent):
         response = extract_card_response(block)
-        if response is not None:
-            break
-
-if response is None or response.cancelled:
-    return
-if response.selection is not None:
-    ...
+        if response and response.selection:
+            ...
+        card = extract_card(block)
+        if card:
+            send_message_to_agent(
+                destination=env.sender,
+                msg=ChatMessage(
+                    [
+                        create_card_response_content(
+                            card_id=card.card_id,
+                            selection={"item_id": "apple"},
+                        )
+                    ]
+                ),
+                sender=identity,
+            )
 ```
 
-For async code paths (for example the Agentverse SDK), use
-`uagents_core.agentverse.sdk.common.av.send_message_to_agent` with the same
-arguments.
+**Replies:** Handle card responses with `extract_card_response()` on `MetadataContent`.
+That is the standard path.
 
-`card_id` is optional on the request; echo it on the response when you need strict
-correlation. Otherwise rely on chat message history.
+Some clients still send the CTA `selection` as JSON inside `TextContent` for backwards
+compatibility. You may parse `msg.text()` if needed; new integrations should use
+`create_card_response_content()` / `extract_card_response()`.
+
+Runnable demo: `python/tests/examples/45-interactive-cards/`.
+
+`card_id` is optional; echo it on the response when you need strict correlation.
