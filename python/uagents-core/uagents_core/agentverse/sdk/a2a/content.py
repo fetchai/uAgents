@@ -32,6 +32,7 @@ A2A Python SDK types (Pydantic models with snake_case fields, camelCase JSON ali
 
 from __future__ import annotations
 
+import base64
 import json
 from uuid import uuid4
 
@@ -51,6 +52,7 @@ from a2a.types import (
     TextPart,
 )
 
+from uagents_core.agentverse.sdk.common.types import Uploader
 from uagents_core.contrib.protocols.chat import (
     AgentContent,
     Resource,
@@ -59,7 +61,9 @@ from uagents_core.contrib.protocols.chat import (
 )
 
 
-def parts_to_agent_content(parts: list[Part]) -> list[AgentContent]:
+async def parts_to_agent_content(
+    parts: list[Part], upload: Uploader | None = None
+) -> list[AgentContent]:
     """Convert a list of A2A ``Part`` objects to chat protocol ``AgentContent``.
 
     Handles TextPart, FilePart (both URI and base64-bytes variants), and
@@ -68,8 +72,8 @@ def parts_to_agent_content(parts: list[Part]) -> list[AgentContent]:
     FileWithUri maps directly to ResourceContent — the URI is passed through
     and name/mimeType are forwarded into Resource.metadata.
 
-    FileWithBytes is converted to a ResourceContent with a data: URI embedding
-    the base64 content inline.
+    FileWithBytes is uploaded via the provided ``upload`` callable first.
+    Falls back to a data: URI if upload is not provided or returns None.
     """
     content: list[AgentContent] = []
     for part in parts:
@@ -91,15 +95,19 @@ def parts_to_agent_content(parts: list[Part]) -> list[AgentContent]:
                     )
                 )
             elif isinstance(file, FileWithBytes):
-                # Ideally we would upload to ExternalStorage and reference the
-                # asset_id, but POST /v1/storage/assets/ requires a user Bearer
-                # token — agent attestation tokens can only PUT to existing
-                # assets.  Use a data: URI to preserve content inline.
                 mime = file.mime_type or "application/octet-stream"
-                uri = f"data:{mime};base64,{file.bytes}"
                 metadata: dict[str, str] = {"mime_type": mime}
                 if file.name:
                     metadata["name"] = file.name
+
+                uri = (
+                    await upload(base64.b64decode(file.bytes), mime)
+                    if upload
+                    else None
+                )
+                if uri is None:
+                    uri = f"data:{mime};base64,{file.bytes}"
+
                 content.append(
                     ResourceContent(
                         resource_id=uuid4(),
@@ -107,13 +115,14 @@ def parts_to_agent_content(parts: list[Part]) -> list[AgentContent]:
                     )
                 )
         elif isinstance(inner, DataPart):
-            # TextContent is a lossy stand-in: the chat protocol has no
-            # structured-data content type matching A2A DataPart.
             content.append(TextContent(text=json.dumps(inner.data, default=str)))
+
     return content
 
 
-def extract_content(event: Event) -> list[AgentContent]:
+async def extract_content(
+    event: Event, upload: Uploader | None = None
+) -> list[AgentContent]:
     """Extract AgentContent from an A2A streaming Event.
 
     Handles all four Event variants:
@@ -125,20 +134,24 @@ def extract_content(event: Event) -> list[AgentContent]:
     Returns an empty list when there is no content to forward.
     """
     if isinstance(event, Message):
-        return parts_to_agent_content(event.parts)
+        return await parts_to_agent_content(event.parts, upload)
 
     if isinstance(event, TaskArtifactUpdateEvent):
-        return parts_to_agent_content(event.artifact.parts)
+        return await parts_to_agent_content(event.artifact.parts, upload)
 
     if isinstance(event, TaskStatusUpdateEvent):
-        return _extract_status_content(event.status, event.final)
+        return await _extract_status_content(event.status, event.final, upload)
 
     if isinstance(event, Task):
         content: list[AgentContent] = []
         if event.artifacts:
             for artifact in event.artifacts:
-                content.extend(parts_to_agent_content(artifact.parts))
-        return content or _extract_status_content(event.status, final=True)
+                content.extend(
+                    await parts_to_agent_content(artifact.parts, upload)
+                )
+        return content or await _extract_status_content(
+            event.status, final=True, upload=upload
+        )
 
     return []
 
@@ -168,30 +181,32 @@ def is_task_complete(event: Event) -> bool:
     return False
 
 
-def _extract_status_content(status: TaskStatus, final: bool) -> list[AgentContent]:
+async def _extract_status_content(
+    status: TaskStatus, final: bool, upload: Uploader | None = None
+) -> list[AgentContent]:
     """Extract content from a TaskStatus based on state."""
     state = status.state
 
     if status.message and status.message.parts:
-        return parts_to_agent_content(status.message.parts)
+        return await parts_to_agent_content(status.message.parts, upload)
 
     if state == TaskState.working:
-        return [TextContent(type="text", text="Agent is working on your request...")]
+        return [TextContent(text="Agent is working on your request...")]
 
     if state == TaskState.failed:
-        return [TextContent(type="text", text="Agent failed to process the request.")]
+        return [TextContent(text="Agent failed to process the request.")]
 
     if state == TaskState.input_required:
-        return [TextContent(type="text", text="Agent needs additional input.")]
+        return [TextContent(text="Agent needs additional input.")]
 
     if state == TaskState.canceled:
-        return [TextContent(type="text", text="Task was canceled.")]
+        return [TextContent(text="Task was canceled.")]
 
     if state == TaskState.rejected:
-        return [TextContent(type="text", text="Task was rejected by the agent.")]
+        return [TextContent(text="Task was rejected by the agent.")]
 
     if state == TaskState.auth_required:
-        return [TextContent(type="text", text="Agent requires authentication.")]
+        return [TextContent(text="Agent requires authentication.")]
 
     # completed, submitted, unknown — no message to forward
     return []

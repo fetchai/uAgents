@@ -23,7 +23,6 @@ from uagents_core.storage import compute_attestation
 from uagents_core.types import JsonStr
 from uagents_core.utils.messages import generate_message_envelope, parse_envelope_raw
 from uagents_core.utils.registration import (
-    AgentverseRequestError,
     _send_post_request_agentverse,
 )
 from uagents_core.utils.resolver import AlmanacResolver
@@ -47,17 +46,12 @@ def register_to_agentverse_sync(
     agentverse: AgentverseConfig,
     timeout: int = DEFAULT_HTTP_REQUESTS_TIMEOUT,
 ):
-    try:
-        _send_post_request_agentverse(
-            url=agentverse.agents_api,
-            data=request,
-            headers=headers,
-            timeout=timeout,
-        )
-    except AgentverseRequestError:
-        raise
-    except Exception:
-        raise
+    _send_post_request_agentverse(
+        url=agentverse.agents_api,
+        data=request,
+        headers=headers,
+        timeout=timeout,
+    )
 
 
 def verify_envelope(envelope: Envelope) -> bool:
