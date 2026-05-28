@@ -6,7 +6,12 @@ from protocols import picker_proto
 # Copy the address printed when menu_host.py starts.
 MENU_HOST_ADDRESS = "agent1q0jycdv6z8cppknsgl98ee669futsme2zmmpm5qajdy675x5gefu288zrd2"
 
-agent = Agent(name="picker-staging", port=8001, mailbox=True, agentverse="https://staging.agentverse.ai")
+agent = Agent(
+    name="picker-staging",
+    port=8001,
+    mailbox=True,
+    agentverse="https://staging.agentverse.ai",
+)
 agent.include(picker_proto)
 
 
