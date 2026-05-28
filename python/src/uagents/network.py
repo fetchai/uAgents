@@ -41,7 +41,6 @@ from uagents.utils import get_logger
 
 logger: Logger = get_logger("network")
 
-
 _faucet_api = FaucetApi(NetworkConfig.fetchai_stable_testnet())
 _testnet_ledger = LedgerClient(NetworkConfig.fetchai_stable_testnet())
 _mainnet_ledger = LedgerClient(NetworkConfig.fetchai_mainnet())

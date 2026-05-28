@@ -164,8 +164,8 @@ class AgentverseA2AStarletteApplication(A2AStarletteApplication):
         params = MessageSendParams(
             message=A2AMessage(
                 role="user",
-                messageId=str(uuid4()),
-                contextId=context_id,
+                message_id=str(uuid4()),
+                context_id=context_id,
                 parts=[Part(root=TextPart(text=msg.text()))],
             ),
         )
