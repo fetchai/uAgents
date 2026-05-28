@@ -7,7 +7,7 @@ blocks; the chat protocol digest is unchanged.
 | Agent | Role |
 |-------|------|
 | `menu-host` | Receives `"menu"`, replies with a carousel card, confirms the selection |
-| `picker` | Asks for the menu, auto-selects the first carousel item, sends a card response |
+| `menu-picker` | Asks for the menu, auto-selects the first carousel item, sends a card response |
 
 Shared handlers live in `protocols.py`. Wire format and helpers are documented in
 `uagents_core/contrib/protocols/chat/cards/README.md`.
