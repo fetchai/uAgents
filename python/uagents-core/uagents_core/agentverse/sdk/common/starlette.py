@@ -1,5 +1,5 @@
 import functools
-from contextlib import _AsyncGeneratorContextManager, asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from typing import Callable, cast
 
 from starlette import status
@@ -9,6 +9,7 @@ from starlette.requests import Request
 
 from uagents_core.agentverse.sdk.common.av import set_agent_status, verify_envelope
 from uagents_core.agentverse.sdk.common.events import dispatch_event, report_error
+from uagents_core.agentverse.sdk.common.logger import logger
 from uagents_core.agentverse.sdk.common.types import (
     AgentBatchEvents,
     AgentContext,
@@ -58,20 +59,31 @@ async def parse_chat_message_from_request(
 async def agent_status_lifespan(app: Starlette):
     if hasattr(app.state, "agent"):
         agent = app.state.agent
-        await set_agent_status(agent.identity, True, agent.agentverse)
-        # TODO(LR): make dispatch_event asynchronous
-        dispatch_event(agent, AgentBatchEvents.from_message("Agent Started"))
+        try:
+            await set_agent_status(agent.identity, True, agent.agentverse)
+            await dispatch_event(
+                agent, AgentBatchEvents.from_message("Agent Started")
+            )
+        except Exception as e:
+            logger.error("Failed to report agent start: %s", e)
     yield
     if hasattr(app.state, "agent"):
         agent = app.state.agent
-        await set_agent_status(agent.identity, False, agent.agentverse)
-        # TODO(LR): make dispatch_event asynchronous
-        dispatch_event(agent, AgentBatchEvents.from_message("Agent Stopped"))
+        try:
+            await set_agent_status(agent.identity, False, agent.agentverse)
+            await dispatch_event(
+                agent, AgentBatchEvents.from_message("Agent Stopped")
+            )
+        except Exception as e:
+            logger.error("Failed to report agent stop: %s", e)
+
+
+Lifespan = Callable[[Starlette], AbstractAsyncContextManager[None]]
 
 
 def setup_agent_status_lifespan(
-    existing_lifespan: _AsyncGeneratorContextManager[None, None] | None = None,
-) -> _AsyncGeneratorContextManager[None, None]:
+    existing_lifespan: Lifespan | None = None,
+) -> Lifespan:
     if existing_lifespan is None:
         return agent_status_lifespan
 
