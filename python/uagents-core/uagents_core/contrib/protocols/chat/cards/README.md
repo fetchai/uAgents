@@ -1,6 +1,6 @@
 # Interactive cards (metadata path)
 
-Structured UI cards in `MetadataContent` on the chat protocol. No digest change.
+Structured interactive cards in `MetadataContent` on the chat protocol. No digest change.
 
 **Import:** `uagents_core.contrib.protocols.chat.cards`
 

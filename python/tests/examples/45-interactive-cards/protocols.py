@@ -54,8 +54,8 @@ def _chat(content: list) -> ChatMessage:
     return ChatMessage(timestamp=_now(), msg_id=uuid4(), content=content)
 
 
-def _parse_ui_selection(text: str) -> dict[str, Any] | None:
-    """ASI UI follow-up: @agent… {"item_id":"apple","approved":true}"""
+def _parse_legacy_text_selection(text: str) -> dict[str, Any] | None:
+    """Legacy TextContent reply: JSON object with item_id (backwards compatibility)."""
     start = text.find("{")
     if start == -1:
         return None
@@ -110,7 +110,7 @@ async def host_handle_chat(ctx: Context, sender: str, msg: ChatMessage):
             await _confirm_order(ctx, sender, response.selection)
             return
 
-    selection = _parse_ui_selection(text)
+    selection = _parse_legacy_text_selection(text)
     if selection:
         await _confirm_order(ctx, sender, selection)
         return
