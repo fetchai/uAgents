@@ -2934,7 +2934,7 @@ requires-dist = [
     { name = "litellm", marker = "extra == 'all'", specifier = ">=1.78.6,<2.0" },
     { name = "litellm", marker = "extra == 'llm'", specifier = ">=1.78.6,<2.0" },
     { name = "pydantic", specifier = ">=2.8,<3.0" },
-    { name = "uagents-core", editable = "uagents-core" },
+    { name = "uagents-core", specifier = ">=0.4.5" },
     { name = "uvicorn", specifier = ">=0.30.1,<1.0" },
 ]
 provides-extras = ["all", "wallet", "llm"]
@@ -2954,7 +2954,7 @@ dev = [
 [[package]]
 name = "uagents-core"
 version = "0.4.5"
-source = { editable = "uagents-core" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bech32" },
     { name = "ecdsa" },
@@ -2962,27 +2962,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "requests" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "a2a-sdk", marker = "extra == 'a2a'", specifier = ">=0.3.20,<0.4.0" },
-    { name = "bech32", specifier = ">=1.2.0,<2.0" },
-    { name = "ecdsa", specifier = ">=0.19.0,<1.0" },
-    { name = "httpx", specifier = ">=0.28.1,<0.29.0" },
-    { name = "httpx", marker = "python_full_version >= '3.11' and extra == 'langgraph'", specifier = ">=0.28.1,<0.29.0" },
-    { name = "langgraph-api", marker = "python_full_version >= '3.11' and extra == 'langgraph'", specifier = ">=0.2.0,<1.0" },
-    { name = "langgraph-cli", marker = "python_full_version >= '3.11' and extra == 'langgraph'", specifier = ">=0.4.0,<1.0" },
-    { name = "pydantic", specifier = ">=2.8,<3.0" },
-    { name = "python-dotenv", marker = "python_full_version >= '3.11' and extra == 'langgraph'", specifier = ">=1.0.0,<2.0" },
-    { name = "requests", specifier = ">=2.32.3,<3.0" },
-    { name = "starlette", marker = "python_full_version >= '3.11' and extra == 'langgraph'", specifier = ">=0.37.0,<1.0" },
-]
-provides-extras = ["a2a", "langgraph"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pre-commit", specifier = ">=4.1.0,<5" },
-    { name = "ruff", specifier = ">=0.11.0,<0.12" },
+sdist = { url = "https://files.pythonhosted.org/packages/ef/2d/17643a7b0c12fb8c90f37e591c191b3474a5f0e31383b8b92306310e88e1/uagents_core-0.4.5.tar.gz", hash = "sha256:003093abc29467b8fed4dd04ed8f31b791d2370cb8599398fce30322d1419257", size = 202951, upload-time = "2026-05-21T08:43:00.018Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/da/3e/18eb5bf0110d759ecc5ec94ccf104d3b38698315d308d587bb08ca1507d9/uagents_core-0.4.5-py3-none-any.whl", hash = "sha256:f6f7c9453ee8f7960a587c350a0b7093adb3fc60e8fa85d329ca262fb2ff5cc9", size = 64074, upload-time = "2026-05-21T08:42:58.549Z" },
 ]
 
 [[package]]
