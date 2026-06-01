@@ -89,13 +89,24 @@ class SummariseData:
         return obj
 
 
+def _turn_messages_since_last_human(messages: list[Any]) -> list[Any]:
+    last_human_idx = -1
+    for i, msg in enumerate(messages):
+        if isinstance(msg, dict) and msg.get("type") == "human":
+            last_human_idx = i
+    if last_human_idx < 0:
+        return messages
+    return messages[last_human_idx + 1 :]
+
+
 async def extract_ai_content(
     data: dict[str, Any], upload: Uploader | None = None
 ) -> list[AgentContent]:
-    """Extract AgentContent from all AI messages in a /runs/wait response.
+    """Extract AgentContent from the current turn in a /runs/wait response.
 
     Expects ``data["messages"]`` — the MessagesState convention for /runs/wait.
-    Processes every AI message in order.
+    Threaded runs return the full conversation history; only the latest reply
+    for the current user message is returned.
     """
     logger.debug("LangGraph response: %s", SummariseData(data))
 
@@ -103,19 +114,18 @@ async def extract_ai_content(
     if not isinstance(messages, list):
         messages = []
 
-    content: list[AgentContent] = []
-    for msg in messages:
+    turn_messages = _turn_messages_since_last_human(messages)
+
+    for msg in reversed(turn_messages):
         if not isinstance(msg, dict):
             continue
         if msg.get("type") not in ("ai", "tool"):
             continue
+        content = await message_content_to_agent_content(msg.get("content", ""), upload)
+        if content:
+            return content
 
-        content.extend(
-            await message_content_to_agent_content(msg.get("content", ""), upload)
-        )
-
-    return content
-
+    return []
 
 async def message_content_to_agent_content(
     content: str | list[dict[str, Any]], upload: Uploader | None = None
