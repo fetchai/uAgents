@@ -304,7 +304,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         except grpc.RpcError as e:
             if is_ledger_rpc_unavailable(e):
                 self._logger.warning(
-                    "Ledger unavailable; Almanac contract registration skipped "
+                    "Ledger unavailable. Almanac contract registration skipped "
                     "(will retry later)"
                 )
                 self._logger.debug(e)
@@ -499,7 +499,7 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
         except grpc.RpcError as e:
             if is_ledger_rpc_unavailable(e):
                 self._logger.warning(
-                    "Ledger network unavailable; Almanac contract registration skipped "
+                    "Ledger network unavailable. Almanac contract registration skipped "
                     "(will retry later)"
                 )
                 self._logger.debug(e)
