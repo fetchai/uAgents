@@ -81,7 +81,7 @@ class SummariseData:
 
     def _trim(self, obj):
         if isinstance(obj, str):
-            return f"{obj[:self._max_len]}..." if len(obj) > self._max_len else obj
+            return f"{obj[: self._max_len]}..." if len(obj) > self._max_len else obj
         if isinstance(obj, dict):
             return {k: self._trim(v) for k, v in obj.items()}
         if isinstance(obj, list):
@@ -126,6 +126,7 @@ async def extract_ai_content(
             return content
 
     return []
+
 
 async def message_content_to_agent_content(
     content: str | list[dict[str, Any]], upload: Uploader | None = None
