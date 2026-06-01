@@ -859,7 +859,7 @@ class Agent(Sink):
                 except Exception as ex:
                     if is_ledger_rpc_unavailable(ex):
                         self._logger.warning(
-                            "Ledger network unavailable; registration will retry later"
+                            "Ledger network unavailable. Registration will retry later"
                         )
                         self._logger.debug(ex)
                     else:
@@ -1695,7 +1695,7 @@ class Bureau:
                 except Exception as ex:
                     if is_ledger_rpc_unavailable(ex):
                         self._logger.warning(
-                            "Ledger network unavailable; registration will retry later"
+                            "Ledger network unavailable. Registration will retry later"
                         )
                         self._logger.debug(ex)
                     else:
