@@ -6,6 +6,7 @@ from collections.abc import Callable
 from logging import Logger
 from typing import Any
 
+import grpc
 from cosmpy.aerial.client import (
     DEFAULT_QUERY_INTERVAL_SECS,
     Account,
@@ -69,6 +70,24 @@ def block_polling_exp_backoff(retry: int) -> float:
 
 class InsufficientFundsError(Exception):
     """Raised when an agent has insufficient funds for a transaction."""
+
+
+_LEDGER_UNAVAILABLE_STATUS_CODES = frozenset[grpc.StatusCode](
+    {
+        grpc.StatusCode.UNAVAILABLE,
+        grpc.StatusCode.DEADLINE_EXCEEDED,
+    }
+)
+
+LEDGER_UNAVAILABLE_WARNING = (
+    "Ledger unavailable. Contract interactions temporarily disabled (will retry later)"
+)
+
+
+def is_ledger_rpc_unavailable(error: Exception) -> bool:
+    if isinstance(error, grpc.RpcError):
+        return error.code() in _LEDGER_UNAVAILABLE_STATUS_CODES
+    return False
 
 
 class BroadcastTimeoutError(RuntimeError):
@@ -223,10 +242,14 @@ class AlmanacContract(LedgerContract):
                 )
                 return False
         except Exception as e:
-            logger.error(
-                "Failed to query contract version. Contract interactions will be disabled."
-            )
-            logger.debug(e)
+            if is_ledger_rpc_unavailable(e):
+                logger.warning(LEDGER_UNAVAILABLE_WARNING)
+                logger.debug(e)
+            else:
+                logger.error(
+                    "Failed to query contract version. Contract interactions will be disabled."
+                )
+                logger.debug(e)
             return False
         return True
 
@@ -249,8 +272,12 @@ class AlmanacContract(LedgerContract):
                 raise ValueError("Invalid response format")
             return response
         except Exception as e:
-            logger.error(f"Query failed with error: {e.__class__.__name__}.")
-            logger.debug(e)
+            if not is_ledger_rpc_unavailable(e):
+                logger.error(f"Query failed with error: {e.__class__.__name__}.")
+                logger.debug(e)
+            else:
+                logger.debug(f"Ledger query failed: {e.__class__.__name__}")
+                logger.debug(e)
             raise
 
     def get_contract_version(self) -> str:
@@ -703,8 +730,14 @@ class NameServiceContract(LedgerContract):
                 raise ValueError("Invalid response format")
             return response
         except Exception as e:
-            logger.error(f"Querying NameServiceContract failed for query {query_msg}.")
-            logger.debug(e)
+            if is_ledger_rpc_unavailable(e):
+                logger.debug(f"NameService query failed: {e.__class__.__name__}")
+                logger.debug(e)
+            else:
+                logger.error(
+                    f"Querying NameServiceContract failed for query {query_msg}."
+                )
+                logger.debug(e)
             raise
 
     def get_oracle_agent_address(self):

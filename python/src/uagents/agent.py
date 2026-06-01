@@ -60,6 +60,7 @@ from uagents.network import (
     InsufficientFundsError,
     get_almanac_contract,
     get_ledger,
+    is_ledger_rpc_unavailable,
 )
 from uagents.protocol import Protocol
 from uagents.registration import (
@@ -856,7 +857,13 @@ class Agent(Sink):
                 except InsufficientFundsError:
                     time_until_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
                 except Exception as ex:
-                    self._logger.exception(f"Failed to register: {ex}")
+                    if is_ledger_rpc_unavailable(ex):
+                        self._logger.warning(
+                            "Ledger network unavailable; registration will retry later"
+                        )
+                        self._logger.debug(ex)
+                    else:
+                        self._logger.exception(f"Failed to register: {ex}")
                     time_until_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
 
                 await asyncio.sleep(time_until_next_registration)
@@ -1686,7 +1693,13 @@ class Bureau:
                 except InsufficientFundsError:
                     time_to_next_registration = 2 * AVERAGE_BLOCK_INTERVAL
                 except Exception as ex:
-                    self._logger.exception(f"Failed to register: {ex}")
+                    if is_ledger_rpc_unavailable(ex):
+                        self._logger.warning(
+                            "Ledger network unavailable; registration will retry later"
+                        )
+                        self._logger.debug(ex)
+                    else:
+                        self._logger.exception(f"Failed to register: {ex}")
                     time_to_next_registration = REGISTRATION_RETRY_INTERVAL_SECONDS
 
                 await asyncio.sleep(time_to_next_registration)

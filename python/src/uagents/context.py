@@ -6,7 +6,7 @@ import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from time import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import requests
 from cosmpy.aerial.client import LedgerClient
