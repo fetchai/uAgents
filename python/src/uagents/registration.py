@@ -38,6 +38,7 @@ from uagents.network import (
     RetryDelayFunc,
     add_testnet_funds,
     default_exp_backoff,
+    is_ledger_rpc_unavailable,
 )
 
 
@@ -296,6 +297,27 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         Register the agent on the Almanac contract if registration is about to expire or
         the registration data has changed.
         """
+        try:
+            await self._register_on_almanac_contract(
+                agent_identifier, identity, protocols, endpoints
+            )
+        except grpc.RpcError as e:
+            if is_ledger_rpc_unavailable(e):
+                self._logger.warning(
+                    "Ledger unavailable. Almanac contract registration skipped "
+                    "(will retry later)"
+                )
+                self._logger.debug(e)
+            else:
+                raise
+
+    async def _register_on_almanac_contract(
+        self,
+        agent_identifier: str,
+        identity: Identity,
+        protocols: list[str],
+        endpoints: list[AgentEndpoint],
+    ) -> None:
         _, _, agent_address = parse_identifier(agent_identifier)
 
         if (
@@ -356,11 +378,6 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
                 self._last_successful_registration = datetime.now()
 
             except RuntimeError as e:
-                self._logger.warning(
-                    "Registering on almanac contract...failed (will retry later)"
-                )
-                self._logger.debug(e)
-            except grpc.RpcError as e:
                 self._logger.warning(
                     "Registering on almanac contract...failed (will retry later)"
                 )
@@ -477,6 +494,19 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
         return self._ledger.query_bank_balance(Address(self._wallet.address()))
 
     async def register(self) -> None:
+        try:
+            await self._register_agents_on_almanac_contract()
+        except grpc.RpcError as e:
+            if is_ledger_rpc_unavailable(e):
+                self._logger.warning(
+                    "Ledger network unavailable. Almanac contract registration skipped "
+                    "(will retry later)"
+                )
+                self._logger.debug(e)
+            else:
+                raise
+
+    async def _register_agents_on_almanac_contract(self) -> None:
         self._logger.info("Registering agents on Almanac contract...")
         for record in self._records:
             record.sign(self._identities[record.address])
@@ -512,11 +542,6 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
             self._last_successful_registration = datetime.now()
 
         except RuntimeError as e:
-            self._logger.warning(
-                "Registering on almanac contract...failed (will retry later)"
-            )
-            self._logger.debug(e)
-        except grpc.RpcError as e:
             self._logger.warning(
                 "Registering on almanac contract...failed (will retry later)"
             )
