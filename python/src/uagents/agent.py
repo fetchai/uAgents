@@ -94,6 +94,41 @@ from uagents.types import (
 from uagents.utils import get_logger, set_global_log_level
 
 
+def _default_event_loop(
+    loop: asyncio.AbstractEventLoop | None,
+) -> asyncio.AbstractEventLoop:
+    """Resolve the event loop for Agent/Bureau construction.
+
+    Agent and Bureau need a loop during synchronous __init__ (ASGIServer, create_task).
+    Historically, asyncio.get_event_loop() implicitly created a main-thread loop when none
+    existed (Python 3.10-3.13). Python 3.14+ raises RuntimeError instead.
+
+    Order: honor explicit loop=, reuse the thread's loop if set and open, else create one
+    and register it via set_event_loop() so later get_event_loop() calls on this thread work.
+    If the thread default exists but is closed (e.g. after Agent.run()), create a new loop.
+    """
+    if loop is not None:
+        return loop
+    try:
+        existing = asyncio.get_event_loop()
+    except RuntimeError:
+        existing = None
+    if existing is None or existing.is_closed():
+        new_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(new_loop)
+        return new_loop
+    return existing
+
+
+def _clear_thread_loop_default(closed_loop: asyncio.AbstractEventLoop) -> None:
+    """Clear the thread default if it still references a loop we just closed."""
+    try:
+        if asyncio.get_event_loop() is closed_loop:
+            asyncio.set_event_loop(None)
+    except RuntimeError:
+        pass
+
+
 async def _run_interval(
     func: IntervalCallback,
     logger: logging.Logger,
@@ -355,7 +390,8 @@ class Agent(Sink):
         self._name = name
         self._port = port or 8000
 
-        self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
+        # See _default_event_loop: required at init time, not only in run() (Python 3.14+).
+        self._loop = _default_event_loop(loop)
 
         # initialize wallet and identity
         self._initialize_wallet_and_identity(seed, name, wallet_key_derivation_index)
@@ -1338,6 +1374,7 @@ class Agent(Sink):
             if not self._loop.is_closed():
                 self._loop.stop()
                 self._loop.close()
+            _clear_thread_loop_default(self._loop)
 
     def get_message_protocol(
         self, message_schema_digest
@@ -1572,7 +1609,8 @@ class Bureau:
             log_level (int | str): The logging level for the bureau.
             shutdown_timeout (int): The timeout for shutting down the bureau.
         """
-        self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
+        # See _default_event_loop: same Python 3.14+ loop resolution as Agent.
+        self._loop = _default_event_loop(loop)
         self._agents: list[Agent] = []
         self._port = port or 8000
         self._queries: dict[str, asyncio.Future] = {}
@@ -1836,3 +1874,4 @@ class Bureau:
             if not self._loop.is_closed():
                 self._loop.stop()
                 self._loop.close()
+            _clear_thread_loop_default(self._loop)
