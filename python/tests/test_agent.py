@@ -41,7 +41,10 @@ class TestDefaultEventLoop(unittest.TestCase):
     def tearDown(self) -> None:
         if self._test_loop is not None and not self._test_loop.is_closed():
             self._test_loop.close()
-        asyncio.set_event_loop(self._previous_loop)
+        if self._previous_loop is not None and not self._previous_loop.is_closed():
+            asyncio.set_event_loop(self._previous_loop)
+        else:
+            asyncio.set_event_loop(None)
 
     def test_returns_explicit_loop(self) -> None:
         explicit = asyncio.new_event_loop()

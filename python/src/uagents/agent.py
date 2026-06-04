@@ -120,6 +120,15 @@ def _default_event_loop(
     return existing
 
 
+def _clear_thread_loop_default(closed_loop: asyncio.AbstractEventLoop) -> None:
+    """Clear the thread default if it still references a loop we just closed."""
+    try:
+        if asyncio.get_event_loop() is closed_loop:
+            asyncio.set_event_loop(None)
+    except RuntimeError:
+        pass
+
+
 async def _run_interval(
     func: IntervalCallback,
     logger: logging.Logger,
@@ -1365,6 +1374,7 @@ class Agent(Sink):
             if not self._loop.is_closed():
                 self._loop.stop()
                 self._loop.close()
+            _clear_thread_loop_default(self._loop)
 
     def get_message_protocol(
         self, message_schema_digest
@@ -1864,3 +1874,4 @@ class Bureau:
             if not self._loop.is_closed():
                 self._loop.stop()
                 self._loop.close()
+            _clear_thread_loop_default(self._loop)
