@@ -22,8 +22,16 @@ bureau_wallet = LocalWallet.generate()
 
 class TestBureau(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
-        self.loop = asyncio.get_event_loop()
-        return super().setUp()
+        # Obtain a loop before super().setUp() so agents can use loop=self.loop.
+        # Python 3.14+ no longer auto-creates a loop on get_event_loop(); mirror
+        # _default_event_loop in agent.py. Do not use get_running_loop() here:
+        # IsolatedAsyncioTestCase has not started the test loop yet in sync setUp.
+        try:
+            self.loop = asyncio.get_event_loop()
+        except RuntimeError:
+            self.loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self.loop)
+        super().setUp()
 
     def test_bureau_updates_agents_no_ledger_batch(self):
         alice = Agent(name="alice", endpoint=ALICE_ENDPOINT.url, loop=self.loop)
