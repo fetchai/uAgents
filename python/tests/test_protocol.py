@@ -81,3 +81,34 @@ class TestAgent(unittest.TestCase):
         self.assertEqual(len(models), 2)
         self.assertEqual(len(unsigned_msg_handlers), 1)
         self.assertEqual(len(signed_msg_handlers), 1)
+
+    def test_protocol_allowed_senders_registered(self):
+        proto = Protocol(name="allowed_test", version="1.0.0")
+        allowed = {"agent1abc", "agent2abc"}
+
+        @proto.on_message(Message, allowed_senders=allowed)
+        async def _(_ctx, _sender, _msg):
+            pass
+
+        digest = Model.build_schema_digest(Message)
+        self.assertIn(digest, proto._signed_message_handlers)
+
+    def test_protocol_allowed_senders_blocks_unauthorized(self):
+        import asyncio
+
+        proto = Protocol(name="allowed_block_test", version="1.0.0")
+        allowed = {"agent_authorized"}
+        called_with = []
+
+        @proto.on_message(Message, allowed_senders=allowed)
+        async def _(_ctx, _sender, _msg):
+            called_with.append(_sender)
+
+        digest = Model.build_schema_digest(Message)
+        handler = proto._signed_message_handlers[digest]
+
+        asyncio.get_event_loop().run_until_complete(handler(None, "agent_unauthorized", None))
+        self.assertEqual(called_with, [])
+
+        asyncio.get_event_loop().run_until_complete(handler(None, "agent_authorized", None))
+        self.assertEqual(called_with, ["agent_authorized"])
