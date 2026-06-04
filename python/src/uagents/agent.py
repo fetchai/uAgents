@@ -103,17 +103,21 @@ def _default_event_loop(
     Historically, asyncio.get_event_loop() implicitly created a main-thread loop when none
     existed (Python 3.10-3.13). Python 3.14+ raises RuntimeError instead.
 
-    Order: honor explicit loop=, reuse the thread's loop if set, else create one and
-    register it via set_event_loop() so later get_event_loop() calls on this thread work.
+    Order: honor explicit loop=, reuse the thread's loop if set and open, else create one
+    and register it via set_event_loop() so later get_event_loop() calls on this thread work.
+    If the thread default exists but is closed (e.g. after Agent.run()), create a new loop.
     """
     if loop is not None:
         return loop
     try:
-        return asyncio.get_event_loop()
+        existing = asyncio.get_event_loop()
     except RuntimeError:
+        existing = None
+    if existing is None or existing.is_closed():
         new_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(new_loop)
         return new_loop
+    return existing
 
 
 async def _run_interval(
