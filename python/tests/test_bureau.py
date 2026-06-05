@@ -1,4 +1,3 @@
-import asyncio
 import unittest
 
 from cosmpy.aerial.wallet import LocalWallet
@@ -21,12 +20,8 @@ bureau_wallet = LocalWallet.generate()
 
 
 class TestBureau(unittest.IsolatedAsyncioTestCase):
-    def setUp(self) -> None:
-        self.loop = asyncio.get_event_loop()
-        return super().setUp()
-
     def test_bureau_updates_agents_no_ledger_batch(self):
-        alice = Agent(name="alice", endpoint=ALICE_ENDPOINT.url, loop=self.loop)
+        alice = Agent(name="alice", endpoint=ALICE_ENDPOINT.url)
         bob = Agent(name="bob", endpoint=BOB_ENDPOINT.url)
 
         assert alice._endpoints == [ALICE_ENDPOINT]
