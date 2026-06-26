@@ -66,40 +66,66 @@ def _is_non_blank(text: str) -> bool:
     return bool(text.strip())
 
 
-def _validate_http_url(url: str, *, field_name: str) -> None:
-    if not _is_non_blank(url):
+def _normalize_non_blank_str(text: str, *, field_name: str) -> str:
+    normalized = text.strip()
+    if not normalized:
+        raise ValueError(f"{field_name} must be non-empty")
+    return normalized
+
+
+def _normalize_http_url(url: str, *, field_name: str) -> str:
+    normalized = url.strip()
+    if not normalized:
         raise ValueError(f"{field_name} must be a non-empty http:// or https:// URL")
-    if not (url.startswith("http://") or url.startswith("https://")):
+    if not (normalized.startswith("http://") or normalized.startswith("https://")):
         raise ValueError(f"{field_name} must be an http:// or https:// URL")
+    return normalized
 
 
-def _media_src(value: str | DisplayImage) -> str:
-    if isinstance(value, str):
-        return value
-    return value.src
+def _normalize_optional_http_url(url: str | None, *, field_name: str) -> str | None:
+    if url is None:
+        return None
+    return _normalize_http_url(url, field_name=field_name)
 
 
-def _validate_optional_http_url(
+def _normalize_display_image(image: DisplayImage) -> DisplayImage:
+    image.src = _normalize_http_url(image.src, field_name="src")
+    return image
+
+
+def _normalize_media_item(
+    item: str | DisplayImage,
+    *,
+    field_name: str,
+) -> str | DisplayImage:
+    if isinstance(item, str):
+        return _normalize_http_url(item, field_name=field_name)
+    return _normalize_display_image(item)
+
+
+def _normalize_optional_media(
     url: str | DisplayImage | None,
     *,
     field_name: str,
-) -> None:
-    if url is not None:
-        _validate_http_url(_media_src(url), field_name=field_name)
+) -> str | DisplayImage | None:
+    if url is None:
+        return None
+    return _normalize_media_item(url, field_name=field_name)
 
 
-def _validate_optional_http_urls(
+def _normalize_optional_medias(
     urls: str | DisplayImage | list[str | DisplayImage] | None,
     *,
     field_name: str,
-) -> None:
+) -> str | DisplayImage | list[str | DisplayImage] | None:
     if urls is None:
-        return
+        return None
     if isinstance(urls, list):
-        for index, item in enumerate(urls):
-            _validate_http_url(_media_src(item), field_name=f"{field_name}[{index}]")
-        return
-    _validate_http_url(_media_src(urls), field_name=field_name)
+        return [
+            _normalize_media_item(item, field_name=f"{field_name}[{index}]")
+            for index, item in enumerate(urls)
+        ]
+    return _normalize_media_item(urls, field_name=field_name)
 
 
 def _validate_non_empty_selection(
@@ -149,7 +175,7 @@ class DisplayImage(_StrictBase):
 
     @model_validator(mode="after")
     def _validate_media_url(self) -> DisplayImage:
-        _validate_http_url(self.src, field_name="src")
+        self.src = _normalize_http_url(self.src, field_name="src")
         return self
 
 
@@ -160,9 +186,8 @@ class LabelWithIcon(_StrictBase):
 
     @model_validator(mode="after")
     def _validate_label_and_src(self) -> LabelWithIcon:
-        if not _is_non_blank(self.label):
-            raise ValueError("label must be non-empty")
-        _validate_http_url(self.src, field_name="src")
+        self.label = _normalize_non_blank_str(self.label, field_name="label")
+        self.src = _normalize_http_url(self.src, field_name="src")
         return self
 
 
@@ -180,7 +205,7 @@ class ExpandedChoice(_StrictBase):
                 "At least one of `image`, `content`, or `additional_data` "
                 "must be provided in ExpandedChoice."
             )
-        _validate_optional_http_urls(self.image, field_name="image")
+        self.image = _normalize_optional_medias(self.image, field_name="image")
         return self
 
 
@@ -191,6 +216,7 @@ class CtaAction(_StrictBase):
 
     @model_validator(mode="after")
     def _non_empty_selection(self) -> CtaAction:
+        self.label = _normalize_non_blank_str(self.label, field_name="label")
         _validate_non_empty_selection(self.selection)
         return self
 
@@ -212,8 +238,8 @@ class CarouselItem(_StrictBase):
 
     @model_validator(mode="after")
     def _validate_media_urls(self) -> CarouselItem:
-        _validate_optional_http_urls(self.image, field_name="image")
-        _validate_optional_http_url(self.logo, field_name="logo")
+        self.image = _normalize_optional_medias(self.image, field_name="image")
+        self.logo = _normalize_optional_http_url(self.logo, field_name="logo")
         return self
 
 
@@ -253,7 +279,9 @@ class DetailCardPayload(_StrictBase):
 
     @model_validator(mode="after")
     def _validate_media_urls(self) -> DetailCardPayload:
-        _validate_optional_http_urls(self.hero_image, field_name="hero_image")
+        self.hero_image = _normalize_optional_medias(
+            self.hero_image, field_name="hero_image"
+        )
         return self
 
 
@@ -489,7 +517,7 @@ class ImageNode(_StrictBase):
 
     @model_validator(mode="after")
     def _validate_media_url(self) -> ImageNode:
-        _validate_http_url(self.src, field_name="src")
+        self.src = _normalize_http_url(self.src, field_name="src")
         return self
 
 
@@ -505,7 +533,7 @@ class VideoNode(_StrictBase):
 
     @model_validator(mode="after")
     def _validate_media_url(self) -> VideoNode:
-        _validate_http_url(self.src, field_name="src")
+        self.src = _normalize_http_url(self.src, field_name="src")
         return self
 
 
@@ -548,11 +576,14 @@ class ButtonAction(_StrictBase):
     @model_validator(mode="after")
     def _selection_or_redirect_required(self) -> ButtonAction:
         has_selection = self.selection is not None
-        has_redirect = bool(self.redirect and self.redirect.strip())
+        if self.redirect is not None:
+            stripped = self.redirect.strip()
+            self.redirect = (
+                _normalize_http_url(stripped, field_name="redirect") if stripped else None
+            )
+        has_redirect = self.redirect is not None
         if not has_selection and not has_redirect:
             raise ValueError("action requires at least one of selection or redirect")
-        if has_redirect:
-            _validate_http_url(self.redirect.strip(), field_name="redirect")
         if has_selection:
             _validate_non_empty_selection(self.selection)
         return self
@@ -567,6 +598,8 @@ class ButtonNode(_StrictBase):
 
     @model_validator(mode="after")
     def _label_or_image_required(self) -> ButtonNode:
+        if isinstance(self.label, str):
+            self.label = _normalize_non_blank_str(self.label, field_name="label")
         if not _has_button_label(self.label) and self.image is None:
             raise ValueError("button requires at least one of label or image")
         return self
@@ -593,7 +626,7 @@ class ChoiceGridChoice(_StrictBase):
 
     @model_validator(mode="after")
     def _validate_media_url(self) -> ChoiceGridChoice:
-        _validate_optional_http_url(self.image, field_name="image")
+        self.image = _normalize_optional_media(self.image, field_name="image")
         return self
 
 
