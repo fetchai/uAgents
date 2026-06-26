@@ -11,8 +11,11 @@ See ``README.md`` in this directory for usage examples and the metadata wire for
 
 from __future__ import annotations
 
+import json
 import logging
-from typing import Annotated, Literal
+import re
+from datetime import date, time
+from typing import Annotated, Any, Literal
 
 from pydantic import (
     UUID4,
@@ -30,6 +33,10 @@ _logger = logging.getLogger(__name__)
 
 CARD_PROTOCOL_VERSION = "1"
 MAX_ELEMENT_TREE_DEPTH = 8
+
+_SELECT_KINDS = frozenset({"select", "multiselect"})
+_NO_MIN_MAX_KINDS = frozenset({"email", "phone", "select", "checkbox"})
+_E164_PATTERN = re.compile(r"^\+[1-9]\d{1,14}$")
 
 META_CARD_PROTOCOL_VERSION = "card_protocol_version"
 META_REQUIRES_CARD_INTERACTION = "requires_card_interaction"
@@ -51,10 +58,141 @@ class _StrictBase(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+def _is_set(value: object) -> bool:
+    return value is not None
+
+
+def _is_non_blank(text: str) -> bool:
+    return bool(text.strip())
+
+
+def _validate_http_url(url: str, *, field_name: str) -> None:
+    if not _is_non_blank(url):
+        raise ValueError(f"{field_name} must be a non-empty http:// or https:// URL")
+    if not (url.startswith("http://") or url.startswith("https://")):
+        raise ValueError(f"{field_name} must be an http:// or https:// URL")
+
+
+def _media_src(value: str | DisplayImage) -> str:
+    if isinstance(value, str):
+        return value
+    return value.src
+
+
+def _validate_optional_http_url(
+    url: str | DisplayImage | None,
+    *,
+    field_name: str,
+) -> None:
+    if url is not None:
+        _validate_http_url(_media_src(url), field_name=field_name)
+
+
+def _validate_optional_http_urls(
+    urls: str | DisplayImage | list[str | DisplayImage] | None,
+    *,
+    field_name: str,
+) -> None:
+    if urls is None:
+        return
+    if isinstance(urls, list):
+        for index, item in enumerate(urls):
+            _validate_http_url(_media_src(item), field_name=f"{field_name}[{index}]")
+        return
+    _validate_http_url(_media_src(urls), field_name=field_name)
+
+
+def _validate_non_empty_selection(
+    selection: dict, *, field_name: str = "selection"
+) -> None:
+    if not selection:
+        raise ValueError(f"{field_name} must contain at least one key")
+
+
+def _has_button_label(label: str | LabelWithIcon | None) -> bool:
+    if label is None:
+        return False
+    if isinstance(label, str):
+        return _is_non_blank(label)
+    return _is_non_blank(label.label)
+
+
+def _reject_if_set(value: object, *, field_name: str, kind: str) -> None:
+    if value is not None:
+        raise ValueError(f"{field_name} not allowed for kind={kind!r}")
+
+
+def _validate_int_bounds(
+    minimum: int | None,
+    maximum: int | None,
+    *,
+    kind: str,
+) -> None:
+    if _is_set(minimum) and minimum < 0:
+        raise ValueError(f"minimum must be >= 0 for kind={kind!r}")
+    if _is_set(maximum) and kind == "multiselect" and maximum < 1:
+        raise ValueError("multiselect maximum must be >= 1 when set")
+    if _is_set(minimum) and _is_set(maximum) and minimum > maximum:
+        raise ValueError(f"minimum must be <= maximum for kind={kind!r}")
+
+
+class DisplayImage(_StrictBase):
+    """Image reference with optional display metadata. Plain URL strings remain valid."""
+
+    src: str
+    alt: str | None = None
+    aspect_ratio: str | None = Field(
+        default=None,
+        pattern=r"^\d+:\d+$",
+        description='Width:height, e.g. "16:9", "3:4", "1:1"',
+    )
+
+    @model_validator(mode="after")
+    def _validate_media_url(self) -> DisplayImage:
+        _validate_http_url(self.src, field_name="src")
+        return self
+
+
+class LabelWithIcon(_StrictBase):
+    label: str
+    src: str
+    alt: str | None = None
+
+    @model_validator(mode="after")
+    def _validate_label_and_src(self) -> LabelWithIcon:
+        if not _is_non_blank(self.label):
+            raise ValueError("label must be non-empty")
+        _validate_http_url(self.src, field_name="src")
+        return self
+
+
+class ExpandedChoice(_StrictBase):
+    """Extra content the drawer shows when a sub-option choice is selected."""
+
+    image: str | DisplayImage | list[str | DisplayImage] | None = None
+    content: str | None = None
+    additional_data: dict[str, Any] | None = None
+
+    @model_validator(mode="after")
+    def _validate_non_empty_expanded_choice(self) -> ExpandedChoice:
+        if not (self.image or self.content or self.additional_data):
+            raise ValueError(
+                "At least one of `image`, `content`, or `additional_data` "
+                "must be provided in ExpandedChoice."
+            )
+        _validate_optional_http_urls(self.image, field_name="image")
+        return self
+
+
 class CtaAction(_StrictBase):
     label: str
     selection: dict
     primary: bool = False
+
+    @model_validator(mode="after")
+    def _non_empty_selection(self) -> CtaAction:
+        _validate_non_empty_selection(self.selection)
+        return self
 
 
 class CarouselBadge(_StrictBase):
@@ -64,18 +202,27 @@ class CarouselBadge(_StrictBase):
 
 class CarouselItem(_StrictBase):
     id: str
-    image: str | None = None
+    image: str | DisplayImage | list[str | DisplayImage] | None = None
     title: str
     subtitle: str | None = None
     badges: list[CarouselBadge] | None = None
     secondary_text: str | None = None
     primary_cta: CtaAction
+    logo: str | None = None
+
+    @model_validator(mode="after")
+    def _validate_media_urls(self) -> CarouselItem:
+        _validate_optional_http_urls(self.image, field_name="image")
+        _validate_optional_http_url(self.logo, field_name="logo")
+        return self
 
 
 class CarouselCardPayload(_StrictBase):
     title: str | None = None
     subtitle: str | None = None
     items: list[CarouselItem] = Field(min_length=1)
+    style: Literal["scroll", "slide"] = "scroll"
+    root_cta: CtaAction | None = None
 
 
 class DetailSummaryRow(_StrictBase):
@@ -87,6 +234,7 @@ class DetailSubOptionChoice(_StrictBase):
     value: str
     label: str
     secondary_text: str | None = None
+    expanded: ExpandedChoice | None = None
 
 
 class DetailSubOptions(_StrictBase):
@@ -98,10 +246,15 @@ class DetailSubOptions(_StrictBase):
 
 class DetailCardPayload(_StrictBase):
     title: str
-    hero_image: str | None = None
+    hero_image: str | DisplayImage | list[str | DisplayImage] | None = None
     summary_rows: list[DetailSummaryRow] | None = None
     sub_options: DetailSubOptions | None = None
     ctas: list[CtaAction] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _validate_media_urls(self) -> DetailCardPayload:
+        _validate_optional_http_urls(self.hero_image, field_name="hero_image")
+        return self
 
 
 class FormFieldOption(_StrictBase):
@@ -109,25 +262,192 @@ class FormFieldOption(_StrictBase):
     label: str
 
 
-class FormField(_StrictBase):
+InputOption = FormFieldOption
+
+
+class InputFieldBase(_StrictBase):
     name: str
-    kind: Literal["text", "number", "email", "select", "checkbox"]
+    kind: Literal[
+        "text",
+        "number",
+        "email",
+        "select",
+        "checkbox",
+        "date",
+        "time",
+        "multiselect",
+        "phone",
+    ]
     label: str
     required: bool = False
     options: list[FormFieldOption] | None = None
     placeholder: str | None = None
+    default: str | None = None
+    description: str | None = None
+    minimum: int | date | time | None = None
+    maximum: int | date | time | None = None
+    multiline: bool | None = None
 
     @model_validator(mode="after")
-    def _select_requires_options(self) -> FormField:
-        if self.kind == "select" and not self.options:
-            raise ValueError("select fields require non-empty options")
+    def _validate_kind_rules(self) -> InputFieldBase:
+        if self.kind in _SELECT_KINDS:
+            if not self.options:
+                raise ValueError(f"{self.kind} requires non-empty options")
+        elif self.options is not None:
+            raise ValueError(f"options not allowed for kind={self.kind!r}")
+
+        if self.kind != "text":
+            _reject_if_set(self.multiline, field_name="multiline", kind=self.kind)
+
+        if self.kind in _NO_MIN_MAX_KINDS:
+            _reject_if_set(self.minimum, field_name="minimum", kind=self.kind)
+            _reject_if_set(self.maximum, field_name="maximum", kind=self.kind)
+        elif self.kind == "text":
+            if _is_set(self.minimum) and not isinstance(self.minimum, int):
+                raise ValueError("minimum for text must be an integer (length)")
+            if _is_set(self.maximum) and not isinstance(self.maximum, int):
+                raise ValueError("maximum for text must be an integer (length)")
+            _validate_int_bounds(
+                self.minimum if isinstance(self.minimum, int) else None,
+                self.maximum if isinstance(self.maximum, int) else None,
+                kind=self.kind,
+            )
+        elif self.kind == "number":
+            if _is_set(self.minimum) and not isinstance(self.minimum, int):
+                raise ValueError("minimum for number must be an integer")
+            if _is_set(self.maximum) and not isinstance(self.maximum, int):
+                raise ValueError("maximum for number must be an integer")
+            _validate_int_bounds(
+                self.minimum if isinstance(self.minimum, int) else None,
+                self.maximum if isinstance(self.maximum, int) else None,
+                kind=self.kind,
+            )
+        elif self.kind == "date":
+            if _is_set(self.minimum) and not isinstance(self.minimum, date):
+                raise ValueError("minimum for date must be an ISO date (YYYY-MM-DD)")
+            if _is_set(self.maximum) and not isinstance(self.maximum, date):
+                raise ValueError("maximum for date must be an ISO date (YYYY-MM-DD)")
+            if (
+                isinstance(self.minimum, date)
+                and isinstance(self.maximum, date)
+                and self.minimum > self.maximum
+            ):
+                raise ValueError("minimum must be <= maximum for kind='date'")
+        elif self.kind == "time":
+            if _is_set(self.minimum) and not isinstance(self.minimum, time):
+                raise ValueError(
+                    "minimum for time must be an ISO time (HH:MM or HH:MM:SS)"
+                )
+            if _is_set(self.maximum) and not isinstance(self.maximum, time):
+                raise ValueError(
+                    "maximum for time must be an ISO time (HH:MM or HH:MM:SS)"
+                )
+            if (
+                isinstance(self.minimum, time)
+                and isinstance(self.maximum, time)
+                and self.minimum > self.maximum
+            ):
+                raise ValueError("minimum must be <= maximum for kind='time'")
+        elif self.kind == "multiselect":
+            if _is_set(self.minimum) and not isinstance(self.minimum, int):
+                raise ValueError(
+                    "minimum for multiselect must be an integer (selection count)"
+                )
+            if _is_set(self.maximum) and not isinstance(self.maximum, int):
+                raise ValueError(
+                    "maximum for multiselect must be an integer (selection count)"
+                )
+            _validate_int_bounds(
+                self.minimum if isinstance(self.minimum, int) else None,
+                self.maximum if isinstance(self.maximum, int) else None,
+                kind=self.kind,
+            )
+            if self.required and _is_set(self.minimum) and self.minimum < 1:
+                raise ValueError(
+                    "required multiselect fields need minimum >= 1 when set"
+                )
+
+        self._validate_default()
         return self
+
+    def _validate_default(self) -> None:
+        if self.default is None:
+            return
+
+        if self.kind == "phone":
+            if not _E164_PATTERN.match(self.default):
+                raise ValueError(
+                    "phone default must be E.164 format "
+                    "(+[country][number], max 15 digits)"
+                )
+            return
+
+        if self.kind == "date":
+            try:
+                date.fromisoformat(self.default)
+            except ValueError as exc:
+                raise ValueError("date default must be ISO date YYYY-MM-DD") from exc
+            return
+
+        if self.kind == "time":
+            try:
+                time.fromisoformat(self.default)
+            except ValueError as exc:
+                raise ValueError(
+                    "time default must be ISO time HH:MM or HH:MM:SS"
+                ) from exc
+            return
+
+        if self.kind == "checkbox":
+            if self.default not in ("true", "false"):
+                raise ValueError("checkbox default must be 'true' or 'false'")
+            return
+
+        if self.kind == "number":
+            try:
+                int(self.default)
+            except ValueError:
+                try:
+                    float(self.default)
+                except ValueError as exc:
+                    raise ValueError("number default must be a numeric string") from exc
+            return
+
+        if self.kind == "select":
+            if self.options and self.default not in {
+                option.value for option in self.options
+            }:
+                raise ValueError("select default must match an option value")
+            return
+
+        if self.kind == "multiselect":
+            try:
+                values = json.loads(self.default)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    "multiselect default must be a JSON array of option values"
+                ) from exc
+            if not isinstance(values, list) or not all(
+                isinstance(value, str) for value in values
+            ):
+                raise ValueError("multiselect default must be a JSON array of strings")
+            if self.options:
+                allowed = {option.value for option in self.options}
+                if not all(value in allowed for value in values):
+                    raise ValueError(
+                        "multiselect default values must match option values"
+                    )
+
+
+class FormField(InputFieldBase):
+    """Form card field — shares validation with element-tree ``InputNode``."""
 
 
 class FormCardPayload(_StrictBase):
     title: str | None = None
     fields: list[FormField] = Field(min_length=1)
     submit_cta: CtaAction
+    cancel_cta: CtaAction | None = None
 
 
 class ReviewSummaryRow(_StrictBase):
@@ -161,7 +481,32 @@ class ImageNode(_StrictBase):
     type: Literal["image"]
     src: str
     alt: str | None = None
-    aspect_ratio: str | None = None
+    aspect_ratio: str | None = Field(
+        default=None,
+        pattern=r"^\d+:\d+$",
+        description='Width:height, e.g. "16:9", "3:4", "1:1"',
+    )
+
+    @model_validator(mode="after")
+    def _validate_media_url(self) -> ImageNode:
+        _validate_http_url(self.src, field_name="src")
+        return self
+
+
+class VideoNode(_StrictBase):
+    type: Literal["video"]
+    src: str
+    alt: str | None = None
+    aspect_ratio: str | None = Field(
+        default=None,
+        pattern=r"^\d+:\d+$",
+        description='Width:height, e.g. "16:9", "3:4", "1:1"',
+    )
+
+    @model_validator(mode="after")
+    def _validate_media_url(self) -> VideoNode:
+        _validate_http_url(self.src, field_name="src")
+        return self
 
 
 class BadgeNode(_StrictBase):
@@ -184,40 +529,51 @@ class SectionNode(_StrictBase):
 class GroupNode(_StrictBase):
     type: Literal["group"]
     direction: Literal["row", "column"]
-    gap: int | None = None
+    gap: int | None = Field(default=None, ge=1)
     children: list[ElementTreeNode] = Field(min_length=1)
 
 
 class ButtonAction(_StrictBase):
-    selection: dict
+    selection: dict | None = None
+    redirect: str | None = None
+    bypass_required_validation: bool | None = Field(
+        default=None,
+        description=(
+            "When true, the UI may activate this button without required input/choice_grid "
+            "fields being filled (e.g. Cancel). When false or omitted, required fields "
+            "must be satisfied first. Enforced client-side."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _selection_or_redirect_required(self) -> ButtonAction:
+        has_selection = self.selection is not None
+        has_redirect = bool(self.redirect and self.redirect.strip())
+        if not has_selection and not has_redirect:
+            raise ValueError("action requires at least one of selection or redirect")
+        if has_redirect:
+            _validate_http_url(self.redirect.strip(), field_name="redirect")
+        if has_selection:
+            _validate_non_empty_selection(self.selection)
+        return self
 
 
 class ButtonNode(_StrictBase):
     type: Literal["button"]
-    label: str
+    label: str | LabelWithIcon | None = None
+    image: DisplayImage | None = None
     primary: bool = False
     action: ButtonAction
 
-
-class InputOption(_StrictBase):
-    value: str
-    label: str
-
-
-class InputNode(_StrictBase):
-    type: Literal["input"]
-    name: str
-    kind: Literal["text", "number", "email", "select", "checkbox"]
-    label: str
-    required: bool = False
-    options: list[InputOption] | None = None
-    placeholder: str | None = None
-
     @model_validator(mode="after")
-    def _select_requires_options(self) -> InputNode:
-        if self.kind == "select" and not self.options:
-            raise ValueError("select inputs require non-empty options")
+    def _label_or_image_required(self) -> ButtonNode:
+        if not _has_button_label(self.label) and self.image is None:
+            raise ValueError("button requires at least one of label or image")
         return self
+
+
+class InputNode(InputFieldBase):
+    type: Literal["input"]
 
 
 class ListItem(_StrictBase):
@@ -233,7 +589,12 @@ class ListNode(_StrictBase):
 class ChoiceGridChoice(_StrictBase):
     value: str
     label: str
-    image: str | None = None
+    image: str | DisplayImage | None = None
+
+    @model_validator(mode="after")
+    def _validate_media_url(self) -> ChoiceGridChoice:
+        _validate_optional_http_url(self.image, field_name="image")
+        return self
 
 
 class ChoiceGridNode(_StrictBase):
@@ -247,6 +608,7 @@ ElementTreeNode = Annotated[
     TextNode
     | HeadingNode
     | ImageNode
+    | VideoNode
     | BadgeNode
     | DividerNode
     | SectionNode
