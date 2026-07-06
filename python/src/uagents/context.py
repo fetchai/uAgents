@@ -197,7 +197,7 @@ class Context(ABC):
         wait_for_response: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
         protocol_digest: str | None = None,
-        queries: dict[str, asyncio.Future] | None = None,
+        queries: dict[tuple[str, uuid.UUID], asyncio.Future] | None = None,
     ) -> MsgStatus:
         """
         Send a message to the specified destination where the message body and
@@ -211,7 +211,8 @@ class Context(ABC):
             wait_for_response (bool): Whether to wait for a response to the message.
             timeout (int, optional): The optional timeout for sending the message, in seconds.
             protocol_digest (str, optional): The protocol digest of the message to be sent.
-            queries (dict[str, asyncio.Future] | None): The dictionary of queries to resolve.
+            queries (dict[tuple[str, uuid.UUID], asyncio.Future] | None):
+                The pending sync-query futures, keyed by (sender, session).
 
         Returns:
             MsgStatus: The delivery status of the message.
@@ -436,7 +437,7 @@ class InternalContext(Context):
         wait_for_response: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
         protocol_digest: str | None = None,
-        queries: dict[str, asyncio.Future] | None = None,
+        queries: dict[tuple[str, uuid.UUID], asyncio.Future] | None = None,
         expected_response_digests: set[str] | None = None,
     ) -> MsgStatus:
         # Extract address from destination agent identifier if present
@@ -462,11 +463,13 @@ class InternalContext(Context):
                 )
 
             # Handle sync dispatch of messages
-            elif queries and parsed_address in queries:
-                queries[parsed_address].set_result(
+            # Queries are keyed by (original_sender, session) so a reply only
+            # resolves the specific query it belongs to.
+            elif queries and (parsed_address, self._session) in queries:
+                queries[(parsed_address, self._session)].set_result(
                     (message_body, message_schema_digest)
                 )
-                del queries[parsed_address]
+                del queries[(parsed_address, self._session)]
                 result = MsgStatus(
                     status=DeliveryStatus.DELIVERED,
                     detail="Sync message resolved",
@@ -641,8 +644,8 @@ class ExternalContext(InternalContext):
 
     Attributes:
         _message_received (MsgInfo): The received message.
-        _queries (dict[str, asyncio.Future] | None): dictionary mapping query senders to their
-            response Futures.
+        _queries (dict[tuple[str, uuid.UUID], asyncio.Future] | None): Maps
+            (query sender, session) to their response Futures.
         _replies (dict[str, dict[str, type[Model]]] | None): Dictionary of allowed reply digests
             for each type of incoming message.
         _protocol (tuple[str, Protocol] | None): The supported protocol digest
@@ -652,7 +655,7 @@ class ExternalContext(InternalContext):
     def __init__(
         self,
         message_received: MsgInfo,
-        queries: dict[str, asyncio.Future] | None = None,
+        queries: dict[tuple[str, uuid.UUID], asyncio.Future] | None = None,
         replies: dict[str, dict[str, type[Model]]] | None = None,
         protocol: tuple[str, "Protocol"] | None = None,
         **kwargs,
@@ -662,8 +665,8 @@ class ExternalContext(InternalContext):
 
         Args:
             message_received (MsgInfo): Information about the received message.
-            queries (dict[str, asyncio.Future]): Dictionary mapping query senders to their
-                response Futures.
+            queries (dict[tuple[str, uuid.UUID], asyncio.Future]): Maps
+                (query sender, session) to their response Futures.
             replies (dict[str, dict[str, type[Model]]] | None): Dictionary of allowed replies
                 for each type of incoming message.
             protocol (tuple[str, Protocol] | None): The optional tuple of protocols.
