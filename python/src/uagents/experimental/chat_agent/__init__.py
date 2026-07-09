@@ -22,9 +22,6 @@ class ChatAgent(Agent):
         starter_prompts: list[str] | None = None,
         **kwargs,
     ):
-        if starter_prompts is not None:
-            AgentProfile(starter_prompts=starter_prompts)
-
         self._starter_prompts = starter_prompts
 
         super().__init__(

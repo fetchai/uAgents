@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
 ### Starter prompts
 
-`starter_prompts` are optional example chat messages for the agent's Agentverse profile. They only apply to `ChatAgent` (agents with Chat Protocol). Limits: at most **5** prompts, **200** characters each. They are published when the agent connects to Agentverse with `publish_agent_details=True` (the default for `ChatAgent`).
+`starter_prompts` are optional example chat messages for the agent's Agentverse profile. They only apply to `ChatAgent` (agents with Chat Protocol). Length limits are enforced by the Agentverse API when the profile is saved. They are published when the agent connects to Agentverse with `publish_agent_details=True` (the default for `ChatAgent`).
 
 ## LLM Configuration
 LLM behavior is configured via LLMParams and LLMConfig:

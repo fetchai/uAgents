@@ -61,7 +61,6 @@ from uagents_core.identity import Identity
 from uagents_core.logger import get_logger
 from uagents_core.protocol import ProtocolSpecification, is_valid_protocol_digest
 from uagents_core.registration import (
-    MAX_STARTER_PROMPTS,
     AgentProfile,
     AgentStatusUpdate,
     AgentverseConnectRequest,
@@ -118,7 +117,6 @@ class AgentverseRegistrationRequest(BaseModel):
     )
     starter_prompts: list[str] | None = Field(
         default=None,
-        max_length=MAX_STARTER_PROMPTS,
         description=(
             "Example prompts suggesting how users can interact with this agent."
         ),
@@ -148,9 +146,6 @@ class AgentverseRegistrationRequest(BaseModel):
                 raise ValueError(
                     f"Invalid protocol digest provided: {proto_digest}",
                 )
-        # Validate via AgentProfile so limits stay in one place.
-        if self.starter_prompts is not None:
-            AgentProfile(starter_prompts=self.starter_prompts)
         return self
 
 
@@ -624,8 +619,8 @@ def register_chat_agent(
             This is displayed on the agent's detail page in Agentverse.
         avatar_url: URL to the agent's avatar image.
         banner_url: URL to the agent's profile banner image.
-        starter_prompts: Optional list of example prompts (max 5, each at
-            most 200 characters) shown on the agent's Agentverse profile.
+        starter_prompts: Optional list of example prompts shown on the agent's
+            Agentverse profile.
         metadata: Additional metadata such as categories, tags, geolocation,
             contact details, and visibility (``is_public``). Can be a dict
             or an :class:`AgentMetadata` instance.
