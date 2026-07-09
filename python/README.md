@@ -46,6 +46,38 @@ pip install uagents-core
    uv run ruff check --fix && uv run ruff format
    ```
 
+## Telemetry (Agentverse events)
+
+Native uAgents that are registered on Agentverse automatically report telemetry
+events to the Agentverse events API so their activity is visible on the
+Agentverse dashboard. The following events are emitted:
+
+- **start** — when the agent starts up
+- **stop** — when the agent shuts down
+- **messages** — when a message is received
+- **errors** — when a message handler raises an exception
+
+Telemetry is gated by two conditions:
+
+1. The `report_events` constructor flag (on by default), and
+2. A registration check performed at startup (`GET /v2/agents/{address}`).
+
+Events are only sent when both conditions hold, so unregistered agents never
+report. Telemetry is strictly best-effort: any failure to send events is
+swallowed and never interferes with agent logic.
+
+Disable it explicitly with:
+
+```python
+from uagents import Agent
+
+agent = Agent(name="alice", report_events=False)
+```
+
+The event schema and dispatch/registration helpers live in
+[`uagents-core`](uagents-core/uagents_core/events.py); the lifecycle wiring
+lives in the [`uagents`](src/uagents/agent.py) runtime.
+
 ## Documentation
 
 - **[API Documentation](docs/api/)** - Auto-generated API docs
