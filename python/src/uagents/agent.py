@@ -446,6 +446,8 @@ class Agent(Sink):
         self._description = description
         self._avatar_url = avatar_url
         self._banner_url = banner_url
+        self._publish_agent_details = publish_agent_details
+        self._handle = handle
 
         # keep track of supported protocols
         self.protocols: dict[str, Protocol] = {}
@@ -497,20 +499,11 @@ class Agent(Sink):
             async def _handle_connect(
                 _ctx: Context, request: AgentverseConnectRequest
             ) -> RegistrationResponse:
-                profile = (
-                    AgentProfile(
-                        description=description or "",
-                        readme=self._readme or "",
-                        avatar_url=avatar_url or "",
-                        banner_url=banner_url or "",
-                    )
-                    if publish_agent_details
-                    else AgentProfile()
-                )
+                profile = self._build_registration_profile()
                 registration_data = RegistrationRequest(
                     address=self.address,
                     name=self.name,
-                    handle=handle,
+                    handle=self._handle,
                     url=request.endpoint,
                     profile=profile,
                     endpoints=self._endpoints,
@@ -540,6 +533,17 @@ class Agent(Sink):
         self._enable_agent_inspector = enable_agent_inspector
 
         self._init_done = True
+
+    def _build_registration_profile(self) -> AgentProfile:
+        """Build the Agentverse profile payload for registration and connect."""
+        if not self._publish_agent_details:
+            return AgentProfile()
+        return AgentProfile(
+            description=self._description or "",
+            readme=self._readme or "",
+            avatar_url=self._avatar_url or "",
+            banner_url=self._banner_url or "",
+        )
 
     def _build_context(self) -> InternalContext:
         """

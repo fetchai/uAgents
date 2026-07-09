@@ -127,7 +127,7 @@ except AgentverseRequestError as error:
 | `AgentverseRegistrationRequest` | Full agent registration data |
 | `AgentverseRequestError` | Registration failure exception |
 | `RegistrationRequest` | Agent registration data (internal) |
-| `AgentProfile` | Agent profile (description, readme, avatar) |
+| `AgentProfile` | Agent profile (description, readme, avatar, banner, starter prompts) |
 | `AgentverseConnectRequest` | Connection credentials (internal) |
 | `Identity` | Agent identity and signing |
 

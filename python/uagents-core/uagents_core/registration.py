@@ -4,10 +4,24 @@ import time
 from abc import ABC, abstractmethod
 from typing import Any
 
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 from uagents_core.identity import Identity, parse_identifier
 from uagents_core.types import AgentEndpoint, AgentInfo, AgentMetadata, AgentType
+
+MAX_STARTER_PROMPTS = 5
+MAX_STARTER_PROMPT_LENGTH = 200
+
+
+def _validate_starter_prompts(value: list[str]) -> list[str]:
+    """Validate per-prompt length. List size is enforced by Field(max_length=...)."""
+    for prompt in value:
+        if len(prompt) > MAX_STARTER_PROMPT_LENGTH:
+            raise ValueError(
+                "Each starter prompt must be at most "
+                f"{MAX_STARTER_PROMPT_LENGTH} characters"
+            )
+    return value
 
 
 class AgentRegistrationPolicy(ABC):
@@ -98,6 +112,16 @@ class AgentProfile(BaseModel):
         max_length=4000,
         description="URL to the agent's profile banner image",
     )
+    starter_prompts: list[str] = Field(
+        default_factory=list,
+        max_length=MAX_STARTER_PROMPTS,
+        description="Example chat prompts for agents that support the Chat Protocol",
+    )
+
+    @field_validator("starter_prompts")
+    @classmethod
+    def validate_starter_prompts(cls, value: list[str]) -> list[str]:
+        return _validate_starter_prompts(value)
 
 
 class RegistrationRequest(BaseModel):
@@ -189,7 +213,19 @@ class AgentUpdates(BaseModel):
     avatar_url: str | None = Field(default=None, max_length=4000)
     banner_url: str | None = Field(default=None, max_length=4000)
     short_description: str | None = Field(default=None, max_length=300)
+    starter_prompts: list[str] | None = Field(
+        default=None,
+        max_length=MAX_STARTER_PROMPTS,
+        description="Example chat prompts for agents that support the Chat Protocol",
+    )
     agent_type: str = "custom"
+
+    @field_validator("starter_prompts")
+    @classmethod
+    def validate_starter_prompts(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        return _validate_starter_prompts(value)
 
 
 class AgentStatusUpdate(VerifiableModel):

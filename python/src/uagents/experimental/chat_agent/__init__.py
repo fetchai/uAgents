@@ -1,5 +1,7 @@
 from typing import Optional
 
+from uagents_core.registration import AgentProfile
+
 from uagents import Agent
 from uagents.experimental.chat_agent.llm import LLMConfig, LLMParams
 from uagents.experimental.chat_agent.protocol import ChatProtocol
@@ -17,8 +19,14 @@ class ChatAgent(Agent):
         instructions: str | None = None,
         publish_agent_details: bool = True,
         store_message_history: bool = True,
+        starter_prompts: list[str] | None = None,
         **kwargs,
     ):
+        if starter_prompts is not None:
+            AgentProfile(starter_prompts=starter_prompts)
+
+        self._starter_prompts = starter_prompts
+
         super().__init__(
             *args,
             publish_agent_details=publish_agent_details,
@@ -35,6 +43,12 @@ class ChatAgent(Agent):
         )
 
         super().include(self._chat_proto, publish_manifest=True)
+
+    def _build_registration_profile(self) -> AgentProfile:
+        profile = super()._build_registration_profile()
+        if self._starter_prompts is None:
+            return profile
+        return profile.model_copy(update={"starter_prompts": self._starter_prompts})
 
     def include(self, protocol: Protocol, publish_manifest: bool = True):
         super().include(protocol, publish_manifest=publish_manifest)
