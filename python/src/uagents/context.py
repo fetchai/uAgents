@@ -10,7 +10,13 @@ from typing import TYPE_CHECKING
 
 import requests
 from cosmpy.aerial.client import LedgerClient
+from uagents_core.config import AgentverseConfig
 from uagents_core.envelope import Envelope
+from uagents_core.events import (
+    AgentBatchEvents,
+    MessageEventMetadata,
+    dispatch_events,
+)
 from uagents_core.identity import parse_identifier
 from uagents_core.models import ERROR_MESSAGE_DIGEST, ErrorMessage, Model
 from uagents_core.types import DeliveryStatus, MsgStatus
@@ -257,6 +263,8 @@ class InternalContext(Context):
         interval_messages: set[str] | None = None,
         message_history: EnvelopeHistory | None = None,
         logger: logging.Logger | None = None,
+        agentverse: AgentverseConfig | None = None,
+        events_enabled: bool = False,
     ):
         self._agent = agent
         self._storage = storage
@@ -268,6 +276,10 @@ class InternalContext(Context):
         self._interval_messages = interval_messages
         self._message_history = message_history
         self._outbound_messages: dict[str, list[tuple[JsonStr, str]]] = {}
+        # Telemetry: resolved by the agent at startup and passed in at build time.
+        self._agentverse = agentverse
+        self._events_enabled = events_enabled
+        self._telemetry_tasks: set[asyncio.Task] = set()
 
     @property
     def agent(self) -> "AgentRepresentation":
@@ -539,18 +551,20 @@ class InternalContext(Context):
                         session=self._session,
                     )
 
-        if result.status == DeliveryStatus.DELIVERED and self._message_history:
-            self._message_history.add_entry(
-                EnvelopeHistoryEntry(
-                    version=1,
-                    sender=self.agent.address,
-                    target=destination,
-                    session=self._session,
-                    schema_digest=message_schema_digest,
-                    protocol_digest=protocol_digest,
-                    payload=message_body,
+        if result.status == DeliveryStatus.DELIVERED:
+            self._report_message_sent(parsed_address or destination)
+            if self._message_history:
+                self._message_history.add_entry(
+                    EnvelopeHistoryEntry(
+                        version=1,
+                        sender=self.agent.address,
+                        target=destination,
+                        session=self._session,
+                        schema_digest=message_schema_digest,
+                        protocol_digest=protocol_digest,
+                        payload=message_body,
+                    )
                 )
-            )
 
         return result
 
@@ -568,6 +582,39 @@ class InternalContext(Context):
             envelope (Envelope): The envelope to queue.
         """
         self._dispenser.add_envelope(envelope, endpoints, response_future, sync)
+
+    def _report_message_sent(self, peer: str) -> None:
+        """
+        Report a `message` telemetry event for a successfully sent message.
+
+        Fire-and-forget and fully defensive: telemetry must never add latency to
+        or raise into the send path. No-op when telemetry is disabled.
+        """
+        if not self._events_enabled or self._agentverse is None:
+            return
+        try:
+            metadata = MessageEventMetadata(
+                direction="sent",
+                peer=peer,
+                msg_id=uuid.uuid4(),
+                session_id=self._session,
+            )
+            events = AgentBatchEvents.from_message(
+                f"Message sent to {peer}",
+                category="user",
+                kind="message",
+                metadata=metadata.model_dump(mode="json"),
+            )
+        except Exception as ex:  # never let telemetry break sending
+            log(self._logger, logging.DEBUG, f"Failed to build sent event: {ex}")
+            return
+        task = asyncio.ensure_future(
+            dispatch_events(
+                self._agent.identity, self._agentverse, events, logger=self._logger
+            )
+        )
+        self._telemetry_tasks.add(task)
+        task.add_done_callback(self._telemetry_tasks.discard)
 
     async def send_and_receive(
         self,

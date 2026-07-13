@@ -8,15 +8,18 @@ import httpx
 from pydantic import ValidationError
 from uagents_core.config import AgentverseConfig
 from uagents_core.events import (
+    DEFAULT_SDK_VERSION,
     AgentBatchEvents,
     BatchEvent,
     MessageEventMetadata,
+    PlatformMetadata,
     dispatch_events,
     is_registered_on_agentverse,
 )
 from uagents_core.identity import Identity
 
 from uagents import Agent
+from uagents.context import InternalContext
 
 SDK_VERSION = "9.9.9"
 
@@ -45,6 +48,14 @@ class TestEventBuilders(unittest.TestCase):
         self.assertEqual(event.kind, "info")
         self.assertEqual(event.message, "Agent Started")
         self.assertIsNone(event.metadata)
+
+    def test_default_sdk_version_resolved(self):
+        # uagents is installed in the test env, so the default must not be a
+        # placeholder and must flow through the builders when not passed.
+        self.assertNotEqual(DEFAULT_SDK_VERSION, "unknown")
+        self.assertEqual(PlatformMetadata.current().sdk_version, DEFAULT_SDK_VERSION)
+        batch = AgentBatchEvents.from_message("Agent Started")
+        self.assertEqual(batch.platform.sdk_version, DEFAULT_SDK_VERSION)
 
     def test_from_exception(self):
         exc = ValueError("boom")
@@ -246,6 +257,47 @@ class TestRuntimeWiring(unittest.IsolatedAsyncioTestCase):
         dispatch_mock = AsyncMock()
         with patch("uagents.agent.dispatch_events", dispatch_mock):
             await self.agent.run_shutdown_tasks()
+        dispatch_mock.assert_not_awaited()
+
+
+class TestSentMessageTelemetry(unittest.IsolatedAsyncioTestCase):
+    def _build_context(self, events_enabled: bool) -> InternalContext:
+        agent = MagicMock()
+        agent.identity = Identity.generate()
+        agent.address = agent.identity.address
+        return InternalContext(
+            agent=agent,
+            storage=MagicMock(),
+            ledger=MagicMock(),
+            resolver=MagicMock(),
+            dispenser=MagicMock(),
+            logger=MagicMock(),
+            agentverse=AgentverseConfig(),
+            events_enabled=events_enabled,
+        )
+
+    async def test_report_message_sent_when_enabled(self):
+        ctx = self._build_context(events_enabled=True)
+        dispatch_mock = AsyncMock()
+        with patch("uagents.context.dispatch_events", dispatch_mock):
+            ctx._report_message_sent("agent1recipient")
+            # allow the fire-and-forget task to run
+            for task in list(ctx._telemetry_tasks):
+                await task
+
+        dispatch_mock.assert_awaited_once()
+        batch = dispatch_mock.await_args.args[2]
+        event = batch.events[0]
+        self.assertEqual(event.kind, "message")
+        self.assertEqual(event.metadata["direction"], "sent")
+        self.assertEqual(event.metadata["peer"], "agent1recipient")
+
+    async def test_report_message_sent_noop_when_disabled(self):
+        ctx = self._build_context(events_enabled=False)
+        dispatch_mock = AsyncMock()
+        with patch("uagents.context.dispatch_events", dispatch_mock):
+            ctx._report_message_sent("agent1recipient")
+        self.assertEqual(len(ctx._telemetry_tasks), 0)
         dispatch_mock.assert_not_awaited()
 
 

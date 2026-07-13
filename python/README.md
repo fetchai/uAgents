@@ -54,7 +54,7 @@ Agentverse dashboard. The following events are emitted:
 
 - **start** — when the agent starts up
 - **stop** — when the agent shuts down
-- **messages** — when a message is received
+- **messages** — when a message is received or sent
 - **errors** — when a message handler raises an exception
 
 Telemetry is gated by two conditions:

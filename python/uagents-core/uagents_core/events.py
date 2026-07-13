@@ -17,6 +17,8 @@ never raise into the caller.
 import logging
 import platform
 from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _package_version
 from secrets import token_bytes
 from typing import Any, Literal
 from uuid import UUID, uuid4
@@ -39,6 +41,26 @@ AUTH_TOKEN_VALIDITY_SECS = 120
 EVENTS_PATH = "/v1/events"
 
 
+def _resolve_default_sdk_version() -> str:
+    """
+    Best-effort lookup of the version to report as ``sdk_version``.
+
+    Prefers the ``uagents`` runtime version (the common consumer of this module),
+    falling back to ``uagents-core`` and finally ``"unknown"``.
+    """
+    for package in ("uagents", "uagents-core"):
+        try:
+            return _package_version(package)
+        except PackageNotFoundError:
+            continue
+    return "unknown"
+
+
+# Resolved once at import time and used as the default for event metadata so
+# callers (e.g. the uAgents runtime) don't need to compute or thread it through.
+DEFAULT_SDK_VERSION = _resolve_default_sdk_version()
+
+
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -57,7 +79,7 @@ class PlatformMetadata(BaseModel):
     sdk_version: str
 
     @classmethod
-    def current(cls, sdk_version: str) -> "PlatformMetadata":
+    def current(cls, sdk_version: str = DEFAULT_SDK_VERSION) -> "PlatformMetadata":
         """Collect platform metadata for the running process."""
         return cls(
             operating_system=OperatingSystemMetadata(
@@ -104,7 +126,7 @@ class AgentBatchEvents(BaseModel):
     def from_message(
         cls,
         message: str,
-        sdk_version: str,
+        sdk_version: str = DEFAULT_SDK_VERSION,
         category: EventCategory = "user",
         kind: EventKind = "info",
         metadata: dict[str, Any] | None = None,
@@ -128,7 +150,7 @@ class AgentBatchEvents(BaseModel):
         cls,
         exception: Exception,
         traceback: str,
-        sdk_version: str,
+        sdk_version: str = DEFAULT_SDK_VERSION,
         category: EventCategory = "system",
     ) -> "AgentBatchEvents":
         """Build a single-event batch describing an error/exception."""

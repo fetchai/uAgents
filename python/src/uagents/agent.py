@@ -7,8 +7,6 @@ import logging
 import os
 import traceback
 import uuid
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as _package_version
 from typing import Any
 
 import aiohttp
@@ -101,14 +99,6 @@ from uagents.types import (
     RestPostHandler,
 )
 from uagents.utils import get_logger, set_global_log_level
-
-
-def _get_sdk_version() -> str:
-    """Return the installed ``uagents`` package version for telemetry metadata."""
-    try:
-        return _package_version("uagents")
-    except PackageNotFoundError:
-        return "unknown"
 
 
 async def _run_interval(
@@ -442,7 +432,6 @@ class Agent(Sink):
         # (resolved at startup). `_events_enabled` is the resolved combination.
         self._report_events = report_events
         self._events_enabled = False
-        self._sdk_version = _get_sdk_version()
         self._telemetry_tasks: set[asyncio.Task] = set()
         self._on_startup = []
         self._on_shutdown = []
@@ -589,6 +578,8 @@ class Agent(Sink):
             interval_messages=self._interval_messages,
             logger=self._logger,
             message_history=self._message_history,
+            agentverse=self._agentverse,
+            events_enabled=self._events_enabled,
         )
 
     def _initialize_wallet_and_identity(
@@ -1210,7 +1201,6 @@ class Agent(Sink):
         self._schedule_telemetry(
             AgentBatchEvents.from_message(
                 f"Message received from {sender}",
-                self._sdk_version,
                 category="user",
                 kind="message",
                 metadata=metadata.model_dump(mode="json"),
@@ -1221,7 +1211,7 @@ class Agent(Sink):
         """Report an `error` telemetry event for a message-handler failure."""
         self._schedule_telemetry(
             AgentBatchEvents.from_exception(
-                ex, traceback.format_exc(), self._sdk_version, category="user"
+                ex, traceback.format_exc(), category="user"
             )
         )
 
@@ -1231,7 +1221,7 @@ class Agent(Sink):
             await dispatch_events(
                 self._identity,
                 self._agentverse,
-                AgentBatchEvents.from_message("Agent Stopped", self._sdk_version),
+                AgentBatchEvents.from_message("Agent Stopped"),
                 logger=self._logger,
             )
         for handler in self._on_shutdown:
@@ -1339,7 +1329,7 @@ class Agent(Sink):
             await dispatch_events(
                 self._identity,
                 self._agentverse,
-                AgentBatchEvents.from_message("Agent Started", self._sdk_version),
+                AgentBatchEvents.from_message("Agent Started"),
                 logger=self._logger,
             )
         for handler in self._on_startup:
@@ -1530,6 +1520,8 @@ class Agent(Sink):
             ),
             protocol=protocol_info,
             message_history=self._message_history,
+            agentverse=self._agentverse,
+            events_enabled=self._events_enabled,
         )
 
         # sanity check
