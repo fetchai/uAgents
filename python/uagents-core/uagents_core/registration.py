@@ -98,6 +98,10 @@ class AgentProfile(BaseModel):
         max_length=4000,
         description="URL to the agent's profile banner image",
     )
+    starter_prompts: list[str] = Field(
+        default_factory=list,
+        description="Example chat prompts for agents that support the Chat Protocol",
+    )
 
 
 class RegistrationRequest(BaseModel):
@@ -189,6 +193,10 @@ class AgentUpdates(BaseModel):
     avatar_url: str | None = Field(default=None, max_length=4000)
     banner_url: str | None = Field(default=None, max_length=4000)
     short_description: str | None = Field(default=None, max_length=300)
+    starter_prompts: list[str] | None = Field(
+        default=None,
+        description="Example chat prompts for agents that support the Chat Protocol",
+    )
     agent_type: str = "custom"
 
 
