@@ -19,7 +19,7 @@ from typing_extensions import deprecated
 from uagents_core.config import AgentverseConfig
 from uagents_core.events import (
     AgentBatchEvents,
-    MessageEventMetadata,
+    EventsDispatcher,
     dispatch_events,
     is_registered_on_agentverse,
 )
@@ -428,11 +428,9 @@ class Agent(Sink):
         self._handle_messages_concurrently = handle_messages_concurrently
         self._shutdown_timeout = shutdown_timeout
         self._mark_inactive_on_shutdown = mark_inactive_on_shutdown
-        # Telemetry: gated by the `report_events` toggle AND a registration check
-        # (resolved at startup). `_events_enabled` is the resolved combination.
         self._report_events = report_events
         self._events_enabled = False
-        self._telemetry_tasks: set[asyncio.Task] = set()
+        self._events_dispatcher: EventsDispatcher | None = None
         self._on_startup = []
         self._on_shutdown = []
         self._network = network
@@ -578,8 +576,7 @@ class Agent(Sink):
             interval_messages=self._interval_messages,
             logger=self._logger,
             message_history=self._message_history,
-            agentverse=self._agentverse,
-            events_enabled=self._events_enabled,
+            events_dispatcher=self._events_dispatcher,
         )
 
     def _initialize_wallet_and_identity(
@@ -1173,47 +1170,17 @@ class Agent(Sink):
             self._identity, self._agentverse
         )
 
-    def _schedule_telemetry(self, events: AgentBatchEvents) -> None:
-        """
-        Dispatch a batch of telemetry events in the background (fire-and-forget).
-
-        Used on the message path so telemetry never adds latency to (or interferes
-        with) message handling. No-op when telemetry is disabled.
-        """
-        if not self._events_enabled:
-            return
-        task = self._loop.create_task(
-            dispatch_events(
-                self._identity, self._agentverse, events, logger=self._logger
-            )
-        )
-        self._telemetry_tasks.add(task)
-        task.add_done_callback(self._telemetry_tasks.discard)
-
     def _report_message_received(self, session: uuid.UUID, sender: str) -> None:
         """Report a `message` telemetry event for an inbound message."""
-        metadata = MessageEventMetadata(
-            direction="received",
-            peer=sender,
-            msg_id=uuid.uuid4(),
-            session_id=session,
-        )
-        self._schedule_telemetry(
-            AgentBatchEvents.from_message(
-                f"Message received from {sender}",
-                category="user",
-                kind="message",
-                metadata=metadata.model_dump(mode="json"),
-            )
-        )
+        if self._events_dispatcher is not None:
+            self._events_dispatcher.report_message("received", sender, session)
 
     def _report_handler_error(self, ex: Exception) -> None:
         """Report an `error` telemetry event for a message-handler failure."""
-        self._schedule_telemetry(
-            AgentBatchEvents.from_exception(
+        if self._events_dispatcher is not None:
+            self._events_dispatcher.report_exception(
                 ex, traceback.format_exc(), category="user"
             )
-        )
 
     async def run_shutdown_tasks(self):
         """Perform shutdown actions."""
@@ -1234,6 +1201,10 @@ class Agent(Sink):
                 self._logger.exception(f"Runtime Error in shutdown handler: {ex}")
             except Exception as ex:
                 self._logger.exception(f"Exception in shutdown handler: {ex}")
+        # Drain any buffered telemetry before closing the dispatcher.
+        if self._events_dispatcher is not None:
+            await self._events_dispatcher.stop()
+            self._events_dispatcher = None
 
     async def _shutdown(self, tasks: list[asyncio.Task]):
         """Perform graceful agent shutdown."""
@@ -1326,6 +1297,10 @@ class Agent(Sink):
         await self._update_agent_status(active=True)
         await self._resolve_events_enabled()
         if self._events_enabled:
+            self._events_dispatcher = EventsDispatcher(
+                self._identity, self._agentverse, logger=self._logger
+            )
+            await self._events_dispatcher.start()
             await dispatch_events(
                 self._identity,
                 self._agentverse,
@@ -1520,8 +1495,7 @@ class Agent(Sink):
             ),
             protocol=protocol_info,
             message_history=self._message_history,
-            agentverse=self._agentverse,
-            events_enabled=self._events_enabled,
+            events_dispatcher=self._events_dispatcher,
         )
 
         # sanity check

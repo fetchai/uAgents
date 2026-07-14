@@ -1,4 +1,5 @@
 # pylint: disable=protected-access
+import asyncio
 import unittest
 import uuid
 from datetime import datetime, timezone
@@ -11,6 +12,8 @@ from uagents_core.events import (
     DEFAULT_SDK_VERSION,
     AgentBatchEvents,
     BatchEvent,
+    EventIngestionOptions,
+    EventsDispatcher,
     MessageEventMetadata,
     PlatformMetadata,
     dispatch_events,
@@ -181,7 +184,7 @@ class TestRuntimeWiring(unittest.IsolatedAsyncioTestCase):
 
     async def test_handle_message_reports_received_when_enabled(self):
         self.agent._events_enabled = True
-        self.agent._schedule_telemetry = MagicMock()
+        self.agent._events_dispatcher = MagicMock()
 
         async def handler(_ctx, _sender, _msg):
             return None
@@ -190,13 +193,14 @@ class TestRuntimeWiring(unittest.IsolatedAsyncioTestCase):
             handler, self._fake_context(), "agent1sender", MagicMock(), MagicMock()
         )
 
-        self.assertEqual(self.agent._schedule_telemetry.call_count, 1)
-        batch = self.agent._schedule_telemetry.call_args.args[0]
-        self.assertEqual(batch.events[0].kind, "message")
+        self.agent._events_dispatcher.report_message.assert_called_once()
+        args = self.agent._events_dispatcher.report_message.call_args.args
+        self.assertEqual(args[0], "received")
+        self.assertEqual(args[1], "agent1sender")
 
     async def test_handle_message_reports_error_and_still_logs(self):
         self.agent._events_enabled = True
-        self.agent._schedule_telemetry = MagicMock()
+        self.agent._events_dispatcher = MagicMock()
         self.agent._logger = MagicMock()
 
         async def handler(_ctx, _sender, _msg):
@@ -208,14 +212,13 @@ class TestRuntimeWiring(unittest.IsolatedAsyncioTestCase):
 
         # existing behavior: the exception is still logged
         self.agent._logger.exception.assert_called_once()
-        # one received event + one error event
-        self.assertEqual(self.agent._schedule_telemetry.call_count, 2)
-        kinds = [c.args[0].events[0].kind for c in self.agent._schedule_telemetry.call_args_list]
-        self.assertEqual(kinds, ["message", "error"])
+        # one received (message) event + one handler-error event
+        self.agent._events_dispatcher.report_message.assert_called_once()
+        self.agent._events_dispatcher.report_exception.assert_called_once()
 
     async def test_handle_message_no_telemetry_when_disabled(self):
         self.agent._events_enabled = False
-        self.agent._schedule_telemetry = MagicMock()
+        self.agent._events_dispatcher = MagicMock()
 
         async def handler(_ctx, _sender, _msg):
             return None
@@ -223,27 +226,34 @@ class TestRuntimeWiring(unittest.IsolatedAsyncioTestCase):
         await self.agent._handle_message(
             handler, self._fake_context(), "agent1sender", MagicMock(), MagicMock()
         )
-        self.agent._schedule_telemetry.assert_not_called()
+        self.agent._events_dispatcher.report_message.assert_not_called()
 
-    async def test_startup_dispatches_started_event(self):
+    async def test_startup_starts_dispatcher_and_dispatches_started_event(self):
         self.agent._update_agent_status = AsyncMock()
         dispatch_mock = AsyncMock()
+        dispatcher_instance = MagicMock()
+        dispatcher_instance.start = AsyncMock()
+        dispatcher_cls = MagicMock(return_value=dispatcher_instance)
         with (
             patch(
                 "uagents.agent.is_registered_on_agentverse",
                 AsyncMock(return_value=True),
             ),
+            patch("uagents.agent.EventsDispatcher", dispatcher_cls),
             patch("uagents.agent.dispatch_events", dispatch_mock),
         ):
             await self.agent.run_startup_tasks()
 
         self.assertTrue(self.agent._events_enabled)
+        dispatcher_instance.start.assert_awaited_once()
         dispatch_mock.assert_awaited_once()
         batch = dispatch_mock.await_args.args[2]
         self.assertEqual(batch.events[0].message, "Agent Started")
 
-    async def test_shutdown_dispatches_stopped_event(self):
+    async def test_shutdown_dispatches_stopped_event_and_drains_dispatcher(self):
         self.agent._events_enabled = True
+        self.agent._events_dispatcher = MagicMock()
+        self.agent._events_dispatcher.stop = AsyncMock()
         dispatch_mock = AsyncMock()
         with patch("uagents.agent.dispatch_events", dispatch_mock):
             await self.agent.run_shutdown_tasks()
@@ -251,6 +261,8 @@ class TestRuntimeWiring(unittest.IsolatedAsyncioTestCase):
         dispatch_mock.assert_awaited_once()
         batch = dispatch_mock.await_args.args[2]
         self.assertEqual(batch.events[0].message, "Agent Stopped")
+        # dispatcher is drained and cleared on shutdown
+        self.assertIsNone(self.agent._events_dispatcher)
 
     async def test_shutdown_no_dispatch_when_disabled(self):
         self.agent._events_enabled = False
@@ -261,7 +273,7 @@ class TestRuntimeWiring(unittest.IsolatedAsyncioTestCase):
 
 
 class TestSentMessageTelemetry(unittest.IsolatedAsyncioTestCase):
-    def _build_context(self, events_enabled: bool) -> InternalContext:
+    def _build_context(self, events_dispatcher) -> InternalContext:
         agent = MagicMock()
         agent.identity = Identity.generate()
         agent.address = agent.identity.address
@@ -272,33 +284,87 @@ class TestSentMessageTelemetry(unittest.IsolatedAsyncioTestCase):
             resolver=MagicMock(),
             dispenser=MagicMock(),
             logger=MagicMock(),
-            agentverse=AgentverseConfig(),
-            events_enabled=events_enabled,
+            events_dispatcher=events_dispatcher,
         )
 
     async def test_report_message_sent_when_enabled(self):
-        ctx = self._build_context(events_enabled=True)
-        dispatch_mock = AsyncMock()
-        with patch("uagents.context.dispatch_events", dispatch_mock):
-            ctx._report_message_sent("agent1recipient")
-            # allow the fire-and-forget task to run
-            for task in list(ctx._telemetry_tasks):
-                await task
-
-        dispatch_mock.assert_awaited_once()
-        batch = dispatch_mock.await_args.args[2]
-        event = batch.events[0]
-        self.assertEqual(event.kind, "message")
-        self.assertEqual(event.metadata["direction"], "sent")
-        self.assertEqual(event.metadata["peer"], "agent1recipient")
+        dispatcher = MagicMock()
+        ctx = self._build_context(dispatcher)
+        ctx._report_message_sent("agent1recipient")
+        dispatcher.report_message.assert_called_once_with(
+            "sent", "agent1recipient", ctx._session
+        )
 
     async def test_report_message_sent_noop_when_disabled(self):
-        ctx = self._build_context(events_enabled=False)
-        dispatch_mock = AsyncMock()
-        with patch("uagents.context.dispatch_events", dispatch_mock):
-            ctx._report_message_sent("agent1recipient")
-        self.assertEqual(len(ctx._telemetry_tasks), 0)
-        dispatch_mock.assert_not_awaited()
+        ctx = self._build_context(None)
+        # Must not raise when no dispatcher is configured.
+        ctx._report_message_sent("agent1recipient")
+
+
+def _mock_persistent_client(response=None, post_side_effect=None):
+    """Build a mock for the dispatcher's long-lived httpx.AsyncClient."""
+    client = MagicMock()
+    if post_side_effect is not None:
+        client.post = AsyncMock(side_effect=post_side_effect)
+    else:
+        client.post = AsyncMock(return_value=response)
+    client.aclose = AsyncMock()
+    return MagicMock(return_value=client), client
+
+
+class TestEventsDispatcher(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.identity = Identity.generate()
+        self.agentverse = AgentverseConfig()
+
+    def _ok_response(self):
+        response = MagicMock()
+        response.raise_for_status = MagicMock()
+        return response
+
+    async def test_enqueue_and_flush_posts_to_events_endpoint(self):
+        factory, client = _mock_persistent_client(response=self._ok_response())
+        with patch("uagents_core.events.httpx.AsyncClient", factory):
+            dispatcher = EventsDispatcher(self.identity, self.agentverse)
+            await dispatcher.start()
+            dispatcher.report_message("sent", "agent1peer")
+            await dispatcher.stop()
+
+        client.post.assert_awaited()
+        url = client.post.await_args.args[0]
+        self.assertTrue(url.endswith("/v1/events"))
+        client.aclose.assert_awaited_once()
+
+    async def test_retries_on_transient_failure(self):
+        factory, client = _mock_persistent_client(
+            post_side_effect=[httpx.ConnectError("down"), self._ok_response()]
+        )
+        options = EventIngestionOptions(retry_base_delay_s=0.01, flush_interval_s=0.02)
+        with patch("uagents_core.events.httpx.AsyncClient", factory):
+            dispatcher = EventsDispatcher(self.identity, self.agentverse, options)
+            await dispatcher.start()
+            dispatcher.enqueue(AgentBatchEvents.from_message("retry me"))
+            await asyncio.sleep(0.2)
+            await dispatcher.stop()
+
+        self.assertGreaterEqual(client.post.await_count, 2)
+
+    async def test_drops_and_accounts_when_queue_full(self):
+        # maxsize=1 and no worker running: second/third enqueue are dropped.
+        dispatcher = EventsDispatcher(
+            self.identity,
+            self.agentverse,
+            EventIngestionOptions(queue_max_batches=1),
+        )
+        dispatcher.enqueue(AgentBatchEvents.from_message("one"))
+        dispatcher.enqueue(AgentBatchEvents.from_message("two"))
+        dispatcher.enqueue(AgentBatchEvents.from_message("three"))
+        self.assertEqual(dispatcher._dropped_events_count, 2)
+
+    async def test_stop_is_noop_when_never_started(self):
+        dispatcher = EventsDispatcher(self.identity, self.agentverse)
+        # Must not raise even though start() was never called.
+        await dispatcher.stop()
 
 
 if __name__ == "__main__":

@@ -14,9 +14,11 @@ Telemetry must never interfere with agent logic: :func:`dispatch_events` and
 never raise into the caller.
 """
 
+import asyncio
+import contextlib
 import logging
 import platform
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _package_version
 from secrets import token_bytes
@@ -39,6 +41,18 @@ AUTH_TOKEN_VALIDITY_SECS = 120
 
 # Path of the Agentverse events endpoint, relative to the Agentverse base url.
 EVENTS_PATH = "/v1/events"
+
+# Default HTTP timeout (seconds) for telemetry requests.
+DEFAULT_EVENTS_HTTP_TIMEOUT_S = 10
+
+# Defaults for the background events dispatcher. These mirror the values used by
+# the agentverse-sdk dispatcher so behaviour stays consistent across SDKs.
+DEFAULT_EVENTS_QUEUE_MAX_BATCHES = 256
+DEFAULT_EVENTS_FLUSH_INTERVAL_S = 0.1
+DEFAULT_EVENTS_MAX_BATCH_EVENTS = 50
+DEFAULT_EVENTS_RETRY_BASE_DELAY_S = 1.0
+DEFAULT_EVENTS_MAX_RETRY_DELAY_S = 30.0
+DEFAULT_EVENTS_SHUTDOWN_DRAIN_TIMEOUT_S = 5.0
 
 
 def _resolve_default_sdk_version() -> str:
@@ -183,7 +197,7 @@ async def dispatch_events(
     events: AgentBatchEvents,
     *,
     logger: logging.Logger | None = None,
-    timeout: int = 10,
+    timeout: int = DEFAULT_EVENTS_HTTP_TIMEOUT_S,
 ) -> None:
     """
     POST a batch of events to the Agentverse events API.
@@ -224,3 +238,261 @@ async def is_registered_on_agentverse(
     except httpx.HTTPError:
         return False
     return response.status_code == 200
+
+
+class EventIngestionOptions(BaseModel):
+    """Tuning knobs for :class:`EventsDispatcher`."""
+
+    queue_max_batches: int = Field(default=DEFAULT_EVENTS_QUEUE_MAX_BATCHES, ge=1)
+    flush_interval_s: float = Field(default=DEFAULT_EVENTS_FLUSH_INTERVAL_S, gt=0)
+    max_batch_events: int = Field(default=DEFAULT_EVENTS_MAX_BATCH_EVENTS, ge=1)
+    retry_base_delay_s: float = Field(default=DEFAULT_EVENTS_RETRY_BASE_DELAY_S, gt=0)
+    max_retry_delay_s: float = Field(default=DEFAULT_EVENTS_MAX_RETRY_DELAY_S, gt=0)
+    shutdown_drain_timeout_s: float = Field(
+        default=DEFAULT_EVENTS_SHUTDOWN_DRAIN_TIMEOUT_S, gt=0
+    )
+
+
+def _is_client_error(error: httpx.HTTPStatusError) -> bool:
+    """
+    Return True for 4xx errors that indicate a bad payload (so we stop retrying).
+
+    401 is excluded because it's an auth issue that may resolve on the next
+    attempt when a fresh attestation token is generated.
+    """
+    code = error.response.status_code
+    return 400 <= code < 500 and code != 401
+
+
+class EventsDispatcher:
+    """
+    Background buffer that POSTs agent telemetry to the Agentverse events API.
+
+    Adapted from the ``agentverse-sdk`` events dispatcher
+    (https://github.com/fetchai/agentverse-core/pull/6139). The only substantive
+    change is the constructor: it takes an :class:`~uagents_core.identity.Identity`
+    and an :class:`~uagents_core.config.AgentverseConfig` (instead of the SDK's
+    ``AgentUri``) so it can be reused directly by the native uAgents runtime. Once
+    this lives in uAgents core, the agentverse-sdk can be refactored to depend on
+    this implementation.
+
+    Events are enqueued from the hot path (never blocking it), coalesced into
+    batches by a single worker task, and POSTed with exponential-backoff retries.
+    On shutdown the queue is drained (best effort, bounded by
+    ``shutdown_drain_timeout_s``) before the client is closed.
+
+    Telemetry must never raise into agent logic, so :meth:`enqueue` and the
+    ``report_*`` helpers are fully defensive.
+    """
+
+    def __init__(
+        self,
+        identity: Identity,
+        agentverse: AgentverseConfig,
+        options: EventIngestionOptions | None = None,
+        *,
+        logger: logging.Logger | None = None,
+    ) -> None:
+        self._identity = identity
+        self._agentverse = agentverse
+        self._options = options or EventIngestionOptions()
+        self._logger = logger
+        self._queue: asyncio.Queue[AgentBatchEvents] = asyncio.Queue(
+            maxsize=self._options.queue_max_batches
+        )
+        self._client: httpx.AsyncClient | None = None
+        self._worker_task: asyncio.Task[None] | None = None
+        self._stopping = False
+        self._dropped_events_count = 0
+        self._first_drop_at: datetime | None = None
+
+    @property
+    def events_url(self) -> str:
+        return f"{self._agentverse.url}{EVENTS_PATH}"
+
+    def _log(self, level: int, message: str) -> None:
+        if self._logger is not None:
+            self._logger.log(level, message)
+
+    # -- reporting helpers: the "events client" used by the runtime/context --
+
+    def report_message(
+        self,
+        direction: MessageDirection,
+        peer: str,
+        session_id: UUID | None = None,
+    ) -> None:
+        """Enqueue a ``message`` event for a received or sent message."""
+        try:
+            metadata = MessageEventMetadata(
+                direction=direction,
+                peer=peer,
+                msg_id=uuid4(),
+                session_id=session_id,
+            )
+            verb = "received from" if direction == "received" else "sent to"
+            batch = AgentBatchEvents.from_message(
+                f"Message {verb} {peer}",
+                category="user",
+                kind="message",
+                metadata=metadata.model_dump(mode="json"),
+            )
+        except Exception as exc:  # noqa: BLE001 - telemetry must never raise
+            self._log(logging.DEBUG, f"Failed to build message event: {exc}")
+            return
+        self.enqueue(batch)
+
+    def report_exception(
+        self,
+        exception: Exception,
+        traceback: str,
+        category: EventCategory = "user",
+    ) -> None:
+        """Enqueue an ``error`` event for a handler/agent failure."""
+        try:
+            batch = AgentBatchEvents.from_exception(
+                exception, traceback, category=category
+            )
+        except Exception as exc:  # noqa: BLE001 - telemetry must never raise
+            self._log(logging.DEBUG, f"Failed to build error event: {exc}")
+            return
+        self.enqueue(batch)
+
+    # -- queue plumbing (adapted from the agentverse-sdk dispatcher) --
+
+    def enqueue(self, batch: AgentBatchEvents) -> None:
+        if not batch.events:
+            return
+        if self._stopping:
+            self._log(
+                logging.DEBUG,
+                f"Events dropped during shutdown ({len(batch.events)} events)",
+            )
+            return
+        try:
+            self._queue.put_nowait(batch)
+        except asyncio.QueueFull:
+            if self._first_drop_at is None:
+                self._first_drop_at = _utc_now()
+            self._dropped_events_count += len(batch.events)
+            self._log(
+                logging.ERROR,
+                f"Events queue full; dropped newest batch ({len(batch.events)} events)",
+            )
+
+    async def start(self) -> None:
+        if self._worker_task is not None:
+            return
+        self._stopping = False
+        self._client = httpx.AsyncClient(timeout=DEFAULT_EVENTS_HTTP_TIMEOUT_S)
+        self._worker_task = asyncio.create_task(self._worker_loop())
+
+    async def stop(self, *, drain_timeout: float | None = None) -> None:
+        if self._worker_task is None:
+            return
+        drain_timeout = drain_timeout or self._options.shutdown_drain_timeout_s
+        self._stopping = True
+        # ``wait_for`` cancels the worker if the drain exceeds the timeout.
+        with contextlib.suppress(TimeoutError, asyncio.CancelledError):
+            await asyncio.wait_for(self._worker_task, timeout=drain_timeout)
+        self._worker_task = None
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
+
+    async def _worker_loop(self) -> None:
+        while True:
+            batch = await self._take_next_batch()
+            if batch is None:
+                if self._stopping:
+                    return
+                continue
+            await self._post_batch(batch)
+
+    async def _post(self, data: AgentBatchEvents) -> None:
+        assert self._client is not None
+        response = await self._client.post(
+            self.events_url,
+            content=data.model_dump_json(),
+            headers=_auth_header(self._identity),
+        )
+        response.raise_for_status()
+
+    async def _post_batch(self, batch: AgentBatchEvents) -> None:
+        attempts = 0
+        while True:
+            try:
+                await self._post(batch)
+                return
+            except Exception as exc:  # noqa: BLE001 - retried/logged below
+                if isinstance(exc, httpx.HTTPStatusError) and _is_client_error(exc):
+                    self._log(
+                        logging.ERROR,
+                        f"Events batch rejected by server "
+                        f"({exc.response.status_code}), skipping: {exc}",
+                    )
+                    await self._report_system_error(
+                        f"Events batch rejected by server "
+                        f"({exc.response.status_code}): {exc}"
+                    )
+                    return
+                self._log(logging.ERROR, f"Events dispatcher POST failed: {exc}")
+                delay = min(
+                    self._options.retry_base_delay_s * (2**attempts),
+                    self._options.max_retry_delay_s,
+                )
+                attempts += 1
+                await asyncio.sleep(delay)
+
+    async def _report_system_error(self, message: str) -> None:
+        """Report an SDK error directly to the events API, bypassing the queue."""
+        try:
+            await self._post(
+                AgentBatchEvents.from_message(message, category="system", kind="error")
+            )
+        except Exception as exc:  # noqa: BLE001 - telemetry must never raise
+            self._log(logging.ERROR, f"Failed to report system error: {exc}")
+
+    async def _take_next_batch(self) -> AgentBatchEvents | None:
+        events: list[BatchEvent] = []
+
+        if self._dropped_events_count > 0:
+            events.append(
+                BatchEvent(
+                    category="user",
+                    kind="info",
+                    timestamp=self._first_drop_at or _utc_now(),
+                    message=(
+                        f"{self._dropped_events_count} event(s) dropped due to full "
+                        f"queue (resumed at {_utc_now().isoformat()})"
+                    ),
+                    metadata={
+                        "dropped_count": self._dropped_events_count,
+                        "reason": "queue_full",
+                    },
+                )
+            )
+            self._dropped_events_count = 0
+            self._first_drop_at = None
+
+        flush_time = _utc_now() + timedelta(seconds=self._options.flush_interval_s)
+
+        while len(events) < self._options.max_batch_events and _utc_now() < flush_time:
+            if not self._queue.empty():
+                events.extend(self._queue.get_nowait().events)
+                continue
+            if self._stopping:
+                break
+            try:
+                batch = await asyncio.wait_for(
+                    self._queue.get(),
+                    timeout=(flush_time - _utc_now()).total_seconds(),
+                )
+                events.extend(batch.events)
+            except (TimeoutError, asyncio.CancelledError):
+                break
+
+        if not events:
+            return None
+
+        return AgentBatchEvents(platform=PlatformMetadata.current(), events=events)

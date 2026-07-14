@@ -66,6 +66,11 @@ Events are only sent when both conditions hold, so unregistered agents never
 report. Telemetry is strictly best-effort: any failure to send events is
 swallowed and never interferes with agent logic.
 
+Message and error events are buffered by a background `EventsDispatcher` that
+coalesces them into batches, POSTs them with exponential-backoff retries, and
+drains any buffered events on shutdown. Reporting from the hot path is a
+non-blocking enqueue, so telemetry never adds latency to message handling.
+
 Disable it explicitly with:
 
 ```python
