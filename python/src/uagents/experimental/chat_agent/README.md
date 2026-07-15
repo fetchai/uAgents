@@ -23,7 +23,13 @@ Build your agent from protocols as usual:
 ```python
 from uagents.experimental.chat_agent import ChatAgent
 
-agent = ChatAgent(name="MathChat")
+agent = ChatAgent(
+    name="MathChat",
+    starter_prompts=[
+        "What can you calculate?",
+        "Help me solve 12 * 8",
+    ],
+)
 proto = Protocol(name="Calculator", version="0.1.0")
 
 
@@ -49,6 +55,10 @@ agent.include(proto, publish_manifest=True)
 if __name__ == "__main__":
     agent.run()
 ```
+
+### Starter prompts
+
+`starter_prompts` are optional example chat messages for the agent's Agentverse profile. They only apply to `ChatAgent` (agents with Chat Protocol). Length limits are enforced by the Agentverse API when the profile is saved. They are published when the agent connects to Agentverse with `publish_agent_details=True` (the default for `ChatAgent`).
 
 ## LLM Configuration
 LLM behavior is configured via LLMParams and LLMConfig:
