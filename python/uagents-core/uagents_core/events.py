@@ -32,6 +32,10 @@ from uagents_core.config import AgentverseConfig
 from uagents_core.identity import Identity
 from uagents_core.storage import compute_attestation
 
+# httpx logs every successful request at INFO by default; telemetry POSTs would
+# spam agent consoles. Keep the requests visible under DEBUG for troubleshooting.
+logging.getLogger("httpx").setLevel(logging.DEBUG)
+
 EventCategory = Literal["system", "user"]
 EventKind = Literal["error", "info", "message"]
 MessageDirection = Literal["received", "sent"]
