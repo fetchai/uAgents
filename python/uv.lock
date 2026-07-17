@@ -2897,7 +2897,7 @@ wheels = [
 
 [[package]]
 name = "uagents"
-version = "0.25.2"
+version = "0.25.3"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -2934,7 +2934,7 @@ requires-dist = [
     { name = "litellm", marker = "extra == 'all'", specifier = ">=1.78.6,<2.0" },
     { name = "litellm", marker = "extra == 'llm'", specifier = ">=1.78.6,<2.0" },
     { name = "pydantic", specifier = ">=2.8,<3.0" },
-    { name = "uagents-core", specifier = ">=0.4.6" },
+    { name = "uagents-core", specifier = ">=0.4.8" },
     { name = "uvicorn", specifier = ">=0.30.1,<1.0" },
 ]
 provides-extras = ["all", "wallet", "llm"]
@@ -2953,7 +2953,7 @@ dev = [
 
 [[package]]
 name = "uagents-core"
-version = "0.4.6"
+version = "0.4.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bech32" },
@@ -2962,9 +2962,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1b/9d/1cccc68829bbaf57ac96bb65d1ce378ffce66fe17d4cd9f221213524817a/uagents_core-0.4.6.tar.gz", hash = "sha256:ea0670b7296df6d2c30c09388fd54523f017112c63b4995d3e78bbf6da0fbe62", size = 209199, upload-time = "2026-05-28T14:27:49.928Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/45/d7/f9ef4f3bcfb7910ce8d9fb99e297bb1f16cdbd2a636232a3afd357e742ee/uagents_core-0.4.8.tar.gz", hash = "sha256:fedee1101a98f187c46b9723b794a075ffc6d111570d5e536fd3e07fedc4a86a", size = 91347, upload-time = "2026-07-13T13:54:59.205Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e1/20/eabfeb14bfe5c0a4e8730b7edfb8afb5089e498f7b82744191d14da24f34/uagents_core-0.4.6-py3-none-any.whl", hash = "sha256:b7bbbac594209abc4d68c334c319a00c2f1a94bec4e90e84b30c027acb888f86", size = 72346, upload-time = "2026-05-28T14:27:50.92Z" },
+    { url = "https://files.pythonhosted.org/packages/41/df/38d242d5acbb278335482abc52295e1a0e2503bf36bee27782d8333698b5/uagents_core-0.4.8-py3-none-any.whl", hash = "sha256:015364cd39a57c02583318dbd8779c853cd0c9e2bea9ee75a04c299002d7aaaa", size = 45615, upload-time = "2026-07-13T13:54:58.223Z" },
 ]
 
 [[package]]
