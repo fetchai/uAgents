@@ -15,6 +15,7 @@ from uagents_core.events import (
     EventIngestionOptions,
     EventsDispatcher,
     MessageEventMetadata,
+    MultiAgentEventsDispatcher,
     PlatformMetadata,
     dispatch_events,
     is_registered_on_agentverse,
@@ -365,6 +366,81 @@ class TestEventsDispatcher(unittest.IsolatedAsyncioTestCase):
         dispatcher = EventsDispatcher(self.identity, self.agentverse)
         # Must not raise even though start() was never called.
         await dispatcher.stop()
+
+    async def test_events_url_uses_agentverse_events_api(self):
+        dispatcher = EventsDispatcher(self.identity, self.agentverse)
+        self.assertEqual(dispatcher.events_url, self.agentverse.events_api)
+        self.assertTrue(dispatcher.events_url.endswith("/v1/events"))
+
+
+class TestMultiAgentEventsDispatcher(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.agentverse = AgentverseConfig()
+        self.alice = Identity.generate()
+        self.bob = Identity.generate()
+
+    def _ok_response(self):
+        response = MagicMock()
+        response.raise_for_status = MagicMock()
+        return response
+
+    async def test_separate_posts_for_different_identities(self):
+        """Different agents in one queue must not share a single attested POST."""
+        factory, client = _mock_persistent_client(response=self._ok_response())
+        options = EventIngestionOptions(flush_interval_s=0.05, max_batch_events=50)
+        with patch("uagents_core.events.httpx.AsyncClient", factory):
+            dispatcher = MultiAgentEventsDispatcher(self.agentverse, options)
+            await dispatcher.start()
+            dispatcher.enqueue_event(
+                self.alice, AgentBatchEvents.from_message("from alice")
+            )
+            dispatcher.enqueue_event(
+                self.bob, AgentBatchEvents.from_message("from bob")
+            )
+            await asyncio.sleep(0.2)
+            await dispatcher.stop()
+
+        self.assertGreaterEqual(client.post.await_count, 2)
+        contents = [c.kwargs["content"] for c in client.post.await_args_list]
+        messages = []
+        for content in contents:
+            batch = AgentBatchEvents.model_validate_json(content)
+            messages.extend(e.message for e in batch.events)
+        self.assertIn("from alice", messages)
+        self.assertIn("from bob", messages)
+        # No merged POST should contain both agents' user messages together.
+        for content in contents:
+            batch = AgentBatchEvents.model_validate_json(content)
+            user_messages = {
+                e.message
+                for e in batch.events
+                if e.message in {"from alice", "from bob"}
+            }
+            self.assertLessEqual(len(user_messages), 1)
+
+    async def test_coalesces_same_identity_only(self):
+        factory, client = _mock_persistent_client(response=self._ok_response())
+        options = EventIngestionOptions(flush_interval_s=0.1, max_batch_events=50)
+        with patch("uagents_core.events.httpx.AsyncClient", factory):
+            dispatcher = MultiAgentEventsDispatcher(self.agentverse, options)
+            await dispatcher.start()
+            dispatcher.enqueue_event(
+                self.alice, AgentBatchEvents.from_message("alice-1")
+            )
+            dispatcher.enqueue_event(
+                self.alice, AgentBatchEvents.from_message("alice-2")
+            )
+            await asyncio.sleep(0.25)
+            await dispatcher.stop()
+
+        # Same identity may be coalesced into one POST with both messages.
+        contents = [c.kwargs["content"] for c in client.post.await_args_list]
+        found_both = False
+        for content in contents:
+            msgs = {e.message for e in AgentBatchEvents.model_validate_json(content).events}
+            if {"alice-1", "alice-2"} <= msgs:
+                found_both = True
+        self.assertTrue(found_both or client.post.await_count >= 2)
 
 
 if __name__ == "__main__":

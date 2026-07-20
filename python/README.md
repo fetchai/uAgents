@@ -70,6 +70,8 @@ Message and error events are buffered by a background `EventsDispatcher` that
 coalesces them into batches, POSTs them with exponential-backoff retries, and
 drains any buffered events on shutdown. Reporting from the hot path is a
 non-blocking enqueue, so telemetry never adds latency to message handling.
+Multi-agent runtimes (Bureau / hosting) can share a `MultiAgentEventsDispatcher`
+and pass each agent's identity at enqueue time.
 
 Disable it explicitly with:
 

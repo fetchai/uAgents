@@ -45,6 +45,8 @@ MessageDirection = Literal["received", "sent"]
 AUTH_TOKEN_VALIDITY_SECS = 120
 
 # Path of the Agentverse events endpoint, relative to the Agentverse base url.
+# Prefer ``AgentverseConfig.events_api`` at call sites; this constant remains for
+# callers that only have a base URL string.
 EVENTS_PATH = "/v1/events"
 
 # Default HTTP timeout (seconds) for telemetry requests.
@@ -213,7 +215,7 @@ async def dispatch_events(
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(
-                f"{agentverse.url}{EVENTS_PATH}",
+                agentverse.events_api,
                 content=events.model_dump_json(),
                 headers=_auth_header(identity),
             )
@@ -246,7 +248,7 @@ async def is_registered_on_agentverse(
 
 
 class EventIngestionOptions(BaseModel):
-    """Tuning knobs for :class:`EventsDispatcher`."""
+    """Tuning knobs for the events dispatchers."""
 
     queue_max_batches: int = Field(default=DEFAULT_EVENTS_QUEUE_MAX_BATCHES, ge=1)
     flush_interval_s: float = Field(default=DEFAULT_EVENTS_FLUSH_INTERVAL_S, gt=0)
@@ -269,42 +271,36 @@ def _is_client_error(error: httpx.HTTPStatusError) -> bool:
     return 400 <= code < 500 and code != 401
 
 
-class EventsDispatcher:
+class _BaseEventsDispatcher:
     """
-    Background buffer that POSTs agent telemetry to the Agentverse events API.
+    Shared background buffer that POSTs telemetry to the Agentverse events API.
+
+    The queue stores ``(identity, batch)`` pairs so one dispatcher can serve many
+    agents (Bureau, fayer hosting): each item is signed with the identity that
+    was supplied at enqueue time. Events from different identities are never
+    merged into the same HTTP POST, because ``POST /v1/events`` is attested as
+    a single agent.
 
     Adapted from the ``agentverse-sdk`` events dispatcher
-    (https://github.com/fetchai/agentverse-core/pull/6139). The only substantive
-    change is the constructor: it takes an :class:`~uagents_core.identity.Identity`
-    and an :class:`~uagents_core.config.AgentverseConfig` (instead of the SDK's
-    ``AgentUri``) so it can be reused directly by the native uAgents runtime. Once
-    this lives in uAgents core, the agentverse-sdk can be refactored to depend on
-    this implementation.
-
-    Events are enqueued from the hot path (never blocking it), coalesced into
-    batches by a single worker task, and POSTed with exponential-backoff retries.
-    On shutdown the queue is drained (best effort, bounded by
-    ``shutdown_drain_timeout_s``) before the client is closed.
-
-    Telemetry must never raise into agent logic, so :meth:`enqueue` and the
-    ``report_*`` helpers are fully defensive.
+    (https://github.com/fetchai/agentverse-core/pull/6139).
     """
 
     def __init__(
         self,
-        identity: Identity,
         agentverse: AgentverseConfig,
         options: EventIngestionOptions | None = None,
         *,
         logger: logging.Logger | None = None,
     ) -> None:
-        self._identity = identity
         self._agentverse = agentverse
         self._options = options or EventIngestionOptions()
         self._logger = logger
-        self._queue: asyncio.Queue[AgentBatchEvents] = asyncio.Queue(
+        self._queue: asyncio.Queue[tuple[Identity, AgentBatchEvents]] = asyncio.Queue(
             maxsize=self._options.queue_max_batches
         )
+        # Item taken from the queue that belonged to a different identity than
+        # the batch currently being built; flushed on the next pass.
+        self._pending: tuple[Identity, AgentBatchEvents] | None = None
         self._client: httpx.AsyncClient | None = None
         self._worker_task: asyncio.Task[None] | None = None
         self._stopping = False
@@ -313,59 +309,14 @@ class EventsDispatcher:
 
     @property
     def events_url(self) -> str:
-        return f"{self._agentverse.url}{EVENTS_PATH}"
+        return self._agentverse.events_api
 
     def _log(self, level: int, message: str) -> None:
         if self._logger is not None:
             self._logger.log(level, message)
 
-    # -- reporting helpers: the "events client" used by the runtime/context --
-
-    def report_message(
-        self,
-        direction: MessageDirection,
-        peer: str,
-        session_id: UUID | None = None,
-    ) -> None:
-        """Enqueue a ``message`` event for a received or sent message."""
-        try:
-            metadata = MessageEventMetadata(
-                direction=direction,
-                peer=peer,
-                msg_id=uuid4(),
-                session_id=session_id,
-            )
-            verb = "received from" if direction == "received" else "sent to"
-            batch = AgentBatchEvents.from_message(
-                f"Message {verb} {peer}",
-                category="user",
-                kind="message",
-                metadata=metadata.model_dump(mode="json"),
-            )
-        except Exception as exc:  # noqa: BLE001 - telemetry must never raise
-            self._log(logging.DEBUG, f"Failed to build message event: {exc}")
-            return
-        self.enqueue(batch)
-
-    def report_exception(
-        self,
-        exception: Exception,
-        traceback: str,
-        category: EventCategory = "user",
-    ) -> None:
-        """Enqueue an ``error`` event for a handler/agent failure."""
-        try:
-            batch = AgentBatchEvents.from_exception(
-                exception, traceback, category=category
-            )
-        except Exception as exc:  # noqa: BLE001 - telemetry must never raise
-            self._log(logging.DEBUG, f"Failed to build error event: {exc}")
-            return
-        self.enqueue(batch)
-
-    # -- queue plumbing (adapted from the agentverse-sdk dispatcher) --
-
-    def enqueue(self, batch: AgentBatchEvents) -> None:
+    def _enqueue(self, identity: Identity, batch: AgentBatchEvents) -> None:
+        """Queue a batch to be POSTed with an attestation for ``identity``."""
         if not batch.events:
             return
         if self._stopping:
@@ -375,7 +326,7 @@ class EventsDispatcher:
             )
             return
         try:
-            self._queue.put_nowait(batch)
+            self._queue.put_nowait((identity, batch))
         except asyncio.QueueFull:
             if self._first_drop_at is None:
                 self._first_drop_at = _utc_now()
@@ -407,27 +358,28 @@ class EventsDispatcher:
 
     async def _worker_loop(self) -> None:
         while True:
-            batch = await self._take_next_batch()
-            if batch is None:
-                if self._stopping:
+            item = await self._take_next_batch()
+            if item is None:
+                if self._stopping and self._pending is None and self._queue.empty():
                     return
                 continue
-            await self._post_batch(batch)
+            identity, batch = item
+            await self._post_batch(identity, batch)
 
-    async def _post(self, data: AgentBatchEvents) -> None:
+    async def _post(self, identity: Identity, data: AgentBatchEvents) -> None:
         assert self._client is not None
         response = await self._client.post(
             self.events_url,
             content=data.model_dump_json(),
-            headers=_auth_header(self._identity),
+            headers=_auth_header(identity),
         )
         response.raise_for_status()
 
-    async def _post_batch(self, batch: AgentBatchEvents) -> None:
+    async def _post_batch(self, identity: Identity, batch: AgentBatchEvents) -> None:
         attempts = 0
         while True:
             try:
-                await self._post(batch)
+                await self._post(identity, batch)
                 return
             except Exception as exc:  # noqa: BLE001 - retried/logged below
                 if isinstance(exc, httpx.HTTPStatusError) and _is_client_error(exc):
@@ -437,8 +389,9 @@ class EventsDispatcher:
                         f"({exc.response.status_code}), skipping: {exc}",
                     )
                     await self._report_system_error(
+                        identity,
                         f"Events batch rejected by server "
-                        f"({exc.response.status_code}): {exc}"
+                        f"({exc.response.status_code}): {exc}",
                     )
                     return
                 self._log(logging.ERROR, f"Events dispatcher POST failed: {exc}")
@@ -449,20 +402,46 @@ class EventsDispatcher:
                 attempts += 1
                 await asyncio.sleep(delay)
 
-    async def _report_system_error(self, message: str) -> None:
+    async def _report_system_error(self, identity: Identity, message: str) -> None:
         """Report an SDK error directly to the events API, bypassing the queue."""
         try:
             await self._post(
-                AgentBatchEvents.from_message(message, category="system", kind="error")
+                identity,
+                AgentBatchEvents.from_message(message, category="system", kind="error"),
             )
         except Exception as exc:  # noqa: BLE001 - telemetry must never raise
             self._log(logging.ERROR, f"Failed to report system error: {exc}")
 
-    async def _take_next_batch(self) -> AgentBatchEvents | None:
-        events: list[BatchEvent] = []
+    async def _take_next_batch(
+        self,
+    ) -> tuple[Identity, AgentBatchEvents] | None:
+        """
+        Pull the next flushable batch for a single identity.
+
+        Coalesces consecutive queue items that share the same agent address.
+        Items for a different identity are held in ``_pending`` for the next pass.
+        """
+        if self._pending is not None:
+            identity, first = self._pending
+            self._pending = None
+        elif not self._queue.empty():
+            identity, first = self._queue.get_nowait()
+        elif self._stopping:
+            return None
+        else:
+            try:
+                identity, first = await asyncio.wait_for(
+                    self._queue.get(),
+                    timeout=self._options.flush_interval_s,
+                )
+            except (TimeoutError, asyncio.CancelledError):
+                return None
+
+        events: list[BatchEvent] = list(first.events)
 
         if self._dropped_events_count > 0:
-            events.append(
+            events.insert(
+                0,
                 BatchEvent(
                     category="user",
                     kind="info",
@@ -475,7 +454,7 @@ class EventsDispatcher:
                         "dropped_count": self._dropped_events_count,
                         "reason": "queue_full",
                     },
-                )
+                ),
             )
             self._dropped_events_count = 0
             self._first_drop_at = None
@@ -483,21 +462,115 @@ class EventsDispatcher:
         flush_time = _utc_now() + timedelta(seconds=self._options.flush_interval_s)
 
         while len(events) < self._options.max_batch_events and _utc_now() < flush_time:
+            if self._pending is not None:
+                break
             if not self._queue.empty():
-                events.extend(self._queue.get_nowait().events)
+                next_identity, next_batch = self._queue.get_nowait()
+                if next_identity.address != identity.address:
+                    self._pending = (next_identity, next_batch)
+                    break
+                events.extend(next_batch.events)
                 continue
             if self._stopping:
                 break
             try:
-                batch = await asyncio.wait_for(
+                next_identity, next_batch = await asyncio.wait_for(
                     self._queue.get(),
                     timeout=(flush_time - _utc_now()).total_seconds(),
                 )
-                events.extend(batch.events)
             except (TimeoutError, asyncio.CancelledError):
                 break
+            if next_identity.address != identity.address:
+                self._pending = (next_identity, next_batch)
+                break
+            events.extend(next_batch.events)
 
         if not events:
             return None
 
-        return AgentBatchEvents(platform=PlatformMetadata.current(), events=events)
+        return identity, AgentBatchEvents(
+            platform=PlatformMetadata.current(), events=events
+        )
+
+
+class EventsDispatcher(_BaseEventsDispatcher):
+    """
+    Identity-bound events dispatcher for a single agent.
+
+    Used by the native uAgents ``Agent`` runtime: callers do not pass an identity
+    on each enqueue because it was fixed in the constructor.
+    """
+
+    def __init__(
+        self,
+        identity: Identity,
+        agentverse: AgentverseConfig,
+        options: EventIngestionOptions | None = None,
+        *,
+        logger: logging.Logger | None = None,
+    ) -> None:
+        super().__init__(agentverse, options, logger=logger)
+        self._identity = identity
+
+    def enqueue_event(self, batch: AgentBatchEvents) -> None:
+        """Enqueue a batch signed as this dispatcher's agent."""
+        self._enqueue(self._identity, batch)
+
+    # Backwards-compatible alias used by earlier call sites / tests.
+    def enqueue(self, batch: AgentBatchEvents) -> None:
+        self.enqueue_event(batch)
+
+    def report_message(
+        self,
+        direction: MessageDirection,
+        peer: str,
+        session_id: UUID | None = None,
+    ) -> None:
+        """Enqueue a ``message`` event for a received or sent message."""
+        try:
+            metadata = MessageEventMetadata(
+                direction=direction,
+                peer=peer,
+                msg_id=uuid4(),
+                session_id=session_id,
+            )
+            verb = "received from" if direction == "received" else "sent to"
+            batch = AgentBatchEvents.from_message(
+                f"Message {verb} {peer}",
+                category="user",
+                kind="message",
+                metadata=metadata.model_dump(mode="json"),
+            )
+        except Exception as exc:  # noqa: BLE001 - telemetry must never raise
+            self._log(logging.DEBUG, f"Failed to build message event: {exc}")
+            return
+        self.enqueue_event(batch)
+
+    def report_exception(
+        self,
+        exception: Exception,
+        traceback: str,
+        category: EventCategory = "user",
+    ) -> None:
+        """Enqueue an ``error`` event for a handler/agent failure."""
+        try:
+            batch = AgentBatchEvents.from_exception(
+                exception, traceback, category=category
+            )
+        except Exception as exc:  # noqa: BLE001 - telemetry must never raise
+            self._log(logging.DEBUG, f"Failed to build error event: {exc}")
+            return
+        self.enqueue_event(batch)
+
+
+class MultiAgentEventsDispatcher(_BaseEventsDispatcher):
+    """
+    One dispatcher shared across many agents (Bureau, fayer hosting).
+
+    Callers pass the executing agent's identity on every enqueue so each POST
+    is attested as that agent.
+    """
+
+    def enqueue_event(self, identity: Identity, batch: AgentBatchEvents) -> None:
+        """Enqueue a batch signed as ``identity``."""
+        self._enqueue(identity, batch)
