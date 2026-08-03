@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from uagents_core.types import AgentEndpoint
 
 AgentStatus = Literal["active", "inactive", "offline"]
-AgentType = Literal["hosted", "mailbox", "custom", "local", "proxy"]
+AgentType = Literal["uagent", "a2a", "hosted", "mailbox", "custom", "local", "proxy"]
 
 
 class AgentProtocol(BaseModel):
