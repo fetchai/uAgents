@@ -222,6 +222,25 @@ class BatchAlmanacApiRegistrationPolicy(BatchRegistrationPolicy):
             )
 
 
+def copy_tx_fee(tx_fee: TxFee | None) -> TxFee | None:
+    """
+    Copy a transaction fee so it can be used for a single broadcast.
+
+    cosmpy fills in `gas_limit` and `amount` on the TxFee instance it is handed, so a
+    policy that reuses one instance would pin the first gas simulation for the lifetime
+    of the agent.
+    """
+    if tx_fee is None:
+        return None
+
+    return TxFee(
+        amount=tx_fee.amount,
+        gas_limit=tx_fee.gas_limit,
+        granter=tx_fee.granter,
+        payer=tx_fee.payer,
+    )
+
+
 class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
     def __init__(
         self,
@@ -371,7 +390,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
                     broadcast_retry_delay=self._broadcast_retry_delay,
                     poll_retries=self._poll_retries,
                     poll_retry_delay=self._poll_retry_delay,
-                    tx_fee=self._tx_fee,
+                    tx_fee=copy_tx_fee(self._tx_fee),
                     timeout_blocks=self._timeout_blocks,
                 )
                 self._logger.info("Registering on almanac contract...complete")
@@ -438,7 +457,7 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
         self._poll_retries: int | None = None
         self._poll_retry_delay: RetryDelayFunc | None = None
         self._last_successful_registration: datetime | None = None
-        self._tx_fee: TxFee | None = None
+        self._tx_fee = tx_fee
         self._timeout_blocks = timeout_blocks
 
     @property
@@ -534,7 +553,7 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
                 broadcast_retry_delay=self._broadcast_retry_delay,
                 poll_retries=self._poll_retries,
                 poll_retry_delay=self._poll_retry_delay,
-                tx_fee=self._tx_fee,
+                tx_fee=copy_tx_fee(self._tx_fee),
                 timeout_blocks=self._timeout_blocks,
             )
 
@@ -558,6 +577,7 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
         *,
         logger: logging.Logger | None = None,
         almanac_api: str | None = None,
+        tx_fee: TxFee | None = None,
     ):
         self._logger = logger or logging.getLogger(__name__)
         self._api_policy = AlmanacApiRegistrationPolicy(
@@ -567,7 +587,7 @@ class DefaultRegistrationPolicy(AgentRegistrationPolicy):
             self._ledger_policy = None
         else:
             self._ledger_policy = LedgerBasedRegistrationPolicy(
-                ledger, wallet, almanac_contract, testnet, logger=logger
+                ledger, wallet, almanac_contract, testnet, tx_fee=tx_fee, logger=logger
             )
 
     async def register(
@@ -630,6 +650,7 @@ class DefaultBatchRegistrationPolicy(BatchRegistrationPolicy):
         *,
         logger: logging.Logger | None = None,
         almanac_api: str | None = None,
+        tx_fee: TxFee | None = None,
     ):
         self._logger = logger or logging.getLogger(__name__)
         self._api_policy = BatchAlmanacApiRegistrationPolicy(
@@ -640,7 +661,7 @@ class DefaultBatchRegistrationPolicy(BatchRegistrationPolicy):
             self._ledger_policy = None
         else:
             self._ledger_policy = BatchLedgerRegistrationPolicy(
-                ledger, wallet, almanac_contract, testnet, logger=logger
+                ledger, wallet, almanac_contract, testnet, tx_fee=tx_fee, logger=logger
             )
 
     def add_agent(self, agent_info: AgentInfo, identity: Identity) -> None:
