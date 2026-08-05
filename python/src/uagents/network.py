@@ -12,6 +12,9 @@ from cosmpy.aerial.client import (
     Account,
     LedgerClient,
     NetworkConfig,
+)
+from cosmpy.aerial.client.aio import (
+    AsyncLedgerClient,
     prepare_and_broadcast_basic_transaction,
 )
 from cosmpy.aerial.contract import LedgerContract
@@ -19,7 +22,7 @@ from cosmpy.aerial.contract.cosmwasm import create_cosmwasm_execute_msg
 from cosmpy.aerial.exceptions import NotFoundError, QueryTimeoutError
 from cosmpy.aerial.faucet import FaucetApi
 from cosmpy.aerial.tx import Transaction, TxFee
-from cosmpy.aerial.tx_helpers import SubmittedTx, TxResponse
+from cosmpy.aerial.tx_helpers import AsyncSubmittedTx, TxResponse
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
 from uagents_core.identity import Identity
@@ -50,6 +53,22 @@ RetryDelayFunc = Callable[[int], float]
 DEFAULT_BROADCAST_RETRIES = 5
 DEFAULT_POLL_RETRIES = 10
 DEFAULT_REGISTRATION_TIMEOUT_BLOCKS = 100
+
+
+def _network_config(network: AgentNetwork = "testnet") -> NetworkConfig:
+    if network == "mainnet":
+        return NetworkConfig.fetchai_mainnet()
+    return NetworkConfig.fetchai_stable_testnet()
+
+
+def create_async_ledger(network: AgentNetwork = "testnet") -> AsyncLedgerClient:
+    """
+    Create an asyncio-native ledger client for the given network.
+
+    Prefer this for balance checks, tx broadcast, and tx polling inside async code.
+    CosmWasm contract queries still use the sync LedgerClient via LedgerContract.
+    """
+    return AsyncLedgerClient(_network_config(network))
 
 
 def default_exp_backoff(retry: int) -> float:
@@ -173,7 +192,7 @@ def parse_record_config(
 
 async def wait_for_tx_to_complete(
     tx_hash: str,
-    ledger: LedgerClient,
+    ledger: AsyncLedgerClient,
     *,
     poll_retries: int | None = None,
     poll_retry_delay: RetryDelayFunc | None = None,
@@ -183,7 +202,7 @@ async def wait_for_tx_to_complete(
 
     Args:
         tx_hash (str): The hash of the transaction to monitor.
-        ledger (LedgerClient): The Ledger client to poll.
+        ledger (AsyncLedgerClient): The async ledger client to poll.
         poll_retries (int, optional): The maximum number of retry attempts.
         poll_retry_delay (RetryDelayFunc, optional): The retry delay function,
             if not provided the default exponential backoff will be used.
@@ -195,7 +214,7 @@ async def wait_for_tx_to_complete(
     response: TxResponse | None = None
     for n in range(poll_retries or DEFAULT_POLL_RETRIES):
         try:
-            response = ledger.query_tx(tx_hash)
+            response = await ledger.query_tx(tx_hash)
             break
         except NotFoundError:
             pass
@@ -460,7 +479,7 @@ class AlmanacContract(LedgerContract):
 
     async def register(
         self,
-        ledger: LedgerClient,
+        ledger: AsyncLedgerClient,
         wallet: LocalWallet,
         agent_address: str,
         protocols: list[str],
@@ -479,7 +498,7 @@ class AlmanacContract(LedgerContract):
         Register an agent with the Almanac contract.
 
         Args:
-            ledger (LedgerClient): The Ledger client.
+            ledger (AsyncLedgerClient): The async ledger client used for broadcast/poll.
             wallet (LocalWallet): The agent's wallet.
             agent_address (str): The agent's address.
             protocols (list[str]): List of protocols.
@@ -522,17 +541,17 @@ class AlmanacContract(LedgerContract):
         )
 
         # cache the account details
-        account: Account = ledger.query_account(wallet.address())
+        account: Account = await ledger.query_account(wallet.address())
 
         # attempt to broadcast the transaction to the network
         broadcast_delay_func = broadcast_retry_delay or default_exp_backoff
         num_broadcast_retries = broadcast_retries or DEFAULT_BROADCAST_RETRIES
 
-        tx: SubmittedTx | None = None
+        tx: AsyncSubmittedTx | None = None
         for n in range(num_broadcast_retries):
-            timeout_height = ledger.query_height() + timeout_blocks
+            timeout_height = (await ledger.query_height()) + timeout_blocks
             try:
-                tx = prepare_and_broadcast_basic_transaction(
+                tx = await prepare_and_broadcast_basic_transaction(
                     ledger,
                     transaction,
                     wallet,
@@ -562,7 +581,7 @@ class AlmanacContract(LedgerContract):
 
     async def register_batch(
         self,
-        ledger: LedgerClient,
+        ledger: AsyncLedgerClient,
         wallet: LocalWallet,
         agent_records: list[AlmanacContractRecord],
         *,
@@ -577,7 +596,7 @@ class AlmanacContract(LedgerContract):
         Register multiple agents with the Almanac contract.
 
         Args:
-            ledger (LedgerClient): The Ledger client.
+            ledger (AsyncLedgerClient): The async ledger client used for broadcast/poll.
             wallet (LocalWallet): The wallet of the registration sender.
             agent_records (list[ALmanacContractRecord]): The list of agent records to register.
             broadcast_retries (int, optional): The number of retries for broadcasting.
@@ -623,17 +642,17 @@ class AlmanacContract(LedgerContract):
             )
 
         # cache the account details
-        account: Account = ledger.query_account(wallet.address())
+        account: Account = await ledger.query_account(wallet.address())
 
         # attempt to broadcast the transaction to the network
         broadcast_delay_func = broadcast_retry_delay or default_exp_backoff
         num_broadcast_retries = broadcast_retries or DEFAULT_BROADCAST_RETRIES
-        timeout_height = ledger.query_height() + timeout_blocks
+        timeout_height = (await ledger.query_height()) + timeout_blocks
 
-        tx: SubmittedTx | None = None
+        tx: AsyncSubmittedTx | None = None
         for n in range(num_broadcast_retries):
             try:
-                tx = prepare_and_broadcast_basic_transaction(
+                tx = await prepare_and_broadcast_basic_transaction(
                     ledger,
                     transaction,
                     wallet,
@@ -894,7 +913,7 @@ class NameServiceContract(LedgerContract):
 
     async def register(
         self,
-        ledger: LedgerClient,
+        ledger: AsyncLedgerClient,
         wallet: LocalWallet,
         agent_records: str | list[str] | dict[str, dict] | None,
         name: str,
@@ -909,7 +928,7 @@ class NameServiceContract(LedgerContract):
         Register a name within a domain using the NameService contract.
 
         Args:
-            ledger (LedgerClient): The Ledger client.
+            ledger (AsyncLedgerClient): The async ledger client used for broadcast/poll.
             wallet (LocalWallet): The wallet of the agent.
             agent_records (str | list[str] | dict[str, dict] | None): The agent records
                 to be registered.
@@ -927,7 +946,7 @@ class NameServiceContract(LedgerContract):
             TxResponse: The transaction response.
         """
         logger.info("Registering name...")
-        chain_id = ledger.query_chain_id()
+        chain_id = await ledger.query_chain_id()
         network = (
             "mainnet"
             if chain_id == NetworkConfig.fetchai_mainnet().chain_id
@@ -979,13 +998,15 @@ class NameServiceContract(LedgerContract):
             raise RuntimeError(
                 f"Domain {name}.{domain} is not available or not owned by the wallet address."
             )
-        timeout_height = ledger.query_height() + timeout_blocks
-        submitted_transaction: SubmittedTx = prepare_and_broadcast_basic_transaction(
-            client=ledger,
-            tx=transaction,
-            sender=wallet,
-            fee=tx_fee,
-            timeout_height=timeout_height,
+        timeout_height = (await ledger.query_height()) + timeout_blocks
+        submitted_transaction: AsyncSubmittedTx = (
+            await prepare_and_broadcast_basic_transaction(
+                client=ledger,
+                tx=transaction,
+                sender=wallet,
+                fee=tx_fee,
+                timeout_height=timeout_height,
+            )
         )
         status: TxResponse = await wait_for_tx_to_complete(
             submitted_transaction.tx_hash, ledger

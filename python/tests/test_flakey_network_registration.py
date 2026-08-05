@@ -101,30 +101,32 @@ class FakeLedgerClient:
     def query_failure_count(self, value: int):
         self._query_failure_count = value
 
-    def query_height(self) -> int:
+    async def query_height(self) -> int:
         return self._height
 
-    def query_bank_balance(self, address: Address, denom: str | None = None) -> int:
+    async def query_bank_balance(
+        self, address: Address, denom: str | None = None
+    ) -> int:
         return TESTNET_REGISTRATION_FEE + 1
 
-    def query_account(self, address: Address) -> Account:
+    async def query_account(self, address: Address) -> Account:
         return Account(
             address=address,
             number=0,
             sequence=0,
         )
 
-    def estimate_gas_and_fee_for_tx(self, tx: Transaction) -> tuple[int, str]:
+    async def estimate_gas_and_fee_for_tx(self, tx: Transaction) -> tuple[int, str]:
         return 0, f"0{self.network_config.fee_denomination}"
 
-    def broadcast_tx(self, tx: Transaction) -> SubmittedTx:
+    async def broadcast_tx(self, tx: Transaction) -> SubmittedTx:
         if self._broadcast_failure_count > 0:
             self._broadcast_failure_count -= 1
             print("Broadcast failure", self._broadcast_failure_count)
             raise BroadcastError("not-a-real-hash", "not-a-real-tx-log")
         return FakeSubmittedTx()
 
-    def query_tx(self, tx_hash: str) -> TxResponse:
+    async def query_tx(self, tx_hash: str) -> TxResponse:
         if self._query_failure_count > 0:
             self._query_failure_count -= 1
             print("Query failure", self._query_failure_count)

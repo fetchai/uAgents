@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10, <4.0"
 resolution-markers = [
     "python_full_version >= '3.14' and platform_python_implementation != 'PyPy'",
@@ -612,12 +612,11 @@ wheels = [
 
 [[package]]
 name = "cosmpy"
-version = "0.12.1"
+version = "0.13.0rc1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bcrypt" },
     { name = "bech32" },
-    { name = "click" },
     { name = "ecdsa" },
     { name = "googleapis-common-protos" },
     { name = "grpcio" },
@@ -628,13 +627,12 @@ dependencies = [
     { name = "pynacl" },
     { name = "python-dateutil" },
     { name = "requests" },
-    { name = "setuptools" },
     { name = "sortedcontainers" },
     { name = "virtualenv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9d/3a/8a8113f18fd61b15e983e70110bd890f80dd686ce4ce3f6994437e43d0fc/cosmpy-0.12.1.tar.gz", hash = "sha256:96818c8857a52d58c504466ffc6e9c99c5530d6b3ec764cdacf19c6f06b2c681", size = 265878, upload-time = "2026-05-21T11:40:06.158Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/51/c1/c4dc13144e966493b0a8a526f7d1fe6b49c6f6851d13b6c66e86bef331d8/cosmpy-0.13.0rc1.tar.gz", hash = "sha256:da8ec905ff1b39ed8635307aaee76c0fff0e60c695735e44f392e7fbb3d8441d", size = 269478, upload-time = "2026-07-29T10:04:53.319Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/73/81/4f34d65abf11ef314f5da8d174b95e862b10daef2b10c720f81af5d769c8/cosmpy-0.12.1-py3-none-any.whl", hash = "sha256:6fe2a046b143047c9b5bb79da1e4c7a6c488771895742c934a2f215ff5adfc7a", size = 609371, upload-time = "2026-05-21T11:40:07.303Z" },
+    { url = "https://files.pythonhosted.org/packages/58/60/9fa7fd721e0fcf24742087231821a4ee29ad8050ac0c231bc00777573e1a/cosmpy-0.13.0rc1-py3-none-any.whl", hash = "sha256:fcbad949a7cf40f7c7b6876901aa690111ab3f444607b5d593c418ae2373dd33", size = 618133, upload-time = "2026-07-29T10:04:54.368Z" },
 ]
 
 [[package]]
@@ -2637,15 +2635,6 @@ wheels = [
 ]
 
 [[package]]
-name = "setuptools"
-version = "81.0.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/0d/1c/73e719955c59b8e424d015ab450f51c0af856ae46ea2da83eba51cc88de1/setuptools-81.0.0.tar.gz", hash = "sha256:487b53915f52501f0a79ccfd0c02c165ffe06631443a886740b91af4b7a5845a", size = 1198299, upload-time = "2026-02-06T21:10:39.601Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e1/e3/c164c88b2e5ce7b24d667b9bd83589cf4f3520d97cad01534cd3c4f55fdb/setuptools-81.0.0-py3-none-any.whl", hash = "sha256:fdd925d5c5d9f62e4b74b30d6dd7828ce236fd6ed998a08d81de62ce5a6310d6", size = 1062021, upload-time = "2026-02-06T21:10:37.175Z" },
-]
-
-[[package]]
 name = "shellingham"
 version = "1.5.4"
 source = { registry = "https://pypi.org/simple" }
@@ -2930,7 +2919,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.8.3,<4.0" },
-    { name = "cosmpy", specifier = ">=0.12.1" },
+    { name = "cosmpy", specifier = "==0.13.0rc1" },
     { name = "litellm", marker = "extra == 'all'", specifier = ">=1.78.6,<2.0" },
     { name = "litellm", marker = "extra == 'llm'", specifier = ">=1.78.6,<2.0" },
     { name = "pydantic", specifier = ">=2.8,<3.0" },
