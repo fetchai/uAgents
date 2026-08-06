@@ -198,7 +198,13 @@ class ChatProtocol(Protocol):
                 tool_result_message,
             ]
 
-            final_text = await self._llm.complete(followup_messages)
+            try:
+                final_text = await self._llm.complete(followup_messages)
+            except Exception as e:
+                ctx.logger.error(f"LLM failed after tool use: {e}")
+                return await self.send_text(
+                    ctx, sender, f"Sorry, I couldn't process that: {e}"
+                )
 
             return await self.send_text(ctx, sender, final_text)
 
