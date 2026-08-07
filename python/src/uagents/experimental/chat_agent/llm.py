@@ -32,6 +32,8 @@ logging.getLogger("LiteLLM").setLevel(logging.ERROR)
 
 DEFAULT_TEMPERATURE = 0.0
 DEFAULT_MAX_TOKENS = 1024
+DEFAULT_ASI1_MODEL = "asi1-mini"
+DEFAULT_ASI1_URL = "https://api.asi1.ai/v1"
 DEFAULT_SYSTEM_PROMPT = (
     "You are an AI agent built on the uAgents framework and ChatProtocol. "
     "Respond clearly and concisely to the incoming request, using session history "
@@ -53,6 +55,25 @@ TOOL_USAGE_PROMPT = (
 )
 
 
+# LiteLLM renders the provider's own error text into str(exception) behind this
+# marker: "litellm.APIError: APIError: OpenAIException - <the provider's text>".
+PROVIDER_MESSAGE_MARKER = "Exception - "
+
+
+def _provider_error_message(error: Exception) -> str:
+    """Recover the provider's own error text from a LiteLLM exception.
+
+    LiteLLM does not keep the response body: `body` is always None, and a 403 does
+    not even carry `response`, so str() is the only place the text survives. What
+    precedes the marker names a LiteLLM class and means nothing to a chat user.
+    """
+    text = str(error)
+    _, marker, provider_message = text.partition(PROVIDER_MESSAGE_MARKER)
+    if not marker:
+        return text
+    return provider_message.strip() or text
+
+
 class LLMParams(BaseModel):
     temperature: float = DEFAULT_TEMPERATURE
     max_tokens: int = DEFAULT_MAX_TOKENS
@@ -70,15 +91,15 @@ class LLMConfig(BaseModel):
     api_key: str | None = None
 
     @classmethod
-    def asi1(cls) -> "LLMConfig":
+    def asi1(cls, model: str = DEFAULT_ASI1_MODEL) -> "LLMConfig":
         api_key = os.getenv("ASI1_API_KEY")
         if api_key is None:
             raise ValueError("Please set ASI1_API_KEY environment variable.")
         return LLMConfig(
             provider="openai",
             api_key=api_key,
-            model="asi1-mini",
-            url="https://api.asi1.ai/v1",
+            model=model,
+            url=os.getenv("ASI1_BASE_URL", DEFAULT_ASI1_URL),
             parameters=LLMParams(),
         )
 
@@ -168,7 +189,7 @@ class LLM:
         try:
             resp = cast(ModelResponse, await acompletion(**kwargs))
         except Exception as e:
-            raise RuntimeError(f"LLM call failed: {e}") from e
+            raise RuntimeError(_provider_error_message(e)) from e
 
         message_obj = resp.choices[0].message
 
@@ -197,7 +218,7 @@ class LLM:
         try:
             resp = cast(ModelResponse, await acompletion(**kwargs))
         except Exception as e:
-            raise RuntimeError(f"LLM completion call failed: {e}") from e
+            raise RuntimeError(_provider_error_message(e)) from e
 
         text = (resp.choices[0].message.content or "").strip()  # type: ignore
 
