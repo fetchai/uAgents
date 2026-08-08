@@ -145,13 +145,8 @@ class AgentRepresentation:
     Represents an agent in the context of a message.
 
     Attributes:
-        _address (str): The address of the agent.
-        _name (str | None): The name of the agent.
-        _identity (Identity): The identity of the agent.
-
-    Properties:
-        name (str): The name of the agent.
         address (str): The address of the agent.
+        name (str): The name of the agent.
         identifier (str): The agent's address and network prefix.
         identity (Identity): The identity of the agent.
     """
