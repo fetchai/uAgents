@@ -62,7 +62,8 @@ jobs:
 
       - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
         name: Install dependencies
-        run: uv sync --locked
+        # llm extra needed for experimental ChatAgent tests (litellm)
+        run: uv sync --locked --extra llm
       - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
         name: Run tests
         run: uv run coverage run -m pytest

@@ -146,7 +146,6 @@ class ChatProtocol(Protocol):
                 ):
                     messages = [*messages, msg_dict]
 
-            # No tools: stream the plain-text reply directly.
             if not self._tools:
                 try:
                     return await self.send_stream(
@@ -166,11 +165,13 @@ class ChatProtocol(Protocol):
                         ctx, sender, f"Sorry, I couldn't process that: {e}"
                     )
 
-            # Tool selection stays non-streaming so the full call is available.
             try:
-                tool_name, arg_dict, tool_call_id, assistant_msg = (
-                    await self._llm.process(messages)
-                )
+                (
+                    tool_name,
+                    arg_dict,
+                    tool_call_id,
+                    assistant_msg,
+                ) = await self._llm.process(messages)
 
             except Exception as e:
                 ctx.logger.error(f"LLM failed: {e}")

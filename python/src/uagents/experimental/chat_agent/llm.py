@@ -16,9 +16,6 @@ from pydantic import BaseModel, ConfigDict
 from uagents.experimental.chat_agent.tools import Tool
 
 
-# LiteLLM keeps shared HTTP clients; they must be closed when the process exits. The
-# library registers its own atexit hook, but we also run this so cleanup is awaited
-# reliably (e.g. after Bureau/agent teardown when no asyncio loop is running).
 def _litellm_cleanup_on_exit() -> None:
     with contextlib.suppress(Exception):
         asyncio.run(close_litellm_async_clients())
@@ -210,9 +207,7 @@ class LLM:
 
         raise RuntimeError("LLM returned neither tool_calls nor content.")
 
-    async def process_stream(
-        self, messages: list[dict]
-    ) -> AsyncIterator[str]:
+    async def process_stream(self, messages: list[dict]) -> AsyncIterator[str]:
         """Yield plain-text content deltas from a streaming completion."""
         kwargs = self._get_base_kwargs(
             messages, exclude_params={"system_prompt", "tool_choice"}

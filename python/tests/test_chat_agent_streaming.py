@@ -5,6 +5,9 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+pytest.importorskip("litellm")
+
 from uagents_core.contrib.protocols.chat import (
     EndStreamContent,
     StartStreamContent,
@@ -31,7 +34,9 @@ class _FakeStream:
 
 
 def _chunk(text: str | None) -> Any:
-    return SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content=text))])
+    return SimpleNamespace(
+        choices=[SimpleNamespace(delta=SimpleNamespace(content=text))]
+    )
 
 
 @pytest.mark.asyncio
@@ -87,10 +92,16 @@ async def test_send_stream_emits_start_text_end():
         yield "B"
 
     with patch.object(proto._llm, "process_stream", side_effect=fake_stream):
-        await proto.send_stream(ctx, "agent1qsender", [{"role": "user", "content": "hi"}])
+        await proto.send_stream(
+            ctx, "agent1qsender", [{"role": "user", "content": "hi"}]
+        )
 
     assert isinstance(sent[0].content[0], StartStreamContent)
-    assert isinstance(sent[1].content[0], TextContent) and sent[1].content[0].text == "A"
-    assert isinstance(sent[2].content[0], TextContent) and sent[2].content[0].text == "B"
+    assert (
+        isinstance(sent[1].content[0], TextContent) and sent[1].content[0].text == "A"
+    )
+    assert (
+        isinstance(sent[2].content[0], TextContent) and sent[2].content[0].text == "B"
+    )
     assert isinstance(sent[3].content[0], EndStreamContent)
     assert sent[0].content[0].stream_id == sent[3].content[0].stream_id
