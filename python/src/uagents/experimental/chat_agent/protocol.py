@@ -1,6 +1,7 @@
 import json
 from datetime import datetime, timezone
 from typing import cast
+from uuid import uuid4
 
 from pydantic.v1 import ValidationError
 from uagents_core.contrib.protocols.chat import (
@@ -8,7 +9,9 @@ from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
     ChatMessage,
     EndSessionContent,
+    EndStreamContent,
     StartSessionContent,
+    StartStreamContent,
     TextContent,
     chat_protocol_spec,
 )
@@ -143,8 +146,31 @@ class ChatProtocol(Protocol):
                 ):
                     messages = [*messages, msg_dict]
 
+            # No tools: stream the plain-text reply directly.
+            if not self._tools:
+                try:
+                    return await self.send_stream(
+                        ctx,
+                        sender,
+                        [
+                            {
+                                "role": "system",
+                                "content": self._llm._system_content([]),
+                            },
+                            *messages,
+                        ],
+                    )
+                except Exception as e:
+                    ctx.logger.error(f"LLM failed: {e}")
+                    return await self.send_text(
+                        ctx, sender, f"Sorry, I couldn't process that: {e}"
+                    )
+
+            # Tool selection stays non-streaming so the full call is available.
             try:
-                tool_name, arg_dict, tool_call_id, _ = await self._llm.process(messages)
+                tool_name, arg_dict, tool_call_id, assistant_msg = (
+                    await self._llm.process(messages)
+                )
 
             except Exception as e:
                 ctx.logger.error(f"LLM failed: {e}")
@@ -186,27 +212,29 @@ class ChatProtocol(Protocol):
                     "Sorry, I couldn't process your request. Please try again later.",
                 )
 
-            tool_result_message = {
-                "role": "tool",
-                "tool_call_id": tool_call_id,
-                "content": json.dumps(result),
-            }
-
+            # Providers require the assistant tool_calls message before role=tool.
             followup_messages = [
                 {"role": "system", "content": FINAL_SYSTEM_PROMPT},
                 msg_dict,
-                tool_result_message,
+                {
+                    "role": "assistant",
+                    "content": assistant_msg.get("content"),
+                    "tool_calls": assistant_msg.get("tool_calls"),
+                },
+                {
+                    "role": "tool",
+                    "tool_call_id": tool_call_id,
+                    "content": json.dumps(result),
+                },
             ]
 
             try:
-                final_text = await self._llm.complete(followup_messages)
+                return await self.send_stream(ctx, sender, followup_messages)
             except Exception as e:
                 ctx.logger.error(f"LLM failed after tool use: {e}")
                 return await self.send_text(
                     ctx, sender, f"Sorry, I couldn't process that: {e}"
                 )
-
-            return await self.send_text(ctx, sender, final_text)
 
     async def send_text(
         self,
@@ -220,6 +248,41 @@ class ChatProtocol(Protocol):
         if end_session:
             content.append(EndSessionContent(type="end-session"))
         return await ctx.send(recipient, ChatMessage(content=content))
+
+    async def send_stream(
+        self,
+        ctx: Context,
+        recipient: str,
+        messages: list[dict],
+    ):
+        """Stream an LLM reply as StartStream → TextContent deltas → EndStream."""
+        stream_id = uuid4()
+        started = False
+        try:
+            async for delta in self._llm.process_stream(messages):
+                if not started:
+                    await ctx.send(
+                        recipient,
+                        ChatMessage(content=[StartStreamContent(stream_id=stream_id)]),
+                    )
+                    started = True
+                await ctx.send(
+                    recipient,
+                    ChatMessage(content=[TextContent(type="text", text=delta)]),
+                )
+            if not started:
+                raise RuntimeError("LLM stream returned no content.")
+            return await ctx.send(
+                recipient,
+                ChatMessage(content=[EndStreamContent(stream_id=stream_id)]),
+            )
+        except Exception:
+            if started:
+                await ctx.send(
+                    recipient,
+                    ChatMessage(content=[EndStreamContent(stream_id=stream_id)]),
+                )
+            raise
 
     async def use_tool(
         self,

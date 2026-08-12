@@ -4,6 +4,7 @@ import contextlib
 import json
 import logging
 import os
+from collections.abc import AsyncIterator
 from typing import Any, cast
 
 import litellm
@@ -208,6 +209,30 @@ class LLM:
             return ("__plain_text__", {"message": content_text}, None, msg)
 
         raise RuntimeError("LLM returned neither tool_calls nor content.")
+
+    async def process_stream(
+        self, messages: list[dict]
+    ) -> AsyncIterator[str]:
+        """Yield plain-text content deltas from a streaming completion."""
+        kwargs = self._get_base_kwargs(
+            messages, exclude_params={"system_prompt", "tool_choice"}
+        )
+        kwargs["stream"] = True
+        kwargs.pop("parallel_tool_calls", None)
+
+        try:
+            response = await acompletion(**kwargs)
+        except Exception as e:
+            raise RuntimeError(_provider_error_message(e)) from e
+
+        async for chunk in response:
+            choices = getattr(chunk, "choices", None) or []
+            if not choices:
+                continue
+            delta = getattr(choices[0], "delta", None)
+            text = getattr(delta, "content", None) if delta is not None else None
+            if text:
+                yield text
 
     async def complete(self, messages: list[dict]) -> str:
         """Finalize a chat turn after tool execution."""
