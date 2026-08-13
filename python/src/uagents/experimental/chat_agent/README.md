@@ -74,6 +74,7 @@ openai_config = LLMConfig(
     model="gpt-5-mini",
     url="https://api.openai.com/v1",
     parameters=LLMParams(temperature=1),
+    # stream=True by default. Set stream=False for providers that do not support streaming.
 )
 
 claude_config = LLMConfig(
@@ -82,6 +83,7 @@ claude_config = LLMConfig(
     model="claude-4-5-haiku",
     url="https://api.anthropic.com/v1/messages",
     parameters=LLMParams(),
+    stream=False,  # non-streaming full replies
 )
 
 agent = ChatAgent(name="MathChat", llm_config=asione_config)

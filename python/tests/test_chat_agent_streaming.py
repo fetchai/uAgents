@@ -105,3 +105,39 @@ async def test_send_stream_emits_start_text_end():
     )
     assert isinstance(sent[3].content[0], EndStreamContent)
     assert sent[0].content[0].stream_id == sent[3].content[0].stream_id
+
+
+@pytest.mark.asyncio
+async def test_send_reply_non_streaming_sends_single_text():
+    proto = ChatProtocol(
+        llm_config=LLMConfig(
+            provider="openai",
+            model="test-model",
+            url="https://example.test/v1",
+            api_key="test-key",
+            parameters=LLMParams(),
+            stream=False,
+        ),
+        tools={},
+    )
+    sent: list[Any] = []
+
+    async def capture_send(recipient, message, timeout=None):
+        sent.append(message)
+        return MagicMock()
+
+    ctx = MagicMock()
+    ctx.send = AsyncMock(side_effect=capture_send)
+
+    with patch.object(
+        proto._llm, "complete", new_callable=AsyncMock, return_value="full reply"
+    ) as mock_complete:
+        await proto.send_reply(
+            ctx, "agent1qsender", [{"role": "user", "content": "hi"}]
+        )
+
+    mock_complete.assert_awaited_once()
+    assert len(sent) == 1
+    assert isinstance(sent[0].content[0], TextContent)
+    assert sent[0].content[0].text == "full reply"
+    assert not any(isinstance(c, StartStreamContent) for m in sent for c in m.content)

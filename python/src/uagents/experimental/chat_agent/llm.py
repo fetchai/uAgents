@@ -87,9 +87,10 @@ class LLMConfig(BaseModel):
     url: str
     parameters: LLMParams
     api_key: str | None = None
+    stream: bool = True # Set False for providers that do not support stream
 
     @classmethod
-    def asi1(cls, model: str = DEFAULT_ASI1_MODEL) -> "LLMConfig":
+    def asi1(cls, model: str = DEFAULT_ASI1_MODEL, stream: bool = True) -> "LLMConfig":
         api_key = os.getenv("ASI1_API_KEY")
         if api_key is None:
             raise ValueError("Please set ASI1_API_KEY environment variable.")
@@ -99,6 +100,7 @@ class LLMConfig(BaseModel):
             model=model,
             url=os.getenv("ASI1_BASE_URL", DEFAULT_ASI1_URL),
             parameters=LLMParams(),
+            stream=stream,
         )
 
 
@@ -218,7 +220,10 @@ class LLM:
         try:
             response = await acompletion(**kwargs)
         except Exception as e:
-            raise RuntimeError(_provider_error_message(e)) from e
+            raise RuntimeError(
+                "Streaming is enabled for this ChatAgent, but the LLM provider "
+                f"failed to stream a reply: {_provider_error_message(e)}"
+            ) from e
 
         async for chunk in response:
             choices = getattr(chunk, "choices", None) or []

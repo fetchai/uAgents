@@ -108,6 +108,7 @@ class ChatProtocol(Protocol):
 
         self._llm = LLM(config=llm_config, tools=tools, instructions=instructions)
         self._tools = tools
+        self._stream = llm_config.stream
 
         @self.on_message(ChatAcknowledgement)
         async def _ack(ctx: Context, sender: str, msg: ChatAcknowledgement):
@@ -148,7 +149,7 @@ class ChatProtocol(Protocol):
 
             if not self._tools:
                 try:
-                    return await self.send_stream(
+                    return await self.send_reply(
                         ctx,
                         sender,
                         [
@@ -230,7 +231,7 @@ class ChatProtocol(Protocol):
             ]
 
             try:
-                return await self.send_stream(ctx, sender, followup_messages)
+                return await self.send_reply(ctx, sender, followup_messages)
             except Exception as e:
                 ctx.logger.error(f"LLM failed after tool use: {e}")
                 return await self.send_text(
@@ -249,6 +250,19 @@ class ChatProtocol(Protocol):
         if end_session:
             content.append(EndSessionContent(type="end-session"))
         return await ctx.send(recipient, ChatMessage(content=content))
+
+    async def send_reply(
+        self,
+        ctx: Context,
+        recipient: str,
+        messages: list[dict],
+    ):
+        """Send a user-facing LLM reply, streaming when LLMConfig.stream is True."""
+        if self._stream:
+            return await self.send_stream(ctx, recipient, messages)
+
+        text = await self._llm.complete(messages)
+        return await self.send_text(ctx, recipient, text)
 
     async def send_stream(
         self,
@@ -272,7 +286,10 @@ class ChatProtocol(Protocol):
                     ChatMessage(content=[TextContent(type="text", text=delta)]),
                 )
             if not started:
-                raise RuntimeError("LLM stream returned no content.")
+                raise RuntimeError(
+                    "Streaming is enabled for this ChatAgent, but the LLM provider "
+                    "returned no streamed content."
+                )
             return await ctx.send(
                 recipient,
                 ChatMessage(content=[EndStreamContent(stream_id=stream_id)]),
