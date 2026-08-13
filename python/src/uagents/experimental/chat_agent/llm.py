@@ -87,7 +87,7 @@ class LLMConfig(BaseModel):
     url: str
     parameters: LLMParams
     api_key: str | None = None
-    stream: bool = True # Set False for providers that do not support stream
+    stream: bool = True  # Set False for providers that do not support stream
 
     @classmethod
     def asi1(cls, model: str = DEFAULT_ASI1_MODEL, stream: bool = True) -> "LLMConfig":
