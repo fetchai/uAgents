@@ -113,7 +113,7 @@ class RegistrationRequest(BaseModel):
     name: str = Field(
         ...,
         min_length=1,
-        max_length=80,
+        max_length=32,
         description="Agent's public name",
     )
     handle: str | None = Field(
