@@ -61,7 +61,7 @@ result = register_tool.invoke({
     "return_dict": True  # Return a dictionary instead of a string
 })
 
-print(f"Created uAgent '{result['agent_name']}' with address {result['agent_address']} on port {result['agent_port']}")
+print(f"Created uAgent '{result['name']}' with address {result['address']} on port {result['port']}")
 ```
 
 ## CrewAI Adapter
