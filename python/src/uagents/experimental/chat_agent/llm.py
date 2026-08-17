@@ -4,6 +4,7 @@ import contextlib
 import json
 import logging
 import os
+from collections.abc import AsyncIterator
 from typing import Any, cast
 
 import litellm
@@ -15,9 +16,6 @@ from pydantic import BaseModel, ConfigDict
 from uagents.experimental.chat_agent.tools import Tool
 
 
-# LiteLLM keeps shared HTTP clients; they must be closed when the process exits. The
-# library registers its own atexit hook, but we also run this so cleanup is awaited
-# reliably (e.g. after Bureau/agent teardown when no asyncio loop is running).
 def _litellm_cleanup_on_exit() -> None:
     with contextlib.suppress(Exception):
         asyncio.run(close_litellm_async_clients())
@@ -89,9 +87,10 @@ class LLMConfig(BaseModel):
     url: str
     parameters: LLMParams
     api_key: str | None = None
+    stream: bool = True  # Set False for providers that do not support stream
 
     @classmethod
-    def asi1(cls, model: str = DEFAULT_ASI1_MODEL) -> "LLMConfig":
+    def asi1(cls, model: str = DEFAULT_ASI1_MODEL, stream: bool = True) -> "LLMConfig":
         api_key = os.getenv("ASI1_API_KEY")
         if api_key is None:
             raise ValueError("Please set ASI1_API_KEY environment variable.")
@@ -101,6 +100,7 @@ class LLMConfig(BaseModel):
             model=model,
             url=os.getenv("ASI1_BASE_URL", DEFAULT_ASI1_URL),
             parameters=LLMParams(),
+            stream=stream,
         )
 
 
@@ -208,6 +208,31 @@ class LLM:
             return ("__plain_text__", {"message": content_text}, None, msg)
 
         raise RuntimeError("LLM returned neither tool_calls nor content.")
+
+    async def process_stream(self, messages: list[dict]) -> AsyncIterator[str]:
+        """Yield plain-text content deltas from a streaming completion."""
+        kwargs = self._get_base_kwargs(
+            messages, exclude_params={"system_prompt", "tool_choice"}
+        )
+        kwargs["stream"] = True
+        kwargs.pop("parallel_tool_calls", None)
+
+        try:
+            response = await acompletion(**kwargs)
+        except Exception as e:
+            raise RuntimeError(
+                "Streaming is enabled for this ChatAgent, but the LLM provider "
+                f"failed to stream a reply: {_provider_error_message(e)}"
+            ) from e
+
+        async for chunk in response:
+            choices = getattr(chunk, "choices", None) or []
+            if not choices:
+                continue
+            delta = getattr(choices[0], "delta", None)
+            text = getattr(delta, "content", None) if delta is not None else None
+            if text:
+                yield text
 
     async def complete(self, messages: list[dict]) -> str:
         """Finalize a chat turn after tool execution."""
