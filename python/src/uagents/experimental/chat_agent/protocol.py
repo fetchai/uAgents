@@ -144,7 +144,9 @@ class ChatProtocol(Protocol):
                     messages = [*messages, msg_dict]
 
             try:
-                tool_name, arg_dict, tool_call_id, _ = await self._llm.process(messages)
+                tool_name, arg_dict, tool_call_id, assistant_msg = (
+                    await self._llm.process(messages)
+                )
 
             except Exception as e:
                 ctx.logger.error(f"LLM failed: {e}")
@@ -186,16 +188,15 @@ class ChatProtocol(Protocol):
                     "Sorry, I couldn't process your request. Please try again later.",
                 )
 
-            tool_result_message = {
-                "role": "tool",
-                "tool_call_id": tool_call_id,
-                "content": json.dumps(result),
-            }
-
             followup_messages = [
                 {"role": "system", "content": FINAL_SYSTEM_PROMPT},
                 msg_dict,
-                tool_result_message,
+                assistant_msg,
+                {
+                    "role": "tool",
+                    "tool_call_id": tool_call_id,
+                    "content": json.dumps(result),
+                },
             ]
 
             try:
