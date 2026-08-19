@@ -34,6 +34,8 @@ DEFAULT_TEMPERATURE = 0.0
 DEFAULT_MAX_TOKENS = 1024
 DEFAULT_ASI1_MODEL = "asi1-mini"
 DEFAULT_ASI1_URL = "https://api.asi1.ai/v1"
+DEFAULT_ORCAROUTER_MODEL = "orcarouter/auto"
+DEFAULT_ORCAROUTER_URL = "https://api.orcarouter.ai/v1"
 DEFAULT_SYSTEM_PROMPT = (
     "You are an AI agent built on the uAgents framework and ChatProtocol. "
     "Respond clearly and concisely to the incoming request, using session history "
@@ -100,6 +102,19 @@ class LLMConfig(BaseModel):
             api_key=api_key,
             model=model,
             url=os.getenv("ASI1_BASE_URL", DEFAULT_ASI1_URL),
+            parameters=LLMParams(),
+        )
+
+    @classmethod
+    def orcarouter(cls, model: str = DEFAULT_ORCAROUTER_MODEL) -> "LLMConfig":
+        api_key = os.getenv("ORCAROUTER_API_KEY")
+        if api_key is None:
+            raise ValueError("Please set ORCAROUTER_API_KEY environment variable.")
+        return LLMConfig(
+            provider="openai",
+            api_key=api_key,
+            model=model,
+            url=os.getenv("ORCAROUTER_BASE_URL", DEFAULT_ORCAROUTER_URL),
             parameters=LLMParams(),
         )
 
