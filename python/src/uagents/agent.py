@@ -11,6 +11,7 @@ from typing import Any
 import aiohttp
 import requests
 from cosmpy.aerial.client import LedgerClient
+from cosmpy.aerial.client.aio import AsyncLedgerClient
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
 from pydantic import ValidationError
@@ -58,6 +59,7 @@ from uagents.mailbox import (
 )
 from uagents.network import (
     InsufficientFundsError,
+    create_async_ledger,
     get_almanac_contract,
     get_ledger,
     is_ledger_rpc_unavailable,
@@ -385,6 +387,7 @@ class Agent(Sink):
         )
 
         self._ledger = get_ledger(network)
+        self._async_ledger = create_async_ledger(network)
         self._almanac_contract = get_almanac_contract(network)
         self._storage = KeyValueStore(self.address[0:16])
         self._interval_handlers: list[tuple[IntervalCallback, float]] = []
@@ -428,7 +431,7 @@ class Agent(Sink):
 
         if self._registration_policy is None:
             self._registration_policy = DefaultRegistrationPolicy(
-                ledger=self._ledger,
+                ledger=self._async_ledger,
                 wallet=self._wallet,
                 almanac_contract=self._almanac_contract,
                 testnet=self._network == "testnet",
@@ -674,6 +677,16 @@ class Agent(Sink):
             LedgerClient: The agent's ledger
         """
         return self._ledger
+
+    @property
+    def async_ledger(self) -> AsyncLedgerClient:
+        """
+        Get the async ledger client used for registration broadcast/polling.
+
+        Returns:
+            AsyncLedgerClient: The agent's async ledger client.
+        """
+        return self._async_ledger
 
     @property
     def storage(self) -> KeyValueStore:
@@ -1215,6 +1228,9 @@ class Agent(Sink):
             self._dispenser_task.cancel()
             await asyncio.gather(self._dispenser_task, return_exceptions=True)
 
+        with contextlib.suppress(Exception):
+            await self._async_ledger.close()
+
     def setup(self):
         """
         Include the internal agent protocol, run startup tasks, and start background tasks.
@@ -1551,7 +1567,7 @@ class Bureau:
         endpoint: str | list[str] | dict[str, dict] | None = None,
         agentverse: str | dict[str, str] | None = None,
         registration_policy: BatchRegistrationPolicy | None = None,
-        ledger: LedgerClient | None = None,
+        ledger: AsyncLedgerClient | None = None,
         wallet: LocalWallet | None = None,
         seed: str | None = None,
         network: AgentNetwork = "testnet",
@@ -1568,7 +1584,7 @@ class Bureau:
             endpoint (str | list[str] | dict[str, dict] | None): The endpoint configuration.
             agentverse (str | dict[str, str] | None): The agentverse configuration.
             registration_policy (BatchRegistrationPolicy | None): The registration policy.
-            ledger (LedgerClient | None): The ledger for the bureau.
+            ledger (AsyncLedgerClient | None): The async ledger for the bureau registration path.
             wallet (LocalWallet | None): The wallet for the bureau (overrides 'seed').
             seed (str | None): The seed phrase for the wallet (overridden by 'wallet').
             network (Literal["mainnet", "testnet"]): The network to use for the agent.
@@ -1597,6 +1613,8 @@ class Bureau:
             for agent in self._agents
         )
         almanac_contract = get_almanac_contract(network)
+        self._async_ledger = ledger or create_async_ledger(network)
+        self._owns_async_ledger = ledger is None
 
         if wallet and seed:
             self._logger.warning(
@@ -1620,7 +1638,7 @@ class Bureau:
             self._registration_policy = registration_policy
         else:
             self._registration_policy = DefaultBatchRegistrationPolicy(
-                ledger=ledger or get_ledger(network),
+                ledger=self._async_ledger,
                 wallet=wallet,
                 almanac_contract=almanac_contract,
                 testnet=network == "testnet",
@@ -1662,7 +1680,7 @@ class Bureau:
             and agent._almanac_contract is not None
         ):
             agent._registration_policy = LedgerBasedRegistrationPolicy(
-                agent._ledger,
+                agent._async_ledger,
                 agent._wallet,
                 agent._almanac_contract,
                 agent._network == "testnet",
@@ -1778,6 +1796,13 @@ class Bureau:
             if agent._dispenser_task:
                 agent._dispenser_task.cancel()
                 await asyncio.gather(agent._dispenser_task, return_exceptions=True)
+
+            with contextlib.suppress(Exception):
+                await agent._async_ledger.close()
+
+        if self._owns_async_ledger:
+            with contextlib.suppress(Exception):
+                await self._async_ledger.close()
 
     async def run_async(self):
         """Run the agents managed by the bureau."""
