@@ -68,6 +68,8 @@ from uagents.experimental.chat_agent import ChatAgent, LLMParams, LLMConfig
 
 asione_config = LLMConfig.asi1() # default
 
+orcarouter_config = LLMConfig.orcarouter() # routes via OrcaRouter (https://www.orcarouter.ai)
+
 openai_config = LLMConfig(
     provider="openai",
     api_key="YOUR_OPENAI_API_KEY",
