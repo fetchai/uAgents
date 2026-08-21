@@ -9,6 +9,7 @@ DEFAULT_PROXY_PATH = "/v2/agents/proxy/submit"
 DEFAULT_STORAGE_PATH = "/v1/storage"
 DEFAULT_PAYMENTS_PATH = "/v1/payments"
 DEFAULT_SEARCH_PATH = "/v1/search"
+DEFAULT_EVENTS_API_PATH = "/v1/events"
 
 DEFAULT_MAX_ENDPOINTS = 10
 
@@ -57,3 +58,7 @@ class AgentverseConfig(BaseModel):
     @property
     def search_api(self) -> str:
         return f"{self.url}{DEFAULT_SEARCH_PATH}"
+
+    @property
+    def events_api(self) -> str:
+        return f"{self.url}{DEFAULT_EVENTS_API_PATH}"
