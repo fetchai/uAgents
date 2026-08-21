@@ -15,7 +15,7 @@ uAgents is a library developed by Fetch.ai that allows for creating autonomous A
 
 ### Installation
 
-Get started with uAgents by installing it for Python 3.10 to 3.13:
+Get started with uAgents by installing it for Python 3.10 to 3.14:
 
     pip install uagents
 

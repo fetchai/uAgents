@@ -56,7 +56,7 @@ pip install uagents-core
 
 | uagents | uagents-core | Python |
 |---------|--------------|--------|
-| 0.23.x | >=0.4.0 | 3.10-3.13 |
+| 0.23.x | >=0.4.0 | 3.10-3.14 |
 | 0.22.x | 0.3.x | 3.10-3.12 |
 
 ## Contributing
