@@ -1,8 +1,10 @@
 # pylint: disable=protected-access
+import asyncio
 import unittest
 from collections.abc import Callable
 
 from uagents import Agent, Context, Model
+from uagents.agent import _default_event_loop
 from uagents.resolver import GlobalResolver
 from uagents.types import RestHandlerDetails
 
@@ -26,6 +28,44 @@ QUERY_DIGEST = Model.build_schema_digest(Query)
 alice = Agent(
     name="alice", seed="alice recovery password", enable_agent_inspector=False
 )
+
+
+class TestDefaultEventLoop(unittest.TestCase):
+    def setUp(self) -> None:
+        try:
+            self._previous_loop = asyncio.get_event_loop()
+        except RuntimeError:
+            self._previous_loop = None
+        self._test_loop: asyncio.AbstractEventLoop | None = None
+
+    def tearDown(self) -> None:
+        if self._test_loop is not None and not self._test_loop.is_closed():
+            self._test_loop.close()
+        if self._previous_loop is not None and not self._previous_loop.is_closed():
+            asyncio.set_event_loop(self._previous_loop)
+        else:
+            asyncio.set_event_loop(None)
+
+    def test_returns_explicit_loop(self) -> None:
+        explicit = asyncio.new_event_loop()
+        self.assertIs(_default_event_loop(explicit), explicit)
+        explicit.close()
+
+    def test_creates_loop_when_thread_has_none(self) -> None:
+        asyncio.set_event_loop(None)
+        result = _default_event_loop(None)
+        self._test_loop = result
+        self.assertFalse(result.is_closed())
+        self.assertIs(asyncio.get_event_loop(), result)
+
+    def test_replaces_closed_thread_loop(self) -> None:
+        closed = asyncio.new_event_loop()
+        closed.close()
+        asyncio.set_event_loop(closed)
+        result = _default_event_loop(None)
+        self._test_loop = result
+        self.assertFalse(result.is_closed())
+        self.assertIsNot(result, closed)
 
 
 class TestAgent(unittest.TestCase):
