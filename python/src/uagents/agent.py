@@ -248,8 +248,8 @@ class Agent(Sink):
         _models (dict[str, type[Model]]): Dictionary mapping supported message digests to messages.
         _replies (dict[str, dict[str, type[Model]]]): Dictionary of allowed replies for each type
         of incoming message.
-        _queries (dict[str, asyncio.Future]): Dictionary mapping query senders to their response
-        Futures.
+        _queries (dict[tuple[str, uuid.UUID], asyncio.Future]): Maps
+            (query sender, session) to their response Futures.
         _dispatcher: The dispatcher for internal handling/sorting of messages.
         _dispenser: The dispatcher for external message handling.
         _message_queue: Asynchronous queue for incoming messages.
@@ -394,7 +394,7 @@ class Agent(Sink):
         self._rest_handlers: RestHandlerMap = {}
         self._models: dict[str, type[Model]] = {}
         self._replies: dict[str, dict[str, type[Model]]] = {}
-        self._queries: dict[str, asyncio.Future] = {}
+        self._queries: dict[tuple[str, uuid.UUID], asyncio.Future] = {}
         self._dispatcher = dispatcher
         self._message_history: EnvelopeHistory | None = (
             EnvelopeHistory(
@@ -1534,8 +1534,8 @@ class Bureau:
         _agents (list[Agent]): The list of agents to be managed by the bureau.
         _endpoints (list[dict[str, Any]]): The endpoint configuration for the bureau.
         _port (int): The port on which the bureau's server runs.
-        _queries (dict[str, asyncio.Future]): dictionary mapping query senders to their
-        response Futures.
+        _queries (dict[tuple[str, uuid.UUID], asyncio.Future]): Maps
+            (query sender, session) to their response Futures.
         _logger (Logger): The logger instance.
         _server (ASGIServer): The ASGI server instance for handling requests.
         _agentverse (AgentverseConfig): The agentverse configuration for the bureau.
@@ -1579,7 +1579,7 @@ class Bureau:
         self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
         self._agents: list[Agent] = []
         self._port = port or 8000
-        self._queries: dict[str, asyncio.Future] = {}
+        self._queries: dict[tuple[str, uuid.UUID], asyncio.Future] = {}
         self._logger = get_logger("bureau", log_level)
         self._server = ASGIServer(
             port=self._port,
