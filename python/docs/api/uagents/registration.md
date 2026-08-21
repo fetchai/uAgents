@@ -39,7 +39,20 @@ Send a POST request to the Almanac API.
 
 
 
-## LedgerBasedRegistrationPolicy Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L225)
+#### copy_tx_fee[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L225)
+```python
+def copy_tx_fee(tx_fee: TxFee | None) -> TxFee | None
+```
+
+Copy a transaction fee so it can be used for a single broadcast.
+
+cosmpy fills in `gas_limit` and `amount` on the TxFee instance it is handed, so a
+policy that reuses one instance would pin the first gas simulation for the lifetime
+of the agent.
+
+
+
+## LedgerBasedRegistrationPolicy Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L244)
 
 ```python
 class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy)
@@ -47,7 +60,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy)
 
 
 
-#### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L288)
+#### register[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/registration.py#L307)
 ```python
 async def register(agent_identifier: str,
                    identity: Identity,

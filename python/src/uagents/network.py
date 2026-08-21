@@ -3,6 +3,7 @@
 import asyncio
 import time
 from collections.abc import Callable
+from dataclasses import replace
 from logging import Logger
 from typing import Any
 
@@ -32,6 +33,7 @@ from uagents.config import (
     AVERAGE_BLOCK_INTERVAL,
     MAINNET_CONTRACT_ALMANAC,
     MAINNET_CONTRACT_NAME_SERVICE,
+    MAINNET_FEE_MINIMUM_GAS_PRICE,
     ORACLE_AGENT_DOMAIN,
     TESTNET_CONTRACT_ALMANAC,
     TESTNET_CONTRACT_NAME_SERVICE,
@@ -44,7 +46,12 @@ logger: Logger = get_logger("network")
 
 _faucet_api = FaucetApi(NetworkConfig.fetchai_stable_testnet())
 _testnet_ledger = LedgerClient(NetworkConfig.fetchai_stable_testnet())
-_mainnet_ledger = LedgerClient(NetworkConfig.fetchai_mainnet())
+_mainnet_ledger = LedgerClient(
+    replace(
+        NetworkConfig.fetchai_mainnet(),
+        fee_minimum_gas_price=MAINNET_FEE_MINIMUM_GAS_PRICE,
+    )
+)
 
 RetryDelayFunc = Callable[[int], float]
 DEFAULT_BROADCAST_RETRIES = 5
@@ -116,6 +123,9 @@ class AlmanacContractRecord(AgentInfo):
 def get_ledger(network: AgentNetwork = "testnet") -> LedgerClient:
     """
     Get the Ledger client.
+
+    The client is configured with a gas price for the network, so transactions that do not
+    carry an explicit fee amount pay one derived from the gas they need.
 
     Args:
         network (AgentNetwork, optional): The network to use. Defaults to "testnet".
