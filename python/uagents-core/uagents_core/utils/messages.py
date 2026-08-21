@@ -127,8 +127,9 @@ def record_agent_interaction(
         response.raise_for_status()
     except requests.RequestException as e:
         logger.error(
-            "Failed to track interaction",
-            extra={"error": str(e), "interaction": interaction},
+            "Failed to track interaction: %s",
+            e,
+            extra={"interaction": interaction},
         )
 
 
@@ -265,11 +266,12 @@ def send_message_to_agent(
         except requests.RequestException as e:
             if isinstance(e, requests.HTTPError):
                 logger.error(
-                    f"Failed to send message to agent, returned HTTP error {e.response.status_code}",
-                    extra={"error": str(e)},
+                    "Failed to send message to agent, returned HTTP error %s: %s",
+                    e.response.status_code,
+                    e,
                 )
             else:
-                logger.error("Failed to send message to agent", extra={"error": str(e)})
+                logger.error("Failed to send message to agent: %s", e)
             status_result.append(
                 MsgStatus(
                     status=DeliveryStatus.FAILED,
@@ -285,8 +287,9 @@ def send_message_to_agent(
             return parse_envelope_raw(response.text, response_type)
         except ValidationError as e:
             logger.error(
-                "Received invalid response envelope",
-                extra={"error": str(e), "response": response.text},
+                "Received invalid response envelope: %s",
+                e,
+                extra={"response": response.text},
             )
 
     return status_result
