@@ -52,7 +52,6 @@ import requests
 from pydantic import BaseModel, Field, model_validator
 
 from uagents_core.config import (
-    DEFAULT_ALMANAC_API_PATH,
     DEFAULT_REQUEST_TIMEOUT,
     AgentverseConfig,
 )
@@ -461,7 +460,12 @@ def register_in_agentverse(
     return False
 
 
-def _update_agent_status(active: bool, identity: Identity):
+def _update_agent_status(
+    active: bool,
+    identity: Identity,
+    *,
+    agentverse_config: AgentverseConfig | None = None,
+):
     """Update the agent's active/inactive status in the Almanac API.
 
     Active agents are kept synchronized by Agentverse and remain
@@ -471,7 +475,7 @@ def _update_agent_status(active: bool, identity: Identity):
     Raises:
         AgentverseRequestError: If the status update API call fails.
     """
-    almanac_api = AgentverseConfig().url + DEFAULT_ALMANAC_API_PATH
+    almanac_api = (agentverse_config or AgentverseConfig()).almanac_api
 
     status_update = AgentStatusUpdate(
         agent_identifier=identity.address, is_active=active
@@ -489,7 +493,12 @@ def _update_agent_status(active: bool, identity: Identity):
     )
 
 
-def update_agent_status(active: bool, identity: Identity) -> bool:
+def update_agent_status(
+    active: bool,
+    identity: Identity,
+    *,
+    agentverse_config: AgentverseConfig | None = None,
+) -> bool:
     """Update the agent's active/inactive status (error-safe wrapper).
 
     This is a convenience wrapper that catches :class:`AgentverseRequestError`
@@ -499,13 +508,15 @@ def update_agent_status(active: bool, identity: Identity) -> bool:
         active: ``True`` to mark the agent as active (discoverable),
             ``False`` to mark it as inactive.
         identity: The cryptographic identity of the agent.
+        agentverse_config: Custom API configuration. Defaults to the
+            standard Agentverse production endpoint.
 
     Returns:
         ``True`` if the status update succeeded, ``False`` otherwise.
         On failure, the error is logged but not raised.
     """
     try:
-        _update_agent_status(active, identity)
+        _update_agent_status(active, identity, agentverse_config=agentverse_config)
         return True
     except AgentverseRequestError as e:
         logger.error(msg=str(e), exc_info=e.from_exc)
@@ -567,7 +578,7 @@ def register_agent(
 
     if agent_registration.active:
         logger.info("setting agent as active...")
-        _update_agent_status(True, identity)
+        _update_agent_status(True, identity, agentverse_config=agentverse_config)
         logger.info("successfully set agent to active.")
 
     return True
