@@ -228,8 +228,8 @@ class AlmanacContractResolver(Resolver):
         elif prefix == "":
             for network in ["mainnet", "testnet"]:
                 try:
-                    result = query_record(agent_address=address, network="mainnet")
-                    if result is not None:
+                    result = query_record(agent_address=address, network=network)
+                    if result is not None and result.get("record") is not None:
                         break
                 except ValueError:
                     if network == "testnet":

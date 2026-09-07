@@ -6,9 +6,6 @@ This module defines the event schema understood by the Agentverse events API
 authenticate against, dispatch events to, and query the registration status
 from Agentverse.
 
-The schema mirrors the one used by the ``agentverse-sdk`` adapters so that
-events emitted by native uAgents render consistently in the Agentverse UI.
-
 Telemetry must never interfere with agent logic: :func:`dispatch_events` and
 :func:`is_registered_on_agentverse` swallow every error (failing closed) and
 never raise into the caller.
@@ -44,16 +41,10 @@ MessageDirection = Literal["received", "sent"]
 # Attestation tokens for telemetry requests are short-lived by design.
 AUTH_TOKEN_VALIDITY_SECS = 120
 
-# Path of the Agentverse events endpoint, relative to the Agentverse base url.
-# Prefer ``AgentverseConfig.events_api`` at call sites; this constant remains for
-# callers that only have a base URL string.
-EVENTS_PATH = "/v1/events"
-
 # Default HTTP timeout (seconds) for telemetry requests.
 DEFAULT_EVENTS_HTTP_TIMEOUT_S = 10
 
-# Defaults for the background events dispatcher. These mirror the values used by
-# the agentverse-sdk dispatcher so behaviour stays consistent across SDKs.
+# Defaults for the background events dispatcher.
 DEFAULT_EVENTS_QUEUE_MAX_BATCHES = 256
 DEFAULT_EVENTS_FLUSH_INTERVAL_S = 0.1
 DEFAULT_EVENTS_MAX_BATCH_EVENTS = 50
@@ -113,6 +104,9 @@ class PlatformMetadata(BaseModel):
             nodename=platform.node(),
             sdk_version=sdk_version,
         )
+
+
+PLATFORM_METADATA = PlatformMetadata.current()
 
 
 class MessageEventMetadata(BaseModel):
@@ -276,7 +270,7 @@ class _BaseEventsDispatcher:
     Shared background buffer that POSTs telemetry to the Agentverse events API.
 
     The queue stores ``(identity, batch)`` pairs so one dispatcher can serve many
-    agents (Bureau, fayer hosting): each item is signed with the identity that
+    agents as in the ``Bureau``: each item is signed with the identity that
     was supplied at enqueue time. Events from different identities are never
     merged into the same HTTP POST, because ``POST /v1/events`` is attested as
     a single agent.
@@ -291,10 +285,12 @@ class _BaseEventsDispatcher:
         options: EventIngestionOptions | None = None,
         *,
         logger: logging.Logger | None = None,
+        platform: PlatformMetadata | None = None,
     ) -> None:
         self._agentverse = agentverse
         self._options = options or EventIngestionOptions()
         self._logger = logger
+        self._platform = platform or PLATFORM_METADATA
         self._queue: asyncio.Queue[tuple[Identity, AgentBatchEvents]] = asyncio.Queue(
             maxsize=self._options.queue_max_batches
         )
@@ -488,9 +484,7 @@ class _BaseEventsDispatcher:
         if not events:
             return None
 
-        return identity, AgentBatchEvents(
-            platform=PlatformMetadata.current(), events=events
-        )
+        return identity, AgentBatchEvents(platform=self._platform, events=events)
 
 
 class EventsDispatcher(_BaseEventsDispatcher):
@@ -508,17 +502,14 @@ class EventsDispatcher(_BaseEventsDispatcher):
         options: EventIngestionOptions | None = None,
         *,
         logger: logging.Logger | None = None,
+        platform: PlatformMetadata | None = None,
     ) -> None:
-        super().__init__(agentverse, options, logger=logger)
+        super().__init__(agentverse, options, logger=logger, platform=platform)
         self._identity = identity
 
     def enqueue_event(self, batch: AgentBatchEvents) -> None:
         """Enqueue a batch signed as this dispatcher's agent."""
         self._enqueue(self._identity, batch)
-
-    # Backwards-compatible alias used by earlier call sites / tests.
-    def enqueue(self, batch: AgentBatchEvents) -> None:
-        self.enqueue_event(batch)
 
     def report_message(
         self,
@@ -565,7 +556,7 @@ class EventsDispatcher(_BaseEventsDispatcher):
 
 class MultiAgentEventsDispatcher(_BaseEventsDispatcher):
     """
-    One dispatcher shared across many agents (Bureau, fayer hosting).
+    One dispatcher shared across many agents.
 
     Callers pass the executing agent's identity on every enqueue so each POST
     is attested as that agent.
