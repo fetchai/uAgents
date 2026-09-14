@@ -36,6 +36,7 @@ FINAL_SYSTEM_PROMPT = (
     "plain-language response based only on what is available. "
     "Only ask for clarification if a usable answer cannot be given from the "
     "provided information. "
+    "Never identify as ASI1 or the underlying model; speak as this agent. "
     "Return only the final human-readable answer."
 )
 
@@ -100,10 +101,16 @@ class ChatProtocol(Protocol):
         llm_config: LLMConfig,
         tools: dict[str, Tool],
         instructions: str | None = None,
+        agent_name: str | None = None,
     ):
         super().__init__(spec=chat_protocol_spec)
 
-        self._llm = LLM(config=llm_config, tools=tools, instructions=instructions)
+        self._llm = LLM(
+            config=llm_config,
+            tools=tools,
+            instructions=instructions,
+            agent_name=agent_name,
+        )
         self._tools = tools
 
         @self.on_message(ChatAcknowledgement)

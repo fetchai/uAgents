@@ -37,6 +37,7 @@ class ChatAgent(Agent):
             llm_config=llm_config or LLMConfig.asi1(),
             tools=self._tools,
             instructions=instructions,
+            agent_name=self.name,
         )
 
         super().include(self._chat_proto, publish_manifest=True)

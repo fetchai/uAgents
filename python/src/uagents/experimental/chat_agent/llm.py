@@ -35,9 +35,14 @@ DEFAULT_MAX_TOKENS = 1024
 DEFAULT_ASI1_MODEL = "asi1-mini"
 DEFAULT_ASI1_URL = "https://api.asi1.ai/v1"
 DEFAULT_SYSTEM_PROMPT = (
-    "You are an AI agent built on the uAgents framework and ChatProtocol. "
-    "Respond clearly and concisely to the incoming request, using session history "
-    "as warranted, to provide context for the response."
+    "You are a uAgent speaking through the Chat Protocol. "
+    "You are not ASI1 or any other underlying model, and must never introduce "
+    "yourself as those systems or as Fetch.ai's orchestration / Agentverse gateway. "
+    "Respond clearly and concisely as this agent, using session history only "
+    "when it helps. "
+    "Only describe capabilities from your instructions and tools. "
+    "If you have no tools, you are a simple chat agent and must not invent "
+    "extra abilities."
 )
 
 INSTRUCTIONS_PREAMBLE = (
@@ -106,11 +111,16 @@ class LLMConfig(BaseModel):
 
 class LLM:
     def __init__(
-        self, config: LLMConfig, tools: dict[str, Tool], instructions: str | None = None
+        self,
+        config: LLMConfig,
+        tools: dict[str, Tool],
+        instructions: str | None = None,
+        agent_name: str | None = None,
     ):
         self._config = config
         self._tools = tools
         self._instructions = instructions
+        self._agent_name = agent_name
 
     def _build_tool_specs(self) -> list[dict[str, Any]]:
         return [tool.tool_spec() for tool in self._tools.values()]
@@ -156,6 +166,12 @@ class LLM:
 
     def _system_content(self, tools_specs: list[dict[str, Any]]) -> str:
         parts: list[str] = [DEFAULT_SYSTEM_PROMPT.strip()]
+        name = (self._agent_name or "").strip()
+        if name:
+            parts.append(
+                f'Your identity is "{name}". Introduce yourself as {name}, '
+                "never as the underlying model."
+            )
         instructions = (self._instructions or "").strip()
         if instructions:
             parts.append(f"{INSTRUCTIONS_PREAMBLE}{instructions}")
