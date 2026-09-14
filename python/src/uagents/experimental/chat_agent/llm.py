@@ -56,7 +56,9 @@ TOOL_USAGE_PROMPT = (
     "more details but do not guess. Use ONLY the tools explicitly provided to you; "
     "do not claim or attempt capabilities outside those tools. If the request cannot "
     "be completed with the available tools, ask a clarifying question about what "
-    "tool-enabled action to take."
+    "tool-enabled action to take. "
+    "For greetings, introductions, or questions about who this agent is or what it "
+    "can do, use AgentInfoRequest."
 )
 
 

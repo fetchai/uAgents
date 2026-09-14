@@ -18,7 +18,7 @@ from uagents import Context, Model
 from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS
 from uagents.context import ExternalContext
 from uagents.experimental.chat_agent.llm import LLM, LLMConfig
-from uagents.experimental.chat_agent.tools import Tool
+from uagents.experimental.chat_agent.tools import AGENT_INFO_TOOL_NAME, Tool
 from uagents.protocol import Protocol
 
 FINAL_SYSTEM_PROMPT = (
@@ -38,6 +38,14 @@ FINAL_SYSTEM_PROMPT = (
     "provided information. "
     "Never identify as ASI1 or the underlying model; speak as this agent. "
     "Return only the final human-readable answer."
+)
+
+AGENT_INFO_FINAL_SYSTEM_PROMPT = (
+    "Respond naturally as the agent described by the AgentInfoResponse tool result. "
+    "Use its name, description, instructions, and capabilities as context for your "
+    "answer. You may use general knowledge that is consistent with that context. "
+    "Do not mention the tool or underlying LLM, and do not claim access to tools or "
+    "external actions that are not listed."
 )
 
 
@@ -198,8 +206,13 @@ class ChatProtocol(Protocol):
                     "Sorry, I couldn't process your request. Please try again later.",
                 )
 
+            final_system_prompt = (
+                AGENT_INFO_FINAL_SYSTEM_PROMPT
+                if tool_name == AGENT_INFO_TOOL_NAME
+                else FINAL_SYSTEM_PROMPT
+            )
             followup_messages = [
-                {"role": "system", "content": FINAL_SYSTEM_PROMPT},
+                {"role": "system", "content": final_system_prompt},
                 msg_dict,
                 assistant_msg,
                 {

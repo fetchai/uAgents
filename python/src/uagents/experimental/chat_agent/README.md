@@ -3,6 +3,7 @@
 `ChatAgent` is a thin wrapper around `Agent` that:
 - Plugs in an LLM (ASI1, OpenAI, Anthropic, …)
 - Exposes your protocol handlers as **tools**
+- Always includes an `AgentInfoRequest` tool (name, description, instructions, capabilities) for greetings and “who are you?” questions
 - Keeps **message history** by default for multi-turn chat
 
 ---
