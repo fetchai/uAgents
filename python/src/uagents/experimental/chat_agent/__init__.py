@@ -1,5 +1,3 @@
-from typing import Optional
-
 from uagents_core.registration import AgentProfile
 
 from uagents import Agent, Context
@@ -23,7 +21,7 @@ class ChatAgent(Agent):
     def __init__(
         self,
         *args,
-        llm_config: Optional[LLMConfig] = None,
+        llm_config: LLMConfig | None = None,
         instructions: str | None = None,
         publish_agent_details: bool = True,
         store_message_history: bool = True,
@@ -93,9 +91,7 @@ class ChatAgent(Agent):
         new_tools = extract_tools_from_protocol(protocol)
         for tool in new_tools:
             if tool.name == AGENT_INFO_TOOL_NAME:
-                raise ValueError(
-                    f"'{AGENT_INFO_TOOL_NAME}' is reserved by ChatAgent."
-                )
+                raise ValueError(f"'{AGENT_INFO_TOOL_NAME}' is reserved by ChatAgent.")
 
         super().include(protocol, publish_manifest=publish_manifest)
 

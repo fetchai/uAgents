@@ -1,4 +1,5 @@
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from uagents_core.models import ErrorMessage, Field, Model
 
