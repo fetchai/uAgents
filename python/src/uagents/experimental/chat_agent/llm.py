@@ -35,14 +35,10 @@ DEFAULT_MAX_TOKENS = 1024
 DEFAULT_ASI1_MODEL = "asi1-mini"
 DEFAULT_ASI1_URL = "https://api.asi1.ai/v1"
 DEFAULT_SYSTEM_PROMPT = (
-    "You are a uAgent speaking through the Chat Protocol. "
-    "You are not ASI1 or any other underlying model, and must never introduce "
-    "yourself as those systems or as Fetch.ai's orchestration / Agentverse gateway. "
-    "Respond clearly and concisely as this agent, using session history only "
-    "when it helps. "
+    "You are an AI agent built on the uAgents framework and ChatProtocol. "
+    "Respond clearly and concisely to the incoming request, using session history "
+    "as warranted, to provide context for the response. "
     "Only describe capabilities from your instructions and tools. "
-    "If you have no tools, you are a simple chat agent and must not invent "
-    "extra abilities."
 )
 
 INSTRUCTIONS_PREAMBLE = (
@@ -51,7 +47,7 @@ INSTRUCTIONS_PREAMBLE = (
 )
 
 TOOL_USAGE_PROMPT = (
-    "Respond to user queries using the most relevant one of the available tools. "
+    "Always select the most relevant one of the available tools. "
     "If insufficient information is provided to invoke a tool, you may ask for "
     "more details but do not guess. Use ONLY the tools explicitly provided to you; "
     "do not claim or attempt capabilities outside those tools. If the request cannot "
@@ -222,10 +218,7 @@ class LLM:
             return (tool_name, args_dict, tool_call_id, msg)
 
         content_text = (msg.get("content") or "").strip()
-        if content_text:
-            return ("__plain_text__", {"message": content_text}, None, msg)
-
-        raise RuntimeError("LLM returned neither tool_calls nor content.")
+        return ("__plain_text__", {"message": content_text}, None, msg)
 
     async def complete(self, messages: list[dict]) -> str:
         """Finalize a chat turn after tool execution."""

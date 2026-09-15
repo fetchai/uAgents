@@ -21,6 +21,8 @@ from uagents.experimental.chat_agent.llm import LLM, LLMConfig
 from uagents.experimental.chat_agent.tools import AGENT_INFO_TOOL_NAME, Tool
 from uagents.protocol import Protocol
 
+NO_TOOL_RESPONSE = "Sorry, I couldn't answer that request."
+
 FINAL_SYSTEM_PROMPT = (
     "You are generating the final reply after a tool has already been executed. "
     "Your only job is to convert the provided information into a clear, plain, "
@@ -36,7 +38,7 @@ FINAL_SYSTEM_PROMPT = (
     "plain-language response based only on what is available. "
     "Only ask for clarification if a usable answer cannot be given from the "
     "provided information. "
-    "Never identify as ASI1 or the underlying model; speak as this agent. "
+    "Speak as this agent, not as the underlying model or provider. "
     "Return only the final human-readable answer."
 )
 
@@ -173,7 +175,8 @@ class ChatProtocol(Protocol):
                 )
 
             if tool_name == "__plain_text__":
-                return await self.send_text(ctx, sender, arg_dict["message"])
+                ctx.logger.warning("LLM returned a response without a tool call")
+                return await self.send_text(ctx, sender, NO_TOOL_RESPONSE)
 
             tool = self._tools.get(tool_name)
             if tool is None:
