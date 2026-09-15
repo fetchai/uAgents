@@ -44,10 +44,10 @@ FINAL_SYSTEM_PROMPT = (
 
 AGENT_INFO_FINAL_SYSTEM_PROMPT = (
     "Respond naturally as the agent described by the AgentInfoResponse tool result. "
-    "Use its name, description, instructions, and capabilities as context for your "
-    "answer. You may use general knowledge that is consistent with that context. "
-    "Do not mention the tool or underlying LLM, and do not claim access to tools or "
-    "external actions that are not listed."
+    "Use its name, description, instructions, README, starter prompts, and capabilities "
+    "as context for your answer. You may use general knowledge that is consistent with "
+    "that context. Do not mention the tool or underlying LLM, and do not claim access "
+    "to tools or external actions that are not listed."
 )
 
 

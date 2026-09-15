@@ -16,6 +16,8 @@ from uagents.protocol import Protocol
 
 __all__ = ["ChatAgent", "LLMConfig", "LLMParams"]
 
+MAX_AGENT_INFO_README_LENGTH = 4000
+
 
 class ChatAgent(Agent):
     def __init__(
@@ -70,6 +72,8 @@ class ChatAgent(Agent):
                     name=self.name,
                     description=self._description or "",
                     instructions=(self._chat_instructions or "").strip(),
+                    readme=(self._readme or "")[:MAX_AGENT_INFO_README_LENGTH],
+                    starter_prompts=self._starter_prompts or [],
                     capabilities=capabilities,
                 ),
             )

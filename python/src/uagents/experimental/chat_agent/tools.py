@@ -12,8 +12,9 @@ AGENT_INFO_TOOL_NAME = "AgentInfoRequest"
 AGENT_INFO_TOOL_DESCRIPTION = (
     "Use this for greetings, introductions, and questions about who this agent "
     "is or what it can help with. Returns the agent's name, description, "
-    "instructions, and capabilities (including each tool's arguments and "
-    "reply schemas). Do not use this for requests that match another tool."
+    "instructions, README, starter prompts, and capabilities (including each "
+    "tool's arguments and reply schemas). Do not use this for requests that "
+    "match another tool."
 )
 
 
@@ -35,6 +36,10 @@ class AgentInfoResponse(Model):
     name: str = Field(..., description="This agent's name")
     description: str = Field(..., description="Short description of this agent")
     instructions: str = Field(..., description="How this agent is instructed to behave")
+    readme: str = Field(..., description="A shortened version of the agent's README")
+    starter_prompts: list[str] = Field(
+        ..., description="Examples of requests this agent supports"
+    )
     capabilities: list[AgentToolInfo] = Field(
         ...,
         description="Other tools this agent can use, including argument and reply schemas",
