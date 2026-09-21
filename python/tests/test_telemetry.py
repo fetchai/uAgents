@@ -344,7 +344,7 @@ class TestEventsDispatcher(unittest.IsolatedAsyncioTestCase):
         with patch("uagents_core.events.httpx.AsyncClient", factory):
             dispatcher = EventsDispatcher(self.identity, self.agentverse, options)
             await dispatcher.start()
-            dispatcher.enqueue(AgentBatchEvents.from_message("retry me"))
+            dispatcher.enqueue_event(AgentBatchEvents.from_message("retry me"))
             await asyncio.sleep(0.2)
             await dispatcher.stop()
 
@@ -357,9 +357,9 @@ class TestEventsDispatcher(unittest.IsolatedAsyncioTestCase):
             self.agentverse,
             EventIngestionOptions(queue_max_batches=1),
         )
-        dispatcher.enqueue(AgentBatchEvents.from_message("one"))
-        dispatcher.enqueue(AgentBatchEvents.from_message("two"))
-        dispatcher.enqueue(AgentBatchEvents.from_message("three"))
+        dispatcher.enqueue_event(AgentBatchEvents.from_message("one"))
+        dispatcher.enqueue_event(AgentBatchEvents.from_message("two"))
+        dispatcher.enqueue_event(AgentBatchEvents.from_message("three"))
         self.assertEqual(dispatcher._dropped_events_count, 2)
 
     async def test_stop_is_noop_when_never_started(self):
@@ -437,7 +437,9 @@ class TestMultiAgentEventsDispatcher(unittest.IsolatedAsyncioTestCase):
         contents = [c.kwargs["content"] for c in client.post.await_args_list]
         found_both = False
         for content in contents:
-            msgs = {e.message for e in AgentBatchEvents.model_validate_json(content).events}
+            msgs = {
+                e.message for e in AgentBatchEvents.model_validate_json(content).events
+            }
             if {"alice-1", "alice-2"} <= msgs:
                 found_both = True
         self.assertTrue(found_both or client.post.await_count >= 2)
