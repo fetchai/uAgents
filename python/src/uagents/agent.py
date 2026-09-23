@@ -3,9 +3,12 @@
 import asyncio
 import contextlib
 import functools
+import itertools
 import logging
 import os
 import uuid
+from collections.abc import Iterator
+from datetime import tzinfo
 from typing import Any
 
 import aiohttp
@@ -74,6 +77,7 @@ from uagents.registration import (
     update_agent_status,
 )
 from uagents.resolver import GlobalResolver, Resolver
+from uagents.schedule import Cron
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.types import (
     AgentNetwork,
@@ -98,18 +102,23 @@ async def _run_interval(
     func: IntervalCallback,
     logger: logging.Logger,
     context_factory: ContextFactory,
-    period: float,
+    delays: Iterator[float],
 ) -> None:
     """
-    Run the provided interval callback function at a specified period.
+    Run the provided interval callback function after each of the given delays.
 
     Args:
         func (IntervalCallback): The interval callback function to run.
         logger (logging.Logger): The logger instance for logging interval handler activities.
         context_factory (ContextFactory): The factory function for creating the context.
-        period (float): The time period at which to run the callback function.
+        delays (Iterator[float]): The time in seconds to wait before each run.
     """
-    while True:
+    for delay in delays:
+        try:
+            await asyncio.sleep(delay)
+        except asyncio.CancelledError:
+            return
+
         try:
             ctx = context_factory()
             await asyncio.shield(func(ctx))
@@ -121,11 +130,6 @@ async def _run_interval(
             logger.exception(f"Runtime Error in interval handler: {ex}")
         except Exception as ex:
             logger.exception(f"Exception in interval handler: {ex}")
-
-        try:
-            await asyncio.sleep(period)
-        except asyncio.CancelledError:
-            return
 
 
 async def _send_error_message(ctx: Context, destination: str, msg: ErrorMessage):
@@ -238,8 +242,8 @@ class Agent(Sink):
         _ledger: The client for interacting with the blockchain ledger.
         _almanac_contract: The almanac contract for registering agent addresses to endpoints.
         _storage: Key-value store for agent data storage.
-        _interval_handlers (list[tuple[IntervalCallback, float]]): List of interval
-        handlers and their periods.
+        _interval_handlers (list[tuple[IntervalCallback, float | Cron]]): List of interval
+        handlers and their periods or cron schedules.
         _interval_messages (set[str]): Set of message digests that may be sent by interval tasks.
         _signed_message_handlers (dict[str, MessageCallback]): Handlers for signed messages.
         _unsigned_message_handlers (dict[str, MessageCallback]): Handlers for
@@ -387,7 +391,7 @@ class Agent(Sink):
         self._ledger = get_ledger(network)
         self._almanac_contract = get_almanac_contract(network)
         self._storage = KeyValueStore(self.address[0:16])
-        self._interval_handlers: list[tuple[IntervalCallback, float]] = []
+        self._interval_handlers: list[tuple[IntervalCallback, float | Cron]] = []
         self._interval_messages: set[str] = set()
         self._signed_message_handlers: dict[str, MessageCallback] = {}
         self._unsigned_message_handlers: dict[str, MessageCallback] = {}
@@ -893,6 +897,26 @@ class Agent(Sink):
         """
         return self._protocol.on_interval(period, messages)
 
+    def on_schedule(
+        self,
+        cron: str,
+        tz: str | tzinfo | None = None,
+        messages: type[Model] | set[type[Model]] | None = None,
+    ):
+        """
+        Decorator to register a handler that runs on a cron schedule.
+
+        Args:
+            cron (str): The cron expression, e.g. "*/5 * * * *" for every 5 minutes.
+            tz (str | tzinfo | None): The timezone to evaluate the schedule in, e.g.
+            "Europe/London". Defaults to UTC.
+            messages (type[Model] | set[type[Model]] | None): Optional message types.
+
+        Returns:
+            Callable: The decorator function for registering scheduled handlers.
+        """
+        return self._protocol.on_schedule(cron, tz, messages)
+
     @deprecated(
         "on_query is deprecated and will be removed in a future release, use on_rest instead."
     )
@@ -1261,8 +1285,12 @@ class Agent(Sink):
     def start_interval_tasks(self):
         """Start interval tasks for the agent."""
         for func, period in self._interval_handlers:
+            if isinstance(period, Cron):
+                delays = period.delays()
+            else:
+                delays = itertools.chain([0.0], itertools.repeat(period))
             task = self._loop.create_task(
-                _run_interval(func, self._logger, self._build_context, period)
+                _run_interval(func, self._logger, self._build_context, delays)
             )
             self._interval_tasks.add(task)
             task.add_done_callback(self._interval_tasks.discard)
