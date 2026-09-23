@@ -18,6 +18,7 @@ dependencies = [
     "aiohttp (>=3.8.3,<4.0)",
     "cosmpy (>=0.12.1)",
     "cronsim (>=2.7,<3.0)",
+    "tzdata (>=2024.1) ; sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]
