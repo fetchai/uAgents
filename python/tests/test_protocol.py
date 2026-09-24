@@ -40,6 +40,19 @@ class TestAgent(unittest.TestCase):
         self.assertTrue(isinstance(interval[0], Callable))
         self.assertEqual(interval[1], 10)
 
+    def test_protocol_on_schedule(self):
+        @self.protocol.on_schedule(cron="*/5 * * * *")
+        def _(_ctx):
+            pass
+
+        schedule = self.protocol._interval_handlers[-1]
+        self.assertTrue(isinstance(schedule[0], Callable))
+        self.assertEqual(schedule[1].expression, "*/5 * * * *")
+
+    def test_protocol_on_schedule_invalid(self):
+        with self.assertRaises(ValueError):
+            self.protocol.on_schedule(cron="0 0 30 2 *")
+
     def test_protocol_on_signed_message(self):
         @self.protocol.on_message(Message)
         def _(_ctx, _sender, _msg):

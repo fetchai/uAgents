@@ -756,6 +756,14 @@ toml = [
 ]
 
 [[package]]
+name = "cronsim"
+version = "2.7"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fb/1a/02f105147f7f2e06ed4f734ff5a6439590bb275a53dd91fc73df6312298a/cronsim-2.7-py3-none-any.whl", hash = "sha256:1e1431fa08c51dc7f72e67e571c7c7a09af26420169b607badd4ca9677ffad1e", size = 14213, upload-time = "2025-10-21T16:38:20.431Z" },
+]
+
+[[package]]
 name = "databind"
 version = "4.5.3"
 source = { registry = "https://pypi.org/simple" }
@@ -2896,13 +2904,24 @@ wheels = [
 ]
 
 [[package]]
+name = "tzdata"
+version = "2026.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/31/3d74fa778a63b98b7374323befcc0be5ab3bd94afd4096a0124e7379152c/tzdata-2026.4.tar.gz", hash = "sha256:f1b8bd365d8d210c55353f4d7f8d6d8561c0ba50d704b700d195a9424bba0d79", size = 199350, upload-time = "2026-09-12T12:56:03.251Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f9/bc/8737e8d54cf51106118039b83f485a4783112fab49ea9d044b234978a46e/tzdata-2026.4-py2.py3-none-any.whl", hash = "sha256:c2169a8b0a7a5e9674da5a135ccdfb2b3e671b333ed9fed17b41f73c34476e81", size = 347494, upload-time = "2026-09-12T12:56:01.67Z" },
+]
+
+[[package]]
 name = "uagents"
 version = "0.25.5"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
     { name = "cosmpy" },
+    { name = "cronsim" },
     { name = "pydantic" },
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
     { name = "uagents-core" },
     { name = "uvicorn" },
 ]
@@ -2931,9 +2950,11 @@ dev = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.8.3,<4.0" },
     { name = "cosmpy", specifier = ">=0.12.1" },
+    { name = "cronsim", specifier = ">=2.7,<3.0" },
     { name = "litellm", marker = "extra == 'all'", specifier = ">=1.78.6,<2.0" },
     { name = "litellm", marker = "extra == 'llm'", specifier = ">=1.78.6,<2.0" },
     { name = "pydantic", specifier = ">=2.8,<3.0" },
+    { name = "tzdata", marker = "sys_platform == 'win32'", specifier = ">=2024.1" },
     { name = "uagents-core", specifier = ">=0.4.8" },
     { name = "uvicorn", specifier = ">=0.30.1,<1.0" },
 ]

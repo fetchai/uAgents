@@ -2,6 +2,7 @@
 
 import functools
 from collections.abc import Awaitable, Callable
+from datetime import tzinfo
 from logging import Logger
 from typing import Any
 
@@ -10,6 +11,7 @@ from uagents_core.models import Model
 from uagents_core.protocol import ProtocolSpecification
 
 from uagents.config import get_logger
+from uagents.schedule import Cron
 from uagents.types import IntervalCallback, MessageCallback
 
 logger: Logger = get_logger("protocol")
@@ -39,7 +41,7 @@ class Protocol:
             spec (ProtocolSpecification | None): The protocol specification. Defaults to None.
             role (str | None): The role that the protocol will implement. Defaults to None.
         """
-        self._interval_handlers: list[tuple[IntervalCallback, float]] = []
+        self._interval_handlers: list[tuple[IntervalCallback, float | Cron]] = []
         self._interval_messages: set[str] = set()
         self._signed_message_handlers: dict[str, MessageCallback] = {}
         self._unsigned_message_handlers: dict[str, MessageCallback] = {}
@@ -57,12 +59,13 @@ class Protocol:
             )
 
     @property
-    def intervals(self) -> list[tuple[IntervalCallback, float]]:
+    def intervals(self) -> list[tuple[IntervalCallback, float | Cron]]:
         """
-        Property to access the interval handlers.
+        Property to access the interval and scheduled handlers.
 
         Returns:
-            list[tuple[IntervalCallback, float]]: List of interval handlers and their periods.
+            list[tuple[IntervalCallback, float | Cron]]: List of interval handlers and their
+            periods or cron schedules.
         """
         return self._interval_handlers
 
@@ -260,9 +263,40 @@ class Protocol:
 
         return decorator_on_interval
 
+    def on_schedule(
+        self,
+        cron: str,
+        tz: str | tzinfo | None = None,
+        messages: type[Model] | set[type[Model]] | None = None,
+    ) -> Callable:
+        """
+        Decorator to register a handler that runs on a cron schedule.
+
+        Args:
+            cron (str): The cron expression, e.g. "*/5 * * * *" for every 5 minutes.
+            tz (str | tzinfo | None): The timezone to evaluate the schedule in, e.g.
+            "Europe/London". Defaults to UTC.
+            messages (type[Model] | set[type[Model]] | None): The associated message types.
+
+        Returns:
+            Callable: The decorator to register the scheduled handler.
+        """
+        schedule = Cron(cron, tz)
+
+        def decorator_on_schedule(func: IntervalCallback):
+            @functools.wraps(func)
+            def handler(*args, **kwargs) -> Awaitable[None]:
+                return func(*args, **kwargs)
+
+            self._add_interval_handler(schedule, func, messages)
+
+            return handler
+
+        return decorator_on_schedule
+
     def _add_interval_handler(
         self,
-        period: float,
+        period: float | Cron,
         func: IntervalCallback,
         messages: type[Model] | set[type[Model]] | None,
     ) -> None:
@@ -270,7 +304,7 @@ class Protocol:
         Add an interval handler to the protocol.
 
         Args:
-            period (float): The interval period in seconds.
+            period (float | Cron): The interval period in seconds or a cron schedule.
             func (IntervalCallback): The interval handler function.
             messages (type[Model] | set[type[Model]] | None): The associated message types.
         """
