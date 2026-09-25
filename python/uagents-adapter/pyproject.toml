@@ -5,7 +5,7 @@ description = "Adapters for uAgents to integrate with LangChain, CrewAI, MCP, an
 authors = [{ name = "Fetch.AI Limited" }]
 license = { text = "Apache 2.0" }
 readme = "README.md"
-keywords = ["uagents", "agents", "langchain", "crewai", "mcp", "a2a", "fetch.ai"]
+keywords = ["uagents", "agents", "langchain", "crewai", "ag2", "mcp", "a2a", "fetch.ai"]
 requires-python = ">=3.10,<4.0"
 dependencies = [
     "uagents (>=0.22.3)",
@@ -25,6 +25,7 @@ all = [
     "langchain (>=0.3.0)",
     "langchain-openai (>=0.2.0)",
     "crewai (==0.203.1)",
+    "ag2 (>=0.11.0)",
     "mcp (>=1.8.1)",
     "a2a-sdk[all,sqlite,sql] (>=0.2.11)",
 ]
@@ -39,6 +40,11 @@ langchain = [
 # CrewAI support
 crewai = [
     "crewai (==0.203.1)",
+]
+
+# AG2 (formerly AutoGen) support
+ag2 = [
+    "ag2 (>=0.11.0)",
 ]
 
 # MCP support
