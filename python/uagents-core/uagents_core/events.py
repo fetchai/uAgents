@@ -16,6 +16,7 @@ import contextlib
 import logging
 import platform
 from datetime import datetime, timedelta, timezone
+from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _package_version
 from secrets import token_bytes
 from typing import Any, Literal
@@ -52,9 +53,24 @@ DEFAULT_EVENTS_MAX_RETRY_DELAY_S = 30.0
 DEFAULT_EVENTS_SHUTDOWN_DRAIN_TIMEOUT_S = 5.0
 
 
+def _resolve_default_sdk_version() -> str:
+    """
+    Best-effort lookup of the version to report as ``sdk_version``.
+
+    Prefers the ``uagents`` runtime version (the common consumer of this module),
+    falling back to ``uagents-core`` and finally ``"unknown"``.
+    """
+    for package in ("uagents", "uagents-core"):
+        try:
+            return _package_version(package)
+        except PackageNotFoundError:
+            continue
+    return "unknown"
+
+
 # Resolved once at import time and used as the default for event metadata so
 # callers (e.g. the uAgents runtime) don't need to compute or thread it through.
-DEFAULT_SDK_VERSION = _package_version("uagents-core")
+DEFAULT_SDK_VERSION = _resolve_default_sdk_version()
 
 
 def _utc_now() -> datetime:
@@ -329,7 +345,7 @@ class _BaseEventsDispatcher:
         drain_timeout = drain_timeout or self._options.shutdown_drain_timeout_s
         self._stopping = True
         # ``wait_for`` cancels the worker if the drain exceeds the timeout.
-        with contextlib.suppress(TimeoutError, asyncio.CancelledError):
+        with contextlib.suppress(asyncio.TimeoutError, asyncio.CancelledError):
             await asyncio.wait_for(self._worker_task, timeout=drain_timeout)
         self._worker_task = None
         if self._client is not None:
@@ -414,7 +430,7 @@ class _BaseEventsDispatcher:
                     self._queue.get(),
                     timeout=self._options.flush_interval_s,
                 )
-            except (TimeoutError, asyncio.CancelledError):
+            except (asyncio.TimeoutError, asyncio.CancelledError):
                 return None
 
         events: list[BatchEvent] = list(first.events)
@@ -458,7 +474,7 @@ class _BaseEventsDispatcher:
                     self._queue.get(),
                     timeout=(flush_time - _utc_now()).total_seconds(),
                 )
-            except (TimeoutError, asyncio.CancelledError):
+            except (asyncio.TimeoutError, asyncio.CancelledError):
                 break
             if next_identity.address != identity.address:
                 self._pending = (next_identity, next_batch)
