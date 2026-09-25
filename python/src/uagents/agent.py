@@ -11,6 +11,7 @@ from typing import Any
 import aiohttp
 import requests
 from cosmpy.aerial.client import LedgerClient
+from cosmpy.aerial.tx import TxFee
 from cosmpy.aerial.wallet import LocalWallet, PrivateKey
 from cosmpy.crypto.address import Address
 from pydantic import ValidationError
@@ -314,6 +315,7 @@ class Agent(Sink):
         handle_messages_concurrently: bool = False,
         shutdown_timeout: float = 60.0,
         mark_inactive_on_shutdown: bool = True,
+        tx_fee: TxFee | None = None,
     ):
         """
         Initialize an Agent instance.
@@ -350,6 +352,10 @@ class Agent(Sink):
             mark_inactive_on_shutdown (bool): Whether to mark the agent as inactive in Almanac
             during shutdown. Set to False for deployments where a new instance replaces this one
             (e.g., Kubernetes rolling updates). Defaults to True.
+            tx_fee (TxFee | None): The fee to attach to Almanac contract registrations. Set
+            `granter` to charge the fee to a wallet that has granted an allowance to this
+            agent's wallet, and `amount` to pay a fixed fee. Leaving `amount` unset derives
+            the fee from the gas the transaction needs and the network's gas price.
         """
         self._init_done = False
         self._name = name
@@ -424,6 +430,7 @@ class Agent(Sink):
             MAINNET_PREFIX if network == "mainnet" else TESTNET_PREFIX
         )
         self._version = version or "0.1.0"
+        self._tx_fee = tx_fee
         self._registration_policy = registration_policy or None
 
         if self._registration_policy is None:
@@ -433,6 +440,7 @@ class Agent(Sink):
                 almanac_contract=self._almanac_contract,
                 testnet=self._network == "testnet",
                 almanac_api=self._almanac_api_url,
+                tx_fee=self._tx_fee,
             )
         self._metadata = self._initialize_metadata(metadata)
         if readme_path:
@@ -1558,6 +1566,7 @@ class Bureau:
         loop: asyncio.AbstractEventLoop | None = None,
         log_level: int | str = logging.INFO,
         shutdown_timeout: int = 60,
+        tx_fee: TxFee | None = None,
     ):
         """
         Initialize a Bureau instance.
@@ -1575,6 +1584,9 @@ class Bureau:
             loop (asyncio.AbstractEventLoop | None): The event loop.
             log_level (int | str): The logging level for the bureau.
             shutdown_timeout (int): The timeout for shutting down the bureau.
+            tx_fee (TxFee | None): The fee to attach to batch Almanac contract
+            registrations. See the equivalent argument on Agent for the meaning of each
+            field.
         """
         self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
         self._agents: list[Agent] = []
@@ -1626,6 +1638,7 @@ class Bureau:
                 testnet=network == "testnet",
                 logger=self._logger,
                 almanac_api=self._agentverse.almanac_api,
+                tx_fee=tx_fee,
             )
 
         if agents is not None:
@@ -1666,6 +1679,7 @@ class Bureau:
                 agent._wallet,
                 agent._almanac_contract,
                 agent._network == "testnet",
+                tx_fee=agent._tx_fee,
                 logger=agent._logger,
             )
 

@@ -201,7 +201,8 @@ def __init__(name: str | None = None,
              store_message_history: bool = False,
              handle_messages_concurrently: bool = False,
              shutdown_timeout: float = 60.0,
-             mark_inactive_on_shutdown: bool = True)
+             mark_inactive_on_shutdown: bool = True,
+             tx_fee: TxFee | None = None)
 ```
 
 Initialize an Agent instance.
@@ -239,6 +240,10 @@ Initialize an Agent instance.
 - `mark_inactive_on_shutdown` _bool_ - Whether to mark the agent as inactive in Almanac
   during shutdown. Set to False for deployments where a new instance replaces this one
   (e.g., Kubernetes rolling updates). Defaults to True.
+- `tx_fee` _TxFee | None_ - The fee to attach to Almanac contract registrations. Set
+  `granter` to charge the fee to a wallet that has granted an allowance to this
+  agent's wallet, and `amount` to pay a fixed fee. Leaving `amount` unset derives
+  the fee from the gas the transaction needs and the network's gas price.
 
 
 
@@ -833,7 +838,8 @@ def __init__(agents: list[Agent] | None = None,
              network: AgentNetwork = "testnet",
              loop: asyncio.AbstractEventLoop | None = None,
              log_level: int | str = logging.INFO,
-             shutdown_timeout: int = 60)
+             shutdown_timeout: int = 60,
+             tx_fee: TxFee | None = None)
 ```
 
 Initialize a Bureau instance.
@@ -852,6 +858,9 @@ Initialize a Bureau instance.
 - `loop` _asyncio.AbstractEventLoop | None_ - The event loop.
 - `log_level` _int | str_ - The logging level for the bureau.
 - `shutdown_timeout` _int_ - The timeout for shutting down the bureau.
+- `tx_fee` _TxFee | None_ - The fee to attach to batch Almanac contract
+  registrations. See the equivalent argument on Agent for the meaning of each
+  field.
 
 
 
