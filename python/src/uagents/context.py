@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 import requests
 from cosmpy.aerial.client import LedgerClient
 from uagents_core.envelope import Envelope
+from uagents_core.events import EventsDispatcher
 from uagents_core.identity import parse_identifier
 from uagents_core.models import ERROR_MESSAGE_DIGEST, ErrorMessage, Model
 from uagents_core.types import DeliveryStatus, MsgStatus
@@ -257,6 +258,7 @@ class InternalContext(Context):
         interval_messages: set[str] | None = None,
         message_history: EnvelopeHistory | None = None,
         logger: logging.Logger | None = None,
+        events_dispatcher: EventsDispatcher | None = None,
     ):
         self._agent = agent
         self._storage = storage
@@ -268,6 +270,9 @@ class InternalContext(Context):
         self._interval_messages = interval_messages
         self._message_history = message_history
         self._outbound_messages: dict[str, list[tuple[JsonStr, str]]] = {}
+        # Telemetry: a single events client provided by the agent at build time
+        # when telemetry is enabled (otherwise None). Fully optional.
+        self._events_dispatcher = events_dispatcher
 
     @property
     def agent(self) -> "AgentRepresentation":
@@ -539,18 +544,20 @@ class InternalContext(Context):
                         session=self._session,
                     )
 
-        if result.status == DeliveryStatus.DELIVERED and self._message_history:
-            self._message_history.add_entry(
-                EnvelopeHistoryEntry(
-                    version=1,
-                    sender=self.agent.address,
-                    target=destination,
-                    session=self._session,
-                    schema_digest=message_schema_digest,
-                    protocol_digest=protocol_digest,
-                    payload=message_body,
+        if result.status == DeliveryStatus.DELIVERED:
+            self._report_message_sent(parsed_address or destination)
+            if self._message_history:
+                self._message_history.add_entry(
+                    EnvelopeHistoryEntry(
+                        version=1,
+                        sender=self.agent.address,
+                        target=destination,
+                        session=self._session,
+                        schema_digest=message_schema_digest,
+                        protocol_digest=protocol_digest,
+                        payload=message_body,
+                    )
                 )
-            )
 
         return result
 
@@ -568,6 +575,17 @@ class InternalContext(Context):
             envelope (Envelope): The envelope to queue.
         """
         self._dispenser.add_envelope(envelope, endpoints, response_future, sync)
+
+    def _report_message_sent(self, peer: str) -> None:
+        """
+        Report a `message` telemetry event for a successfully sent message.
+
+        Delegates to the events dispatcher (a single non-blocking events client):
+        it must never add latency to or raise into the send path. No-op when
+        telemetry is disabled.
+        """
+        if self._events_dispatcher is not None:
+            self._events_dispatcher.report_message("sent", peer, self._session)
 
     async def send_and_receive(
         self,

@@ -5,6 +5,7 @@ import contextlib
 import functools
 import logging
 import os
+import traceback
 import uuid
 from typing import Any
 
@@ -16,6 +17,12 @@ from cosmpy.crypto.address import Address
 from pydantic import ValidationError
 from typing_extensions import deprecated
 from uagents_core.config import AgentverseConfig
+from uagents_core.events import (
+    AgentBatchEvents,
+    EventsDispatcher,
+    dispatch_events,
+    is_registered_on_agentverse,
+)
 from uagents_core.identity import Identity, derive_key_from_seed, is_user_address
 from uagents_core.models import ErrorMessage, Model
 from uagents_core.registration import AgentProfile, RegistrationRequest
@@ -314,6 +321,7 @@ class Agent(Sink):
         handle_messages_concurrently: bool = False,
         shutdown_timeout: float = 60.0,
         mark_inactive_on_shutdown: bool = True,
+        report_events: bool = True,
     ):
         """
         Initialize an Agent instance.
@@ -350,6 +358,9 @@ class Agent(Sink):
             mark_inactive_on_shutdown (bool): Whether to mark the agent as inactive in Almanac
             during shutdown. Set to False for deployments where a new instance replaces this one
             (e.g., Kubernetes rolling updates). Defaults to True.
+            report_events (bool): Whether to report lifecycle, message, and error telemetry
+            events to Agentverse. Events are only sent if the agent is also registered on
+            Agentverse (resolved at startup). Defaults to True.
         """
         self._init_done = False
         self._name = name
@@ -417,6 +428,9 @@ class Agent(Sink):
         self._handle_messages_concurrently = handle_messages_concurrently
         self._shutdown_timeout = shutdown_timeout
         self._mark_inactive_on_shutdown = mark_inactive_on_shutdown
+        self._report_events = report_events
+        self._events_enabled = False
+        self._events_dispatcher: EventsDispatcher | None = None
         self._on_startup = []
         self._on_shutdown = []
         self._network = network
@@ -566,6 +580,7 @@ class Agent(Sink):
             interval_messages=self._interval_messages,
             logger=self._logger,
             message_history=self._message_history,
+            events_dispatcher=self._events_dispatcher,
         )
 
     def _initialize_wallet_and_identity(
@@ -1145,8 +1160,41 @@ class Agent(Sink):
         except Exception as ex:
             self._logger.exception(f"Failed to update agent registration status: {ex}")
 
+    async def _resolve_events_enabled(self) -> None:
+        """
+        Resolve whether telemetry events should be reported for this agent.
+
+        Events are enabled only if the `report_events` toggle is on AND the agent
+        is registered on Agentverse. Fails closed on any error.
+        """
+        if not self._report_events:
+            self._events_enabled = False
+            return
+        self._events_enabled = await is_registered_on_agentverse(
+            self._identity, self._agentverse
+        )
+
+    def _report_message_received(self, session: uuid.UUID, sender: str) -> None:
+        """Report a `message` telemetry event for an inbound message."""
+        if self._events_dispatcher is not None:
+            self._events_dispatcher.report_message("received", sender, session)
+
+    def _report_handler_error(self, ex: Exception) -> None:
+        """Report an `error` telemetry event for a message-handler failure."""
+        if self._events_dispatcher is not None:
+            self._events_dispatcher.report_exception(
+                ex, traceback.format_exc(), category="user"
+            )
+
     async def run_shutdown_tasks(self):
         """Perform shutdown actions."""
+        if self._events_enabled:
+            await dispatch_events(
+                self._identity,
+                self._agentverse,
+                AgentBatchEvents.from_message("Agent Stopped"),
+                logger=self._logger,
+            )
         for handler in self._on_shutdown:
             try:
                 ctx = self._build_context()
@@ -1157,6 +1205,10 @@ class Agent(Sink):
                 self._logger.exception(f"Runtime Error in shutdown handler: {ex}")
             except Exception as ex:
                 self._logger.exception(f"Exception in shutdown handler: {ex}")
+        # Drain any buffered telemetry before closing the dispatcher.
+        if self._events_dispatcher is not None:
+            await self._events_dispatcher.stop()
+            self._events_dispatcher = None
 
     async def _shutdown(self, tasks: list[asyncio.Task]):
         """Perform graceful agent shutdown."""
@@ -1247,6 +1299,18 @@ class Agent(Sink):
     async def run_startup_tasks(self):
         """Start startup tasks for the agent."""
         await self._update_agent_status(active=True)
+        await self._resolve_events_enabled()
+        if self._events_enabled:
+            self._events_dispatcher = EventsDispatcher(
+                self._identity, self._agentverse, logger=self._logger
+            )
+            await self._events_dispatcher.start()
+            await dispatch_events(
+                self._identity,
+                self._agentverse,
+                AgentBatchEvents.from_message("Agent Started"),
+                logger=self._logger,
+            )
         for handler in self._on_startup:
             try:
                 ctx = self._build_context()
@@ -1360,15 +1424,20 @@ class Agent(Sink):
         model_class: type[Model],
         message: Model,
     ):
+        if self._events_enabled:
+            self._report_message_received(context.session, sender)
         try:
             await handler(context, sender, message)
             context.validate_replies(model_class)
         except OSError as ex:
             self._logger.exception(f"OS Error in message handler: {ex}")
+            self._report_handler_error(ex)
         except RuntimeError as ex:
             self._logger.exception(f"Runtime Error in message handler: {ex}")
+            self._report_handler_error(ex)
         except Exception as ex:
             self._logger.exception(f"Exception in message handler: {ex}")
+            self._report_handler_error(ex)
 
     async def _process_single_message(
         self,
@@ -1430,6 +1499,7 @@ class Agent(Sink):
             ),
             protocol=protocol_info,
             message_history=self._message_history,
+            events_dispatcher=self._events_dispatcher,
         )
 
         # sanity check
