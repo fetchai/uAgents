@@ -2934,7 +2934,7 @@ requires-dist = [
     { name = "litellm", marker = "extra == 'all'", specifier = ">=1.78.6,<2.0" },
     { name = "litellm", marker = "extra == 'llm'", specifier = ">=1.78.6,<2.0" },
     { name = "pydantic", specifier = ">=2.8,<3.0" },
-    { name = "uagents-core", specifier = ">=0.4.9" },
+    { name = "uagents-core", specifier = ">=0.4.10" },
     { name = "uvicorn", specifier = ">=0.30.1,<1.0" },
 ]
 provides-extras = ["all", "wallet", "llm"]
@@ -2953,7 +2953,7 @@ dev = [
 
 [[package]]
 name = "uagents-core"
-version = "0.4.9"
+version = "0.4.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bech32" },
@@ -2962,9 +2962,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3d/76/638d0b6ce088270721baaca840741d17311f9f80823ba3971cc3d1577902/uagents_core-0.4.9.tar.gz", hash = "sha256:ed2a0f61a9ce533a8c08e099c96072507eae4e0ed9743d1063a0ae2db27dcf1a", size = 91363, upload-time = "2026-08-06T13:31:48.047Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c5/53/daf397ad5199ce6c89da71d90089a13cb4269791b6f1c5326aeff2e91a23/uagents_core-0.4.10.tar.gz", hash = "sha256:30562ee92f5906c5e80694a4303aa6f7b29e862e512dbbce7f98cf3300873536", size = 96282, upload-time = "2026-09-24T10:52:51.259Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/98/13/b0a3a809ee78786731cbd45c0e8d099f062482a96d3ad80db2d52144a790/uagents_core-0.4.9-py3-none-any.whl", hash = "sha256:e26b6bb9b66976fe4d5db98c926a586eae08f44fcfc6c454dde20f43c4e6b5f2", size = 45618, upload-time = "2026-08-06T13:31:47.061Z" },
+    { url = "https://files.pythonhosted.org/packages/05/3f/cc8a6bbbfc79f553bca383341e470f0b9fccceb1d0fa12f63000eb490a3f/uagents_core-0.4.10-py3-none-any.whl", hash = "sha256:8e90cb620720b4baf5c4acd0e76b08a2fdc746141ec1ecf282d4420e19fe7567", size = 51206, upload-time = "2026-09-24T10:52:50.073Z" },
 ]
 
 [[package]]
