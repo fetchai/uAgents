@@ -77,6 +77,33 @@ jobs:
           if-no-files-found: error
           include-hidden-files: true
 
+  uagents-adapter-x402:
+    name: uAgents Adapter x402
+    needs: check-if-files-changed
+    if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./python/uagents-adapter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          working-directory: python/uagents-adapter
+      - name: Install locked x402 dependencies
+        run: uv sync --locked --extra x402 --dev
+      - name: Run x402 buyer tests
+        run: uv run pytest -q tests/test_x402_buyer.py
+      - name: Lint x402 buyer
+        run: uv run ruff check src/uagents_adapter/x402 tests/test_x402_buyer.py
+      - name: Check x402 buyer formatting
+        run: uv run ruff format --check src/uagents_adapter/x402 tests/test_x402_buyer.py
+
   linting:
     name: Lint & Formatting
     runs-on: ubuntu-latest

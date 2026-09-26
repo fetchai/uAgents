@@ -7,6 +7,7 @@ This package provides adapters for integrating [uAgents](https://github.com/fetc
 - **MCP Server Adapter**: Integrate Model Control Protocol (MCP) servers with uAgents
 - **A2A Outbound Adapter**: Bridges uAgents and A2A servers 
 - **A2A Inbound Adapter**: Bridge Agentverse agents to A2A protocol for AI assistants
+- **x402 Buyer Adapter**: Purchase HTTP services with bounded spend and validated output
 
 ## Installation
 
@@ -28,7 +29,67 @@ pip install "uagents-adapter[a2a-inbound]"
 
 # Install with A2A Outbound support
 pip install "uagents-adapter[a2a-outbound]"
+
+# Install with x402 buyer support for EVM networks
+pip install "uagents-adapter[x402]"
 ```
+
+## x402 Buyer Adapter
+
+The x402 buyer adapter uses the official x402 HTTP transport while keeping the
+application in control of the endpoint, method, spend limit, and delivered
+output contract. It does not create a wallet or expose a generic message-driven
+payment proxy. Construct requests from trusted application code rather than
+copying an arbitrary URL from an incoming agent message.
+
+```python
+from x402 import SchemeRegistration, x402ClientConfig
+from x402.mechanisms.evm.exact import ExactEvmScheme
+
+from uagents_adapter.x402 import (
+    X402Buyer,
+    X402PurchasePolicy,
+    X402PurchaseRequest,
+)
+
+# Supply your own signer through the official x402 scheme.
+config = x402ClientConfig(
+    schemes=[
+        SchemeRegistration(
+            network="eip155:8453",
+            client=ExactEvmScheme(signer=my_signer),
+        )
+    ]
+)
+buyer = X402Buyer(
+    config,
+    X402PurchasePolicy(
+        allowed_origins=frozenset({"https://api.example.com"}),
+        max_amount_per_payment="$0.01",
+    ),
+)
+
+result = await buyer.purchase(
+    X402PurchaseRequest("GET", "https://api.example.com/weather"),
+    validate_output=lambda delivery: "forecast" in delivery.json(),
+)
+```
+
+The default method allowlist is `GET`. Explicitly enabled state-changing
+methods require exactly one nonblank, bounded `Idempotency-Key` because the
+x402 flow replays the original request after a `402 Payment Required` response.
+Redirects are not followed, and every identity-encoded response body is bounded
+below the x402 transport, including the initial 402 body. Non-identity content
+encodings are rejected so a compressed body cannot inflate past that boundary.
+Caller-provided x402 policies and payment-requirement selectors are rejected because the SDK runs them after
+spend controls; the adapter uses the official spend controls and requires the
+selected terms to exactly match the original challenge. A paid delivery is
+returned only when the seller reports successful settlement matching the
+selected network and any reported amount. This native settlement response is
+preserved as evidence; it is not presented as independent chain verification.
+If a transport failure happens after the payment signature is sent, the raised
+`X402PurchaseError.payment_attempt` retains the selected terms and attempt
+count as possible-spend evidence without claiming settlement.
 
 ## LangChain Adapter
 
