@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import json
+import uuid
 from datetime import datetime, timezone
 from logging import Logger
 from typing import Any
@@ -45,7 +46,7 @@ class ASGIServer:
         self,
         port: int,
         loop: asyncio.AbstractEventLoop,
-        queries: dict[str, asyncio.Future],
+        queries: dict[tuple[str, uuid.UUID], asyncio.Future],
         logger: Logger | None = None,
     ):
         """
@@ -54,7 +55,8 @@ class ASGIServer:
         Args:
             port (int): The port to listen on.
             loop (asyncio.AbstractEventLoop): The event loop to use.
-            queries (dict[str, asyncio.Future]): The dictionary of queries to resolve.
+            queries (dict[tuple[str, uuid.UUID], asyncio.Future]):
+                The pending sync-query futures, keyed by (sender, session).
             logger (Logger | None): The logger to use.
         """
         self._port = int(port)
@@ -356,10 +358,6 @@ class ASGIServer:
 
         expects_response = headers.get(b"x-uagents-connection") == b"sync"  # type: ignore
 
-        if expects_response:
-            # Add a future that will be resolved once the query is answered
-            self._queries[env.sender] = asyncio.Future()
-
         if not is_user_address(env.sender):  # verify signature if sent from agent
             try:
                 env.verify()
@@ -375,6 +373,14 @@ class ASGIServer:
                 send=send, status_code=400, body={"error": "unable to route envelope"}
             )
             return
+
+        query_key = (env.sender, env.session)
+        if expects_response:
+            # Add a future that will be resolved once the query is answered.
+            # Registered only after signature + routing checks pass, and keyed
+            # by (sender, session) so concurrent queries never collide and no
+            # entry is leaked on the verify-fail / unroutable / timeout paths.
+            self._queries[query_key] = asyncio.Future()
 
         await dispatcher.dispatch_msg(
             sender=env.sender,
@@ -393,7 +399,7 @@ class ASGIServer:
             )
             try:
                 response_msg, schema_digest = await asyncio.wait_for(
-                    self._queries[env.sender],
+                    self._queries[query_key],
                     timeout,
                 )
             except asyncio.TimeoutError:
@@ -401,6 +407,11 @@ class ASGIServer:
                     error="Query envelope expired"
                 ).model_dump_json()
                 schema_digest = ERROR_MESSAGE_DIGEST
+            finally:
+                # Guarantee cleanup on every exit (resolved, timed out, or
+                # cancelled). Happy path already removed it in context.send_raw,
+                # so pop() with a default is a safe no-op there.
+                self._queries.pop(query_key, None)
             sender = env.target
             target = env.sender
             response = enclose_response_raw(
