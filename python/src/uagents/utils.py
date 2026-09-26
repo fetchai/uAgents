@@ -1,7 +1,16 @@
+import asyncio
 import logging
 import sys
 
 from uvicorn.logging import DefaultFormatter
+
+
+def create_event_loop() -> asyncio.AbstractEventLoop:
+    """Create a new event loop and register it as the current loop for this thread."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    return loop
+
 
 logging.basicConfig(level=logging.INFO)
 

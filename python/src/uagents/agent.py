@@ -98,7 +98,7 @@ from uagents.types import (
     RestMethod,
     RestPostHandler,
 )
-from uagents.utils import get_logger, set_global_log_level
+from uagents.utils import create_event_loop, get_logger, set_global_log_level
 
 
 async def _run_interval(
@@ -366,7 +366,8 @@ class Agent(Sink):
         self._name = name
         self._port = port or 8000
 
-        self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
+        self._managed_event_loop = loop is None
+        self._loop = loop or create_event_loop()
 
         # initialize wallet and identity
         self._initialize_wallet_and_identity(seed, name, wallet_key_derivation_index)
@@ -1397,15 +1398,14 @@ class Agent(Sink):
         """
         Run the agent by itself.
 
-        A fresh event loop is created for the agent and it is closed after the agent stops.
+        Uses asyncio.run() when this agent owns its event loop; otherwise runs on the
+        loop provided at construction (for example via Bureau).
         """
-        try:
-            with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
+        with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
+            if self._managed_event_loop:
+                asyncio.run(self.run_async(), loop_factory=lambda: self._loop)
+            else:
                 self._loop.run_until_complete(self.run_async())
-        finally:
-            if not self._loop.is_closed():
-                self._loop.stop()
-                self._loop.close()
 
     def get_message_protocol(
         self, message_schema_digest
@@ -1646,7 +1646,8 @@ class Bureau:
             log_level (int | str): The logging level for the bureau.
             shutdown_timeout (int): The timeout for shutting down the bureau.
         """
-        self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
+        self._managed_event_loop = loop is None
+        self._loop = loop or create_event_loop()
         self._agents: list[Agent] = []
         self._port = port or 8000
         self._queries: dict[str, asyncio.Future] = {}
@@ -1902,11 +1903,14 @@ class Bureau:
             self._logger.info("Shutting down bureau...complete.")
 
     def run(self):
-        """Run the bureau."""
-        try:
-            with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
+        """
+        Run the bureau.
+
+        Uses asyncio.run() when the bureau owns its event loop; otherwise runs on the
+        loop provided at construction.
+        """
+        with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
+            if self._managed_event_loop:
+                asyncio.run(self.run_async(), loop_factory=lambda: self._loop)
+            else:
                 self._loop.run_until_complete(self.run_async())
-        finally:
-            if not self._loop.is_closed():
-                self._loop.stop()
-                self._loop.close()

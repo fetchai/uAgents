@@ -26,7 +26,7 @@
 
 ## <a name="setup"></a> Setting up a New Development Environment
 
-The easiest way to get set up for development is to install Python (`3.10` to `3.13`) and [uv](https://docs.astral.sh/uv/), and then run the following from the top-level project directory:
+The easiest way to get set up for development is to install Python (`3.10` to `3.14`) and [uv](https://docs.astral.sh/uv/), and then run the following from the top-level project directory:
 
 ```bash
   cd python
