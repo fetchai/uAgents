@@ -8,7 +8,7 @@ from typing import Any
 
 import aiohttp
 import grpc
-from cosmpy.aerial.client import LedgerClient
+from cosmpy.aerial.client.aio import AsyncLedgerClient
 from cosmpy.aerial.tx import TxFee
 from cosmpy.aerial.wallet import LocalWallet
 from cosmpy.crypto.address import Address
@@ -225,7 +225,7 @@ class BatchAlmanacApiRegistrationPolicy(BatchRegistrationPolicy):
 class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
     def __init__(
         self,
-        ledger: LedgerClient,
+        ledger: AsyncLedgerClient,
         wallet: LocalWallet,
         almanac_contract: AlmanacContract,
         testnet: bool,
@@ -327,7 +327,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
             or endpoints != self._almanac_contract.get_endpoints(agent_address)
             or protocols != self._almanac_contract.get_protocols(agent_address)
         ):
-            if self._get_balance() < self._registration_fee:
+            if await self._get_balance() < self._registration_fee:
                 if self._last_funds_warning_logged is None or (
                     self._last_successful_registration is not None
                     and self._last_funds_warning_logged
@@ -386,8 +386,8 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         else:
             self._logger.info("Almanac contract registration is up to date!")
 
-    def _get_balance(self) -> int:
-        return self._ledger.query_bank_balance(Address(self._wallet.address()))
+    async def _get_balance(self) -> int:
+        return await self._ledger.query_bank_balance(Address(self._wallet.address()))
 
     def _sign_registration(self, identity: Identity, timestamp: int) -> str:
         """
@@ -415,7 +415,7 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
 class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
     def __init__(
         self,
-        ledger: LedgerClient,
+        ledger: AsyncLedgerClient,
         wallet: LocalWallet,
         almanac_contract: AlmanacContract,
         testnet: bool,
@@ -490,8 +490,8 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
         self._records.append(agent_record)
         self._identities[agent_info.address] = identity
 
-    def _get_balance(self) -> int:
-        return self._ledger.query_bank_balance(Address(self._wallet.address()))
+    async def _get_balance(self) -> int:
+        return await self._ledger.query_bank_balance(Address(self._wallet.address()))
 
     async def register(self) -> None:
         try:
@@ -511,7 +511,7 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
         for record in self._records:
             record.sign(self._identities[record.address])
 
-        if self._get_balance() < self._registration_fee * len(self._records):
+        if await self._get_balance() < self._registration_fee * len(self._records):
             self._logger.warning(
                 f"I do not have enough funds to register {len(self._records)} "
                 "agents on Almanac contract"
@@ -551,7 +551,7 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
 class DefaultRegistrationPolicy(AgentRegistrationPolicy):
     def __init__(
         self,
-        ledger: LedgerClient,
+        ledger: AsyncLedgerClient,
         wallet: LocalWallet,
         almanac_contract: AlmanacContract | None,
         testnet: bool,
@@ -623,7 +623,7 @@ async def update_agent_status(status: AgentStatusUpdate, almanac_api: str):
 class DefaultBatchRegistrationPolicy(BatchRegistrationPolicy):
     def __init__(
         self,
-        ledger: LedgerClient,
+        ledger: AsyncLedgerClient,
         wallet: LocalWallet | None = None,
         almanac_contract: AlmanacContract | None = None,
         testnet: bool = True,
