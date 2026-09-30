@@ -149,6 +149,16 @@ ALMANAC_RESOLVE_TIMEOUT_SECONDS = 5.0
 ALMANAC_RESOLVE_ATTEMPTS = 2
 
 
+def _log_failed_attempt(attempt: int, attempts: int, url: str, reason: str) -> None:
+    LOGGER.warning(
+        "Almanac API lookup attempt %d/%d to %s failed [%s]",
+        attempt + 1,
+        attempts,
+        url,
+        reason,
+    )
+
+
 async def almanac_api_get(
     session: aiohttp.ClientSession,
     url: str,
@@ -170,10 +180,15 @@ async def almanac_api_get(
                 params=params,
                 timeout=aiohttp.ClientTimeout(total=timeout),
             ) as response:
+                if response.status >= 500:
+                    _log_failed_attempt(
+                        attempt, attempts, url, f"HTTP {response.status}"
+                    )
                 if response.status != 200:
                     return response.status, None
                 return response.status, await response.json()
-        except (aiohttp.ClientError, asyncio.TimeoutError):
+        except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+            _log_failed_attempt(attempt, attempts, url, f"{type(e).__name__}: {e}")
             if attempt + 1 >= attempts:
                 raise
             await asyncio.sleep(retry_delay(attempt))
