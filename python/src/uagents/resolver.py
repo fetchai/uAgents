@@ -1,5 +1,6 @@
 """Endpoint Resolver."""
 
+import asyncio
 import logging
 import random
 from abc import ABC, abstractmethod
@@ -18,6 +19,8 @@ from uagents.config import (
     TESTNET_PREFIX,
 )
 from uagents.network import (
+    RetryDelayFunc,
+    default_exp_backoff,
     get_almanac_contract,
     get_name_service_contract,
 )
@@ -140,6 +143,41 @@ def build_identifier(
         identifier += address
 
     return identifier
+
+
+ALMANAC_RESOLVE_TIMEOUT_SECONDS = 5.0
+ALMANAC_RESOLVE_ATTEMPTS = 2
+
+
+async def almanac_api_get(
+    session: aiohttp.ClientSession,
+    url: str,
+    *,
+    params: dict[str, str] | None = None,
+    timeout: float = ALMANAC_RESOLVE_TIMEOUT_SECONDS,
+    attempts: int = ALMANAC_RESOLVE_ATTEMPTS,
+    retry_delay: RetryDelayFunc = default_exp_backoff,
+) -> tuple[int, object | None]:
+    """GET ``url`` and return ``(status, parsed JSON body)``.
+
+    Retries transient transport failures (timeouts, connection errors) with
+    exponential backoff, mirroring ``almanac_api_post`` in registration.py.
+    """
+    for attempt in range(attempts):
+        try:
+            async with session.get(
+                url,
+                params=params,
+                timeout=aiohttp.ClientTimeout(total=timeout),
+            ) as response:
+                if response.status != 200:
+                    return response.status, None
+                return response.status, await response.json()
+        except (aiohttp.ClientError, asyncio.TimeoutError):
+            if attempt + 1 >= attempts:
+                raise
+            await asyncio.sleep(retry_delay(attempt))
+    raise RuntimeError("Failed to reach Almanac API")
 
 
 class Resolver(ABC):
@@ -284,22 +322,23 @@ class AlmanacApiResolver(Resolver):
             prefix, _, address = parse_identifier(destination)
 
             params = {"prefix": prefix} if prefix else None
-            async with (
-                aiohttp.ClientSession() as session,
-                session.get(
-                    url=f"{self._almanac_api_url}/agents/{address}",
+            async with aiohttp.ClientSession() as session:
+                status, body = await almanac_api_get(
+                    session,
+                    f"{self._almanac_api_url}/agents/{address}",
                     params=params,
-                    timeout=aiohttp.ClientTimeout(total=5),
-                ) as response,
-            ):
-                if response.status != 200:
-                    LOGGER.debug(
-                        f"Failed to resolve agent {address} from {self._almanac_api_url}, "
-                        "resolving via Almanac contract..."
-                    )
-                    return None, []
+                )
 
-                agent = await response.json()
+            if status != 200:
+                LOGGER.debug(
+                    f"Failed to resolve agent {address} from {self._almanac_api_url}, "
+                    "resolving via Almanac contract..."
+                )
+                return None, []
+
+            agent = body if isinstance(body, dict) else None
+            if agent is None:
+                return None, []
 
             expiry_str = agent.get("expiry", None)
             if expiry_str is None:
@@ -371,22 +410,21 @@ class NameServiceResolver(Resolver):
             prefix, domain, _ = parse_identifier(destination)
 
             params = {"prefix": prefix} if prefix else None
-            async with (
-                aiohttp.ClientSession() as session,
-                session.get(
+            async with aiohttp.ClientSession() as session:
+                status, body = await almanac_api_get(
+                    session,
                     f"{self._almanac_api_url}/domains/{domain}",
                     params=params,
-                    timeout=aiohttp.ClientTimeout(total=5),
-                ) as response,
-            ):
-                if response.status != 200:
-                    LOGGER.debug(
-                        f"Failed to resolve name {domain} from {self._almanac_api_url}: "
-                        f"{response.status}: {await response.text()}"
-                    )
-                    return None, []
+                )
 
-                domain_record = Domain.model_validate(await response.json())
+            if status != 200:
+                LOGGER.debug(
+                    f"Failed to resolve name {domain} from {self._almanac_api_url}: "
+                    f"{status}"
+                )
+                return None, []
+
+            domain_record = Domain.model_validate(body)
 
             agent_records = domain_record.assigned_agents
             if len(agent_records) == 0:
