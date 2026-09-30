@@ -201,7 +201,8 @@ def __init__(name: str | None = None,
              store_message_history: bool = False,
              handle_messages_concurrently: bool = False,
              shutdown_timeout: float = 60.0,
-             mark_inactive_on_shutdown: bool = True)
+             mark_inactive_on_shutdown: bool = True,
+             report_events: bool = True)
 ```
 
 Initialize an Agent instance.
@@ -239,6 +240,9 @@ Initialize an Agent instance.
 - `mark_inactive_on_shutdown` _bool_ - Whether to mark the agent as inactive in Almanac
   during shutdown. Set to False for deployments where a new instance replaces this one
   (e.g., Kubernetes rolling updates). Defaults to True.
+- `report_events` _bool_ - Whether to report lifecycle, message, and error telemetry
+  events to Agentverse. Events are only sent if the agent is also registered on
+  Agentverse (resolved at startup). Defaults to True.
 
 
 
