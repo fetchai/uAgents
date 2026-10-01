@@ -329,7 +329,7 @@ class _BaseEventsDispatcher:
         drain_timeout = drain_timeout or self._options.shutdown_drain_timeout_s
         self._stopping = True
         # ``wait_for`` cancels the worker if the drain exceeds the timeout.
-        with contextlib.suppress(TimeoutError, asyncio.CancelledError):
+        with contextlib.suppress(asyncio.TimeoutError, asyncio.CancelledError):
             await asyncio.wait_for(self._worker_task, timeout=drain_timeout)
         self._worker_task = None
         if self._client is not None:
@@ -414,7 +414,7 @@ class _BaseEventsDispatcher:
                     self._queue.get(),
                     timeout=self._options.flush_interval_s,
                 )
-            except (TimeoutError, asyncio.CancelledError):
+            except (asyncio.TimeoutError, asyncio.CancelledError):
                 return None
 
         events: list[BatchEvent] = list(first.events)
@@ -458,7 +458,7 @@ class _BaseEventsDispatcher:
                     self._queue.get(),
                     timeout=(flush_time - _utc_now()).total_seconds(),
                 )
-            except (TimeoutError, asyncio.CancelledError):
+            except (asyncio.TimeoutError, asyncio.CancelledError):
                 break
             if next_identity.address != identity.address:
                 self._pending = (next_identity, next_batch)
