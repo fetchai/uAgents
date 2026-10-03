@@ -501,7 +501,7 @@ class InternalContext(Context):
                 )
                 result = MsgStatus(
                     status=DeliveryStatus.FAILED,
-                    detail="Unable to resolve destination endpoint",
+                    detail=f"No delivery endpoint found for agent {destination}",
                     destination=destination,
                     endpoint="",
                     session=self._session,
@@ -526,21 +526,23 @@ class InternalContext(Context):
                 # Create awaitable future for MsgStatus and sync response
                 fut = asyncio.Future()
 
-                self._queue_envelope(env, endpoints, fut, sync)
+                self._queue_envelope(env, endpoints, fut, sync, timeout)
 
                 try:
                     result = await asyncio.wait_for(fut, timeout)
                 except asyncio.TimeoutError:
-                    log(
-                        self.logger,
-                        logging.ERROR,
-                        "Timeout waiting for dispense response",
+                    primary_endpoint = endpoints[0] if endpoints else ""
+                    queued = self._dispenser.pending_count()
+                    detail = (
+                        f"Message delivery timed out after {timeout}s "
+                        f"(endpoint={primary_endpoint}, queued={queued})"
                     )
+                    log(self.logger, logging.ERROR, detail)
                     result = MsgStatus(
                         status=DeliveryStatus.FAILED,
-                        detail="Timeout waiting for response",
+                        detail=detail,
                         destination=destination,
-                        endpoint="",
+                        endpoint=primary_endpoint,
                         session=self._session,
                     )
 
@@ -567,6 +569,7 @@ class InternalContext(Context):
         endpoints: list[str],
         response_future: asyncio.Future,
         sync: bool = False,
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ):
         """
         Queue an envelope for processing.
@@ -574,7 +577,9 @@ class InternalContext(Context):
         Args:
             envelope (Envelope): The envelope to queue.
         """
-        self._dispenser.add_envelope(envelope, endpoints, response_future, sync)
+        self._dispenser.add_envelope(
+            envelope, endpoints, response_future, sync, timeout
+        )
 
     def _report_message_sent(self, peer: str) -> None:
         """
