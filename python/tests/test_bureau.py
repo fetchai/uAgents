@@ -1,9 +1,10 @@
-import asyncio
+# pylint: disable=protected-access
 import unittest
 
 from cosmpy.aerial.wallet import LocalWallet
 
 from uagents import Agent, Bureau
+from uagents.agent import _default_event_loop
 from uagents.registration import (
     AgentEndpoint,
     BatchLedgerRegistrationPolicy,
@@ -22,8 +23,11 @@ bureau_wallet = LocalWallet.generate()
 
 class TestBureau(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
-        self.loop = asyncio.get_event_loop()
-        return super().setUp()
+        # Obtain a loop before super().setUp() so agents can use loop=self.loop.
+        # Use production helper (3.14-safe, replaces closed thread loops after run()).
+        # Do not use get_running_loop(): IsolatedAsyncioTestCase has not started yet.
+        self.loop = _default_event_loop(None)
+        super().setUp()
 
     def test_bureau_updates_agents_no_ledger_batch(self):
         alice = Agent(name="alice", endpoint=ALICE_ENDPOINT.url, loop=self.loop)
