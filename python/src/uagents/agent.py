@@ -23,6 +23,7 @@ from uagents_core.config import AgentverseConfig
 from uagents_core.events import (
     AgentBatchEvents,
     EventsDispatcher,
+    SharedEventsDispatcher,
     dispatch_events,
     is_registered_on_agentverse,
 )
@@ -1229,10 +1230,7 @@ class Agent(Sink):
                 self._logger.exception(f"Runtime Error in shutdown handler: {ex}")
             except Exception as ex:
                 self._logger.exception(f"Exception in shutdown handler: {ex}")
-        # Drain any buffered telemetry before closing the dispatcher.
-        if self._events_dispatcher is not None:
-            await self._events_dispatcher.stop()
-            self._events_dispatcher = None
+        self._events_dispatcher = None
 
     async def _shutdown(self, tasks: list[asyncio.Task]):
         """Perform graceful agent shutdown."""
@@ -1286,6 +1284,11 @@ class Agent(Sink):
         # Run shutdown handlers
         await self.run_shutdown_tasks()
 
+        # Drain buffered telemetry and close the connection.
+        if self._events_dispatcher is not None:
+            await self._events_dispatcher.stop()
+            self._events_dispatcher = None
+
         # Shutdown dispenser, which will try to send any queued outgoing messages first
         if self._dispenser_task:
             self._dispenser_task.cancel()
@@ -1324,11 +1327,14 @@ class Agent(Sink):
         """Start startup tasks for the agent."""
         await self._update_agent_status(active=True)
         await self._resolve_events_enabled()
-        if self._events_enabled:
+        if not self._events_enabled:
+            self._events_dispatcher = None
+        elif self._events_dispatcher is None:
             self._events_dispatcher = EventsDispatcher(
                 self._identity, self._agentverse, logger=self._logger
             )
             await self._events_dispatcher.start()
+        if self._events_enabled:
             await dispatch_events(
                 self._identity,
                 self._agentverse,
@@ -1726,6 +1732,10 @@ class Bureau:
                 almanac_api=self._agentverse.almanac_api,
             )
 
+        self._shared_events_dispatcher = SharedEventsDispatcher(
+            self._agentverse, logger=self._logger
+        )
+
         if agents is not None:
             for agent in agents:
                 self.add(agent)
@@ -1769,6 +1779,12 @@ class Bureau:
 
         agent._agentverse = self._agentverse
         agent._logger.setLevel(self._logger.level)
+
+        if agent._report_events:
+            dispatcher = EventsDispatcher(agent._identity, self._agentverse)
+            agent._events_dispatcher = self._shared_events_dispatcher.add_agent(
+                dispatcher
+            )
 
     def add(self, agent: Agent):
         """
@@ -1877,6 +1893,13 @@ class Bureau:
                 agent._dispenser_task.cancel()
                 await asyncio.gather(agent._dispenser_task, return_exceptions=True)
 
+        self._shared_events_dispatcher.stop()
+        with contextlib.suppress(TimeoutError, asyncio.CancelledError):
+            await asyncio.wait_for(
+                self._events_dispatcher_task,
+                timeout=self._shutdown_timeout,
+            )
+
     async def run_async(self):
         """Run the agents managed by the bureau."""
         coros = [self._server.serve()]
@@ -1892,6 +1915,9 @@ class Bureau:
             ):
                 coros.append(agent.mailbox_client.run())
 
+        self._events_dispatcher_task = self._loop.create_task(
+            self._shared_events_dispatcher.run()
+        )
         self._loop.create_task(self._schedule_registration())
 
         # Convert coroutines to tasks
