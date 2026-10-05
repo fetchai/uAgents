@@ -1,8 +1,8 @@
-from protocols import listen_proto, word_counter_proto
-from uagents_core.contrib.protocols.chat import ChatMessage, TextContent
-
 from uagents import Agent, Bureau, Context
 from uagents.experimental.chat_agent import ChatAgent
+from uagents_core.contrib.protocols.chat import ChatMessage, TextContent
+
+from protocols import listen_proto, word_counter_proto
 
 # Chat agent with no protocols / tools
 space_expert = ChatAgent(

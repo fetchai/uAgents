@@ -10,6 +10,7 @@ from uagents_core.envelope import Envelope
 from uagents_core.identity import Identity
 from uagents_core.utils.messages import parse_envelope, send_message_to_agent
 
+
 name = "Chat Protocol Adapter"
 identity = Identity.from_seed(os.environ["AGENT_SEED_PHRASE"], 0)
 readme = "# Chat Protocol Adapter \nExample of how to integrate chat protocol."
