@@ -1,7 +1,7 @@
-from uagents import Agent, Context
+from protocols import picker_proto
 from uagents_core.contrib.protocols.chat import ChatMessage, TextContent
 
-from protocols import picker_proto
+from uagents import Agent, Context
 
 # Copy the address printed when menu_host.py starts.
 MENU_HOST_ADDRESS = "paste_menu_host_address_here"

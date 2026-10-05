@@ -3,7 +3,6 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from uagents import Context, Protocol
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
     ChatMessage,
@@ -21,6 +20,8 @@ from uagents_core.contrib.protocols.chat.cards import (
     extract_card,
     extract_card_response,
 )
+
+from uagents import Context, Protocol
 
 MENU_CAROUSEL = CarouselCardPayload(
     title="Snack menu",

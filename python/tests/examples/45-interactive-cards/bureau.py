@@ -1,7 +1,7 @@
-from uagents import Agent, Bureau, Context
+from protocols import host_proto, picker_proto
 from uagents_core.contrib.protocols.chat import ChatMessage, TextContent
 
-from protocols import host_proto, picker_proto
+from uagents import Agent, Bureau, Context
 
 menu_host = Agent(name="menu-host")
 menu_host.include(host_proto)

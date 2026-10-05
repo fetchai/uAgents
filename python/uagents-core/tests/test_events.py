@@ -1,8 +1,7 @@
 """Tests for uagents_core.events — event schemas, FairEventBuffer, and dispatchers."""
 
 import asyncio
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -23,13 +22,14 @@ from uagents_core.events import (
 )
 from uagents_core.identity import Identity
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
 
-def _event(message: str = "test", category: str = "user", kind: str = "info") -> BatchEvent:
+def _event(
+    message: str = "test", category: str = "user", kind: str = "info"
+) -> BatchEvent:
     return BatchEvent(
         category=category,
         kind=kind,
@@ -240,7 +240,9 @@ class TestFairEventBuffer:
         # 2 kept events + 1 drop notification = 3 total
         # pop reserves 1 slot for the drop notification (max_events - 1 for data)
         assert len(events) == 3
-        kept_messages = [e.message for e in events if e.message and "dropped" not in e.message]
+        kept_messages = [
+            e.message for e in events if e.message and "dropped" not in e.message
+        ]
         drop_events = [e for e in events if e.message and "dropped" in e.message]
         assert len(kept_messages) == 2
         assert len(drop_events) == 1
@@ -390,9 +392,7 @@ class TestEventsDispatcher:
 
     @pytest.mark.asyncio
     async def test_drop_notification_prepended(self):
-        dispatcher = self._make_dispatcher(
-            max_batch_events=50, flush_interval_s=0.01
-        )
+        dispatcher = self._make_dispatcher(max_batch_events=50, flush_interval_s=0.01)
         posted = []
 
         await dispatcher.start()
@@ -415,9 +415,7 @@ class TestEventsDispatcher:
 
     @pytest.mark.asyncio
     async def test_coalesces_events_in_order(self):
-        dispatcher = self._make_dispatcher(
-            flush_interval_s=0.01, max_batch_events=10
-        )
+        dispatcher = self._make_dispatcher(flush_interval_s=0.01, max_batch_events=10)
         posted = []
 
         await dispatcher.start()
@@ -451,9 +449,9 @@ class TestEventsDispatcher:
             dispatcher.enqueue([_event("drain-me")])
             await dispatcher.stop()
 
-        assert any(
-            "drain-me" in p for p in posted
-        ), "Event should be posted during drain"
+        assert any("drain-me" in p for p in posted), (
+            "Event should be posted during drain"
+        )
 
     @pytest.mark.asyncio
     async def test_address_property(self):

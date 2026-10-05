@@ -66,9 +66,7 @@ class RetryTransport:
         Raises ``httpx.HTTPStatusError`` on permanent 4xx.
         Raises the last exception if max attempts are exhausted.
         """
-        return await self._request(
-            "POST", url, content=content, headers=headers
-        )
+        return await self._request("POST", url, content=content, headers=headers)
 
     async def _request(
         self,
@@ -77,17 +75,13 @@ class RetryTransport:
         **kwargs,
     ) -> httpx.Response:
         """Execute an HTTP request with retry and backoff."""
-        client = self._client or httpx.AsyncClient(
-            timeout=self._timeout_s
-        )
+        client = self._client or httpx.AsyncClient(timeout=self._timeout_s)
         attempts = 0
         last_exc: Exception | None = None
         try:
             while True:
                 try:
-                    response = await client.request(
-                        method, url, **kwargs
-                    )
+                    response = await client.request(method, url, **kwargs)
                     response.raise_for_status()
                     return response
                 except httpx.HTTPStatusError as exc:
@@ -109,10 +103,7 @@ class RetryTransport:
                             method,
                             exc,
                         )
-                if (
-                    self._max_attempts is not None
-                    and attempts >= self._max_attempts
-                ):
+                if self._max_attempts is not None and attempts >= self._max_attempts:
                     raise last_exc  # type: ignore[misc]
                 cap = min(
                     self._base_delay_s * (2**attempts),

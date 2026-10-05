@@ -1,9 +1,10 @@
-from uagents import Context, Field, Model, Protocol
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
     ChatMessage,
     chat_protocol_spec,
 )
+
+from uagents import Context, Field, Model, Protocol
 
 word_counter_proto = Protocol(name="WordCounter", version="0.1.0")
 

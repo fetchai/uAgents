@@ -1786,7 +1786,6 @@ class Bureau:
                 dispatcher
             )
 
-
     def add(self, agent: Agent):
         """
         Add an agent to the bureau.
