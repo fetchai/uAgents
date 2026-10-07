@@ -254,9 +254,7 @@ class FairEventBuffer:
         self,
         per_agent_cap: int = DEFAULT_EVENTS_MAX_BATCH_EVENTS,
     ) -> None:
-        self._buffers: OrderedDict[
-            str, list[BatchEvent]
-        ] = OrderedDict()
+        self._buffers: OrderedDict[str, list[BatchEvent]] = OrderedDict()
         self._per_agent_cap = per_agent_cap
         self._wake: asyncio.Event = asyncio.Event()
         self._drops: dict[str, tuple[int, datetime]] = {}
@@ -426,7 +424,6 @@ class EventsDispatcher:
     @property
     def address(self) -> str:
         return self._identity.address
-
 
     def report_message(
         self,
@@ -677,7 +674,6 @@ class AgentEventsHandle:
             )
 
 
-
 class SharedEventsDispatcher:
     """Bureau-level coordinator with fair queuing across agents.
 
@@ -711,6 +707,7 @@ class SharedEventsDispatcher:
             max_delay_s=self._options.max_retry_delay_s,
             logger=self._logger,
         )
+
     def add_agent(self, dispatcher: EventsDispatcher) -> AgentEventsHandle:
         """Register an agent's dispatcher and return a push handle."""
         dispatcher._transport = self._transport
