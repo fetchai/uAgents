@@ -503,7 +503,12 @@ class EventsDispatcher:
         drain_timeout = drain_timeout or self._options.shutdown_drain_timeout_s
         self._stopping = True
 
-        with contextlib.suppress(TimeoutError, asyncio.CancelledError):
+        try:
+            self._queue.put_nowait(None)  # sentinel to unblock _take_next_batch
+        except asyncio.QueueFull:
+            pass  # worker will see _stopping on the next iteration
+
+        with contextlib.suppress(asyncio.TimeoutError, asyncio.CancelledError):
             await asyncio.wait_for(self._worker_task, timeout=drain_timeout)
 
         self._worker_task = None
@@ -575,18 +580,23 @@ class EventsDispatcher:
 
         while len(events) < self._options.max_batch_events and _utc_now() < flush_time:
             if not self._queue.empty():
-                events.append(self._queue.get_nowait())
+                item = self._queue.get_nowait()
+                if item is None:
+                    break
+                events.append(item)
                 continue
             if self._stopping:
                 break
             try:
-                event = await asyncio.wait_for(
+                item = await asyncio.wait_for(
                     self._queue.get(),
                     timeout=(flush_time - _utc_now()).total_seconds(),
                 )
-                events.append(event)
-            except (TimeoutError, asyncio.CancelledError):
+            except (asyncio.TimeoutError, asyncio.CancelledError):
                 break
+            if item is None:
+                break
+            events.append(item)
 
         if not events:
             return None

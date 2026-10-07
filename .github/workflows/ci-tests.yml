@@ -116,7 +116,6 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-          working-directory: python/uagents-core
 
       - if: ${{ needs.check-if-files-changed.outputs.uagents-core == 'true' }}
         name: Install dependencies
