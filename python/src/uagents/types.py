@@ -202,15 +202,13 @@ class EnvelopeHistory:
 
     def apply_retention_policy(self) -> None:
         """Remove entries older than retention period."""
-        cutoff_time = time.time() - self._retention_period
+        # entry timestamps are whole seconds, so compare against a whole-second
+        # cutoff to avoid expiring entries before the retention period has elapsed
+        cutoff_time = int(time.time()) - self._retention_period
 
         # apply retention policy to cache
         if self._cache is not None:
-            for e in self._cache:
-                if e.timestamp < cutoff_time:
-                    self._cache.remove(e)
-                else:
-                    break
+            self._cache = [e for e in self._cache if e.timestamp >= cutoff_time]
             if len(self._cache) > self._message_limit:
                 self._cache = self._cache[-self._message_limit :]
 
