@@ -1,22 +1,45 @@
 # pylint: disable=protected-access
 import asyncio
 import unittest
+from typing import Any
 
 from aioresponses import aioresponses
 from uagents_core.envelope import Envelope
 
 from uagents import Agent, Protocol
 from uagents.agent import AgentRepresentation
-from uagents.context import (
-    DeliveryStatus,
-    ExternalContext,
-    Model,
-    MsgInfo,
-    MsgStatus,
-)
+from uagents.context import DeliveryStatus, ExternalContext, Model, MsgInfo, MsgStatus
 from uagents.crypto import Identity
 from uagents.dispatch import dispatcher
 from uagents.resolver import RulesBasedResolver
+
+# ``POST /v2/agents/mailbox/submit`` error strings
+TARGET_AGENT_NOT_FOUND = "Target agent not found"
+INVALID_ENVELOPE_SIGNATURE = "Invalid envelope signature"
+AGENT_OWNER_NOT_FOUND = "Agent owner not found"
+MESSAGE_QUOTA_REACHED = "Message quota reached for this agent"
+
+
+def mock_mailbox_submit(
+    mocked_responses: Any,
+    url: str,
+    *,
+    status: int = 200,
+    detail: str | None = None,
+    payload: dict[str, Any] | None = None,
+) -> None:
+    """Register an aioresponses POST mock with FastAPI ``{"detail": ...}`` errors."""
+    if status == 200:
+        mocked_responses.post(
+            url, status=200, payload={} if payload is None else payload
+        )
+        return
+
+    mocked_responses.post(
+        url,
+        status=status,
+        payload={"detail": detail or ""},
+    )
 
 
 class Incoming(Model):
@@ -265,7 +288,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         result = await context.send(destination, msg)
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.FAILED,
-            detail="Unable to resolve destination endpoint",
+            detail=f"No delivery endpoint found for agent {destination}",
             destination=destination,
             endpoint="",
             session=context.session,
@@ -275,8 +298,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
     @aioresponses()
     async def test_send_external_dispatch_success(self, mocked_responses):
-        # Mock the HTTP POST request with a status code and response content
-        mocked_responses.post(endpoints[0], status=200)
+        mock_mailbox_submit(mocked_responses, endpoints[0], status=200)
 
         context = self.alice._build_context()
 
@@ -297,24 +319,47 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
     @aioresponses()
     async def test_send_external_dispatch_failure(self, mocked_responses):
-        # Mock the HTTP POST request with a status code and response content
-        mocked_responses.post(endpoints[0], status=404)
+        mock_mailbox_submit(
+            mocked_responses,
+            endpoints[0],
+            status=404,
+            detail=TARGET_AGENT_NOT_FOUND,
+        )
 
         context = self.alice._build_context()
 
-        # Perform the actual operation
         result = await context.send(self.clyde.address, msg)
 
-        # Define the expected message status
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.FAILED,
-            detail="Message delivery failed",
+            detail=TARGET_AGENT_NOT_FOUND,
             destination=self.clyde.address,
-            endpoint="",
+            endpoint=endpoints[0],
             session=context.session,
         )
 
-        # Assertions
+        self.assertEqual(result, exp_msg_status)
+
+    @aioresponses()
+    async def test_send_external_dispatch_invalid_signature(self, mocked_responses):
+        mock_mailbox_submit(
+            mocked_responses,
+            endpoints[0],
+            status=400,
+            detail=INVALID_ENVELOPE_SIGNATURE,
+        )
+
+        context = self.alice._build_context()
+        result = await context.send(self.clyde.address, msg)
+
+        exp_msg_status = MsgStatus(
+            status=DeliveryStatus.FAILED,
+            detail=INVALID_ENVELOPE_SIGNATURE,
+            destination=self.clyde.address,
+            endpoint=endpoints[0],
+            session=context.session,
+        )
+
         self.assertEqual(result, exp_msg_status)
 
     @aioresponses()
@@ -323,9 +368,13 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
     ):
         endpoints.append("http://localhost:8001")
 
-        # Mock the HTTP POST request with a status code and response content
-        mocked_responses.post(endpoints[0], status=200)
-        mocked_responses.post(endpoints[1], status=404)
+        mock_mailbox_submit(mocked_responses, endpoints[0], status=200)
+        mock_mailbox_submit(
+            mocked_responses,
+            endpoints[1],
+            status=404,
+            detail=TARGET_AGENT_NOT_FOUND,
+        )
 
         context = self.alice._build_context()
 
@@ -355,9 +404,13 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
     ):
         endpoints.append("http://localhost:8001")
 
-        # Mock the HTTP POST request with a status code and response content
-        mocked_responses.post(endpoints[0], status=404)
-        mocked_responses.post(endpoints[1], status=200)
+        mock_mailbox_submit(
+            mocked_responses,
+            endpoints[0],
+            status=404,
+            detail=TARGET_AGENT_NOT_FOUND,
+        )
+        mock_mailbox_submit(mocked_responses, endpoints[1], status=200)
 
         context = self.alice._build_context()
 
@@ -384,21 +437,28 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
     ):
         endpoints.append("http://localhost:8001")
 
-        # Mock the HTTP POST request with a status code and response content
-        mocked_responses.post(endpoints[0], status=404)
-        mocked_responses.post(endpoints[1], status=404)
+        mock_mailbox_submit(
+            mocked_responses,
+            endpoints[0],
+            status=404,
+            detail=TARGET_AGENT_NOT_FOUND,
+        )
+        mock_mailbox_submit(
+            mocked_responses,
+            endpoints[1],
+            status=404,
+            detail=TARGET_AGENT_NOT_FOUND,
+        )
 
         context = self.alice._build_context()
 
-        # Perform the actual operation
         result = await context.send(self.clyde.address, msg)
 
-        # Define the expected message status
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.FAILED,
-            detail="Message delivery failed",
+            detail=TARGET_AGENT_NOT_FOUND,
             destination=self.clyde.address,
-            endpoint="",
+            endpoint=endpoints[1],
             session=context.session,
         )
 
@@ -423,7 +483,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         env.sign(self.clyde._identity)
         payload = env.model_dump()
         payload["session"] = str(env.session)
-        mocked_responses.post(endpoints[0], status=200, payload=payload)
+        mock_mailbox_submit(mocked_responses, endpoints[0], status=200, payload=payload)
 
         # Perform the actual operation
         response, status = await context.send_and_receive(
@@ -460,7 +520,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         env.sign(self.clyde._identity)
         payload = env.model_dump()
         payload["session"] = str(env.session)
-        mocked_responses.post(endpoints[0], status=200, payload=payload)
+        mock_mailbox_submit(mocked_responses, endpoints[0], status=200, payload=payload)
 
         # Perform the actual operation
         _, status = await context.send_and_receive(
@@ -470,9 +530,9 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         # Define the expected message status
         exp_msg_status = MsgStatus(
             status=DeliveryStatus.FAILED,
-            detail="Timeout waiting for response",
+            detail=f"Message delivery timed out after 0s (endpoint={endpoints[0]}, queued=0)",
             destination=self.clyde.address,
-            endpoint="",
+            endpoint=endpoints[0],
             session=context.session,
         )
 
