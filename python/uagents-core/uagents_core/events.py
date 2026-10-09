@@ -15,6 +15,7 @@ import asyncio
 import contextlib
 import logging
 import platform
+from collections import OrderedDict
 from datetime import datetime, timedelta, timezone
 from importlib.metadata import version as _package_version
 from secrets import token_bytes
@@ -27,6 +28,7 @@ from pydantic import BaseModel, Field, model_validator
 from uagents_core.config import AgentverseConfig
 from uagents_core.identity import Identity
 from uagents_core.storage import compute_attestation
+from uagents_core.transport import RetryTransport
 
 # httpx logs every successful request at INFO by default; telemetry POSTs would
 # spam agent consoles. Raise the threshold so those stay out of normal output
@@ -125,10 +127,11 @@ class AgentBatchEvents(BaseModel):
     def from_message(
         cls,
         message: str,
-        sdk_version: str = DEFAULT_SDK_VERSION,
         category: EventCategory = "user",
         kind: EventKind = "info",
         metadata: dict[str, Any] | None = None,
+        *,
+        sdk_version: str = DEFAULT_SDK_VERSION,
     ) -> "AgentBatchEvents":
         """Build a single-event batch describing an informational message."""
         return cls(
@@ -149,8 +152,9 @@ class AgentBatchEvents(BaseModel):
         cls,
         exception: Exception,
         traceback: str,
-        sdk_version: str = DEFAULT_SDK_VERSION,
         category: EventCategory = "system",
+        *,
+        sdk_version: str = DEFAULT_SDK_VERSION,
     ) -> "AgentBatchEvents":
         """Build a single-event batch describing an error/exception."""
         return cls(
@@ -238,262 +242,188 @@ class EventIngestionOptions(BaseModel):
     )
 
 
-def _is_client_error(error: httpx.HTTPStatusError) -> bool:
-    """
-    Return True for 4xx errors that indicate a bad payload (so we stop retrying).
+class FairEventBuffer:
+    """Per-agent event buffer with round-robin scheduling.
 
-    401 is excluded because it's an auth issue that may resolve on the next
-    attempt when a fresh attestation token is generated.
-    """
-    code = error.response.status_code
-    return 400 <= code < 500 and code != 401
-
-
-class _BaseEventsDispatcher:
-    """
-    Shared background buffer that POSTs telemetry to the Agentverse events API.
-
-    The queue stores ``(identity, batch)`` pairs so one dispatcher can serve many
-    agents as in the ``Bureau``: each item is signed with the identity that
-    was supplied at enqueue time. Events from different identities are never
-    merged into the same HTTP POST, because ``POST /v1/events`` is attested as
-    a single agent.
-
-    Adapted from the ``agentverse-sdk`` events dispatcher
-    (https://github.com/fetchai/agentverse-core/pull/6139).
+    Events are grouped by agent address.  ``pop`` cycles through
+    agents so no single agent can starve others, regardless of
+    how many events it produces.
     """
 
     def __init__(
         self,
-        agentverse: AgentverseConfig,
-        options: EventIngestionOptions | None = None,
-        *,
-        logger: logging.Logger | None = None,
-        platform: PlatformMetadata | None = None,
+        per_agent_cap: int = DEFAULT_EVENTS_MAX_BATCH_EVENTS,
     ) -> None:
-        self._agentverse = agentverse
-        self._options = options or EventIngestionOptions()
-        self._logger = logger
-        self._platform = platform or PLATFORM_METADATA
-        self._queue: asyncio.Queue[tuple[Identity, AgentBatchEvents]] = asyncio.Queue(
-            maxsize=self._options.queue_max_batches
-        )
-        # Item taken from the queue that belonged to a different identity than
-        # the batch currently being built; flushed on the next pass.
-        self._pending: tuple[Identity, AgentBatchEvents] | None = None
-        self._client: httpx.AsyncClient | None = None
-        self._worker_task: asyncio.Task[None] | None = None
-        self._stopping = False
-        self._dropped_events_count = 0
-        self._first_drop_at: datetime | None = None
+        self._buffers: OrderedDict[str, list[BatchEvent]] = OrderedDict()
+        self._per_agent_cap = per_agent_cap
+        self._wake: asyncio.Event = asyncio.Event()
+        self._drops: dict[str, tuple[int, datetime]] = {}
+        self._is_shutdown = False
 
     @property
-    def events_url(self) -> str:
-        return self._agentverse.events_api
+    def is_shutdown(self) -> bool:
+        return self._is_shutdown
 
-    def _log(self, level: int, message: str) -> None:
-        if self._logger is not None:
-            self._logger.log(level, message)
+    def push(self, address: str, events: list[BatchEvent]) -> bool:
+        """Buffer events for an agent, dropping overflow.
 
-    def _enqueue(self, identity: Identity, batch: AgentBatchEvents) -> None:
-        """Queue a batch to be POSTed with an attestation for ``identity``."""
-        if not batch.events:
-            return
-        if self._stopping:
-            self._log(
-                logging.DEBUG,
-                f"Events dropped during shutdown ({len(batch.events)} events)",
-            )
-            return
-        try:
-            self._queue.put_nowait((identity, batch))
-        except asyncio.QueueFull:
-            if self._first_drop_at is None:
-                self._first_drop_at = _utc_now()
-            self._dropped_events_count += len(batch.events)
-            self._log(
-                logging.ERROR,
-                f"Events queue full; dropped newest batch ({len(batch.events)} events)",
-            )
-
-    async def start(self) -> None:
-        if self._worker_task is not None:
-            return
-        self._stopping = False
-        self._client = httpx.AsyncClient(timeout=DEFAULT_EVENTS_HTTP_TIMEOUT_S)
-        self._worker_task = asyncio.create_task(self._worker_loop())
-
-    async def stop(self, *, drain_timeout: float | None = None) -> None:
-        if self._worker_task is None:
-            return
-        drain_timeout = drain_timeout or self._options.shutdown_drain_timeout_s
-        self._stopping = True
-        # ``wait_for`` cancels the worker if the drain exceeds the timeout.
-        with contextlib.suppress(asyncio.TimeoutError, asyncio.CancelledError):
-            await asyncio.wait_for(self._worker_task, timeout=drain_timeout)
-        self._worker_task = None
-        if self._client is not None:
-            await self._client.aclose()
-            self._client = None
-
-    async def _worker_loop(self) -> None:
-        while True:
-            item = await self._take_next_batch()
-            if item is None:
-                if self._stopping and self._pending is None and self._queue.empty():
-                    return
-                continue
-            identity, batch = item
-            await self._post_batch(identity, batch)
-
-    async def _post(self, identity: Identity, data: AgentBatchEvents) -> None:
-        assert self._client is not None
-        response = await self._client.post(
-            self.events_url,
-            content=data.model_dump_json(),
-            headers=_auth_header(identity),
-        )
-        response.raise_for_status()
-
-    async def _post_batch(self, identity: Identity, batch: AgentBatchEvents) -> None:
-        attempts = 0
-        while True:
-            try:
-                await self._post(identity, batch)
-                return
-            except Exception as exc:  # noqa: BLE001 - retried/logged below
-                if isinstance(exc, httpx.HTTPStatusError) and _is_client_error(exc):
-                    self._log(
-                        logging.ERROR,
-                        f"Events batch rejected by server "
-                        f"({exc.response.status_code}), skipping: {exc}",
-                    )
-                    await self._report_system_error(
-                        identity,
-                        f"Events batch rejected by server "
-                        f"({exc.response.status_code}): {exc}",
-                    )
-                    return
-                self._log(logging.ERROR, f"Events dispatcher POST failed: {exc}")
-                delay = min(
-                    self._options.retry_base_delay_s * (2**attempts),
-                    self._options.max_retry_delay_s,
-                )
-                attempts += 1
-                await asyncio.sleep(delay)
-
-    async def _report_system_error(self, identity: Identity, message: str) -> None:
-        """Report an SDK error directly to the events API, bypassing the queue."""
-        try:
-            await self._post(
-                identity,
-                AgentBatchEvents.from_message(message, category="system", kind="error"),
-            )
-        except Exception as exc:  # noqa: BLE001 - telemetry must never raise
-            self._log(logging.ERROR, f"Failed to report system error: {exc}")
-
-    async def _take_next_batch(
-        self,
-    ) -> tuple[Identity, AgentBatchEvents] | None:
+        Returns ``False`` if the buffer has been shut down.
         """
-        Pull the next flushable batch for a single identity.
+        if not events:
+            return True
 
-        Coalesces consecutive queue items that share the same agent address.
-        Items for a different identity are held in ``_pending`` for the next pass.
-        """
-        if self._pending is not None:
-            identity, first = self._pending
-            self._pending = None
-        elif not self._queue.empty():
-            identity, first = self._queue.get_nowait()
-        elif self._stopping:
-            return None
+        if self._is_shutdown:
+            return False
+
+        buffer = self._buffers.setdefault(address, [])
+        remaining = self._per_agent_cap - len(buffer)
+
+        if remaining > 0:
+            if remaining >= len(events):
+                buffer.extend(events)
+            else:
+                buffer.extend(events[:remaining])
+                self._record_drop(address, len(events) - remaining)
+            self._wake.set()
         else:
-            try:
-                identity, first = await asyncio.wait_for(
-                    self._queue.get(),
-                    timeout=self._options.flush_interval_s,
-                )
-            except (asyncio.TimeoutError, asyncio.CancelledError):
+            self._record_drop(address, len(events))
+
+        return True
+
+    async def pop(
+        self,
+        max_events: int,
+        timeout: float = 1.0,
+    ) -> tuple[str, list[BatchEvent]] | None:
+        """Take up to *max_events* from the next agent.
+
+        Blocks until events are available.  Returns ``None`` only when
+        the buffer has been shut down and is empty (the caller's signal
+        to exit).
+
+        During shutdown, returns remaining events without waiting so
+        the consumer can drain the buffer.  The served agent is rotated
+        to the back of the queue.
+        """
+        while not self._buffers:
+            if self._is_shutdown:
                 return None
+            self._wake.clear()
+            with contextlib.suppress(asyncio.TimeoutError):
+                await asyncio.wait_for(self._wake.wait(), timeout=timeout)
 
-        events: list[BatchEvent] = list(first.events)
+        address, events = self._buffers.popitem(last=False)
+        drops = self._drops.pop(address, None)
 
-        if self._dropped_events_count > 0:
-            events.insert(
-                0,
+        event_limit = max_events - 1 if drops is not None else max_events
+
+        if len(events) > event_limit:
+            self._buffers[address] = events[event_limit:]
+            events = events[:event_limit]
+
+        if drops is not None:
+            count, first_drop_at = drops
+            events.append(
                 BatchEvent(
                     category="user",
                     kind="info",
-                    timestamp=self._first_drop_at or _utc_now(),
+                    timestamp=first_drop_at,
                     message=(
-                        f"{self._dropped_events_count} event(s) dropped due to full "
-                        f"queue (resumed at {_utc_now().isoformat()})"
+                        f"{count} event(s) dropped due to full "
+                        f"buffer (resumed at {_utc_now().isoformat()})"
                     ),
                     metadata={
-                        "dropped_count": self._dropped_events_count,
-                        "reason": "queue_full",
+                        "dropped_count": count,
+                        "reason": "buffer_full",
                     },
-                ),
-            )
-            self._dropped_events_count = 0
-            self._first_drop_at = None
-
-        flush_time = _utc_now() + timedelta(seconds=self._options.flush_interval_s)
-
-        while len(events) < self._options.max_batch_events and _utc_now() < flush_time:
-            if self._pending is not None:
-                break
-            if not self._queue.empty():
-                next_identity, next_batch = self._queue.get_nowait()
-                if next_identity.address != identity.address:
-                    self._pending = (next_identity, next_batch)
-                    break
-                events.extend(next_batch.events)
-                continue
-            if self._stopping:
-                break
-            try:
-                next_identity, next_batch = await asyncio.wait_for(
-                    self._queue.get(),
-                    timeout=(flush_time - _utc_now()).total_seconds(),
                 )
-            except (asyncio.TimeoutError, asyncio.CancelledError):
-                break
-            if next_identity.address != identity.address:
-                self._pending = (next_identity, next_batch)
-                break
-            events.extend(next_batch.events)
+            )
 
-        if not events:
-            return None
+        return address, events
 
-        return identity, AgentBatchEvents(platform=self._platform, events=events)
+    def shutdown(self) -> None:
+        """Stop accepting new events and unblock any waiting ``pop()``."""
+        self._is_shutdown = True
+        self._wake.set()
+
+    def _record_drop(self, address: str, count: int) -> None:
+        prev_count, first_at = self._drops.get(address, (0, _utc_now()))
+        self._drops[address] = (prev_count + count, first_at)
 
 
-class EventsDispatcher(_BaseEventsDispatcher):
-    """
-    Identity-bound events dispatcher for a single agent.
+def _build_message_event(
+    direction: MessageDirection,
+    peer: str,
+    session_id: UUID | None = None,
+) -> BatchEvent:
+    """Build a single message event."""
+    metadata = MessageEventMetadata(
+        direction=direction,
+        peer=peer,
+        msg_id=uuid4(),
+        session_id=session_id,
+    )
+    verb = "received from" if direction == "received" else "sent to"
+    return BatchEvent(
+        category="user",
+        kind="message",
+        timestamp=_utc_now(),
+        message=f"Message {verb} {peer}",
+        metadata=metadata.model_dump(mode="json"),
+    )
 
-    Used by the native uAgents ``Agent`` runtime: callers do not pass an identity
-    on each enqueue because it was fixed in the constructor.
+
+def _build_error_event(
+    exception: Exception,
+    traceback: str,
+    category: EventCategory = "user",
+) -> BatchEvent:
+    """Build a single error event."""
+    return BatchEvent(
+        category=category,
+        kind="error",
+        timestamp=_utc_now(),
+        exception=exception.__class__.__qualname__,
+        traceback=traceback,
+        message=str(exception),
+    )
+
+
+class EventsDispatcher:
+    """Per-agent event dispatcher that buffers and POSTs telemetry
+    events to the Agentverse events API.
+
+    Provides a background worker (``start``/``stop``) for autonomous
+    operation and a public ``post`` method for ``SharedEventsDispatcher``.
     """
 
     def __init__(
         self,
         identity: Identity,
         agentverse: AgentverseConfig,
-        options: EventIngestionOptions | None = None,
         *,
+        options: EventIngestionOptions | None = None,
         logger: logging.Logger | None = None,
         platform: PlatformMetadata | None = None,
     ) -> None:
-        super().__init__(agentverse, options, logger=logger, platform=platform)
         self._identity = identity
+        self._agentverse = agentverse
+        self._options = options or EventIngestionOptions()
+        self._logger = logger
+        self._platform = platform or PLATFORM_METADATA
+        self._queue: asyncio.Queue[BatchEvent] = asyncio.Queue(
+            maxsize=self._options.max_batch_events,
+        )
+        self._dropped_events_count = 0
+        self._first_drop_at: datetime | None = None
+        self._client: httpx.AsyncClient | None = None
+        self._transport: RetryTransport | None = None
+        self._worker_task: asyncio.Task[None] | None = None
+        self._stopping = False
 
-    def enqueue_event(self, batch: AgentBatchEvents) -> None:
-        """Enqueue a batch signed as this dispatcher's agent."""
-        self._enqueue(self._identity, batch)
+    @property
+    def address(self) -> str:
+        return self._identity.address
 
     def report_message(
         self,
@@ -501,25 +431,13 @@ class EventsDispatcher(_BaseEventsDispatcher):
         peer: str,
         session_id: UUID | None = None,
     ) -> None:
-        """Enqueue a ``message`` event for a received or sent message."""
+        """Enqueue a message event for a received or sent message."""
         try:
-            metadata = MessageEventMetadata(
-                direction=direction,
-                peer=peer,
-                msg_id=uuid4(),
-                session_id=session_id,
-            )
-            verb = "received from" if direction == "received" else "sent to"
-            batch = AgentBatchEvents.from_message(
-                f"Message {verb} {peer}",
-                category="user",
-                kind="message",
-                metadata=metadata.model_dump(mode="json"),
-            )
+            event = _build_message_event(direction, peer, session_id)
         except Exception as exc:  # noqa: BLE001 - telemetry must never raise
             self._log(logging.DEBUG, f"Failed to build message event: {exc}")
             return
-        self.enqueue_event(batch)
+        self.enqueue([event])
 
     def report_exception(
         self,
@@ -527,25 +445,304 @@ class EventsDispatcher(_BaseEventsDispatcher):
         traceback: str,
         category: EventCategory = "user",
     ) -> None:
-        """Enqueue an ``error`` event for a handler/agent failure."""
+        """Enqueue an error event for a handler or agent failure."""
         try:
-            batch = AgentBatchEvents.from_exception(
-                exception, traceback, category=category
-            )
+            event = _build_error_event(exception, traceback, category)
         except Exception as exc:  # noqa: BLE001 - telemetry must never raise
             self._log(logging.DEBUG, f"Failed to build error event: {exc}")
             return
-        self.enqueue_event(batch)
+        self.enqueue([event])
+
+    async def _post(self, events: list[BatchEvent]) -> None:
+        """POST events to the Agentverse events API with attestation."""
+        if self._transport is None:
+            self._log(logging.DEBUG, "_post() called before transport is ready")
+            return
+        batch = AgentBatchEvents(platform=self._platform, events=events)
+        try:
+            await self._transport.post(
+                self._agentverse.events_api,
+                content=batch.model_dump_json(),
+                headers=_auth_header(self._identity),
+            )
+        except httpx.HTTPStatusError as exc:
+            self._log(
+                logging.ERROR,
+                f"Events batch rejected ({exc.response.status_code}): {exc}",
+            )
+            await self._report_system_error(
+                f"Events batch rejected ({exc.response.status_code}): {exc}",
+            )
+        except Exception as exc:  # noqa: BLE001 - telemetry must never crash
+            self._log(logging.ERROR, f"Events POST failed: {exc}")
+
+    # -- Standalone lifecycle (not called when under Bureau) --
+
+    async def start(self) -> None:
+        """Start the background worker."""
+        if self._worker_task is not None:
+            return
+        self._stopping = False
+        self._client = httpx.AsyncClient(timeout=DEFAULT_EVENTS_HTTP_TIMEOUT_S)
+        self._transport = RetryTransport(
+            client=self._client,
+            max_attempts=None,
+            base_delay_s=self._options.retry_base_delay_s,
+            max_delay_s=self._options.max_retry_delay_s,
+            logger=self._logger,
+        )
+        self._worker_task = asyncio.create_task(self._worker_loop())
+
+    async def stop(self, *, drain_timeout: float | None = None) -> None:
+        """Stop the background worker and close the HTTP client."""
+        if self._worker_task is None:
+            return
+        drain_timeout = drain_timeout or self._options.shutdown_drain_timeout_s
+        self._stopping = True
+
+        try:
+            self._queue.put_nowait(None)  # sentinel to unblock _take_next_batch
+        except asyncio.QueueFull:
+            pass  # worker will see _stopping on the next iteration
+
+        with contextlib.suppress(asyncio.TimeoutError, asyncio.CancelledError):
+            await asyncio.wait_for(self._worker_task, timeout=drain_timeout)
+
+        self._worker_task = None
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
+        self._transport = None
+
+    def _log(self, level: int, message: str) -> None:
+        if self._logger is not None:
+            self._logger.log(level, message)
+
+    def enqueue(self, events: list[BatchEvent]) -> None:
+        """Buffer events for dispatch."""
+        if not events:
+            return
+
+        if self._stopping:
+            self._log(
+                logging.DEBUG,
+                f"Events dropped during shutdown ({len(events)} events)",
+            )
+            return
+
+        for event in events:
+            try:
+                self._queue.put_nowait(event)
+            except asyncio.QueueFull:
+                if self._first_drop_at is None:
+                    self._first_drop_at = _utc_now()
+                self._dropped_events_count += 1
+                self._log(
+                    logging.ERROR,
+                    f"Events queue full; dropped event ({self._dropped_events_count} total)",
+                )
+
+    async def _worker_loop(self) -> None:
+        while True:
+            events = await self._take_next_batch()
+            if events is None:
+                if self._stopping:
+                    return
+                continue
+            await self._post(events)
+
+    async def _take_next_batch(self) -> list[BatchEvent] | None:
+        events: list[BatchEvent] = []
+
+        if self._dropped_events_count > 0:
+            events.append(
+                BatchEvent(
+                    category="user",
+                    kind="info",
+                    timestamp=self._first_drop_at or _utc_now(),
+                    message=(
+                        f"{self._dropped_events_count} event(s) dropped due to full queue"
+                        f" (resumed at {_utc_now().isoformat()})"
+                    ),
+                    metadata={
+                        "dropped_count": self._dropped_events_count,
+                        "reason": "queue_full",
+                    },
+                )
+            )
+            self._dropped_events_count = 0
+            self._first_drop_at = None
+
+        flush_time = _utc_now() + timedelta(seconds=self._options.flush_interval_s)
+
+        while len(events) < self._options.max_batch_events and _utc_now() < flush_time:
+            if not self._queue.empty():
+                item = self._queue.get_nowait()
+                if item is None:
+                    break
+                events.append(item)
+                continue
+            if self._stopping:
+                break
+            try:
+                item = await asyncio.wait_for(
+                    self._queue.get(),
+                    timeout=(flush_time - _utc_now()).total_seconds(),
+                )
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                break
+            if item is None:
+                break
+            events.append(item)
+
+        if not events:
+            return None
+        return events
+
+    async def _report_system_error(self, message: str) -> None:
+        """Notify the platform that something failed on its side."""
+        if self._transport is None:
+            return
+        try:
+            error_batch = AgentBatchEvents.from_message(
+                message, category="system", kind="error"
+            )
+            await self._transport.post(
+                self._agentverse.events_api,
+                content=error_batch.model_dump_json(),
+                headers=_auth_header(self._identity),
+            )
+        except Exception as exc:  # noqa: BLE001 - telemetry must never raise
+            self._log(logging.ERROR, f"Failed to report system error: {exc}")
 
 
-class MultiAgentEventsDispatcher(_BaseEventsDispatcher):
+class AgentEventsHandle:
+    """Lightweight event handle for agents managed by a ``SharedEventsDispatcher``.
+
+    Routes ``report_message`` and ``report_exception`` calls through
+    a shared ``FairEventBuffer`` so a single background worker can
+    dispatch events fairly across agents.
+
+    Created by ``SharedEventsDispatcher.add_agent()`` — callers should
+    not instantiate this directly.
     """
-    One dispatcher shared across many agents.
 
-    Callers pass the executing agent's identity on every enqueue so each POST
-    is attested as that agent.
+    def __init__(
+        self,
+        dispatcher: "EventsDispatcher",
+        buffer: FairEventBuffer,
+    ) -> None:
+        self._dispatcher = dispatcher
+        self._buffer = buffer
+
+    @property
+    def address(self) -> str:
+        return self._dispatcher.address
+
+    def report_message(
+        self,
+        direction: MessageDirection,
+        peer: str,
+        session_id: UUID | None = None,
+    ) -> None:
+        """Build a message event and push it to the shared buffer."""
+        try:
+            event = _build_message_event(direction, peer, session_id)
+        except Exception:  # noqa: BLE001 - telemetry must never raise
+            return
+        self.enqueue([event])
+
+    def report_exception(
+        self,
+        exception: Exception,
+        traceback: str,
+        category: EventCategory = "user",
+    ) -> None:
+        """Build an error event and push it to the shared buffer."""
+        try:
+            event = _build_error_event(exception, traceback, category)
+        except Exception:  # noqa: BLE001 - telemetry must never raise
+            return
+        self.enqueue([event])
+
+    def enqueue(self, events: list[BatchEvent]) -> None:
+        """Push pre-built events to the shared buffer."""
+        if events and not self._buffer.push(self._dispatcher.address, events):
+            self._dispatcher._log(
+                logging.DEBUG,
+                f"Events dropped during shutdown ({len(events)} events)",
+            )
+
+
+class SharedEventsDispatcher:
+    """Bureau-level coordinator with fair queuing across agents.
+
+    Owns a single ``FairEventBuffer`` and one background worker.
+    Each agent registers via ``add_agent()`` which returns an
+    ``AgentEventsHandle``.  The worker pops events fairly and
+    delegates the HTTP POST to the agent's own ``EventsDispatcher``.
     """
 
-    def enqueue_event(self, identity: Identity, batch: AgentBatchEvents) -> None:
-        """Enqueue a batch signed as ``identity``."""
-        self._enqueue(identity, batch)
+    def __init__(
+        self,
+        agentverse: AgentverseConfig,
+        *,
+        options: EventIngestionOptions | None = None,
+        logger: logging.Logger | None = None,
+        platform: PlatformMetadata | None = None,
+    ) -> None:
+        self._agentverse = agentverse
+        self._options = options or EventIngestionOptions()
+        self._logger = logger
+        self._platform = platform or PLATFORM_METADATA
+        self._buffer = FairEventBuffer(
+            per_agent_cap=self._options.max_batch_events,
+        )
+        self._dispatchers: dict[str, EventsDispatcher] = {}
+        self._client = httpx.AsyncClient(timeout=DEFAULT_EVENTS_HTTP_TIMEOUT_S)
+        self._transport = RetryTransport(
+            client=self._client,
+            max_attempts=None,
+            base_delay_s=self._options.retry_base_delay_s,
+            max_delay_s=self._options.max_retry_delay_s,
+            logger=self._logger,
+        )
+
+    def add_agent(self, dispatcher: EventsDispatcher) -> AgentEventsHandle:
+        """Register an agent's dispatcher and return a push handle."""
+        dispatcher._transport = self._transport
+        self._dispatchers[dispatcher.address] = dispatcher
+        return AgentEventsHandle(dispatcher, self._buffer)
+
+    async def run(self) -> None:
+        """Run the dispatch loop until ``stop()`` is called.
+
+        Intended to be scheduled by the caller via ``create_task``.
+        """
+        try:
+            while True:
+                result = await self._buffer.pop(
+                    self._options.max_batch_events,
+                    timeout=self._options.flush_interval_s,
+                )
+                if result is None:
+                    return
+                address, events = result
+                dispatcher = self._dispatchers.get(address)
+                if dispatcher is not None:
+                    await dispatcher._post(events)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            if self._client is not None:
+                await self._client.aclose()
+                self._client = None
+            self._transport = None
+
+    def stop(self) -> None:
+        """Signal the dispatch loop to drain and exit."""
+        self._buffer.shutdown()
+
+    def _log(self, level: int, message: str) -> None:
+        if self._logger is not None:
+            self._logger.log(level, message)

@@ -30,6 +30,9 @@ documentation = "https://fetch.ai/docs"
 dev = [
     "ruff>=0.11.0,<0.12",
     "pre-commit>=4.1.0,<5",
+    "pytest>=8.3.5,<9",
+    "pytest-asyncio>=0.25.3,<0.26",
+    "coverage[toml]>=7.6.12,<8",
 ]
 
 [project.scripts]
