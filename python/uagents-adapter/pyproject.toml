@@ -27,6 +27,7 @@ all = [
     "crewai (==0.203.1)",
     "mcp (>=1.8.1)",
     "a2a-sdk[all,sqlite,sql] (>=0.2.11)",
+    "x402[evm,httpx] (>=2.21.0,<3.0.0)",
 ]
 
 # LangChain support
@@ -54,6 +55,12 @@ a2a-inbound = [
 # A2A Outbound support
 a2a-outbound = [
     "a2a-sdk[all,sqlite,sql] (>=0.2.11)",
+]
+
+# Buyer-side x402 HTTP support. Wallet/signing mechanisms are configured by
+# the application, so the adapter does not create or expose wallet material.
+x402 = [
+    "x402[evm,httpx] (>=2.21.0,<3.0.0)",
 ]
 
 [dependency-groups]
