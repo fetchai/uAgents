@@ -78,6 +78,9 @@ ignore = ["PLR0913", "PLR0912", "PLR0911", "PLR2004", "PLR0915"]
 [tool.ruff.lint.pycodestyle]
 max-line-length = 100
 
+[tool.pytest.ini_options]
+norecursedirs = ["uagents-core"]
+
 [tool.coverage.run]
 source = ["src/uagents", "src\\uagents"]
 omit = ["*/__init__.py", "*/experimental/*"]
