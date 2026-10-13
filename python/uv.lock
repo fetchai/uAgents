@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10, <4.0"
 resolution-markers = [
     "python_full_version >= '3.14' and platform_python_implementation != 'PyPy'",
@@ -338,7 +338,7 @@ resolution-markers = [
     "python_full_version < '3.14' and platform_python_implementation != 'PyPy'",
 ]
 dependencies = [
-    { name = "pycparser", marker = "python_full_version < '3.14' and platform_python_implementation != 'PyPy'" },
+    { name = "pycparser" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/fc/97/c783634659c2920c3fc70419e3af40972dbaf758daa229a7d6ea6135c90d/cffi-1.17.1.tar.gz", hash = "sha256:1c39c6016c32bc48dd54561950ebd6836e1670f2ae46128f67cf49e789c52824", size = 516621, upload-time = "2024-09-04T20:45:21.852Z" }
 wheels = [
@@ -398,7 +398,7 @@ resolution-markers = [
     "python_full_version >= '3.14' and platform_python_implementation != 'PyPy'",
 ]
 dependencies = [
-    { name = "pycparser", marker = "python_full_version >= '3.14' and implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'" },
+    { name = "pycparser", marker = "implementation_name != 'PyPy'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/eb/56/b1ba7935a17738ae8453301356628e8147c79dbb825bcbc73dc7401f9846/cffi-2.0.0.tar.gz", hash = "sha256:44d1b5909021139fe36001ae048dbdde8214afa20200eda0f64c068cac5d5529", size = 523588, upload-time = "2025-09-08T23:24:04.541Z" }
 wheels = [
@@ -884,7 +884,7 @@ name = "exceptiongroup"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371, upload-time = "2025-11-21T23:01:54.787Z" }
 wheels = [
@@ -2955,7 +2955,7 @@ requires-dist = [
     { name = "litellm", marker = "extra == 'llm'", specifier = ">=1.78.6,<2.0" },
     { name = "pydantic", specifier = ">=2.8,<3.0" },
     { name = "tzdata", marker = "sys_platform == 'win32'", specifier = ">=2024.1" },
-    { name = "uagents-core", specifier = ">=0.4.11" },
+    { name = "uagents-core", specifier = ">=0.4.12" },
     { name = "uvicorn", specifier = ">=0.30.1,<1.0" },
 ]
 provides-extras = ["all", "wallet", "llm"]
@@ -2974,7 +2974,7 @@ dev = [
 
 [[package]]
 name = "uagents-core"
-version = "0.4.11"
+version = "0.4.12"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bech32" },
@@ -2983,9 +2983,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b5/e6/4bf8fff8575be28124ec341bc920387f484cf34bda1b4882dbb3de04c811/uagents_core-0.4.11.tar.gz", hash = "sha256:30efc7402d80df6c387106d88a28a9df6298d09c37dcd84dfc3d4e32c279f70d", size = 96284, upload-time = "2026-09-25T14:43:50.866Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b6/d8/8da47337ef2c81a9a7f3d0eb55a4b6029e2d5086deaa1b9eb1507edc4534/uagents_core-0.4.12.tar.gz", hash = "sha256:f2c1495cb93476455a70a4c8117d36c3d84b4c6b439e1e3f60fdc520ac110cf9", size = 120201, upload-time = "2026-10-13T10:34:37.536Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/68/b3/f8541bf92299dfe80245b302100f0944f63d556375a2aaf91fe2deabb109/uagents_core-0.4.11-py3-none-any.whl", hash = "sha256:3fbcc7dc75592186993656a23027bc45fe69248feaaafe37b555ffca108552ef", size = 51209, upload-time = "2026-09-25T14:43:49.898Z" },
+    { url = "https://files.pythonhosted.org/packages/0d/3f/b2a2d130ba0d66cb61b61c1c86512903c913f9bbdb31e45c994f695d8a17/uagents_core-0.4.12-py3-none-any.whl", hash = "sha256:345375122b5ed11cb17b50fd3787e70dc716e6d333b12aaf9563da910bf13a6a", size = 53655, upload-time = "2026-10-13T10:34:36.356Z" },
 ]
 
 [[package]]
