@@ -1,4 +1,4 @@
-"""Adapters for uAgents to integrate with LangChain, CrewAI, and MCP."""
+"""Adapters for uAgents to integrate with LangChain, CrewAI, AG2, and MCP."""
 
 from importlib import metadata
 
@@ -6,6 +6,12 @@ from .common import ResponseMessage, cleanup_all_uagents, cleanup_uagent
 from .crewai import CrewaiRegisterTool
 from .langchain import LangchainRegisterTool
 from .mcp import MCPServerAdapter
+
+# Conditional import for AG2
+try:
+    from .ag2 import AG2RegisterTool
+except ImportError:
+    pass
 
 # Conditional imports for A2A modules
 try:
@@ -38,6 +44,7 @@ __all__ = [
     "ResponseMessage",
     "cleanup_uagent",
     "cleanup_all_uagents",
+    "AG2RegisterTool",
     "__version__",
 ]
 
