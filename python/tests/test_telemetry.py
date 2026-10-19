@@ -15,7 +15,7 @@ from uagents_core.events import (
     EventIngestionOptions,
     EventsDispatcher,
     MessageEventMetadata,
-    MultiAgentEventsDispatcher,
+    SharedEventsDispatcher,
     PlatformMetadata,
     dispatch_events,
     is_registered_on_agentverse,
@@ -373,7 +373,7 @@ class TestEventsDispatcher(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(dispatcher.events_url.endswith("/v1/events"))
 
 
-class TestMultiAgentEventsDispatcher(unittest.IsolatedAsyncioTestCase):
+class TestSharedEventsDispatcher(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.agentverse = AgentverseConfig()
         self.alice = Identity.generate()
@@ -389,7 +389,7 @@ class TestMultiAgentEventsDispatcher(unittest.IsolatedAsyncioTestCase):
         factory, client = _mock_persistent_client(response=self._ok_response())
         options = EventIngestionOptions(flush_interval_s=0.05, max_batch_events=50)
         with patch("uagents_core.events.httpx.AsyncClient", factory):
-            dispatcher = MultiAgentEventsDispatcher(self.agentverse, options)
+            dispatcher = SharedEventsDispatcher(self.agentverse, options)
             await dispatcher.start()
             dispatcher.enqueue_event(
                 self.alice, AgentBatchEvents.from_message("from alice")
@@ -422,7 +422,7 @@ class TestMultiAgentEventsDispatcher(unittest.IsolatedAsyncioTestCase):
         factory, client = _mock_persistent_client(response=self._ok_response())
         options = EventIngestionOptions(flush_interval_s=0.1, max_batch_events=50)
         with patch("uagents_core.events.httpx.AsyncClient", factory):
-            dispatcher = MultiAgentEventsDispatcher(self.agentverse, options)
+            dispatcher = SharedEventsDispatcher(self.agentverse, options)
             await dispatcher.start()
             dispatcher.enqueue_event(
                 self.alice, AgentBatchEvents.from_message("alice-1")
