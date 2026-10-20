@@ -397,12 +397,8 @@ class TestSharedEventsDispatcher(unittest.IsolatedAsyncioTestCase):
             alice_handle = shared.add_agent(alice_dispatcher)
             bob_handle = shared.add_agent(bob_dispatcher)
             run_task = asyncio.create_task(shared.run())
-            alice_handle.enqueue(
-                AgentBatchEvents.from_message("from alice").events
-            )
-            bob_handle.enqueue(
-                AgentBatchEvents.from_message("from bob").events
-            )
+            alice_handle.enqueue(AgentBatchEvents.from_message("from alice").events)
+            bob_handle.enqueue(AgentBatchEvents.from_message("from bob").events)
             await asyncio.sleep(0.2)
             shared.stop()
             await run_task
@@ -433,12 +429,8 @@ class TestSharedEventsDispatcher(unittest.IsolatedAsyncioTestCase):
             alice_dispatcher = EventsDispatcher(self.alice, self.agentverse)
             alice_handle = shared.add_agent(alice_dispatcher)
             run_task = asyncio.create_task(shared.run())
-            alice_handle.enqueue(
-                AgentBatchEvents.from_message("alice-1").events
-            )
-            alice_handle.enqueue(
-                AgentBatchEvents.from_message("alice-2").events
-            )
+            alice_handle.enqueue(AgentBatchEvents.from_message("alice-1").events)
+            alice_handle.enqueue(AgentBatchEvents.from_message("alice-2").events)
             await asyncio.sleep(0.25)
             shared.stop()
             await run_task
