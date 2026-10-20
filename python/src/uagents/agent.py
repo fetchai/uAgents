@@ -22,6 +22,7 @@ from typing_extensions import deprecated
 from uagents_core.config import AgentverseConfig
 from uagents_core.events import (
     AgentBatchEvents,
+    AgentEventsHandle,
     EventsDispatcher,
     SharedEventsDispatcher,
     dispatch_events,
@@ -435,7 +436,7 @@ class Agent(Sink):
         self._mark_inactive_on_shutdown = mark_inactive_on_shutdown
         self._report_events = report_events
         self._events_enabled = False
-        self._events_dispatcher: EventsDispatcher | None = None
+        self._events_dispatcher: EventsDispatcher | AgentEventsHandle | None = None
         self._on_startup = []
         self._on_shutdown = []
         self._network = network
@@ -1230,7 +1231,6 @@ class Agent(Sink):
                 self._logger.exception(f"Runtime Error in shutdown handler: {ex}")
             except Exception as ex:
                 self._logger.exception(f"Exception in shutdown handler: {ex}")
-        self._events_dispatcher = None
 
     async def _shutdown(self, tasks: list[asyncio.Task]):
         """Perform graceful agent shutdown."""
@@ -1284,10 +1284,9 @@ class Agent(Sink):
         # Run shutdown handlers
         await self.run_shutdown_tasks()
 
-        # Drain buffered telemetry and close the connection.
-        if self._events_dispatcher is not None:
+        if isinstance(self._events_dispatcher, EventsDispatcher):
             await self._events_dispatcher.stop()
-            self._events_dispatcher = None
+        self._events_dispatcher = None
 
         # Shutdown dispenser, which will try to send any queued outgoing messages first
         if self._dispenser_task:

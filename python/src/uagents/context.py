@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 import requests
 from cosmpy.aerial.client import LedgerClient
 from uagents_core.envelope import Envelope
-from uagents_core.events import EventsDispatcher
+from uagents_core.events import AgentEventsHandle, EventsDispatcher
 from uagents_core.identity import parse_identifier
 from uagents_core.models import ERROR_MESSAGE_DIGEST, ErrorMessage, Model
 from uagents_core.types import DeliveryStatus, MsgStatus
@@ -258,7 +258,7 @@ class InternalContext(Context):
         interval_messages: set[str] | None = None,
         message_history: EnvelopeHistory | None = None,
         logger: logging.Logger | None = None,
-        events_dispatcher: EventsDispatcher | None = None,
+        events_dispatcher: EventsDispatcher | AgentEventsHandle | None = None,
     ):
         self._agent = agent
         self._storage = storage
