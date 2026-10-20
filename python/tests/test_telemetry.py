@@ -308,12 +308,16 @@ class TestSentMessageTelemetry(unittest.IsolatedAsyncioTestCase):
 
 
 def _mock_persistent_client(response=None, post_side_effect=None):
-    """Build a mock for the dispatcher's long-lived httpx.AsyncClient."""
+    """Build a mock for the dispatcher's long-lived httpx.AsyncClient.
+
+    Mocks ``client.request`` because ``RetryTransport`` calls
+    ``client.request(method, url, ...)`` rather than ``client.post(...)``.
+    """
     client = MagicMock()
     if post_side_effect is not None:
-        client.post = AsyncMock(side_effect=post_side_effect)
+        client.request = AsyncMock(side_effect=post_side_effect)
     else:
-        client.post = AsyncMock(return_value=response)
+        client.request = AsyncMock(return_value=response)
     client.aclose = AsyncMock()
     return MagicMock(return_value=client), client
 
@@ -336,8 +340,9 @@ class TestEventsDispatcher(unittest.IsolatedAsyncioTestCase):
             dispatcher.report_message("sent", "agent1peer")
             await dispatcher.stop()
 
-        client.post.assert_awaited()
-        url = client.post.await_args.args[0]
+        client.request.assert_awaited()
+        # RetryTransport calls client.request(method, url, ...) — URL is the second arg.
+        url = client.request.await_args.args[1]
         self.assertTrue(url.endswith("/v1/events"))
         client.aclose.assert_awaited_once()
 
@@ -355,14 +360,14 @@ class TestEventsDispatcher(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(0.2)
             await dispatcher.stop()
 
-        self.assertGreaterEqual(client.post.await_count, 2)
+        self.assertGreaterEqual(client.request.await_count, 2)
 
     async def test_drops_and_accounts_when_queue_full(self):
         # maxsize=1 and no worker running: second/third enqueue are dropped.
         dispatcher = EventsDispatcher(
             self.identity,
             self.agentverse,
-            options=EventIngestionOptions(queue_max_batches=1),
+            options=EventIngestionOptions(max_batch_events=1),
         )
         dispatcher.enqueue(AgentBatchEvents.from_message("one").events)
         dispatcher.enqueue(AgentBatchEvents.from_message("two").events)
@@ -403,8 +408,8 @@ class TestSharedEventsDispatcher(unittest.IsolatedAsyncioTestCase):
             shared.stop()
             await run_task
 
-        self.assertGreaterEqual(client.post.await_count, 2)
-        contents = [c.kwargs["content"] for c in client.post.await_args_list]
+        self.assertGreaterEqual(client.request.await_count, 2)
+        contents = [c.kwargs["content"] for c in client.request.await_args_list]
         messages = []
         for content in contents:
             batch = AgentBatchEvents.model_validate_json(content)
@@ -436,7 +441,7 @@ class TestSharedEventsDispatcher(unittest.IsolatedAsyncioTestCase):
             await run_task
 
         # Same identity may be coalesced into one POST with both messages.
-        contents = [c.kwargs["content"] for c in client.post.await_args_list]
+        contents = [c.kwargs["content"] for c in client.request.await_args_list]
         found_both = False
         for content in contents:
             msgs = {
@@ -444,7 +449,7 @@ class TestSharedEventsDispatcher(unittest.IsolatedAsyncioTestCase):
             }
             if {"alice-1", "alice-2"} <= msgs:
                 found_both = True
-        self.assertTrue(found_both or client.post.await_count >= 2)
+        self.assertTrue(found_both or client.request.await_count >= 2)
 
 
 if __name__ == "__main__":
