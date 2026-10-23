@@ -70,7 +70,7 @@ jobs:
         run: uv sync --locked
       - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
         name: Run tests
-        run: uv run coverage run -m pytest
+        run: uv run --locked --extra llm coverage run -m pytest
         env:
           COVERAGE_FILE: "${{ runner.temp }}/.coverage.${{ runner.os }}.${{ matrix.python-version }}"
       - if: ${{ needs.check-if-files-changed.outputs.uagents == 'true' }}
