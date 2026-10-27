@@ -306,7 +306,7 @@ Use the DELETE endpoint: `DELETE /v2/agents/{agent_address}`
 
 | uagents | uagents-core | Python | Notes |
 |---------|--------------|--------|-------|
-| 0.23.x | >=0.4.0 | 3.10-3.13 | Current version |
+| 0.23.x | >=0.4.0 | 3.10-3.14 | Current version |
 | 0.22.x | 0.3.x | 3.10-3.12 | Requires periodic refresh |
 | 0.21.x | 0.3.x | 3.10-3.12 | Requires periodic refresh |
 
