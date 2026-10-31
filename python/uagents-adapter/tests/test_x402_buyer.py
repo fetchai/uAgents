@@ -535,6 +535,19 @@ async def test_transport_recovery_cannot_create_second_payment(monkeypatch):
     assert calls == 2
 
 
+def test_response_cap_stays_below_sdk_control_plane_buffer():
+    from x402.http import utils as http_utils
+
+    cap = policy().max_response_bytes
+    buffer = getattr(http_utils, "MAX_CONTROL_PLANE_RESPONSE_BYTES", None)
+    if not isinstance(buffer, int):
+        assert cap == 1_000_000
+        return
+    assert cap < buffer
+    with pytest.raises(ValueError, match="control-plane buffer"):
+        policy(max_response_bytes=buffer)
+
+
 def test_foreign_settlement_terms_are_not_promoted():
     selected = requirements()
     result = X402PurchaseResult(

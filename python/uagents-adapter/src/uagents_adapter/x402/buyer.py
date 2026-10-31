@@ -17,12 +17,19 @@ from urllib.parse import urlsplit
 
 import httpx
 from x402 import SpendControlAsset, x402Client, x402ClientConfig
+from x402.http import utils as _http_utils
 from x402.http.clients import x402_httpx_transport
 from x402.http.clients.httpx import PaymentError
 from x402.http.constants import PAYMENT_RESPONSE_HEADER, X_PAYMENT_RESPONSE_HEADER
 from x402.http.utils import decode_payment_response_header
 from x402.schemas import PaymentRequirements, PaymentRequirementsV1, SettleResponse
 from x402.schemas.hooks import AbortResult
+
+# Current official clients buffer control-plane bodies up to this size.
+# Absent on x402 2.21, which has no separate buffer for the buyer to stay under.
+_SDK_CONTROL_PLANE_RESPONSE_BYTES = getattr(
+    _http_utils, "MAX_CONTROL_PLANE_RESPONSE_BYTES", None
+)
 
 _PAYMENT_HEADERS = frozenset(
     {
@@ -138,6 +145,14 @@ class X402PurchasePolicy:
             raise ValueError("max_amount_per_payment must not be empty")
         if self.max_response_bytes < 1:
             raise ValueError("max_response_bytes must be positive")
+        if (
+            isinstance(_SDK_CONTROL_PLANE_RESPONSE_BYTES, int)
+            and self.max_response_bytes >= _SDK_CONTROL_PLANE_RESPONSE_BYTES
+        ):
+            raise ValueError(
+                "max_response_bytes must stay below the x402 control-plane "
+                f"buffer of {_SDK_CONTROL_PLANE_RESPONSE_BYTES} bytes"
+            )
         if self.timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
 
