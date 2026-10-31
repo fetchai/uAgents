@@ -37,7 +37,8 @@ DEFAULT_ASI1_URL = "https://api.asi1.ai/v1"
 DEFAULT_SYSTEM_PROMPT = (
     "You are an AI agent built on the uAgents framework and ChatProtocol. "
     "Respond clearly and concisely to the incoming request, using session history "
-    "as warranted, to provide context for the response."
+    "as warranted, to provide context for the response. "
+    "Only describe capabilities from your instructions and tools. "
 )
 
 INSTRUCTIONS_PREAMBLE = (
@@ -46,12 +47,36 @@ INSTRUCTIONS_PREAMBLE = (
 )
 
 TOOL_USAGE_PROMPT = (
-    "Respond to user queries using the most relevant one of the available tools. "
+    "Always select the most relevant one of the available tools. "
     "If insufficient information is provided to invoke a tool, you may ask for "
     "more details but do not guess. Use ONLY the tools explicitly provided to you; "
     "do not claim or attempt capabilities outside those tools. If the request cannot "
     "be completed with the available tools, ask a clarifying question about what "
-    "tool-enabled action to take."
+    "tool-enabled action to take. "
+    "For greetings, introductions, or questions about who this agent is or what it "
+    "can do, use AgentInfoRequest."
+)
+
+# The final-reply turn is sent without tools (the tool already ran), so a model
+# that still attempts a tool call can come back with empty content: the engine
+# swallows the call when no tools are declared (observed on asi1-mini, where the
+# model tried to fetch the missing part of a multi-part request after being told
+# not to call tools). One retry with this text-only nudge usually recovers a
+# plain answer from the tool result that is already in the conversation.
+EMPTY_FINAL_REPLY_NUDGE = (
+    "Your previous reply was empty. You cannot call tools for this reply; no "
+    "tools are available. Answer in plain text now, using only the information "
+    "already provided. If it is incomplete, still give the best possible answer "
+    "with what you have."
+)
+
+# Last-resort reply when even the retry produced nothing. An empty final message
+# is silent to the user: the turn ends with no text, no error, and no
+# continuation. This keeps the user informed and points at the raw tool result
+# as the recovery path.
+EMPTY_FINAL_REPLY_MESSAGE = (
+    "Sorry, I completed the request but could not produce a readable summary. "
+    "Please ask again to retry the summary."
 )
 
 
@@ -106,11 +131,16 @@ class LLMConfig(BaseModel):
 
 class LLM:
     def __init__(
-        self, config: LLMConfig, tools: dict[str, Tool], instructions: str | None = None
+        self,
+        config: LLMConfig,
+        tools: dict[str, Tool],
+        instructions: str | None = None,
+        agent_name: str | None = None,
     ):
         self._config = config
         self._tools = tools
         self._instructions = instructions
+        self._agent_name = agent_name
 
     def _build_tool_specs(self) -> list[dict[str, Any]]:
         return [tool.tool_spec() for tool in self._tools.values()]
@@ -156,6 +186,12 @@ class LLM:
 
     def _system_content(self, tools_specs: list[dict[str, Any]]) -> str:
         parts: list[str] = [DEFAULT_SYSTEM_PROMPT.strip()]
+        name = (self._agent_name or "").strip()
+        if name:
+            parts.append(
+                f'Your identity is "{name}". Introduce yourself as {name}, '
+                "never as the underlying model."
+            )
         instructions = (self._instructions or "").strip()
         if instructions:
             parts.append(f"{INSTRUCTIONS_PREAMBLE}{instructions}")
@@ -204,13 +240,18 @@ class LLM:
             return (tool_name, args_dict, tool_call_id, msg)
 
         content_text = (msg.get("content") or "").strip()
-        if content_text:
-            return ("__plain_text__", {"message": content_text}, None, msg)
-
-        raise RuntimeError("LLM returned neither tool_calls nor content.")
+        return ("__plain_text__", {"message": content_text}, None, msg)
 
     async def complete(self, messages: list[dict]) -> str:
-        """Finalize a chat turn after tool execution."""
+        """Finalize a chat turn after tool execution.
+
+        The final turn is sent without tools (the tool already ran), so a model
+        that still attempts a tool call returns empty content — the engine
+        swallows the call because no tools are declared. An empty reply is
+        retried once with a text-only nudge; if the retry is still empty, a
+        fallback message is returned so the user is never left with a silent
+        turn.
+        """
         kwargs = self._get_base_kwargs(
             messages, exclude_params={"system_prompt", "tool_choice"}
         )
@@ -221,6 +262,20 @@ class LLM:
             raise RuntimeError(_provider_error_message(e)) from e
 
         text = (resp.choices[0].message.content or "").strip()  # type: ignore
+
+        if not text:
+            nudged = [*messages, {"role": "user", "content": EMPTY_FINAL_REPLY_NUDGE}]
+            retry_kwargs = self._get_base_kwargs(
+                nudged, exclude_params={"system_prompt", "tool_choice"}
+            )
+            try:
+                resp = cast(ModelResponse, await acompletion(**retry_kwargs))
+            except Exception as e:
+                raise RuntimeError(_provider_error_message(e)) from e
+            text = (resp.choices[0].message.content or "").strip()  # type: ignore
+
+        if not text:
+            return EMPTY_FINAL_REPLY_MESSAGE
 
         if "<tool_call>" in text or "</tool_call>" in text:
             return (

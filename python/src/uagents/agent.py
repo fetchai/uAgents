@@ -3,9 +3,13 @@
 import asyncio
 import contextlib
 import functools
+import itertools
 import logging
 import os
+import traceback
 import uuid
+from collections.abc import Iterator
+from datetime import tzinfo
 from typing import Any
 
 import aiohttp
@@ -16,6 +20,14 @@ from cosmpy.crypto.address import Address
 from pydantic import ValidationError
 from typing_extensions import deprecated
 from uagents_core.config import AgentverseConfig
+from uagents_core.events import (
+    AgentBatchEvents,
+    AgentEventsHandle,
+    EventsDispatcher,
+    SharedEventsDispatcher,
+    dispatch_events,
+    is_registered_on_agentverse,
+)
 from uagents_core.identity import Identity, derive_key_from_seed, is_user_address
 from uagents_core.models import ErrorMessage, Model
 from uagents_core.registration import AgentProfile, RegistrationRequest
@@ -74,6 +86,7 @@ from uagents.registration import (
     update_agent_status,
 )
 from uagents.resolver import GlobalResolver, Resolver
+from uagents.schedule import Cron
 from uagents.storage import KeyValueStore, get_or_create_private_keys
 from uagents.types import (
     AgentNetwork,
@@ -98,18 +111,23 @@ async def _run_interval(
     func: IntervalCallback,
     logger: logging.Logger,
     context_factory: ContextFactory,
-    period: float,
+    delays: Iterator[float],
 ) -> None:
     """
-    Run the provided interval callback function at a specified period.
+    Run the provided interval callback function after each of the given delays.
 
     Args:
         func (IntervalCallback): The interval callback function to run.
         logger (logging.Logger): The logger instance for logging interval handler activities.
         context_factory (ContextFactory): The factory function for creating the context.
-        period (float): The time period at which to run the callback function.
+        delays (Iterator[float]): The time in seconds to wait before each run.
     """
-    while True:
+    for delay in delays:
+        try:
+            await asyncio.sleep(delay)
+        except asyncio.CancelledError:
+            return
+
         try:
             ctx = context_factory()
             await asyncio.shield(func(ctx))
@@ -121,11 +139,6 @@ async def _run_interval(
             logger.exception(f"Runtime Error in interval handler: {ex}")
         except Exception as ex:
             logger.exception(f"Exception in interval handler: {ex}")
-
-        try:
-            await asyncio.sleep(period)
-        except asyncio.CancelledError:
-            return
 
 
 async def _send_error_message(ctx: Context, destination: str, msg: ErrorMessage):
@@ -238,8 +251,8 @@ class Agent(Sink):
         _ledger: The client for interacting with the blockchain ledger.
         _almanac_contract: The almanac contract for registering agent addresses to endpoints.
         _storage: Key-value store for agent data storage.
-        _interval_handlers (list[tuple[IntervalCallback, float]]): List of interval
-        handlers and their periods.
+        _interval_handlers (list[tuple[IntervalCallback, float | Cron]]): List of interval
+        handlers and their periods or cron schedules.
         _interval_messages (set[str]): Set of message digests that may be sent by interval tasks.
         _signed_message_handlers (dict[str, MessageCallback]): Handlers for signed messages.
         _unsigned_message_handlers (dict[str, MessageCallback]): Handlers for
@@ -314,6 +327,7 @@ class Agent(Sink):
         handle_messages_concurrently: bool = False,
         shutdown_timeout: float = 60.0,
         mark_inactive_on_shutdown: bool = True,
+        report_events: bool = True,
     ):
         """
         Initialize an Agent instance.
@@ -350,6 +364,9 @@ class Agent(Sink):
             mark_inactive_on_shutdown (bool): Whether to mark the agent as inactive in Almanac
             during shutdown. Set to False for deployments where a new instance replaces this one
             (e.g., Kubernetes rolling updates). Defaults to True.
+            report_events (bool): Whether to report lifecycle, message, and error telemetry
+            events to Agentverse. Events are only sent if the agent is also registered on
+            Agentverse (resolved at startup). Defaults to True.
         """
         self._init_done = False
         self._name = name
@@ -387,7 +404,7 @@ class Agent(Sink):
         self._ledger = get_ledger(network)
         self._almanac_contract = get_almanac_contract(network)
         self._storage = KeyValueStore(self.address[0:16])
-        self._interval_handlers: list[tuple[IntervalCallback, float]] = []
+        self._interval_handlers: list[tuple[IntervalCallback, float | Cron]] = []
         self._interval_messages: set[str] = set()
         self._signed_message_handlers: dict[str, MessageCallback] = {}
         self._unsigned_message_handlers: dict[str, MessageCallback] = {}
@@ -417,6 +434,9 @@ class Agent(Sink):
         self._handle_messages_concurrently = handle_messages_concurrently
         self._shutdown_timeout = shutdown_timeout
         self._mark_inactive_on_shutdown = mark_inactive_on_shutdown
+        self._report_events = report_events
+        self._events_enabled = False
+        self._events_dispatcher: EventsDispatcher | AgentEventsHandle | None = None
         self._on_startup = []
         self._on_shutdown = []
         self._network = network
@@ -566,6 +586,7 @@ class Agent(Sink):
             interval_messages=self._interval_messages,
             logger=self._logger,
             message_history=self._message_history,
+            events_dispatcher=self._events_dispatcher,
         )
 
     def _initialize_wallet_and_identity(
@@ -893,6 +914,26 @@ class Agent(Sink):
         """
         return self._protocol.on_interval(period, messages)
 
+    def on_schedule(
+        self,
+        cron: str,
+        tz: str | tzinfo | None = None,
+        messages: type[Model] | set[type[Model]] | None = None,
+    ):
+        """
+        Decorator to register a handler that runs on a cron schedule.
+
+        Args:
+            cron (str): The cron expression, e.g. "*/5 * * * *" for every 5 minutes.
+            tz (str | tzinfo | None): The timezone to evaluate the schedule in, e.g.
+            "Europe/London". Defaults to UTC.
+            messages (type[Model] | set[type[Model]] | None): Optional message types.
+
+        Returns:
+            Callable: The decorator function for registering scheduled handlers.
+        """
+        return self._protocol.on_schedule(cron, tz, messages)
+
     @deprecated(
         "on_query is deprecated and will be removed in a future release, use on_rest instead."
     )
@@ -1145,8 +1186,41 @@ class Agent(Sink):
         except Exception as ex:
             self._logger.exception(f"Failed to update agent registration status: {ex}")
 
+    async def _resolve_events_enabled(self) -> None:
+        """
+        Resolve whether telemetry events should be reported for this agent.
+
+        Events are enabled only if the `report_events` toggle is on AND the agent
+        is registered on Agentverse. Fails closed on any error.
+        """
+        if not self._report_events:
+            self._events_enabled = False
+            return
+        self._events_enabled = await is_registered_on_agentverse(
+            self._identity, self._agentverse
+        )
+
+    def _report_message_received(self, session: uuid.UUID, sender: str) -> None:
+        """Report a `message` telemetry event for an inbound message."""
+        if self._events_dispatcher is not None:
+            self._events_dispatcher.report_message("received", sender, session)
+
+    def _report_handler_error(self, ex: Exception) -> None:
+        """Report an `error` telemetry event for a message-handler failure."""
+        if self._events_dispatcher is not None:
+            self._events_dispatcher.report_exception(
+                ex, traceback.format_exc(), category="user"
+            )
+
     async def run_shutdown_tasks(self):
         """Perform shutdown actions."""
+        if self._events_enabled:
+            await dispatch_events(
+                self._identity,
+                self._agentverse,
+                AgentBatchEvents.from_message("Agent Stopped"),
+                logger=self._logger,
+            )
         for handler in self._on_shutdown:
             try:
                 ctx = self._build_context()
@@ -1210,6 +1284,10 @@ class Agent(Sink):
         # Run shutdown handlers
         await self.run_shutdown_tasks()
 
+        if isinstance(self._events_dispatcher, EventsDispatcher):
+            await self._events_dispatcher.stop()
+        self._events_dispatcher = None
+
         # Shutdown dispenser, which will try to send any queued outgoing messages first
         if self._dispenser_task:
             self._dispenser_task.cancel()
@@ -1247,6 +1325,21 @@ class Agent(Sink):
     async def run_startup_tasks(self):
         """Start startup tasks for the agent."""
         await self._update_agent_status(active=True)
+        await self._resolve_events_enabled()
+        if not self._events_enabled:
+            self._events_dispatcher = None
+        elif self._events_dispatcher is None:
+            self._events_dispatcher = EventsDispatcher(
+                self._identity, self._agentverse, logger=self._logger
+            )
+            await self._events_dispatcher.start()
+        if self._events_enabled:
+            await dispatch_events(
+                self._identity,
+                self._agentverse,
+                AgentBatchEvents.from_message("Agent Started"),
+                logger=self._logger,
+            )
         for handler in self._on_startup:
             try:
                 ctx = self._build_context()
@@ -1261,8 +1354,12 @@ class Agent(Sink):
     def start_interval_tasks(self):
         """Start interval tasks for the agent."""
         for func, period in self._interval_handlers:
+            if isinstance(period, Cron):
+                delays = period.delays()
+            else:
+                delays = itertools.chain([0.0], itertools.repeat(period))
             task = self._loop.create_task(
-                _run_interval(func, self._logger, self._build_context, period)
+                _run_interval(func, self._logger, self._build_context, delays)
             )
             self._interval_tasks.add(task)
             task.add_done_callback(self._interval_tasks.discard)
@@ -1360,15 +1457,20 @@ class Agent(Sink):
         model_class: type[Model],
         message: Model,
     ):
+        if self._events_enabled:
+            self._report_message_received(context.session, sender)
         try:
             await handler(context, sender, message)
             context.validate_replies(model_class)
         except OSError as ex:
             self._logger.exception(f"OS Error in message handler: {ex}")
+            self._report_handler_error(ex)
         except RuntimeError as ex:
             self._logger.exception(f"Runtime Error in message handler: {ex}")
+            self._report_handler_error(ex)
         except Exception as ex:
             self._logger.exception(f"Exception in message handler: {ex}")
+            self._report_handler_error(ex)
 
     async def _process_single_message(
         self,
@@ -1430,6 +1532,7 @@ class Agent(Sink):
             ),
             protocol=protocol_info,
             message_history=self._message_history,
+            events_dispatcher=self._events_dispatcher,
         )
 
         # sanity check
@@ -1628,6 +1731,10 @@ class Bureau:
                 almanac_api=self._agentverse.almanac_api,
             )
 
+        self._shared_events_dispatcher = SharedEventsDispatcher(
+            self._agentverse, logger=self._logger
+        )
+
         if agents is not None:
             for agent in agents:
                 self.add(agent)
@@ -1671,6 +1778,12 @@ class Bureau:
 
         agent._agentverse = self._agentverse
         agent._logger.setLevel(self._logger.level)
+
+        if agent._report_events:
+            dispatcher = EventsDispatcher(agent._identity, self._agentverse)
+            agent._events_dispatcher = self._shared_events_dispatcher.add_agent(
+                dispatcher
+            )
 
     def add(self, agent: Agent):
         """
@@ -1779,6 +1892,13 @@ class Bureau:
                 agent._dispenser_task.cancel()
                 await asyncio.gather(agent._dispenser_task, return_exceptions=True)
 
+        self._shared_events_dispatcher.stop()
+        with contextlib.suppress(TimeoutError, asyncio.CancelledError):
+            await asyncio.wait_for(
+                self._events_dispatcher_task,
+                timeout=self._shutdown_timeout,
+            )
+
     async def run_async(self):
         """Run the agents managed by the bureau."""
         coros = [self._server.serve()]
@@ -1794,6 +1914,9 @@ class Bureau:
             ):
                 coros.append(agent.mailbox_client.run())
 
+        self._events_dispatcher_task = self._loop.create_task(
+            self._shared_events_dispatcher.run()
+        )
         self._loop.create_task(self._schedule_registration())
 
         # Convert coroutines to tasks

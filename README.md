@@ -10,6 +10,7 @@ uAgents is a library developed by Fetch.ai that allows for creating autonomous A
 - 🤖 **Easy creation and management**: Create any type of agent you can think of and implement it in code.
 - 🔗 **Connected**: On startup, each agent automatically joins the fast-growing network of uAgents by registering on the Almanac, a smart contract deployed on the Fetch.ai blockchain.
 - 🔒 **Secure**: uAgent messages and wallets are cryptographically secured, so their identities and assets are protected.
+- 📊 **Observable**: Agents registered on Agentverse automatically report start/stop, message (sent/received), and error telemetry events to the Agentverse dashboard (toggle with `report_events`).
 
 ## ⚡ Quickstart
 

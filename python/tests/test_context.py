@@ -695,32 +695,40 @@ class TestMessageHistory(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(messages), 0)
 
     async def test_messages_deleted_after_retention_period(self):
+        async def wait_for_count(get_count, expected, timeout=2.0):
+            deadline = asyncio.get_running_loop().time() + timeout
+            while get_count() != expected:
+                if asyncio.get_running_loop().time() > deadline:
+                    break
+                await asyncio.sleep(0.01)
+            return get_count()
+
         ctx = self.alice._build_context()
         await ctx.send(self.bob_retention_period.address, msg)
-        await asyncio.sleep(0.1)
 
         message_history = self.bob_retention_period._message_history
         assert message_history is not None
-        msgs = message_history.get_cached_messages().envelopes
-        self.assertEqual(len(msgs), 2)
 
-        stored_msgs = message_history.get_session_messages(ctx.session)
-        self.assertEqual(len(stored_msgs), 2)
+        def cached_count():
+            return len(message_history.get_cached_messages().envelopes)
 
-        await asyncio.sleep(1)
+        def stored_count():
+            return len(message_history.get_session_messages(ctx.session))
+
+        self.assertEqual(await wait_for_count(cached_count, 2), 2)
+        self.assertEqual(stored_count(), 2)
+
+        # timestamps have 1s resolution, so wait > 2s to guarantee expiry
+        await asyncio.sleep(2.1)
         await ctx.send(self.bob_retention_period.address, msg)
-        await asyncio.sleep(0.1)
-
-        msgs = message_history.get_cached_messages().envelopes
-
-        # The first 2 messages should be deleted from cache, leaving only the second 2
-        self.assertEqual(len(msgs), 2)
 
         # All messages should still be in storage since session is still active
-        stored_msgs = message_history.get_session_messages(ctx.session)
-        self.assertEqual(len(stored_msgs), 4)
+        self.assertEqual(await wait_for_count(stored_count, 4), 4)
 
-        await asyncio.sleep(1)
+        # The first 2 messages should be deleted from cache, leaving only the second 2
+        self.assertEqual(cached_count(), 2)
+
+        await asyncio.sleep(2.1)
         message_history.apply_retention_policy()
         stored_msgs = message_history.get_session_messages(ctx.session)
 

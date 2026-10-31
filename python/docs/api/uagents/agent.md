@@ -125,8 +125,8 @@ ts at which the agent is reachable.
 - `_ledger` - The client for interacting with the blockchain ledger.
 - `_almanac_contract` - The almanac contract for registering agent addresses to endpoints.
 - `_storage` - Key-value store for agent data storage.
-- `_interval_handlers` _list[tuple[IntervalCallback, float]]_ - List of interval
-  handlers and their periods.
+- `_interval_handlers` _list[tuple[IntervalCallback, float | Cron]]_ - List of interval
+  handlers and their periods or cron schedules.
 - `_interval_messages` _set[str]_ - Set of message digests that may be sent by interval tasks.
 - `_signed_message_handlers` _dict[str, MessageCallback]_ - Handlers for signed messages.
 - `_unsigned_message_handlers` _dict[str, MessageCallback]_ - Handlers for
@@ -201,7 +201,8 @@ def __init__(name: str | None = None,
              store_message_history: bool = False,
              handle_messages_concurrently: bool = False,
              shutdown_timeout: float = 60.0,
-             mark_inactive_on_shutdown: bool = True)
+             mark_inactive_on_shutdown: bool = True,
+             report_events: bool = True)
 ```
 
 Initialize an Agent instance.
@@ -239,6 +240,9 @@ Initialize an Agent instance.
 - `mark_inactive_on_shutdown` _bool_ - Whether to mark the agent as inactive in Almanac
   during shutdown. Set to False for deployments where a new instance replaces this one
   (e.g., Kubernetes rolling updates). Defaults to True.
+- `report_events` _bool_ - Whether to report lifecycle, message, and error telemetry
+  events to Agentverse. Events are only sent if the agent is also registered on
+  Agentverse (resolved at startup). Defaults to True.
 
 
 
@@ -542,6 +546,29 @@ Decorator to register an interval handler for the provided period.
 **Returns**:
 
 - `Callable` - The decorator function for registering interval handlers.
+
+
+
+#### on_schedule
+```python
+def on_schedule(cron: str,
+                tz: str | tzinfo | None = None,
+                messages: type[Model] | set[type[Model]] | None = None)
+```
+
+Decorator to register a handler that runs on a cron schedule.
+
+**Arguments**:
+
+- `cron` _str_ - The cron expression, e.g. "*/5 * * * *" for every 5 minutes.
+- `tz` _str | tzinfo | None_ - The timezone to evaluate the schedule in, e.g.
+  "Europe/London". Defaults to UTC.
+- `messages` _type[Model] | set[type[Model]] | None_ - Optional message types.
+  
+
+**Returns**:
+
+- `Callable` - The decorator function for registering scheduled handlers.
 
 
 

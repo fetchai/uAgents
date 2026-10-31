@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10, <4.0"
 resolution-markers = [
     "python_full_version >= '3.14' and platform_python_implementation != 'PyPy'",
@@ -338,7 +338,7 @@ resolution-markers = [
     "python_full_version < '3.14' and platform_python_implementation != 'PyPy'",
 ]
 dependencies = [
-    { name = "pycparser", marker = "python_full_version < '3.14' and platform_python_implementation != 'PyPy'" },
+    { name = "pycparser" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/fc/97/c783634659c2920c3fc70419e3af40972dbaf758daa229a7d6ea6135c90d/cffi-1.17.1.tar.gz", hash = "sha256:1c39c6016c32bc48dd54561950ebd6836e1670f2ae46128f67cf49e789c52824", size = 516621, upload-time = "2024-09-04T20:45:21.852Z" }
 wheels = [
@@ -398,7 +398,7 @@ resolution-markers = [
     "python_full_version >= '3.14' and platform_python_implementation != 'PyPy'",
 ]
 dependencies = [
-    { name = "pycparser", marker = "python_full_version >= '3.14' and implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'" },
+    { name = "pycparser", marker = "implementation_name != 'PyPy'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/eb/56/b1ba7935a17738ae8453301356628e8147c79dbb825bcbc73dc7401f9846/cffi-2.0.0.tar.gz", hash = "sha256:44d1b5909021139fe36001ae048dbdde8214afa20200eda0f64c068cac5d5529", size = 523588, upload-time = "2025-09-08T23:24:04.541Z" }
 wheels = [
@@ -756,6 +756,14 @@ toml = [
 ]
 
 [[package]]
+name = "cronsim"
+version = "2.7"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fb/1a/02f105147f7f2e06ed4f734ff5a6439590bb275a53dd91fc73df6312298a/cronsim-2.7-py3-none-any.whl", hash = "sha256:1e1431fa08c51dc7f72e67e571c7c7a09af26420169b607badd4ca9677ffad1e", size = 14213, upload-time = "2025-10-21T16:38:20.431Z" },
+]
+
+[[package]]
 name = "databind"
 version = "4.5.3"
 source = { registry = "https://pypi.org/simple" }
@@ -876,7 +884,7 @@ name = "exceptiongroup"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371, upload-time = "2025-11-21T23:01:54.787Z" }
 wheels = [
@@ -2896,13 +2904,24 @@ wheels = [
 ]
 
 [[package]]
+name = "tzdata"
+version = "2026.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/31/3d74fa778a63b98b7374323befcc0be5ab3bd94afd4096a0124e7379152c/tzdata-2026.4.tar.gz", hash = "sha256:f1b8bd365d8d210c55353f4d7f8d6d8561c0ba50d704b700d195a9424bba0d79", size = 199350, upload-time = "2026-09-12T12:56:03.251Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f9/bc/8737e8d54cf51106118039b83f485a4783112fab49ea9d044b234978a46e/tzdata-2026.4-py2.py3-none-any.whl", hash = "sha256:c2169a8b0a7a5e9674da5a135ccdfb2b3e671b333ed9fed17b41f73c34476e81", size = 347494, upload-time = "2026-09-12T12:56:01.67Z" },
+]
+
+[[package]]
 name = "uagents"
-version = "0.25.5"
+version = "0.26.1"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
     { name = "cosmpy" },
+    { name = "cronsim" },
     { name = "pydantic" },
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
     { name = "uagents-core" },
     { name = "uvicorn" },
 ]
@@ -2931,10 +2950,12 @@ dev = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.8.3,<4.0" },
     { name = "cosmpy", specifier = ">=0.12.1" },
+    { name = "cronsim", specifier = ">=2.7,<3.0" },
     { name = "litellm", marker = "extra == 'all'", specifier = ">=1.78.6,<2.0" },
     { name = "litellm", marker = "extra == 'llm'", specifier = ">=1.78.6,<2.0" },
     { name = "pydantic", specifier = ">=2.8,<3.0" },
-    { name = "uagents-core", specifier = ">=0.4.8" },
+    { name = "tzdata", marker = "sys_platform == 'win32'", specifier = ">=2024.1" },
+    { name = "uagents-core", specifier = ">=0.4.12" },
     { name = "uvicorn", specifier = ">=0.30.1,<1.0" },
 ]
 provides-extras = ["all", "wallet", "llm"]
@@ -2953,7 +2974,7 @@ dev = [
 
 [[package]]
 name = "uagents-core"
-version = "0.4.8"
+version = "0.4.12"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "bech32" },
@@ -2962,9 +2983,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/45/d7/f9ef4f3bcfb7910ce8d9fb99e297bb1f16cdbd2a636232a3afd357e742ee/uagents_core-0.4.8.tar.gz", hash = "sha256:fedee1101a98f187c46b9723b794a075ffc6d111570d5e536fd3e07fedc4a86a", size = 91347, upload-time = "2026-07-13T13:54:59.205Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b6/d8/8da47337ef2c81a9a7f3d0eb55a4b6029e2d5086deaa1b9eb1507edc4534/uagents_core-0.4.12.tar.gz", hash = "sha256:f2c1495cb93476455a70a4c8117d36c3d84b4c6b439e1e3f60fdc520ac110cf9", size = 120201, upload-time = "2026-10-13T10:34:37.536Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/41/df/38d242d5acbb278335482abc52295e1a0e2503bf36bee27782d8333698b5/uagents_core-0.4.8-py3-none-any.whl", hash = "sha256:015364cd39a57c02583318dbd8779c853cd0c9e2bea9ee75a04c299002d7aaaa", size = 45615, upload-time = "2026-07-13T13:54:58.223Z" },
+    { url = "https://files.pythonhosted.org/packages/0d/3f/b2a2d130ba0d66cb61b61c1c86512903c913f9bbdb31e45c994f695d8a17/uagents_core-0.4.12-py3-none-any.whl", hash = "sha256:345375122b5ed11cb17b50fd3787e70dc716e6d333b12aaf9563da910bf13a6a", size = 53655, upload-time = "2026-10-13T10:34:36.356Z" },
 ]
 
 [[package]]
