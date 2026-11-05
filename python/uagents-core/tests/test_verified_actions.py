@@ -49,7 +49,9 @@ class TestRoundTrip:
         content = create_verified_actions_content(data)
 
         assert content.type == "metadata"
-        assert content.metadata[META_VERIFIED_ACTIONS_VERSION] == VERIFIED_ACTIONS_VERSION
+        assert (
+            content.metadata[META_VERIFIED_ACTIONS_VERSION] == VERIFIED_ACTIONS_VERSION
+        )
 
         extracted = extract_verified_actions(content)
         assert extracted is not None
@@ -141,9 +143,7 @@ class TestExtractReturnsNone:
         assert extract_verified_actions(content) is None
 
     def test_missing_data_payload(self):
-        content = MetadataContent(
-            metadata={META_VERIFIED_ACTIONS_VERSION: "1"}
-        )
+        content = MetadataContent(metadata={META_VERIFIED_ACTIONS_VERSION: "1"})
         assert extract_verified_actions(content) is None
 
     def test_invalid_json(self):

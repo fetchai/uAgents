@@ -148,9 +148,7 @@ def extract_verified_actions(
     try:
         return VerifiedActions.model_validate_json(raw)
     except ValidationError:
-        _logger.warning(
-            "verified actions data failed validation", exc_info=True
-        )
+        _logger.warning("verified actions data failed validation", exc_info=True)
         return None
 
 
