@@ -25,10 +25,8 @@ jobs:
             uagents:
               - 'python/**'
               - '!python/uagents-core/**'
-              - '.github/**'
             uagents-core:
               - 'python/uagents-core/**'
-              - '.github/**'
 
   tests:
     name: Tests
