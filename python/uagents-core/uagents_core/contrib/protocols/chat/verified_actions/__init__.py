@@ -88,10 +88,22 @@ class IntegrationAction(_ToolActionBase):
     tool_name: str
 
 
+class UnknownAction(BaseModel):
+    """An action that occurred but could not be identified.
+
+    Does not inherit ``_ToolActionBase`` because the base fields may not
+    be available.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    type: Literal["unknown"] = "unknown"
+
+
 # ── Discriminated union ──────────────────────────────────────────────────
 
 ToolAction = Annotated[
-    WebAction | LlmAction | McpAction | IntegrationAction,
+    WebAction | LlmAction | McpAction | IntegrationAction | UnknownAction,
     Field(discriminator="type"),
 ]
 
@@ -152,13 +164,16 @@ def extract_verified_actions(
         return None
 
 
-def validate_tool_action(raw: dict) -> ToolAction | None:
-    """Validate a raw dict (e.g. from the VM queue) as a typed ``ToolAction``.
+_tool_action_adapter = TypeAdapter(ToolAction)
 
-    Returns ``None`` on validation failure — never raises.
+
+def validate_tool_action(raw: dict) -> ToolAction:
+    """Validate a raw dict as a typed ``ToolAction``.
+
+    Returns ``UnknownAction`` when validation fails.
     """
     try:
-        return TypeAdapter(ToolAction).validate_python(raw)
+        return _tool_action_adapter.validate_python(raw)
     except ValidationError:
-        _logger.warning("tool action dict failed validation", exc_info=True)
-        return None
+        _logger.warning("tool action validation failed: %s", raw, exc_info=True)
+        return UnknownAction()
