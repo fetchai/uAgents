@@ -16,6 +16,7 @@ from uagents import Model
 from uagents.experimental.chat_agent.llm import (
     EMPTY_FINAL_REPLY_MESSAGE,
     EMPTY_FINAL_REPLY_NUDGE,
+    FINAL_REPLY_INSTRUCTION,
     LLM,
     LLMConfig,
     LLMParams,
@@ -126,8 +127,10 @@ class TestCompleteFinalReply(unittest.IsolatedAsyncioTestCase):
         # The retry carries the original messages plus the nudge.
         first_messages = mocked.await_args_list[0].kwargs["messages"]
         retry_messages = mocked.await_args_list[1].kwargs["messages"]
-        self.assertEqual(first_messages, _final_messages())
-        self.assertEqual(len(retry_messages), len(first_messages) + 1)
+        self.assertEqual(first_messages[:-1], _final_messages())
+        self.assertEqual(first_messages[-1]["role"], "user")
+        self.assertEqual(first_messages[-1]["content"], FINAL_REPLY_INSTRUCTION)
+        self.assertEqual(retry_messages[:-1], _final_messages())
         self.assertEqual(retry_messages[-1]["role"], "user")
         self.assertEqual(retry_messages[-1]["content"], EMPTY_FINAL_REPLY_NUDGE)
 

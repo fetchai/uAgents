@@ -70,6 +70,10 @@ EMPTY_FINAL_REPLY_NUDGE = (
     "with what you have."
 )
 
+FINAL_REPLY_INSTRUCTION = (
+    "Do not call tools. Answer in plain text using only the information provided."
+)
+
 # Last-resort reply when even the retry produced nothing. An empty final message
 # is silent to the user: the turn ends with no text, no error, and no
 # continuation. This keeps the user informed and points at the raw tool result
@@ -262,7 +266,11 @@ class LLM:
         the retry is still empty, a fallback message is returned so the user is
         never left with a silent turn.
         """
-        kwargs = self._final_reply_kwargs(messages)
+        instructed = [
+            *messages,
+            {"role": "user", "content": FINAL_REPLY_INSTRUCTION},
+        ]
+        kwargs = self._final_reply_kwargs(instructed)
 
         try:
             resp = cast(ModelResponse, await acompletion(**kwargs))
