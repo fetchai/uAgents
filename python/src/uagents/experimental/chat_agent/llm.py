@@ -57,12 +57,12 @@ TOOL_USAGE_PROMPT = (
     "can do, use AgentInfoRequest."
 )
 
-# The final-reply turn is sent without tools (the tool already ran), so a model
-# that still attempts a tool call can come back with empty content: the engine
-# swallows the call when no tools are declared (observed on asi1-mini, where the
-# model tried to fetch the missing part of a multi-part request after being told
-# not to call tools). One retry with this text-only nudge usually recovers a
-# plain answer from the tool result that is already in the conversation.
+# The final-reply turn declares the tools with tool_choice="none": with no tools
+# declared, a model that still attempts a tool call comes back with empty
+# content because the engine swallows the call (observed on asi1-mini for most
+# multi-part requests). If a reply is still empty, one retry with this text-only
+# nudge usually recovers a plain answer from the tool result that is already in
+# the conversation.
 EMPTY_FINAL_REPLY_NUDGE = (
     "Your previous reply was empty. You cannot call tools for this reply; no "
     "tools are available. Answer in plain text now, using only the information "
@@ -242,19 +242,27 @@ class LLM:
         content_text = (msg.get("content") or "").strip()
         return ("__plain_text__", {"message": content_text}, None, msg)
 
-    async def complete(self, messages: list[dict]) -> str:
-        """Finalize a chat turn after tool execution.
-
-        The final turn is sent without tools (the tool already ran), so a model
-        that still attempts a tool call returns empty content — the engine
-        swallows the call because no tools are declared. An empty reply is
-        retried once with a text-only nudge; if the retry is still empty, a
-        fallback message is returned so the user is never left with a silent
-        turn.
-        """
+    def _final_reply_kwargs(self, messages: list[dict]) -> dict[str, Any]:
         kwargs = self._get_base_kwargs(
             messages, exclude_params={"system_prompt", "tool_choice"}
         )
+        tools_specs = self._build_tool_specs()
+        if tools_specs:
+            kwargs["tools"] = tools_specs
+            kwargs["tool_choice"] = "none"
+        return kwargs
+
+    async def complete(self, messages: list[dict]) -> str:
+        """Finalize a chat turn after tool execution.
+
+        The tool already ran, so tools are declared with tool_choice="none": the
+        conversation contains tool calls, and without the declarations a model
+        that attempts another call returns empty content because the engine
+        swallows it. An empty reply is retried once with a text-only nudge; if
+        the retry is still empty, a fallback message is returned so the user is
+        never left with a silent turn.
+        """
+        kwargs = self._final_reply_kwargs(messages)
 
         try:
             resp = cast(ModelResponse, await acompletion(**kwargs))
@@ -265,9 +273,7 @@ class LLM:
 
         if not text:
             nudged = [*messages, {"role": "user", "content": EMPTY_FINAL_REPLY_NUDGE}]
-            retry_kwargs = self._get_base_kwargs(
-                nudged, exclude_params={"system_prompt", "tool_choice"}
-            )
+            retry_kwargs = self._final_reply_kwargs(nudged)
             try:
                 resp = cast(ModelResponse, await acompletion(**retry_kwargs))
             except Exception as e:

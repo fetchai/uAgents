@@ -1,10 +1,11 @@
 """Tests for the chat_agent LLM final-reply handling.
 
-The final-reply turn (``LLM.complete``) runs without tools. A model that still
+The final-reply turn (``LLM.complete``) declares the tools with
+tool_choice="none", because without the declarations a model that still
 attempts a tool call comes back with empty content — the engine swallows the
-call because no tools are declared. These tests pin the recovery contract:
-one text-only nudge retry, then a visible fallback message. Never an empty
-string, which would end the user's turn silently.
+call. These tests pin that request shape and the recovery contract: one
+text-only nudge retry, then a visible fallback message. Never an empty string,
+which would end the user's turn silently.
 """
 
 import unittest
@@ -74,6 +75,35 @@ class TestCompleteFinalReply(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(text, "BTC is at 36.4, signals mixed.")
         self.assertEqual(mocked.await_count, 1)
+
+    async def test_tools_declared_with_tool_choice_none(self):
+        llm = _llm()
+        responses = [_fake_response(""), _fake_response("Recovered answer.")]
+
+        async def fake_completion(**kwargs):
+            return responses.pop(0)
+
+        with patch(
+            "uagents.experimental.chat_agent.llm.acompletion",
+            side_effect=fake_completion,
+        ) as mocked:
+            await llm.complete(_final_messages())
+
+        for call in mocked.await_args_list:
+            self.assertEqual(call.kwargs["tools"], [_tool().tool_spec()])
+            self.assertEqual(call.kwargs["tool_choice"], "none")
+
+    async def test_no_tools_declared_when_agent_has_none(self):
+        llm = _llm()
+        llm._tools = {}
+        with patch(
+            "uagents.experimental.chat_agent.llm.acompletion",
+            return_value=_fake_response("Plain answer."),
+        ) as mocked:
+            await llm.complete(_final_messages())
+
+        self.assertNotIn("tools", mocked.await_args.kwargs)
+        self.assertNotIn("tool_choice", mocked.await_args.kwargs)
 
     async def test_empty_reply_retried_once_with_nudge(self):
         llm = _llm()
