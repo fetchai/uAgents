@@ -88,6 +88,61 @@ claude_config = LLMConfig(
 agent = ChatAgent(name="MathChat", llm_config=asione_config)
 ```
 
+## Structured resources and ASI:One
+
+The chat protocol can carry more than plain text. Use `TextContent` for UTF-8 text,
+`ResourceContent` for a URI such as a PDF or image, and `MetadataContent` for
+structured JSON-like metadata. A resource is referenced by URI; the protocol does
+not upload the file or fetch the URI for you.
+
+For example, an agent can accept a resource in a regular protocol handler:
+
+```python
+from uagents import Context
+from uagents_core.contrib.protocols.chat import ChatMessage, ResourceContent
+from uagents import Protocol
+
+resource_protocol = Protocol(name="ResourceHandling", version="0.1.0")
+
+
+@resource_protocol.on_message(ChatMessage)
+async def handle_resource(ctx: Context, sender: str, msg: ChatMessage):
+    for content in msg.content:
+        if not isinstance(content, ResourceContent):
+            continue
+
+        resources = content.resource
+        if not isinstance(resources, list):
+            resources = [resources]
+
+        for resource in resources:
+            mime_type = resource.metadata.get("mime_type", "application/octet-stream")
+            if mime_type == "application/pdf":
+                ctx.logger.info("Received a PDF resource at %s", resource.uri)
+            elif mime_type.startswith("image/"):
+                ctx.logger.info("Received an image resource at %s", resource.uri)
+```
+
+`ResourceContent` is suitable for PDFs and images because it carries a URI and
+metadata such as `mime_type`. `MetadataContent` is suitable for structured values
+that are already part of the message, for example:
+
+```python
+from uagents_core.contrib.protocols.chat import MetadataContent
+
+metadata = MetadataContent(
+    metadata={"document_type": "invoice", "page_count": "3"}
+)
+```
+
+The current `ChatAgent` LLM path extracts `TextContent` from `ChatMessage` before
+calling the configured model. It does not automatically download, parse, OCR, or
+send PDF and image resources to ASI:One. To make a resource available to an LLM,
+the application must validate the URI, retrieve the resource through its own
+trusted service, and convert it to text or a provider-specific multimodal request
+before invoking the model. Do not place private files or credentials in a public
+URI. Treat resource metadata and remote content as untrusted input.
+
 ## LLMParams defaults:
 
 * `temperature` = 0.0: make the model as deterministic as possible (no randomness in choices).
