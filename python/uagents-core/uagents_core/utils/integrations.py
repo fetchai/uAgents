@@ -13,14 +13,16 @@ from uagents_core.utils.integrations import execute_tool, sync_execute_tool
 # inside an asynchronous uAgent handler
 result = await execute_tool(
     identity=ctx.agent.identity,
-    tool_name="slack-post-message",
+    integration="slack",
+    tool="post-message",
     params={"channel": "#general", "text": "hello"},
 )
 
 # synchronous
 result = sync_execute_tool(
     identity=agent_identity,
-    tool_name="slack-post-message",
+    integration="slack",
+    tool="post-message",
     params={"channel": "#general", "text": "hello"},
 )
 ```
@@ -84,8 +86,11 @@ def _auth_header(identity: Identity) -> dict[str, str]:
     return {"Authorization": f"Agent {attestation}"}
 
 
-def _raise_for_tool_error(tool_name: str, status_code: int, detail: str) -> None:
+def _raise_for_tool_error(
+    integration: str, tool: str, status_code: int, detail: str
+) -> None:
     """Raise a :class:`ToolExecutionError` with a user-readable message."""
+    tool_name = f"{integration}/{tool}"
     if status_code == 400:
         raise ToolExecutionError(
             f"Unsupported tool '{tool_name}'.",
@@ -127,7 +132,8 @@ def _raise_for_tool_error(tool_name: str, status_code: int, detail: str) -> None
 
 async def execute_tool(
     identity: Identity,
-    tool_name: str,
+    integration: str,
+    tool: str,
     params: dict | None = None,
     *,
     base_url: str | None = None,
@@ -143,8 +149,10 @@ async def execute_tool(
 
     Args:
         identity (Identity): The identity of the calling agent.
-        tool_name (str): The Agentverse tool name to execute
-            (e.g. 'slack-post-message').
+        integration (str): The Agentverse integration slug to run the tool
+            under (e.g. 'slack').
+        tool (str): The Agentverse tool id within the integration
+            (e.g. 'post-message').
         params (dict, optional): Tool-specific parameters forwarded to the
             underlying API call.
         base_url (str, optional): Origin of the Tools API. Defaults to the
@@ -152,7 +160,8 @@ async def execute_tool(
         timeout (int, optional): Request timeout in seconds. Defaults to 20.
 
     Returns:
-        dict: The tool execution response (``{"tool": ..., "result": ...}``).
+        dict: The tool execution response
+            (``{"integration": ..., "tool": ..., "result": ...}``).
 
     Raises:
         ToolExecutionError: If the tool could not be executed, with a
@@ -163,22 +172,24 @@ async def execute_tool(
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(
                 url=url,
-                json={"tool": tool_name, "params": params or {}},
+                json={"integration": integration, "tool": tool, "params": params or {}},
                 headers=_auth_header(identity),
             )
     except httpx.HTTPError as error:
         raise ToolExecutionError(
-            f"Could not reach Agentverse to run {tool_name}. Please try again.",
-            tool_name=tool_name,
+            f"Could not reach Agentverse to run {integration}/{tool}. "
+            "Please try again.",
+            tool_name=f"{integration}/{tool}",
         ) from error
     if response.status_code != 200:
-        _raise_for_tool_error(tool_name, response.status_code, response.text)
+        _raise_for_tool_error(integration, tool, response.status_code, response.text)
     return response.json()
 
 
 def sync_execute_tool(
     identity: Identity,
-    tool_name: str,
+    integration: str,
+    tool: str,
     params: dict | None = None,
     *,
     base_url: str | None = None,
@@ -192,8 +203,10 @@ def sync_execute_tool(
 
     Args:
         identity (Identity): The identity of the calling agent.
-        tool_name (str): The Agentverse tool name to execute
-            (e.g. 'slack-post-message').
+        integration (str): The Agentverse integration slug to run the tool
+            under (e.g. 'slack').
+        tool (str): The Agentverse tool id within the integration
+            (e.g. 'post-message').
         params (dict, optional): Tool-specific parameters forwarded to the
             underlying API call.
         base_url (str, optional): Origin of the Tools API. Defaults to the
@@ -201,7 +214,8 @@ def sync_execute_tool(
         timeout (int, optional): Request timeout in seconds. Defaults to 20.
 
     Returns:
-        dict: The tool execution response (``{"tool": ..., "result": ...}``).
+        dict: The tool execution response
+            (``{"integration": ..., "tool": ..., "result": ...}``).
 
     Raises:
         ToolExecutionError: If the tool could not be executed, with a
@@ -211,15 +225,16 @@ def sync_execute_tool(
     try:
         response = requests.post(
             url=url,
-            json={"tool": tool_name, "params": params or {}},
+            json={"integration": integration, "tool": tool, "params": params or {}},
             headers=_auth_header(identity),
             timeout=timeout,
         )
     except requests.RequestException as error:
         raise ToolExecutionError(
-            f"Could not reach Agentverse to run {tool_name}. Please try again.",
-            tool_name=tool_name,
+            f"Could not reach Agentverse to run {integration}/{tool}. "
+            "Please try again.",
+            tool_name=f"{integration}/{tool}",
         ) from error
     if response.status_code != 200:
-        _raise_for_tool_error(tool_name, response.status_code, response.text)
+        _raise_for_tool_error(integration, tool, response.status_code, response.text)
     return response.json()
