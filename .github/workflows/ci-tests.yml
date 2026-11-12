@@ -17,17 +17,18 @@ jobs:
       uagents-core: ${{ steps.files-changed.outputs.uagents-core }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: files-changed
         with:
+          predicate-quantifier: 'some-with-excludes'
           filters: |
             uagents:
               - 'python/**'
               - '!python/uagents-core/**'
-              - '.github/**'
+              - '.github/workflows/ci-tests.yml'
             uagents-core:
               - 'python/uagents-core/**'
-              - '.github/**'
+              - '.github/workflows/ci-tests.yml'
 
   tests:
     name: Tests
