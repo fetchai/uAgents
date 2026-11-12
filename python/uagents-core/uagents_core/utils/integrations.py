@@ -1,7 +1,6 @@
 """
 This module provides helpers for executing Agentverse tool integrations
-(Pipedream-backed actions such as Slack, Google Calendar or GitHub) on behalf
-of an agent.
+(e.g. Slack, Google Calendar or GitHub) on behalf of an agent.
 
 The Agentverse Tools API resolves the calling agent to its owner account and
 runs the action using the owner's connected integration. The agent never holds
