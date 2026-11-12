@@ -9,18 +9,18 @@ provider credentials; it authenticates with a short-lived agent attestation.
 
 Example usage:
 ```
-from uagents_core.utils.integrations import execute_tool, execute_tool_async
+from uagents_core.utils.integrations import execute_tool, sync_execute_tool
 
-# synchronous
-result = execute_tool(
-    identity=agent_identity,
+# inside an asynchronous uAgent handler
+result = await execute_tool(
+    identity=ctx.agent.identity,
     tool_name="slack-post-message",
     params={"channel": "#general", "text": "hello"},
 )
 
-# inside an asynchronous uAgent handler
-result = await execute_tool_async(
-    identity=ctx.agent.identity,
+# synchronous
+result = sync_execute_tool(
+    identity=agent_identity,
     tool_name="slack-post-message",
     params={"channel": "#general", "text": "hello"},
 )
@@ -126,58 +126,7 @@ def _raise_for_tool_error(tool_name: str, status_code: int, detail: str) -> None
     )
 
 
-def execute_tool(
-    identity: Identity,
-    tool_name: str,
-    params: dict | None = None,
-    *,
-    base_url: str | None = None,
-    timeout: int = DEFAULT_TOOL_EXECUTION_TIMEOUT,
-) -> dict:
-    """
-    Execute a platform tool synchronously on behalf of an agent.
-
-    Calls ``POST {base_url}/v2/tools/execute`` on the Agentverse Tools API.
-    The API resolves the calling agent to its owner account and performs the
-    provider call using the owner's connected integration; the agent never
-    holds a provider credential.
-
-    Args:
-        identity (Identity): The identity of the calling agent.
-        tool_name (str): The Agentverse tool name to execute
-            (e.g. 'slack-post-message').
-        params (dict, optional): Tool-specific parameters forwarded to the
-            underlying API call.
-        base_url (str, optional): Origin of the Tools API. Defaults to the
-            ``TOOLS_BASE_URL`` environment variable if set, otherwise Agentverse.
-        timeout (int, optional): Request timeout in seconds. Defaults to 20.
-
-    Returns:
-        dict: The tool execution response (``{"tool": ..., "result": ...}``).
-
-    Raises:
-        ToolExecutionError: If the tool could not be executed, with a
-            user-readable message.
-    """
-    url = f"{_resolve_base_url(base_url)}{TOOLS_EXECUTE_PATH}"
-    try:
-        response = requests.post(
-            url=url,
-            json={"tool": tool_name, "params": params or {}},
-            headers=_auth_header(identity),
-            timeout=timeout,
-        )
-    except requests.RequestException as error:
-        raise ToolExecutionError(
-            f"Could not reach Agentverse to run {tool_name}. Please try again.",
-            tool_name=tool_name,
-        ) from error
-    if response.status_code != 200:
-        _raise_for_tool_error(tool_name, response.status_code, response.text)
-    return response.json()
-
-
-async def execute_tool_async(
+async def execute_tool(
     identity: Identity,
     tool_name: str,
     params: dict | None = None,
@@ -188,8 +137,10 @@ async def execute_tool_async(
     """
     Execute a platform tool asynchronously on behalf of an agent.
 
-    The asynchronous counterpart of :func:`execute_tool`, suitable for use
-    inside uAgent handlers so a slow tool call never blocks the event loop.
+    Calls ``POST {base_url}/v2/tools/execute`` on the Agentverse Tools API.
+    The API resolves the calling agent to its owner account and performs the
+    provider call using the owner's connected integration; the agent never
+    holds a provider credential.
 
     Args:
         identity (Identity): The identity of the calling agent.
@@ -217,6 +168,55 @@ async def execute_tool_async(
                 headers=_auth_header(identity),
             )
     except httpx.HTTPError as error:
+        raise ToolExecutionError(
+            f"Could not reach Agentverse to run {tool_name}. Please try again.",
+            tool_name=tool_name,
+        ) from error
+    if response.status_code != 200:
+        _raise_for_tool_error(tool_name, response.status_code, response.text)
+    return response.json()
+
+
+def sync_execute_tool(
+    identity: Identity,
+    tool_name: str,
+    params: dict | None = None,
+    *,
+    base_url: str | None = None,
+    timeout: int = DEFAULT_TOOL_EXECUTION_TIMEOUT,
+) -> dict:
+    """
+    Execute a platform tool synchronously on behalf of an agent.
+
+    The synchronous counterpart of :func:`execute_tool`, following the
+    ``sync_resolve`` / ``resolve`` naming convention.
+
+    Args:
+        identity (Identity): The identity of the calling agent.
+        tool_name (str): The Agentverse tool name to execute
+            (e.g. 'slack-post-message').
+        params (dict, optional): Tool-specific parameters forwarded to the
+            underlying API call.
+        base_url (str, optional): Origin of the Tools API. Defaults to the
+            ``TOOLS_BASE_URL`` environment variable if set, otherwise Agentverse.
+        timeout (int, optional): Request timeout in seconds. Defaults to 20.
+
+    Returns:
+        dict: The tool execution response (``{"tool": ..., "result": ...}``).
+
+    Raises:
+        ToolExecutionError: If the tool could not be executed, with a
+            user-readable message.
+    """
+    url = f"{_resolve_base_url(base_url)}{TOOLS_EXECUTE_PATH}"
+    try:
+        response = requests.post(
+            url=url,
+            json={"tool": tool_name, "params": params or {}},
+            headers=_auth_header(identity),
+            timeout=timeout,
+        )
+    except requests.RequestException as error:
         raise ToolExecutionError(
             f"Could not reach Agentverse to run {tool_name}. Please try again.",
             tool_name=tool_name,
