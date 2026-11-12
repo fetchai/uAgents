@@ -7,9 +7,10 @@ from uagents_core.contrib.protocols.chat.verified_actions import (
     META_VERIFIED_ACTIONS_DATA,
     META_VERIFIED_ACTIONS_VERSION,
     VERIFIED_ACTIONS_VERSION,
+    IntegrationAction,
     LlmAction,
     McpAction,
-    IntegrationAction,
+    UnknownAction,
     VerifiedActions,
     WebAction,
     create_verified_actions_content,
@@ -180,8 +181,8 @@ class TestValidateToolAction:
         assert isinstance(action, McpAction)
         assert action.tool_name == "search"
 
-    def test_invalid_dict_returns_none(self):
-        assert validate_tool_action({"bad": "data"}) is None
+    def test_invalid_dict_returns_unknown_action(self):
+        assert validate_tool_action({"bad": "data"}) == UnknownAction()
 
     def test_missing_required_field(self):
         raw = {
@@ -192,13 +193,13 @@ class TestValidateToolAction:
             "status": "success",
             # missing duration_ms
         }
-        assert validate_tool_action(raw) is None
+        assert validate_tool_action(raw) == UnknownAction()
 
-    def test_unknown_type_returns_none(self):
+    def test_unknown_type_returns_unknown_action(self):
         raw = {
             "type": "blockchain",
             "reference_id": "ref-1",
             "status": "success",
             "duration_ms": 100,
         }
-        assert validate_tool_action(raw) is None
+        assert validate_tool_action(raw) == UnknownAction()
