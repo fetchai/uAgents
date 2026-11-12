@@ -13,9 +13,12 @@ from uagents_core.utils.integrations import (
     sync_execute_tool,
 )
 
-TOOL_NAME = "slack-post-message"
+INTEGRATION = "slack"
+TOOL = "post-message"
+TOOL_NAME = f"{INTEGRATION}/{TOOL}"
 PARAMS = {"channel": "#general", "text": "hello"}
 RESULT = {"ok": True, "ts": "1234.5678"}
+RESPONSE = {"integration": INTEGRATION, "tool": TOOL, "result": RESULT}
 
 # Captured at import time, before any monkeypatching, so repeated patches
 # within a test always wrap the real client.
@@ -47,41 +50,43 @@ def _patched_execute_tool(monkeypatch, status_code: int, json_data: dict | None 
 
 class TestSyncExecuteTool:
     def test_success_returns_response(self, monkeypatch, identity):
-        _patched_execute_tool(monkeypatch, 200, {"tool": TOOL_NAME, "result": RESULT})
+        _patched_execute_tool(monkeypatch, 200, RESPONSE)
 
-        result = sync_execute_tool(identity, TOOL_NAME, PARAMS)
+        result = sync_execute_tool(identity, INTEGRATION, TOOL, PARAMS)
 
-        assert result == {"tool": TOOL_NAME, "result": RESULT}
+        assert result == RESPONSE
 
     def test_request_payload_and_auth_header(self, monkeypatch, identity):
-        post = _patched_execute_tool(
-            monkeypatch, 200, {"tool": TOOL_NAME, "result": RESULT}
-        )
+        post = _patched_execute_tool(monkeypatch, 200, RESPONSE)
 
-        sync_execute_tool(identity, TOOL_NAME, PARAMS, base_url="https://hub.example")
+        sync_execute_tool(
+            identity, INTEGRATION, TOOL, PARAMS, base_url="https://hub.example"
+        )
 
         kwargs = post.call_args.kwargs
         assert kwargs["url"] == "https://hub.example/v2/tools/execute"
-        assert kwargs["json"] == {"tool": TOOL_NAME, "params": PARAMS}
+        assert kwargs["json"] == {
+            "integration": INTEGRATION,
+            "tool": TOOL,
+            "params": PARAMS,
+        }
         assert kwargs["headers"]["Authorization"].startswith("Agent attr:")
 
     def test_base_url_from_env_var(self, monkeypatch, identity):
-        post = _patched_execute_tool(
-            monkeypatch, 200, {"tool": TOOL_NAME, "result": RESULT}
-        )
+        post = _patched_execute_tool(monkeypatch, 200, RESPONSE)
         monkeypatch.setenv("TOOLS_BASE_URL", "https://env.example/")
 
-        sync_execute_tool(identity, TOOL_NAME)
+        sync_execute_tool(identity, INTEGRATION, TOOL)
 
         assert post.call_args.kwargs["url"] == "https://env.example/v2/tools/execute"
 
     def test_explicit_base_url_overrides_env_var(self, monkeypatch, identity):
-        post = _patched_execute_tool(
-            monkeypatch, 200, {"tool": TOOL_NAME, "result": RESULT}
-        )
+        post = _patched_execute_tool(monkeypatch, 200, RESPONSE)
         monkeypatch.setenv("TOOLS_BASE_URL", "https://env.example")
 
-        sync_execute_tool(identity, TOOL_NAME, base_url="https://explicit.example")
+        sync_execute_tool(
+            identity, INTEGRATION, TOOL, base_url="https://explicit.example"
+        )
 
         assert (
             post.call_args.kwargs["url"] == "https://explicit.example/v2/tools/execute"
@@ -103,13 +108,13 @@ class TestSyncExecuteTool:
                 ),
                 pytest.raises(ToolExecutionError, match=message_part),
             ):
-                sync_execute_tool(identity, TOOL_NAME)
+                sync_execute_tool(identity, INTEGRATION, TOOL)
 
     def test_error_attributes(self, monkeypatch, identity):
         _patched_execute_tool(monkeypatch, 404)
 
         with pytest.raises(ToolExecutionError) as exc_info:
-            sync_execute_tool(identity, TOOL_NAME)
+            sync_execute_tool(identity, INTEGRATION, TOOL)
 
         assert exc_info.value.tool_name == TOOL_NAME
         assert exc_info.value.status_code == 404
@@ -122,7 +127,7 @@ class TestSyncExecuteTool:
         )
 
         with pytest.raises(ToolExecutionError, match="Could not reach Agentverse"):
-            sync_execute_tool(identity, TOOL_NAME)
+            sync_execute_tool(identity, INTEGRATION, TOOL)
 
 
 class TestExecuteTool:
@@ -138,11 +143,11 @@ class TestExecuteTool:
 
     @pytest.mark.asyncio
     async def test_success_returns_response(self, monkeypatch, identity):
-        self._patch_client(monkeypatch, 200, {"tool": TOOL_NAME, "result": RESULT})
+        self._patch_client(monkeypatch, 200, RESPONSE)
 
-        result = await execute_tool(identity, TOOL_NAME, PARAMS)
+        result = await execute_tool(identity, INTEGRATION, TOOL, PARAMS)
 
-        assert result == {"tool": TOOL_NAME, "result": RESULT}
+        assert result == RESPONSE
 
     @pytest.mark.asyncio
     async def test_error_mapping(self, monkeypatch, identity):
@@ -156,7 +161,7 @@ class TestExecuteTool:
             self._patch_client(monkeypatch, status_code, None)
 
             with pytest.raises(ToolExecutionError, match=message_part):
-                await execute_tool(identity, TOOL_NAME)
+                await execute_tool(identity, INTEGRATION, TOOL)
 
     @pytest.mark.asyncio
     async def test_connection_error(self, monkeypatch, identity):
@@ -170,4 +175,4 @@ class TestExecuteTool:
         monkeypatch.setattr(httpx, "AsyncClient", client_factory)
 
         with pytest.raises(ToolExecutionError, match="Could not reach Agentverse"):
-            await execute_tool(identity, TOOL_NAME)
+            await execute_tool(identity, INTEGRATION, TOOL)
