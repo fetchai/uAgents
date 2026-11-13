@@ -52,9 +52,15 @@ response_digest = Model.build_schema_digest(response)
 
 class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
+        # IsolatedAsyncioTestCase sets the runner loop before setUp; share it with agents.
+        self.loop = asyncio.get_event_loop()
+
         # agents need to be recreated for each test
         self.clyde = Agent(
-            name="clyde", seed="clyde recovery phrase", endpoint=endpoints
+            name="clyde",
+            seed="clyde recovery phrase",
+            endpoint=endpoints,
+            loop=self.loop,
         )
         dispatcher.unregister(self.clyde.address, self.clyde)
         resolver = RulesBasedResolver(
@@ -63,8 +69,10 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             }
         )
 
-        self.alice = Agent(name="alice", seed="alice recovery phrase", resolve=resolver)
-        self.bob = Agent(name="bob", seed="bob recovery phrase")
+        self.alice = Agent(
+            name="alice", seed="alice recovery phrase", resolve=resolver, loop=self.loop
+        )
+        self.bob = Agent(name="bob", seed="bob recovery phrase", loop=self.loop)
 
         proto0 = Protocol()
         proto1 = Protocol()
@@ -87,7 +95,6 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(1.1)
             await ctx.send(sender, incoming)
 
-        self.loop = asyncio.get_event_loop()
         self.loop.create_task(self.alice._dispenser.run())
         self.alice.include(proto0)
         self.bob.include(proto1)
@@ -598,33 +605,43 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
 
 class TestMessageHistory(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
-        self.alice = Agent(name="alice", seed="alice msg recovery phrase")
+        # IsolatedAsyncioTestCase sets the runner loop before setUp; share it with agents.
+        self.loop = asyncio.get_event_loop()
+
+        self.alice = Agent(
+            name="alice", seed="alice msg recovery phrase", loop=self.loop
+        )
         self.bob_cache = Agent(
-            name="bob", seed="bob cache recovery phrase", enable_agent_inspector=True
+            name="bob",
+            seed="bob cache recovery phrase",
+            enable_agent_inspector=True,
+            loop=self.loop,
         )
         self.bob_store = Agent(
             enable_agent_inspector=False,
             store_message_history=True,
+            loop=self.loop,
         )
         self.bob_both = Agent(
             store_message_history=True,
             enable_agent_inspector=True,
+            loop=self.loop,
         )
-        self.bob_neither = Agent(enable_agent_inspector=False)
+        self.bob_neither = Agent(enable_agent_inspector=False, loop=self.loop)
         self.bob_retention_period = Agent(
             store_message_history=True,
             enable_agent_inspector=True,
+            loop=self.loop,
         )
         assert self.bob_retention_period._message_history is not None
         self.bob_retention_period._message_history._retention_period = 1
         self.bob_message_limit = Agent(
             store_message_history=True,
             enable_agent_inspector=True,
+            loop=self.loop,
         )
         assert self.bob_message_limit._message_history is not None
         self.bob_message_limit._message_history._message_limit = 2
-
-        self.loop = asyncio.get_event_loop()
         self.loop.create_task(self.alice._dispenser.run())
         for bob in [
             self.bob_cache,
