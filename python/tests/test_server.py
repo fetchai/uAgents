@@ -26,8 +26,11 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
 
     async def mock_process_sync_message(self, sender: str, msg: Model):
         while True:
-            if sender in self.agent._server._queries:
-                self.agent._server._queries[sender].set_result(
+            key = next(
+                (k for k in self.agent._server._queries if k[0] == sender), None
+            )
+            if key is not None:
+                self.agent._server._queries[key].set_result(
                     (msg.model_dump_json(), Model.build_schema_digest(msg))
                 )
                 return
