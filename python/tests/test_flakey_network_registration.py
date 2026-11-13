@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import unittest
@@ -73,6 +74,7 @@ class FakeLedgerClient:
         self.network_config = NetworkConfig.fetchai_mainnet()
 
         self._broadcast_failure_count = 0
+        self._broadcast_count = 0
         self._rpc_query_failure_count = 0
         self._query_failure_count = 0
         self._height = 1000
@@ -84,6 +86,10 @@ class FakeLedgerClient:
     @broadcast_failure_count.setter
     def broadcast_failure_count(self, value: int):
         self._broadcast_failure_count = value
+
+    @property
+    def broadcast_count(self) -> int:
+        return self._broadcast_count
 
     @property
     def rpc_query_failure_count(self) -> int:
@@ -122,6 +128,7 @@ class FakeLedgerClient:
             self._broadcast_failure_count -= 1
             print("Broadcast failure", self._broadcast_failure_count)
             raise BroadcastError("not-a-real-hash", "not-a-real-tx-log")
+        self._broadcast_count += 1
         return FakeSubmittedTx()
 
     def query_tx(self, tx_hash: str) -> TxResponse:
@@ -264,6 +271,49 @@ class FlakeyNetworkRegistrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.ledger.query_failure_count, 1)
         self.assertIsNone(self.policy.last_successful_registration)
 
+    async def test_waits_for_pending_registration_before_timeout_height(self):
+        self.ledger.query_failure_count = 20
+        self.policy.poll_retries = 1
+        self.policy.poll_retry_delay = zero_retry_delay
+
+        await self.policy.register(self.identity.address, self.identity, [], [])
+        await self.policy.register(self.identity.address, self.identity, [], [])
+
+        self.assertEqual(self.ledger.broadcast_count, 1)
+
+        self.ledger._height += self.policy._timeout_blocks
+        await self.policy.register(self.identity.address, self.identity, [], [])
+
+        self.assertEqual(self.ledger.broadcast_count, 1)
+
+        self.ledger._height += 1
+        await self.policy.register(self.identity.address, self.identity, [], [])
+
+        self.assertEqual(self.ledger.broadcast_count, 2)
+
+    async def test_confirms_pending_registration_without_rebroadcasting(self):
+        self.ledger.query_failure_count = 1
+        self.policy.poll_retries = 1
+        self.policy.poll_retry_delay = zero_retry_delay
+
+        await self.policy.register(self.identity.address, self.identity, [], [])
+        await self.policy.register(self.identity.address, self.identity, [], [])
+
+        self.assertEqual(self.ledger.broadcast_count, 1)
+        self.assertIsNotNone(self.policy.last_successful_registration)
+
+    async def test_concurrent_registration_attempts_broadcast_once(self):
+        self.ledger.query_failure_count = 20
+        self.policy.poll_retries = 1
+        self.policy.poll_retry_delay = zero_retry_delay
+
+        await asyncio.gather(
+            self.policy.register(self.identity.address, self.identity, [], []),
+            self.policy.register(self.identity.address, self.identity, [], []),
+        )
+
+        self.assertEqual(self.ledger.broadcast_count, 1)
+
 
 class FlakeyBatchNetworkRegistrationTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
@@ -370,3 +420,43 @@ class FlakeyBatchNetworkRegistrationTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(self.ledger.query_failure_count, 1)
         self.assertIsNone(self.policy.last_successful_registration)
+
+    async def test_waits_for_pending_registration_before_timeout_height(self):
+        self.ledger.query_failure_count = 20
+        self.policy.poll_retries = 1
+        self.policy.poll_retry_delay = zero_retry_delay
+
+        await self.policy.register()
+        await self.policy.register()
+
+        self.assertEqual(self.ledger.broadcast_count, 1)
+
+        self.ledger._height += self.policy._timeout_blocks
+        await self.policy.register()
+
+        self.assertEqual(self.ledger.broadcast_count, 1)
+
+        self.ledger._height += 1
+        await self.policy.register()
+
+        self.assertEqual(self.ledger.broadcast_count, 2)
+
+    async def test_confirms_pending_registration_without_rebroadcasting(self):
+        self.ledger.query_failure_count = 1
+        self.policy.poll_retries = 1
+        self.policy.poll_retry_delay = zero_retry_delay
+
+        await self.policy.register()
+        await self.policy.register()
+
+        self.assertEqual(self.ledger.broadcast_count, 1)
+        self.assertIsNotNone(self.policy.last_successful_registration)
+
+    async def test_concurrent_registration_attempts_broadcast_once(self):
+        self.ledger.query_failure_count = 20
+        self.policy.poll_retries = 1
+        self.policy.poll_retry_delay = zero_retry_delay
+
+        await asyncio.gather(self.policy.register(), self.policy.register())
+
+        self.assertEqual(self.ledger.broadcast_count, 1)
