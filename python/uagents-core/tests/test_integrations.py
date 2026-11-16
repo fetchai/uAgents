@@ -1,5 +1,6 @@
 """Tool integration helpers: base URL resolution, auth, and error mapping."""
 
+import json
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -33,7 +34,9 @@ def identity() -> Identity:
 def _fake_response(status_code: int, json_data: dict | None = None):
     response = MagicMock()
     response.status_code = status_code
-    response.text = f"HTTP {status_code}"
+    response.text = (
+        json.dumps(json_data) if json_data is not None else f"HTTP {status_code}"
+    )
     if json_data is not None:
         response.json.return_value = json_data
     return response
@@ -110,6 +113,26 @@ class TestSyncExecuteTool:
             ):
                 sync_execute_tool(identity, INTEGRATION, TOOL)
 
+    def test_upstream_error_detail_is_surfaced(self, monkeypatch, identity):
+        """A JSON error body from hub must appear in the raised message."""
+        body = {"detail": "The tool action failed: MissingPermissions: 50001"}
+        _patched_execute_tool(monkeypatch, 502, body)
+
+        with pytest.raises(ToolExecutionError) as exc_info:
+            sync_execute_tool(identity, INTEGRATION, TOOL)
+
+        assert "MissingPermissions: 50001" in str(exc_info.value)
+        assert "failed. If the connection was revoked" not in str(exc_info.value)
+
+    def test_non_json_error_body_keeps_the_generic_message(self, monkeypatch, identity):
+        _patched_execute_tool(monkeypatch, 502)
+
+        with pytest.raises(ToolExecutionError) as exc_info:
+            sync_execute_tool(identity, INTEGRATION, TOOL)
+
+        assert "If the connection was revoked" in str(exc_info.value)
+        assert "HTTP 502" not in str(exc_info.value)
+
     def test_error_attributes(self, monkeypatch, identity):
         _patched_execute_tool(monkeypatch, 404)
 
@@ -162,6 +185,35 @@ class TestExecuteTool:
 
             with pytest.raises(ToolExecutionError, match=message_part):
                 await execute_tool(identity, INTEGRATION, TOOL)
+
+    @pytest.mark.asyncio
+    async def test_upstream_error_detail_is_surfaced(self, monkeypatch, identity):
+        body = {"detail": "The tool action failed: MissingPermissions: 50001"}
+        self._patch_client(monkeypatch, 502, body)
+
+        with pytest.raises(ToolExecutionError) as exc_info:
+            await execute_tool(identity, INTEGRATION, TOOL)
+
+        assert "MissingPermissions: 50001" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_default_timeout_allows_slow_upstream_calls(
+        self, monkeypatch, identity
+    ):
+        captured = {}
+
+        def client_factory(*args, **kwargs):
+            captured.update(kwargs)
+            kwargs["transport"] = httpx.MockTransport(
+                lambda request: httpx.Response(200, json=RESPONSE)
+            )
+            return REAL_ASYNC_CLIENT(*args, **kwargs)
+
+        monkeypatch.setattr(httpx, "AsyncClient", client_factory)
+
+        await execute_tool(identity, INTEGRATION, TOOL)
+
+        assert captured["timeout"] == 60
 
     @pytest.mark.asyncio
     async def test_connection_error(self, monkeypatch, identity):

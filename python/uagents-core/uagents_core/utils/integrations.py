@@ -28,6 +28,7 @@ result = sync_execute_tool(
 ```
 """
 
+import json
 import os
 from datetime import datetime, timezone
 from secrets import token_bytes
@@ -44,7 +45,7 @@ logger = get_logger("uagents_core.utils.integrations")
 
 TOOLS_BASE_URL_ENV_VAR = "TOOLS_BASE_URL"
 TOOLS_EXECUTE_PATH = "/v2/tools/execute"
-DEFAULT_TOOL_EXECUTION_TIMEOUT = 20
+DEFAULT_TOOL_EXECUTION_TIMEOUT = 60
 ATTESTATION_VALIDITY_SECS = 60
 
 
@@ -86,11 +87,25 @@ def _auth_header(identity: Identity) -> dict[str, str]:
     return {"Authorization": f"Agent {attestation}"}
 
 
+def _detail_from_response_text(text: str) -> str | None:
+    """Extract the human-readable ``detail`` from an Agentverse error body.
+
+    Agentverse returns FastAPI-style JSON errors (``{"detail": "..."}``).
+    """
+    try:
+        payload = json.loads(text)
+    except ValueError:
+        return None
+    detail = payload.get("detail")
+    return detail if isinstance(detail, str) else None
+
+
 def _raise_for_tool_error(
-    integration: str, tool: str, status_code: int, detail: str
+    integration: str, tool: str, status_code: int, response_text: str
 ) -> None:
     """Raise a :class:`ToolExecutionError` with a user-readable message."""
     tool_name = f"{integration}/{tool}"
+    detail = _detail_from_response_text(response_text)
     if status_code == 400:
         raise ToolExecutionError(
             f"Unsupported tool '{tool_name}'.",
@@ -101,7 +116,9 @@ def _raise_for_tool_error(
     if status_code == 403:
         # Either the agent has no registered owner, or the owner has not allowed this tool.
         raise ToolExecutionError(
-            f"Agentverse refused to run {tool_name}: {detail}",
+            f"Agentverse refused to run {tool_name}"
+            + (f": {detail}" if detail else "")
+            + ".",
             tool_name=tool_name,
             status_code=status_code,
             detail=detail,
@@ -115,15 +132,19 @@ def _raise_for_tool_error(
             detail=detail,
         )
     if status_code == 502:
+        # Include the upstream failure detail (e.g. the provider's error) when
+        # the response carries one, so the caller can show the real cause.
         raise ToolExecutionError(
-            f"{tool_name} failed. If the connection was revoked, the owner must "
+            f"{tool_name} failed"
+            + (f": {detail}" if detail else "")
+            + ". If the connection was revoked, the owner must "
             "reconnect it on the Agent Integrations page.",
             tool_name=tool_name,
             status_code=status_code,
             detail=detail,
         )
     raise ToolExecutionError(
-        f"Could not execute {tool_name} (HTTP {status_code}): {detail}",
+        f"Could not execute {tool_name} (HTTP {status_code})",
         tool_name=tool_name,
         status_code=status_code,
         detail=detail,
