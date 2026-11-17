@@ -100,6 +100,7 @@ class TestSyncExecuteTool:
             400: "Unsupported tool",
             403: "refused to run",
             404: "is not connected",
+            422: "was rejected by the provider",
             502: "failed. If the connection was revoked",
             500: "Could not execute",
         }
@@ -116,15 +117,16 @@ class TestSyncExecuteTool:
     def test_upstream_error_detail_is_surfaced(self, monkeypatch, identity):
         """A JSON error body from hub must appear in the raised message."""
         body = {"detail": "The tool action failed: MissingPermissions: 50001"}
-        _patched_execute_tool(monkeypatch, 502, body)
+        _patched_execute_tool(monkeypatch, 422, body)
 
         with pytest.raises(ToolExecutionError) as exc_info:
             sync_execute_tool(identity, INTEGRATION, TOOL)
 
         assert "MissingPermissions: 50001" in str(exc_info.value)
-        assert "failed. If the connection was revoked" not in str(exc_info.value)
+        assert "was rejected by the provider" in str(exc_info.value)
 
-    def test_non_json_error_body_keeps_the_generic_message(self, monkeypatch, identity):
+    def test_gateway_error_keeps_the_reconnect_hint(self, monkeypatch, identity):
+        """502 is now only transport failure; the hint stays for it."""
         _patched_execute_tool(monkeypatch, 502)
 
         with pytest.raises(ToolExecutionError) as exc_info:
@@ -178,6 +180,7 @@ class TestExecuteTool:
             400: "Unsupported tool",
             403: "refused to run",
             404: "is not connected",
+            422: "was rejected by the provider",
             502: "failed. If the connection was revoked",
             500: "Could not execute",
         }.items():
@@ -189,12 +192,13 @@ class TestExecuteTool:
     @pytest.mark.asyncio
     async def test_upstream_error_detail_is_surfaced(self, monkeypatch, identity):
         body = {"detail": "The tool action failed: MissingPermissions: 50001"}
-        self._patch_client(monkeypatch, 502, body)
+        self._patch_client(monkeypatch, 422, body)
 
         with pytest.raises(ToolExecutionError) as exc_info:
             await execute_tool(identity, INTEGRATION, TOOL)
 
         assert "MissingPermissions: 50001" in str(exc_info.value)
+        assert "was rejected by the provider" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_default_timeout_allows_slow_upstream_calls(
