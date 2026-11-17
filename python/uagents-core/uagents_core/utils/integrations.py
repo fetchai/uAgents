@@ -131,6 +131,17 @@ def _raise_for_tool_error(
             status_code=status_code,
             detail=detail,
         )
+    if status_code == 422:
+        # The provider examined the call and rejected it (bad parameters, missing
+        # permission, revoked grant); the detail carries the provider's message.
+        raise ToolExecutionError(
+            f"{tool_name} was rejected by the provider"
+            + (f": {detail}" if detail else "")
+            + ".",
+            tool_name=tool_name,
+            status_code=status_code,
+            detail=detail,
+        )
     if status_code == 502:
         # Include the upstream failure detail (e.g. the provider's error) when
         # the response carries one, so the caller can show the real cause.
