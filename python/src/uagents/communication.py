@@ -27,8 +27,12 @@ class Dispenser:
 
     def __init__(self):
         self._envelopes: asyncio.Queue[
-            tuple[Envelope, list[str], asyncio.Future, bool]
+            tuple[Envelope, list[str], asyncio.Future, bool, int]
         ] = asyncio.Queue()
+
+    def pending_count(self) -> int:
+        """Return the number of envelopes waiting in the dispenser queue."""
+        return self._envelopes.qsize()
 
     def add_envelope(
         self,
@@ -36,6 +40,7 @@ class Dispenser:
         endpoints: list[str],
         response_future: asyncio.Future,
         sync: bool = False,
+        timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
     ) -> None:
         """
         Add an envelope to the dispenser.
@@ -45,8 +50,11 @@ class Dispenser:
             endpoints (list[str]): The endpoints to send the envelope to.
             response_future (asyncio.Future): The future to set the response on.
             sync (bool): True if the message is synchronous. Defaults to False.
+            timeout (int): HTTP submit timeout in seconds. Defaults to 30.
         """
-        self._envelopes.put_nowait((envelope, endpoints, response_future, sync))
+        self._envelopes.put_nowait(
+            (envelope, endpoints, response_future, sync, timeout)
+        )
 
     async def _process_envelope(
         self,
@@ -54,6 +62,7 @@ class Dispenser:
         endpoints: list[str],
         response_future: asyncio.Future,
         sync: bool,
+        timeout: int,
     ) -> None:
         """
         Process a single envelope by sending it and updating the response future.
@@ -69,6 +78,7 @@ class Dispenser:
                 envelope=env,
                 endpoints=endpoints,
                 sync=sync,
+                timeout=timeout,
             )
             if not response_future.done():
                 response_future.set_result(result)
@@ -82,16 +92,32 @@ class Dispenser:
         """Run the dispenser routine."""
         try:
             while True:
-                env, endpoints, response_future, sync = await self._envelopes.get()
-                await self._process_envelope(env, endpoints, response_future, sync)
+                (
+                    env,
+                    endpoints,
+                    response_future,
+                    sync,
+                    timeout,
+                ) = await self._envelopes.get()
+                await self._process_envelope(
+                    env, endpoints, response_future, sync, timeout
+                )
         except (asyncio.CancelledError, KeyboardInterrupt):
             LOGGER.info("Shutting down dispenser...")
 
             # Drain remaining messages from queue using get_nowait()
             while not self._envelopes.empty():
                 try:
-                    env, endpoints, response_future, sync = self._envelopes.get_nowait()
-                    await self._process_envelope(env, endpoints, response_future, sync)
+                    (
+                        env,
+                        endpoints,
+                        response_future,
+                        sync,
+                        timeout,
+                    ) = self._envelopes.get_nowait()
+                    await self._process_envelope(
+                        env, endpoints, response_future, sync, timeout
+                    )
                 except asyncio.QueueEmpty:
                     break
                 except Exception as ex:
@@ -125,7 +151,10 @@ async def dispatch_local_message(
 
 
 async def send_exchange_envelope(
-    envelope: Envelope, endpoints: list[str], sync: bool = False
+    envelope: Envelope,
+    endpoints: list[str],
+    sync: bool = False,
+    timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
 ) -> MsgStatus | Envelope:
     """
     Method to send an exchange envelope.
@@ -134,6 +163,7 @@ async def send_exchange_envelope(
         envelope (Envelope): The envelope to send.
         endpoints (list[str]): The endpoints to send the envelope to.
         sync (bool): True if the message is synchronous. Defaults to False.
+        timeout (int): HTTP submit timeout in seconds. Defaults to 30.
 
     Returns:
         MsgStatus | Envelope: Either the status of the message or the response envelope.
@@ -141,10 +171,13 @@ async def send_exchange_envelope(
     headers = {"content-type": "application/json"}
     if sync:
         headers["x-uagents-connection"] = "sync"
-    errors = []
+    errors: list[str] = []
+    last_endpoint = ""
+    client_timeout = aiohttp.ClientTimeout(total=timeout)
     for endpoint in endpoints:
+        last_endpoint = endpoint
         try:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(timeout=client_timeout) as session:
                 async with session.post(
                     endpoint,
                     headers=headers,
@@ -175,25 +208,29 @@ async def send_exchange_envelope(
                     body = await resp.text()
                     try:
                         error_json = json.loads(body)
-                        detail = error_json.get("detail", body)
+                        api_detail = error_json.get("detail", body)
                     except json.JSONDecodeError:
-                        detail = body
+                        api_detail = body
 
-                errors.append(f"{resp.status}: {detail}")
+                    errors.append(
+                        str(api_detail) if api_detail else f"HTTP {resp.status}"
+                    )
+        except (asyncio.TimeoutError, aiohttp.ServerTimeoutError):
+            errors.append(f"Message delivery timed out after {timeout}s")
         except aiohttp.ClientConnectorError as ex:
-            errors.append(f"Failed to connect: {ex}")
+            errors.append(f"Could not connect to {endpoint}: {ex}")
         except ValidationError as ex:
             errors.append(f"Invalid sync response: {ex}")
         except Exception as ex:
             errors.append(f"Failed to send message: {ex}")
     LOGGER.error(
-        f"Failed to deliver message to {envelope.target} @ {endpoints}: " + str(errors)
+        f"Failed to deliver message to {envelope.target} @ {endpoints}: {errors}"
     )
     return MsgStatus(
         status=DeliveryStatus.FAILED,
-        detail="Message delivery failed",
+        detail=errors[-1] if errors else "Message delivery failed",
         destination=envelope.target,
-        endpoint="",
+        endpoint=last_endpoint,
         session=envelope.session,
     )
 
@@ -289,6 +326,7 @@ async def send_message_raw(
         envelope=env,
         endpoints=endpoints,
         sync=sync,
+        timeout=timeout,
     )
     if isinstance(response, Envelope):
         if env.signature is None:
