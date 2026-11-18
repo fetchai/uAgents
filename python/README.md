@@ -8,7 +8,7 @@ This directory contains the Python packages for the uAgents framework.
 |---------|-------------|------|
 | **[uagents](src/uagents/)** | Main agent framework with decorators and runtime | [![PyPI](https://img.shields.io/pypi/v/uagents)](https://pypi.org/project/uagents/) |
 | **[uagents-core](uagents-core/)** | Core definitions for Agentverse integration | [![PyPI](https://img.shields.io/pypi/v/uagents-core)](https://pypi.org/project/uagents-core/) |
-| **[uagents-adapter](uagents-adapter/)** | Adapters for LangChain, CrewAI, MCP | [![PyPI](https://img.shields.io/pypi/v/uagents-adapter)](https://pypi.org/project/uagents-adapter/) |
+| **[uagents-adapter](uagents-adapter/)** | Adapters for LangChain, CrewAI, AG2, MCP | [![PyPI](https://img.shields.io/pypi/v/uagents-adapter)](https://pypi.org/project/uagents-adapter/) |
 | **[uagents-ai-engine](uagents-ai-engine/)** | AI Engine integration | [![PyPI](https://img.shields.io/pypi/v/uagents-ai-engine)](https://pypi.org/project/uagents-ai-engine/) |
 
 ## Installation
