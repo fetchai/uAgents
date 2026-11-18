@@ -3,7 +3,7 @@
 import functools
 import warnings
 from collections.abc import Awaitable, Callable
-from datetime import datetime, timedelta
+from time import time
 from typing import Any
 from uuid import UUID
 
@@ -11,12 +11,47 @@ from uagents_core.models import ErrorMessage
 from uagents_core.types import DeliveryStatus, JsonStr, MsgStatus
 
 from uagents import Context, Model, Protocol
+from uagents.context import ExternalContext
 from uagents.storage import KeyValueStore, StorageAPI
 
 DEFAULT_SESSION_TIMEOUT_IN_SECONDS = 60
 TARGET_UUID_VERSION = 4
 
 MessageCallback = Callable[["Context", str, Any], Awaitable[None]]
+
+
+class _DialogueContext(ExternalContext):
+    """Guard handler sends before dispatch, including raw and request/reply sends."""
+
+    def __init__(self, base: Context, expires_at: float | None):
+        self.__dict__ = base.__dict__.copy()
+        self._dialogue_expires_at = expires_at
+
+    def is_expired(self) -> bool:
+        return (
+            self._dialogue_expires_at is not None
+            and time() >= self._dialogue_expires_at
+        )
+
+    async def send_raw(
+        self,
+        destination: str,
+        message_schema_digest: str,
+        message_body: JsonStr,
+        *args,
+        **kwargs,
+    ) -> MsgStatus:
+        if self.is_expired():
+            return MsgStatus(
+                status=DeliveryStatus.FAILED,
+                detail="Dialogue session expired",
+                destination=destination,
+                endpoint="",
+                session=self.session,
+            )
+        return await super().send_raw(
+            destination, message_schema_digest, message_body, *args, **kwargs
+        )
 
 
 class Node:
@@ -141,6 +176,13 @@ class Dialogue(Protocol):
         messages that were exchanged between two participants.
     - Sessions will automatically be deleted after a certain amount of time.
     - Access to the dialogue history through ctx.dialogue (see Context class).
+
+    ``timeout`` is a local idle timeout in seconds since the last recorded
+    message. Zero disables expiry. Incoming messages and sends through the
+    handler's context are rejected once the deadline is reached, even when
+    periodic cleanup is disabled. A handler already running is not cancelled,
+    but its context rejects further sends after expiry. Expired history is
+    removed during cleanup and on restart. Peers do not negotiate this timeout.
     """
 
     def __init__(
@@ -181,9 +223,14 @@ class Dialogue(Protocol):
             self._states = {
                 session_id: session[-1]["schema_digest"]
                 for session_id, session in self._sessions.items()
+                if session
             }
 
         super().__init__(name=self._name, version=version)
+
+        for session_id in list(self._sessions):
+            if self.is_expired(session_id):
+                self.cleanup_conversation(session_id)
 
         # if a model exists for an edge, register the handler automatically
         self._auto_add_message_handler()
@@ -390,16 +437,29 @@ class Dialogue(Protocol):
         @functools.wraps(edge.func)
         async def handler(ctx: Context, sender: str, message: type[Model]):
             # validate message first then execute handlers, finally update state
+            if ctx.session and self.is_expired(ctx.session):
+                return await ctx.send(
+                    sender, ErrorMessage(error="Dialogue session expired")
+                )
             if not self._pre_handle_hook(ctx, sender, message):
                 return await ctx.send(
                     sender,
                     ErrorMessage(error=f"Unexpected message in dialogue: {message}"),
                 )
 
+            ctx = _DialogueContext(ctx, self._session_deadline(ctx.session))
             if edge.efunc:
                 await edge.efunc(ctx, sender, message)
             result = await edge.func(ctx, sender, message)  # type: ignore
 
+            if ctx.is_expired():
+                return MsgStatus(
+                    status=DeliveryStatus.FAILED,
+                    detail="Dialogue session expired",
+                    destination=sender,
+                    endpoint="",
+                    session=ctx.session,
+                )
             if not self._post_handle_hook(ctx, sender, message):
                 return MsgStatus(
                     status=DeliveryStatus.FAILED,
@@ -443,8 +503,24 @@ class Dialogue(Protocol):
 
     def cleanup_conversation(self, session_id: UUID) -> None:
         """Removes all messages related with the given session from the dialogue instance."""
-        self._sessions.pop(session_id)
+        self._sessions.pop(session_id, None)
+        self._states.pop(session_id, None)
         self._remove_session_from_storage(session_id)
+
+    def _session_deadline(self, session_id: UUID) -> float | None:
+        session = self._sessions.get(session_id)
+        if not session or session[-1]["timeout"] <= 0:
+            return None
+        return session[-1]["timestamp"] + session[-1]["timeout"]
+
+    def is_expired(self, session_id: UUID) -> bool:
+        """Check the persisted idle deadline; zero timeout means no expiry.
+
+        Cleanup frequency does not affect validity. Unknown and empty sessions
+        have no deadline. Deadlines are local, not negotiated with the peer.
+        """
+        deadline = self._session_deadline(session_id)
+        return deadline is not None and time() >= deadline
 
     def add_message(
         self,
@@ -468,7 +544,7 @@ class Dialogue(Protocol):
                 "sender": sender,
                 "receiver": receiver,
                 "message_content": content,
-                "timestamp": datetime.timestamp(datetime.now()),
+                "timestamp": time(),
                 "timeout": self._timeout,
                 **kwargs,
             }
@@ -521,6 +597,8 @@ class Dialogue(Protocol):
         Returns:
             bool: True if the message is valid, False otherwise.
         """
+        if self.is_expired(session_id):
+            return False
         if session_id not in self._sessions or len(self._sessions[session_id]) == 0:
             return self.is_starter(msg_digest)
 
@@ -655,6 +733,17 @@ class Dialogue(Protocol):
                 "A dialogue can only be started with the specified starting message"
             )
 
+        if ctx.session and self.is_expired(ctx.session):
+            return [
+                MsgStatus(
+                    status=DeliveryStatus.FAILED,
+                    detail="Dialogue session expired",
+                    destination=destination,
+                    endpoint="",
+                    session=ctx.session,
+                )
+            ]
+
         status_list: list[MsgStatus] = []
 
         if destination.startswith("proto:"):
@@ -687,13 +776,12 @@ class Dialogue(Protocol):
         Initialise the cleanup task.
 
         Deletes sessions that have not been used for a certain amount of time.
-        The task runs every second so the configured timeout is currently
-        measured in seconds as well (interval time * timeout parameter).
+        Timeout is measured in seconds since the last recorded message.
         Sessions with 0 as timeout will never be deleted.
 
         *Important*:
-        - setting the interval above 1 will act as a multiplier
-        - setting it to 0 will disable the cleanup task
+        - the interval only controls how often expired history is removed
+        - setting it to 0 disables cleanup, but does not disable expiry checks
         """
         if interval == 0:
             return
@@ -701,14 +789,8 @@ class Dialogue(Protocol):
         @self.on_interval(interval)
         async def cleanup_dialogue(_ctx: Context):
             mark_for_deletion = []
-            for session_id, session in self._sessions.items():
-                timeout = session[-1]["timeout"]
-                if (
-                    timeout > 0
-                    and datetime.fromtimestamp(session[-1]["timestamp"])
-                    + timedelta(seconds=timeout)
-                    < datetime.now()
-                ):
+            for session_id in self._sessions:
+                if self.is_expired(session_id):
                     mark_for_deletion.append(session_id)
             if mark_for_deletion:
                 for session_id in mark_for_deletion:
