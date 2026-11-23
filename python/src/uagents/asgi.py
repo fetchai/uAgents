@@ -1,4 +1,5 @@
 import asyncio
+import binascii
 import contextlib
 import json
 from datetime import datetime, timezone
@@ -376,11 +377,22 @@ class ASGIServer:
             )
             return
 
+        try:
+            message = env.decode_payload()
+        except (binascii.Error, UnicodeDecodeError) as err:
+            self._logger.warning(f"Failed to decode envelope payload: {err}")
+            await self._asgi_send(
+                send=send,
+                status_code=400,
+                body={"error": "invalid payload encoding"},
+            )
+            return
+
         await dispatcher.dispatch_msg(
             sender=env.sender,
             destination=env.target,
             schema_digest=env.schema_digest,
-            message=env.decode_payload(),
+            message=message,
             session=env.session,
         )
 
