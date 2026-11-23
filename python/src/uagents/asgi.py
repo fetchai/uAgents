@@ -15,7 +15,11 @@ from uagents_core.identity import is_user_address
 from uagents_core.models import ERROR_MESSAGE_DIGEST, ErrorMessage, Model
 
 from uagents.communication import enclose_response_raw
-from uagents.config import DEFAULT_ENVELOPE_TIMEOUT_SECONDS, RESPONSE_TIME_HINT_SECONDS
+from uagents.config import (
+    DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
+    DEFAULT_MAX_BODY_SIZE_BYTES,
+    RESPONSE_TIME_HINT_SECONDS,
+)
 from uagents.dispatch import dispatcher
 from uagents.types import RestHandlerDetails, RestMethod
 from uagents.utils import get_logger
@@ -25,14 +29,30 @@ HOST = "0.0.0.0"
 RESERVED_ENDPOINTS = ["/submit", "/messages", "/agent_info", "/connect", "/disconnect"]
 
 
-async def _read_asgi_body(receive):
-    """Read the entire body of an ASGI message."""
+class RequestBodyTooLargeError(Exception):
+    """Raised when an incoming request body exceeds the maximum allowed size."""
+
+
+async def _read_asgi_body(receive, max_size: int | None = None):
+    """Read the entire body of an ASGI message, up to the given size limit.
+
+    Args:
+        receive: The ASGI receive callable.
+        max_size (int | None): The maximum number of bytes to read; when
+            exceeded, reading stops and RequestBodyTooLargeError is raised.
+            If None, no limit is applied.
+
+    Raises:
+        RequestBodyTooLargeError: If the accumulated body exceeds max_size.
+    """
     body = b""
     more_body = True
 
     while more_body:
         message = await receive()
         body += message.get("body", b"")
+        if max_size is not None and len(body) > max_size:
+            raise RequestBodyTooLargeError(f"request body exceeds {max_size} bytes")
         more_body = message.get("more_body", False)
 
     return body
@@ -47,6 +67,7 @@ class ASGIServer:
         loop: asyncio.AbstractEventLoop,
         queries: dict[str, asyncio.Future],
         logger: Logger | None = None,
+        max_body_size: int | None = None,
     ):
         """
         Initialize the ASGI server.
@@ -56,6 +77,9 @@ class ASGIServer:
             loop (asyncio.AbstractEventLoop): The event loop to use.
             queries (dict[str, asyncio.Future]): The dictionary of queries to resolve.
             logger (Logger | None): The logger to use.
+            max_body_size (int | None): The maximum size of an incoming request body
+                in bytes; larger requests are rejected with a 413 response. If None,
+                DEFAULT_MAX_BODY_SIZE_BYTES is used.
         """
         self._port = int(port)
         self._loop = loop
@@ -64,6 +88,9 @@ class ASGIServer:
             tuple[str, RestMethod, str], RestHandlerDetails
         ] = {}
         self._logger = logger or get_logger("server")
+        self._max_body_size = (
+            max_body_size if max_body_size is not None else DEFAULT_MAX_BODY_SIZE_BYTES
+        )
         self._server: uvicorn.Server | None = None
 
     @property
@@ -204,7 +231,16 @@ class ASGIServer:
         send,
         receive,
     ):
-        raw_contents = await _read_asgi_body(receive)
+        try:
+            raw_contents = await _read_asgi_body(receive, self._max_body_size)
+        except RequestBodyTooLargeError:
+            self._logger.warning("Rejected request: body exceeds maximum size")
+            await self._asgi_send(
+                send=send,
+                status_code=413,
+                body={"error": "request body too large"},
+            )
+            return
         received_request: Model | None = None
         if len(handlers) > 1:
             if b"x-uagents-address" not in headers:
@@ -333,8 +369,17 @@ class ASGIServer:
             )
             return
 
-        # read the entire payload
-        raw_contents = await _read_asgi_body(receive)
+        # read the entire payload, rejecting oversized bodies early
+        try:
+            raw_contents = await _read_asgi_body(receive, self._max_body_size)
+        except RequestBodyTooLargeError:
+            self._logger.warning("Rejected request: body exceeds maximum size")
+            await self._asgi_send(
+                send=send,
+                status_code=413,
+                body={"error": "request body too large"},
+            )
+            return
 
         try:
             contents = json.loads(raw_contents.decode())

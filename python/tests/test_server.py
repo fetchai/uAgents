@@ -466,6 +466,115 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             ]
         )
 
+    async def test_message_success_streamed_body(self):
+        """A body arriving in multiple chunks under the limit must be read normally."""
+        message = Message(message="hello")
+        env = Envelope(
+            version=1,
+            sender=generate_user_address(),
+            target=self.agent.address,
+            session=uuid.uuid4(),
+            schema_digest=Model.build_schema_digest(message),
+        )
+        env.encode_payload(message.model_dump_json())
+
+        body = env.model_dump_json().encode()
+        chunks = [body[:10], body[10:20], body[20:]]
+
+        async def receive():
+            chunk = chunks.pop(0)
+            return {
+                "type": "http.request",
+                "body": chunk,
+                "more_body": bool(chunks),
+            }
+
+        mock_send = AsyncMock()
+        await self.agent._server(
+            scope={
+                "type": "http",
+                "method": "POST",
+                "path": "/submit",
+                "headers": {b"content-type": b"application/json"},
+            },
+            receive=receive,
+            send=mock_send,
+        )
+        mock_send.assert_has_calls(
+            [
+                call(
+                    {
+                        "type": "http.response.start",
+                        "status": 200,
+                        "headers": [[b"content-type", b"application/json"]],
+                    }
+                ),
+                call(
+                    {
+                        "type": "http.response.body",
+                        "body": b"{}",
+                    }
+                ),
+            ]
+        )
+
+    async def test_message_fail_body_too_large(self):
+        """An oversized request body must be rejected before being fully buffered."""
+        message = Message(message="hello")
+        env = Envelope(
+            version=1,
+            sender=generate_user_address(),
+            target=self.agent.address,
+            session=uuid.uuid4(),
+            schema_digest=Model.build_schema_digest(message),
+        )
+        env.encode_payload(message.model_dump_json())
+
+        body = env.model_dump_json().encode()
+        chunks = [body[:16], body[16:-1], body[-1:]]
+
+        async def receive():
+            chunk = chunks.pop(0)
+            return {
+                "type": "http.request",
+                "body": chunk,
+                "more_body": bool(chunks),
+            }
+
+        self.agent._server._max_body_size = 16
+
+        mock_send = AsyncMock()
+        await self.agent._server(
+            scope={
+                "type": "http",
+                "method": "POST",
+                "path": "/submit",
+                "headers": {b"content-type": b"application/json"},
+            },
+            receive=receive,
+            send=mock_send,
+        )
+        mock_send.assert_has_calls(
+            [
+                call(
+                    {
+                        "type": "http.response.start",
+                        "status": 413,
+                        "headers": [[b"content-type", b"application/json"]],
+                    }
+                ),
+                call(
+                    {
+                        "type": "http.response.body",
+                        "body": b'{"error": "request body too large"}',
+                    }
+                ),
+            ]
+        )
+        # reading stopped as soon as the limit was exceeded:
+        # the last chunk was never received or buffered
+        self.assertEqual(len(chunks), 1)
+
     async def test_request_fail_missing_header(self):
         mock_send = AsyncMock()
         await self.agent._server(

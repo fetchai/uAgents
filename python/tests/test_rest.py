@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, call, patch
 import pytest
 
 from uagents import Agent, Bureau, Context, Model
+from uagents.config import DEFAULT_MAX_BODY_SIZE_BYTES
 
 pytestmark = pytest.mark.asyncio
 
@@ -388,3 +389,58 @@ async def test_rest_bureau():
             ),
         ]
     )
+
+
+@pytest.mark.order(1000)
+async def test_rest_post_body_too_large():
+    @agent.on_rest_post("/post-too-large", Request, Response)
+    async def _(_ctx: Context, req: Request):
+        return Response(text=f"Received: {req.text}")
+
+    # shrink the limit so the test doesn't have to push megabytes through
+    agent._server._max_body_size = 16
+
+    msgs = [
+        {"body": b"a" * 16, "more_body": True},
+        {"body": b"b" * 16, "more_body": True},
+        {"body": b"c" * 16, "more_body": False},
+    ]
+    msgs_iter = iter(msgs)
+
+    async def receive():
+        return next(msgs_iter)
+
+    mock_send = AsyncMock()
+    try:
+        await agent._server(
+            scope={
+                "type": "http",
+                "method": "POST",
+                "path": "/post-too-large",
+                "client": ("127.0.0.1", 1234),
+            },
+            receive=receive,
+            send=mock_send,
+        )
+    finally:
+        # restore the default for the shared module-level agent
+        agent._server._max_body_size = DEFAULT_MAX_BODY_SIZE_BYTES
+    mock_send.assert_has_calls(
+        [
+            call(
+                {
+                    "type": "http.response.start",
+                    "status": 413,
+                    "headers": [[b"content-type", b"application/json"]],
+                }
+            ),
+            call(
+                {
+                    "type": "http.response.body",
+                    "body": b'{"error": "request body too large"}',
+                }
+            ),
+        ]
+    )
+    # reading must have stopped as soon as the limit was exceeded
+    assert next(msgs_iter, None) is not None
