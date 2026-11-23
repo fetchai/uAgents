@@ -1,9 +1,11 @@
 # pylint: disable=protected-access
 import asyncio
 import unittest
+import uuid
 
 from aioresponses import aioresponses
 from uagents_core.envelope import Envelope
+from uagents_core.identity import generate_user_address
 
 from uagents import Agent, Protocol
 from uagents.agent import AgentRepresentation
@@ -100,7 +102,8 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
         schema_digest: str,
         sender: str,
         replies: dict[str, dict[str, type[Model]]] | None = None,
-        queries: dict[str, asyncio.Future] | None = None,
+        queries: dict[tuple[str, uuid.UUID], asyncio.Future] | None = None,
+        session: uuid.UUID | None = None,
     ):
         return ExternalContext(
             agent=AgentRepresentation(
@@ -115,7 +118,7 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             dispenser=self.alice._dispenser,
             logger=self.alice._logger,
             queries=queries,
-            session=None,
+            session=session,
             replies=replies,
             message_received=MsgInfo(
                 message=message, sender=sender, schema_digest=schema_digest
@@ -271,6 +274,44 @@ class TestContextSendMethods(unittest.IsolatedAsyncioTestCase):
             session=context.session,
         )
 
+        self.assertEqual(result, exp_msg_status)
+
+    async def test_send_raw_resolves_sync_query_for_matching_session(self):
+        """A sync reply must resolve only the pending query with a matching session."""
+        sender = generate_user_address()
+        session_a = uuid.uuid4()
+        session_b = uuid.uuid4()
+        future_a: asyncio.Future = asyncio.get_running_loop().create_future()
+        future_b: asyncio.Future = asyncio.get_running_loop().create_future()
+        queries = {
+            (sender, session_a): future_a,
+            (sender, session_b): future_b,
+        }
+
+        # the handler's context belongs to dialogue a: replying to the sender
+        # must resolve a's pending query and leave b's untouched
+        context = self.get_external_context(
+            incoming,
+            incoming_digest,
+            sender=sender,
+            queries=queries,
+            session=session_a,
+        )
+        result = await context.send(sender, msg)
+
+        self.assertTrue(future_a.done())
+        self.assertEqual(future_a.result(), (msg.model_dump_json(), msg_digest))
+        self.assertFalse(future_b.done())
+        self.assertNotIn((sender, session_a), queries)
+        self.assertIn((sender, session_b), queries)
+
+        exp_msg_status = MsgStatus(
+            status=DeliveryStatus.DELIVERED,
+            detail="Sync message resolved",
+            destination=sender,
+            endpoint="",
+            session=session_a,
+        )
         self.assertEqual(result, exp_msg_status)
 
     @aioresponses()

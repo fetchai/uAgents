@@ -441,7 +441,7 @@ class InternalContext(Context):
         wait_for_response: bool = False,
         timeout: int = DEFAULT_ENVELOPE_TIMEOUT_SECONDS,
         protocol_digest: str | None = None,
-        queries: dict[str, asyncio.Future] | None = None,
+        queries: dict[tuple[str, uuid.UUID], asyncio.Future] | None = None,
         expected_response_digests: set[str] | None = None,
     ) -> MsgStatus:
         # Extract address from destination agent identifier if present
@@ -466,12 +466,13 @@ class InternalContext(Context):
                     session_id=self._session,
                 )
 
-            # Handle sync dispatch of messages
-            elif queries and parsed_address in queries:
-                queries[parsed_address].set_result(
-                    (message_body, message_schema_digest)
-                )
-                del queries[parsed_address]
+            # Handle sync dispatch of messages; resolve only the pending query
+            # matching this dialogue's session so that replies aren't
+            # cross-delivered between concurrent sync queries from one sender
+            elif queries and (parsed_address, self._session) in queries:
+                query_key = (parsed_address, self._session)
+                queries[query_key].set_result((message_body, message_schema_digest))
+                del queries[query_key]
                 result = MsgStatus(
                     status=DeliveryStatus.DELIVERED,
                     detail="Sync message resolved",
@@ -659,8 +660,8 @@ class ExternalContext(InternalContext):
 
     Attributes:
         _message_received (MsgInfo): The received message.
-        _queries (dict[str, asyncio.Future] | None): dictionary mapping query senders to their
-            response Futures.
+        _queries (dict[tuple[str, uuid.UUID], asyncio.Future] | None): dictionary mapping query
+            (sender, session) pairs to their response Futures.
         _replies (dict[str, dict[str, type[Model]]] | None): Dictionary of allowed reply digests
             for each type of incoming message.
         _protocol (tuple[str, Protocol] | None): The supported protocol digest
@@ -670,7 +671,7 @@ class ExternalContext(InternalContext):
     def __init__(
         self,
         message_received: MsgInfo,
-        queries: dict[str, asyncio.Future] | None = None,
+        queries: dict[tuple[str, uuid.UUID], asyncio.Future] | None = None,
         replies: dict[str, dict[str, type[Model]]] | None = None,
         protocol: tuple[str, "Protocol"] | None = None,
         **kwargs,
@@ -680,8 +681,8 @@ class ExternalContext(InternalContext):
 
         Args:
             message_received (MsgInfo): Information about the received message.
-            queries (dict[str, asyncio.Future]): Dictionary mapping query senders to their
-                response Futures.
+            queries (dict[tuple[str, uuid.UUID], asyncio.Future]): Dictionary mapping query
+                (sender, session) pairs to their response Futures.
             replies (dict[str, dict[str, type[Model]]] | None): Dictionary of allowed replies
                 for each type of incoming message.
             protocol (tuple[str, Protocol] | None): The optional tuple of protocols.

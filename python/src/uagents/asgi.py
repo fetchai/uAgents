@@ -4,6 +4,7 @@ import json
 from datetime import datetime, timezone
 from logging import Logger
 from typing import Any
+from uuid import UUID
 
 import uvicorn
 from pydantic import BaseModel, ValidationError
@@ -45,7 +46,7 @@ class ASGIServer:
         self,
         port: int,
         loop: asyncio.AbstractEventLoop,
-        queries: dict[str, asyncio.Future],
+        queries: dict[tuple[str, UUID], asyncio.Future],
         logger: Logger | None = None,
     ):
         """
@@ -54,7 +55,8 @@ class ASGIServer:
         Args:
             port (int): The port to listen on.
             loop (asyncio.AbstractEventLoop): The event loop to use.
-            queries (dict[str, asyncio.Future]): The dictionary of queries to resolve.
+            queries (dict[tuple[str, UUID], asyncio.Future]): The dictionary of pending
+                sync queries to resolve, keyed by (sender, session).
             logger (Logger | None): The logger to use.
         """
         self._port = int(port)
@@ -358,7 +360,7 @@ class ASGIServer:
 
         if expects_response:
             # Add a future that will be resolved once the query is answered
-            self._queries[env.sender] = asyncio.Future()
+            self._queries[(env.sender, env.session)] = asyncio.Future()
 
         if not is_user_address(env.sender):  # verify signature if sent from agent
             try:
@@ -393,7 +395,7 @@ class ASGIServer:
             )
             try:
                 response_msg, schema_digest = await asyncio.wait_for(
-                    self._queries[env.sender],
+                    self._queries[(env.sender, env.session)],
                     timeout,
                 )
             except asyncio.TimeoutError:
@@ -401,6 +403,9 @@ class ASGIServer:
                     error="Query envelope expired"
                 ).model_dump_json()
                 schema_digest = ERROR_MESSAGE_DIGEST
+            finally:
+                # remove the pending query so stale entries don't accumulate
+                self._queries.pop((env.sender, env.session), None)
             sender = env.target
             target = env.sender
             response = enclose_response_raw(
