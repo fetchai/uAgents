@@ -338,7 +338,9 @@ class FairBuffer(Generic[T]):
         drops = self._drops.pop(address, None)
 
         item_limit = (
-            max_items - 1 if drops is not None and self._drop_notice is not None else max_items
+            max_items - 1
+            if drops is not None and self._drop_notice is not None
+            else max_items
         )
 
         if len(items) > item_limit:
