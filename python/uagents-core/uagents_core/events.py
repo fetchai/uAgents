@@ -272,7 +272,7 @@ class FairBuffer(Generic[T]):
 
     def __init__(
         self,
-        per_agent_cap: int = DEFAULT_EVENTS_MAX_BATCH_EVENTS,
+        per_agent_cap: int,
         *,
         drop_notice: Callable[[int, datetime], T] | None = None,
     ) -> None:
