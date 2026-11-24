@@ -466,9 +466,7 @@ class InternalContext(Context):
                     session_id=self._session,
                 )
 
-            # Handle sync dispatch of messages; resolve only the pending query
-            # matching this dialogue's session so that replies aren't
-            # cross-delivered between concurrent sync queries from one sender
+            # Handle sync dispatch of messages
             elif queries and (parsed_address, self._session) in queries:
                 query_key = (parsed_address, self._session)
                 queries[query_key].set_result((message_body, message_schema_digest))
