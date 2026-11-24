@@ -331,7 +331,7 @@ contexts, like 'replies', 'message_received', or 'protocol'.
 
 
 
-#### send_and_receive[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L590)
+#### send_and_receive[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L589)
 ```python
 async def send_and_receive(
     destination: str,
@@ -359,7 +359,7 @@ Send a message to the specified destination and receive a response.
 
 
 
-## ExternalContext Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L656)
+## ExternalContext Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L655)
 
 ```python
 class ExternalContext(InternalContext)
@@ -370,8 +370,8 @@ Represents the reactive context in which messages are handled and processed.
 **Attributes**:
 
 - `_message_received` _MsgInfo_ - The received message.
-- `_queries` _dict[str, asyncio.Future] | None_ - dictionary mapping query senders to their
-  response Futures.
+- `_queries` _dict[tuple[str, uuid.UUID], asyncio.Future] | None_ - dictionary mapping query
+  (sender, session) pairs to their response Futures.
 - `_replies` _dict[str, dict[str, type[Model]]] | None_ - Dictionary of allowed reply digests
   for each type of incoming message.
 - `_protocol` _tuple[str, Protocol] | None_ - The supported protocol digest
@@ -379,10 +379,11 @@ Represents the reactive context in which messages are handled and processed.
 
 
 
-#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L670)
+#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L669)
 ```python
 def __init__(message_received: MsgInfo,
-             queries: dict[str, asyncio.Future] | None = None,
+             queries: dict[tuple[str, uuid.UUID], asyncio.Future]
+             | None = None,
              replies: dict[str, dict[str, type[Model]]] | None = None,
              protocol: tuple[str, "Protocol"] | None = None,
              **kwargs)
@@ -393,15 +394,15 @@ Initialize the ExternalContext instance and attributes needed from the InternalC
 **Arguments**:
 
 - `message_received` _MsgInfo_ - Information about the received message.
-- `queries` _dict[str, asyncio.Future]_ - Dictionary mapping query senders to their
-  response Futures.
+- `queries` _dict[tuple[str, uuid.UUID], asyncio.Future]_ - Dictionary mapping query
+  (sender, session) pairs to their response Futures.
 - `replies` _dict[str, dict[str, type[Model]]] | None_ - Dictionary of allowed replies
   for each type of incoming message.
 - `protocol` _tuple[str, Protocol] | None_ - The optional tuple of protocols.
 
 
 
-#### validate_replies[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L695)
+#### validate_replies[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L694)
 ```python
 def validate_replies(message_type: type[Model]) -> None
 ```
@@ -414,7 +415,7 @@ If the context specifies replies, ensure that a valid reply was sent.
 
 
 
-#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L736)
+#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L735)
 ```python
 async def send(destination: str,
                message: Model,
