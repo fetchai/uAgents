@@ -575,6 +575,90 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
             ]
         )
 
+    async def test_message_fail_non_utf8_payload(self):
+        """A payload that is valid base64 but non-utf-8 must yield a 400, not a 500."""
+        env = Envelope(
+            version=1,
+            sender=generate_user_address(),
+            target=self.agent.address,
+            session=uuid.uuid4(),
+            schema_digest=Model.build_schema_digest(Message),
+        )
+        env.payload = base64.b64encode(b"\xff\xfe").decode()
+
+        mock_send = AsyncMock()
+        with patch("uagents.asgi._read_asgi_body") as mock_receive:
+            mock_receive.return_value = env.model_dump_json().encode()
+            await self.agent._server(
+                scope={
+                    "type": "http",
+                    "method": "POST",
+                    "path": "/submit",
+                    "headers": {b"content-type": b"application/json"},
+                },
+                receive=None,
+                send=mock_send,
+            )
+        mock_send.assert_has_calls(
+            [
+                call(
+                    {
+                        "type": "http.response.start",
+                        "status": 400,
+                        "headers": [[b"content-type", b"application/json"]],
+                    }
+                ),
+                call(
+                    {
+                        "type": "http.response.body",
+                        "body": b'{"error": "invalid payload encoding"}',
+                    }
+                ),
+            ]
+        )
+
+    async def test_message_fail_invalid_base64_payload(self):
+        """A payload that is not valid base64 must yield a 400, not a 500."""
+        env = Envelope(
+            version=1,
+            sender=generate_user_address(),
+            target=self.agent.address,
+            session=uuid.uuid4(),
+            schema_digest=Model.build_schema_digest(Message),
+        )
+        env.payload = "a"
+
+        mock_send = AsyncMock()
+        with patch("uagents.asgi._read_asgi_body") as mock_receive:
+            mock_receive.return_value = env.model_dump_json().encode()
+            await self.agent._server(
+                scope={
+                    "type": "http",
+                    "method": "POST",
+                    "path": "/submit",
+                    "headers": {b"content-type": b"application/json"},
+                },
+                receive=None,
+                send=mock_send,
+            )
+        mock_send.assert_has_calls(
+            [
+                call(
+                    {
+                        "type": "http.response.start",
+                        "status": 400,
+                        "headers": [[b"content-type", b"application/json"]],
+                    }
+                ),
+                call(
+                    {
+                        "type": "http.response.body",
+                        "body": b'{"error": "invalid payload encoding"}',
+                    }
+                ),
+            ]
+        )
+
     async def test_request_fail_missing_header(self):
         mock_send = AsyncMock()
         await self.agent._server(
