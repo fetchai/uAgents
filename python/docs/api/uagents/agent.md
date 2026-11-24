@@ -135,8 +135,8 @@ ts at which the agent is reachable.
 - `_models` _dict[str, type[Model]]_ - Dictionary mapping supported message digests to messages.
 - `_replies` _dict[str, dict[str, type[Model]]]_ - Dictionary of allowed replies for each type
   of incoming message.
-- `_queries` _dict[str, asyncio.Future]_ - Dictionary mapping query senders to their response
-  Futures.
+- `_queries` _dict[tuple[str, uuid.UUID], asyncio.Future]_ - Dictionary mapping query
+  (sender, session) pairs to their response Futures.
 - `_dispatcher` - The dispatcher for internal handling/sorting of messages.
 - `_dispenser` - The dispatcher for external message handling.
 - `_message_queue` - Asynchronous queue for incoming messages.
@@ -836,8 +836,8 @@ This class manages a collection of agents and orchestrates their execution.
 - `_agents` _list[Agent]_ - The list of agents to be managed by the bureau.
 - `_endpoints` _list[dict[str, Any]]_ - The endpoint configuration for the bureau.
 - `_port` _int_ - The port on which the bureau's server runs.
-- `_queries` _dict[str, asyncio.Future]_ - dictionary mapping query senders to their
-  response Futures.
+- `_queries` _dict[tuple[str, uuid.UUID], asyncio.Future]_ - dictionary mapping query
+  (sender, session) pairs to their response Futures.
 - `_logger` _Logger_ - The logger instance.
 - `_server` _ASGIServer_ - The ASGI server instance for handling requests.
 - `_agentverse` _AgentverseConfig_ - The agentverse configuration for the bureau.

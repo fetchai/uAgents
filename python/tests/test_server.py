@@ -25,10 +25,12 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
         self.bob = Agent(name="bob", seed="bob recovery password")
         return super().setUp()
 
-    async def mock_process_sync_message(self, sender: str, msg: Model):
+    async def mock_process_sync_message(
+        self, sender: str, session: uuid.UUID, msg: Model
+    ):
         while True:
-            if sender in self.agent._server._queries:
-                self.agent._server._queries[sender].set_result(
+            if (sender, session) in self.agent._server._queries:
+                self.agent._server._queries[(sender, session)].set_result(
                     (msg.model_dump_json(), Model.build_schema_digest(msg))
                 )
                 return
@@ -140,7 +142,9 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                         send=mock_send,
                     )
                 ),
-                asyncio.create_task(self.mock_process_sync_message(user, reply)),
+                asyncio.create_task(
+                    self.mock_process_sync_message(user, session, reply)
+                ),
             )
         response = enclose_response(reply, self.agent.address, session, user)
         formatted = json.loads(response)
@@ -195,7 +199,7 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                     )
                 ),
                 asyncio.create_task(
-                    self.mock_process_sync_message(self.bob.address, reply)
+                    self.mock_process_sync_message(self.bob.address, session, reply)
                 ),
             )
         response = enclose_response(
@@ -219,6 +223,110 @@ class TestServer(unittest.IsolatedAsyncioTestCase):
                 ),
             ]
         )
+
+    async def test_concurrent_sync_queries_same_sender(self):
+        """Concurrent sync queries from one sender must each get their own reply."""
+        user = generate_user_address()
+        session_a = uuid.uuid4()
+        session_b = uuid.uuid4()
+
+        env_a = Envelope(
+            version=1,
+            sender=user,
+            target=self.agent.address,
+            session=session_a,
+            schema_digest=Model.build_schema_digest(Message),
+        )
+        env_a.encode_payload(Message(message="AAA").model_dump_json())
+        env_b = Envelope(
+            version=1,
+            sender=user,
+            target=self.agent.address,
+            session=session_b,
+            schema_digest=Model.build_schema_digest(Message),
+        )
+        env_b.encode_payload(Message(message="BBB").model_dump_json())
+
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/submit",
+            "headers": {
+                b"content-type": b"application/json",
+                b"x-uagents-connection": b"sync",
+            },
+        }
+
+        mock_send_a = AsyncMock()
+        mock_send_b = AsyncMock()
+        with patch("uagents.asgi._read_asgi_body") as mock_receive:
+            # first query registers its future, then blocks awaiting the reply
+            mock_receive.return_value = env_a.model_dump_json().encode()
+            task_a = asyncio.create_task(
+                self.agent._server(scope=scope, receive=None, send=mock_send_a)
+            )
+            while (user, session_a) not in self.agent._server._queries:
+                await asyncio.sleep(0)
+
+            # second query from the same sender, different session
+            mock_receive.return_value = env_b.model_dump_json().encode()
+            task_b = asyncio.create_task(
+                self.agent._server(scope=scope, receive=None, send=mock_send_b)
+            )
+            while (user, session_b) not in self.agent._server._queries:
+                await asyncio.sleep(0)
+
+            # the second query must not overwrite the first one's future
+            self.assertEqual(len(self.agent._server._queries), 2)
+
+            # the handler answers each dialogue independently
+            self.agent._server._queries[(user, session_b)].set_result(
+                (
+                    Message(message="reply:BBB").model_dump_json(),
+                    Model.build_schema_digest(Message),
+                )
+            )
+            self.agent._server._queries[(user, session_a)].set_result(
+                (
+                    Message(message="reply:AAA").model_dump_json(),
+                    Model.build_schema_digest(Message),
+                )
+            )
+
+            await asyncio.gather(task_a, task_b)
+
+        def sent_response(mock_send):
+            statuses = [
+                c.args[0]["status"]
+                for c in mock_send.call_args_list
+                if c.args[0].get("type") == "http.response.start"
+            ]
+            bodies = [
+                c.args[0]["body"]
+                for c in mock_send.call_args_list
+                if c.args[0].get("type") == "http.response.body"
+            ]
+            return statuses, json.loads(bodies[0])
+
+        statuses_a, response_a = sent_response(mock_send_a)
+        statuses_b, response_b = sent_response(mock_send_b)
+
+        # each caller receives its own reply, under its own session
+        self.assertEqual(statuses_a, [200])
+        self.assertEqual(response_a["session"], str(session_a))
+        self.assertEqual(
+            json.loads(base64.b64decode(response_a["payload"])),
+            {"message": "reply:AAA"},
+        )
+        self.assertEqual(statuses_b, [200])
+        self.assertEqual(response_b["session"], str(session_b))
+        self.assertEqual(
+            json.loads(base64.b64decode(response_b["payload"])),
+            {"message": "reply:BBB"},
+        )
+
+        # both pending queries are cleaned up afterwards
+        self.assertEqual(self.agent._server._queries, {})
 
     async def test_message_fail_wrong_path(self):
         message = Message(message="hello")
