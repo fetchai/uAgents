@@ -13,6 +13,7 @@ from uagents_core.events import (
     BatchEvent,
     EventIngestionOptions,
     EventsDispatcher,
+    FairBuffer,
     FairEventBuffer,
     MessageEventMetadata,
     PlatformMetadata,
@@ -316,6 +317,19 @@ class TestFairEventBuffer:
         assert buffer.is_shutdown is False
         buffer.shutdown()
         assert buffer.is_shutdown is True
+
+
+class TestFairBuffer:
+    @pytest.mark.asyncio
+    async def test_opaque_items_without_drop_notice(self):
+        buffer: FairBuffer[dict] = FairBuffer(per_agent_cap=2)
+        assert buffer.push("agent-a", [{"id": 1}, {"id": 2}, {"id": 3}]) is True
+
+        result = await buffer.pop(10)
+        assert result is not None
+        address, items = result
+        assert address == "agent-a"
+        assert items == [{"id": 1}, {"id": 2}]
 
 
 # ---------------------------------------------------------------------------

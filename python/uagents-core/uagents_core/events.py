@@ -19,7 +19,7 @@ from collections import OrderedDict
 from datetime import datetime, timedelta, timezone
 from importlib.metadata import version as _package_version
 from secrets import token_bytes
-from typing import Any, Literal
+from typing import Any, Callable, Generic, Literal, TypeVar
 from uuid import UUID, uuid4
 
 import httpx
@@ -242,34 +242,57 @@ class EventIngestionOptions(BaseModel):
     )
 
 
-class FairEventBuffer:
-    """Per-agent event buffer with round-robin scheduling.
+T = TypeVar("T")
 
-    Events are grouped by agent address.  ``pop`` cycles through
-    agents so no single agent can starve others, regardless of
-    how many events it produces.
+
+def _batch_event_drop_notice(count: int, first_drop_at: datetime) -> BatchEvent:
+    """Build the synthetic drop notice used by :class:`FairEventBuffer`."""
+    return BatchEvent(
+        category="user",
+        kind="info",
+        timestamp=first_drop_at,
+        message=(
+            f"{count} event(s) dropped due to full "
+            f"buffer (resumed at {_utc_now().isoformat()})"
+        ),
+        metadata={
+            "dropped_count": count,
+            "reason": "buffer_full",
+        },
+    )
+
+
+class FairBuffer(Generic[T]):
+    """Per-agent buffer with round-robin scheduling.
+
+    Items are grouped by agent address.  ``pop`` cycles through agents so
+    no single agent can starve others.  Optional ``drop_notice`` injects a
+    synthetic item when overflow drops are reported on ``pop``.
     """
 
     def __init__(
         self,
-        per_agent_cap: int = DEFAULT_EVENTS_MAX_BATCH_EVENTS,
+        per_agent_cap: int,
+        *,
+        drop_notice: Callable[[int, datetime], T] | None = None,
     ) -> None:
-        self._buffers: OrderedDict[str, list[BatchEvent]] = OrderedDict()
+        self._buffers: OrderedDict[str, list[T]] = OrderedDict()
         self._per_agent_cap = per_agent_cap
         self._wake: asyncio.Event = asyncio.Event()
         self._drops: dict[str, tuple[int, datetime]] = {}
         self._is_shutdown = False
+        self._drop_notice = drop_notice
 
     @property
     def is_shutdown(self) -> bool:
         return self._is_shutdown
 
-    def push(self, address: str, events: list[BatchEvent]) -> bool:
-        """Buffer events for an agent, dropping overflow.
+    def push(self, address: str, items: list[T]) -> bool:
+        """Buffer items for an agent, dropping overflow.
 
         Returns ``False`` if the buffer has been shut down.
         """
-        if not events:
+        if not items:
             return True
 
         if self._is_shutdown:
@@ -279,31 +302,30 @@ class FairEventBuffer:
         remaining = self._per_agent_cap - len(buffer)
 
         if remaining > 0:
-            if remaining >= len(events):
-                buffer.extend(events)
+            if remaining >= len(items):
+                buffer.extend(items)
             else:
-                buffer.extend(events[:remaining])
-                self._record_drop(address, len(events) - remaining)
+                buffer.extend(items[:remaining])
+                self._record_drop(address, len(items) - remaining)
             self._wake.set()
         else:
-            self._record_drop(address, len(events))
+            self._record_drop(address, len(items))
 
         return True
 
     async def pop(
         self,
-        max_events: int,
+        max_items: int,
         timeout: float = 1.0,
-    ) -> tuple[str, list[BatchEvent]] | None:
-        """Take up to *max_events* from the next agent.
+    ) -> tuple[str, list[T]] | None:
+        """Take up to *max_items* from the next agent.
 
-        Blocks until events are available.  Returns ``None`` only when
-        the buffer has been shut down and is empty (the caller's signal
-        to exit).
+        Blocks until items are available.  Returns ``None`` only when the
+        buffer has been shut down and is empty (the caller's signal to exit).
 
-        During shutdown, returns remaining events without waiting so
-        the consumer can drain the buffer.  The served agent is rotated
-        to the back of the queue.
+        During shutdown, returns remaining items without waiting so the
+        consumer can drain the buffer.  The served agent is rotated to the
+        back of the queue.
         """
         while not self._buffers:
             if self._is_shutdown:
@@ -312,43 +334,51 @@ class FairEventBuffer:
             with contextlib.suppress(asyncio.TimeoutError):
                 await asyncio.wait_for(self._wake.wait(), timeout=timeout)
 
-        address, events = self._buffers.popitem(last=False)
+        address, items = self._buffers.popitem(last=False)
         drops = self._drops.pop(address, None)
 
-        event_limit = max_events - 1 if drops is not None else max_events
+        item_limit = (
+            max_items - 1
+            if drops is not None and self._drop_notice is not None
+            else max_items
+        )
 
-        if len(events) > event_limit:
-            self._buffers[address] = events[event_limit:]
-            events = events[:event_limit]
+        if len(items) > item_limit:
+            self._buffers[address] = items[item_limit:]
+            items = items[:item_limit]
 
         if drops is not None:
             count, first_drop_at = drops
-            events.append(
-                BatchEvent(
-                    category="user",
-                    kind="info",
-                    timestamp=first_drop_at,
-                    message=(
-                        f"{count} event(s) dropped due to full "
-                        f"buffer (resumed at {_utc_now().isoformat()})"
-                    ),
-                    metadata={
-                        "dropped_count": count,
-                        "reason": "buffer_full",
-                    },
+            if self._drop_notice is not None:
+                items.append(self._drop_notice(count, first_drop_at))
+            else:
+                logging.getLogger(__name__).warning(
+                    "Dropped %d item(s) for %s due to full buffer", count, address
                 )
-            )
 
-        return address, events
+        return address, items
 
     def shutdown(self) -> None:
-        """Stop accepting new events and unblock any waiting ``pop()``."""
+        """Stop accepting new items and unblock any waiting ``pop()``."""
         self._is_shutdown = True
         self._wake.set()
 
     def _record_drop(self, address: str, count: int) -> None:
         prev_count, first_at = self._drops.get(address, (0, _utc_now()))
         self._drops[address] = (prev_count + count, first_at)
+
+
+class FairEventBuffer(FairBuffer[BatchEvent]):
+    """:class:`FairBuffer` specialised for ``BatchEvent`` telemetry.
+
+    Overflow drops are reported as a synthetic ``BatchEvent`` on ``pop``.
+    """
+
+    def __init__(
+        self,
+        per_agent_cap: int = DEFAULT_EVENTS_MAX_BATCH_EVENTS,
+    ) -> None:
+        super().__init__(per_agent_cap, drop_notice=_batch_event_drop_notice)
 
 
 def _build_message_event(
