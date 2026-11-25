@@ -97,6 +97,18 @@ class BroadcastTimeoutError(RuntimeError):
         super().__init__("Broadcast timeout error")
 
 
+class PendingRegistrationTransactionError(RuntimeError):
+    """Raised when a registration transaction was broadcast but is still pending."""
+
+    def __init__(self, tx_hash: str, timeout_height: int):
+        self.tx_hash = tx_hash
+        self.timeout_height = timeout_height
+        super().__init__(
+            "Registration transaction is still pending "
+            f"(hash={tx_hash}, timeout_height={timeout_height})"
+        )
+
+
 class AlmanacContractRecord(AgentInfo):
     contract_address: str
     sender_address: str
@@ -547,12 +559,17 @@ class AlmanacContract(LedgerContract):
         if tx is None:
             raise BroadcastTimeoutError()
 
-        status: TxResponse = await wait_for_tx_to_complete(
-            tx_hash=tx.tx_hash,
-            ledger=ledger,
-            poll_retries=poll_retries,
-            poll_retry_delay=poll_retry_delay,
-        )
+        try:
+            status: TxResponse = await wait_for_tx_to_complete(
+                tx_hash=tx.tx_hash,
+                ledger=ledger,
+                poll_retries=poll_retries,
+                poll_retry_delay=poll_retry_delay,
+            )
+        except QueryTimeoutError as ex:
+            raise PendingRegistrationTransactionError(
+                tx.tx_hash, timeout_height
+            ) from ex
         if status.code != 0:
             raise RuntimeError(
                 f"Registration transaction failed ({status.code}): {status.hash})"
@@ -648,12 +665,17 @@ class AlmanacContract(LedgerContract):
         if tx is None:
             raise BroadcastTimeoutError()
 
-        status: TxResponse = await wait_for_tx_to_complete(
-            tx_hash=tx.tx_hash,
-            ledger=ledger,
-            poll_retries=poll_retries,
-            poll_retry_delay=poll_retry_delay,
-        )
+        try:
+            status: TxResponse = await wait_for_tx_to_complete(
+                tx_hash=tx.tx_hash,
+                ledger=ledger,
+                poll_retries=poll_retries,
+                poll_retry_delay=poll_retry_delay,
+            )
+        except QueryTimeoutError as ex:
+            raise PendingRegistrationTransactionError(
+                tx.tx_hash, timeout_height
+            ) from ex
         if status.code != 0:
             raise RuntimeError(
                 f"Registration transaction failed ({status.code}): {status.hash})"

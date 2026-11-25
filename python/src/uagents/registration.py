@@ -3,6 +3,7 @@ import contextlib
 import json
 import logging
 import time
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
@@ -35,6 +36,7 @@ from uagents.network import (
     AlmanacContract,
     AlmanacContractRecord,
     InsufficientFundsError,
+    PendingRegistrationTransactionError,
     RetryDelayFunc,
     add_testnet_funds,
     default_exp_backoff,
@@ -48,6 +50,12 @@ class AgentRegistrationAttestationBatch(BaseModel):
 
 class AgentStatusUpdate(VerifiableModel):
     is_active: bool
+
+
+@dataclass
+class PendingRegistrationTransaction:
+    tx_hash: str
+    timeout_height: int
 
 
 def coerce_metadata_to_str(
@@ -248,6 +256,8 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         self._last_funds_warning_logged: datetime | None = None
         self._timeout_blocks = timeout_blocks
         self._tx_fee = tx_fee
+        self._pending_registration: PendingRegistrationTransaction | None = None
+        self._registration_lock = asyncio.Lock()
 
     @property
     def last_successful_registration(self) -> datetime | None:
@@ -298,9 +308,10 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         the registration data has changed.
         """
         try:
-            await self._register_on_almanac_contract(
-                agent_identifier, identity, protocols, endpoints
-            )
+            async with self._registration_lock:
+                await self._register_on_almanac_contract(
+                    agent_identifier, identity, protocols, endpoints
+                )
         except grpc.RpcError as e:
             if is_ledger_rpc_unavailable(e):
                 self._logger.warning(
@@ -318,6 +329,9 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
         protocols: list[str],
         endpoints: list[AgentEndpoint],
     ) -> None:
+        if self._has_valid_pending_registration():
+            return
+
         _, _, agent_address = parse_identifier(agent_identifier)
 
         if (
@@ -377,14 +391,54 @@ class LedgerBasedRegistrationPolicy(AgentRegistrationPolicy):
                 self._logger.info("Registering on almanac contract...complete")
                 self._last_successful_registration = datetime.now()
 
+            except PendingRegistrationTransactionError as e:
+                self._pending_registration = PendingRegistrationTransaction(
+                    e.tx_hash, e.timeout_height
+                )
+                self._logger.info(
+                    "Registration transaction is pending; waiting before retrying"
+                )
             except RuntimeError as e:
                 self._logger.warning(
                     "Registering on almanac contract...failed (will retry later)"
                 )
                 self._logger.debug(e)
-
         else:
             self._logger.info("Almanac contract registration is up to date!")
+
+    def _has_valid_pending_registration(self) -> bool:
+        pending = self._pending_registration
+        if pending is None:
+            return False
+
+        try:
+            status = self._ledger.query_tx(pending.tx_hash)
+        except Exception:
+            try:
+                if self._ledger.query_height() <= pending.timeout_height:
+                    return True
+            except Exception:
+                self._logger.debug(
+                    "Unable to determine whether the pending registration transaction "
+                    "has expired",
+                    exc_info=True,
+                )
+                return True
+
+            self._logger.info("Pending registration transaction expired; retrying")
+            self._pending_registration = None
+            return False
+
+        self._pending_registration = None
+        if status.code == 0:
+            self._logger.info("Pending registration transaction completed")
+            self._last_successful_registration = datetime.now()
+            return True
+
+        self._logger.warning(
+            "Pending registration transaction failed (%s); retrying", status.code
+        )
+        return False
 
     def _get_balance(self) -> int:
         return self._ledger.query_bank_balance(Address(self._wallet.address()))
@@ -440,6 +494,8 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
         self._last_successful_registration: datetime | None = None
         self._tx_fee: TxFee | None = None
         self._timeout_blocks = timeout_blocks
+        self._pending_registration: PendingRegistrationTransaction | None = None
+        self._registration_lock = asyncio.Lock()
 
     @property
     def last_successful_registration(self) -> datetime | None:
@@ -495,7 +551,8 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
 
     async def register(self) -> None:
         try:
-            await self._register_agents_on_almanac_contract()
+            async with self._registration_lock:
+                await self._register_agents_on_almanac_contract()
         except grpc.RpcError as e:
             if is_ledger_rpc_unavailable(e):
                 self._logger.warning(
@@ -507,6 +564,9 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
                 raise
 
     async def _register_agents_on_almanac_contract(self) -> None:
+        if self._has_valid_pending_registration():
+            return
+
         self._logger.info("Registering agents on Almanac contract...")
         for record in self._records:
             record.sign(self._identities[record.address])
@@ -541,11 +601,52 @@ class BatchLedgerRegistrationPolicy(BatchRegistrationPolicy):
             self._logger.info("Registering agents on Almanac contract...complete")
             self._last_successful_registration = datetime.now()
 
+        except PendingRegistrationTransactionError as e:
+            self._pending_registration = PendingRegistrationTransaction(
+                e.tx_hash, e.timeout_height
+            )
+            self._logger.info(
+                "Registration transaction is pending; waiting before retrying"
+            )
         except RuntimeError as e:
             self._logger.warning(
                 "Registering on almanac contract...failed (will retry later)"
             )
             self._logger.debug(e)
+
+    def _has_valid_pending_registration(self) -> bool:
+        pending = self._pending_registration
+        if pending is None:
+            return False
+
+        try:
+            status = self._ledger.query_tx(pending.tx_hash)
+        except Exception:
+            try:
+                if self._ledger.query_height() <= pending.timeout_height:
+                    return True
+            except Exception:
+                self._logger.debug(
+                    "Unable to determine whether the pending registration transaction "
+                    "has expired",
+                    exc_info=True,
+                )
+                return True
+
+            self._logger.info("Pending registration transaction expired; retrying")
+            self._pending_registration = None
+            return False
+
+        self._pending_registration = None
+        if status.code == 0:
+            self._logger.info("Pending registration transaction completed")
+            self._last_successful_registration = datetime.now()
+            return True
+
+        self._logger.warning(
+            "Pending registration transaction failed (%s); retrying", status.code
+        )
+        return False
 
 
 class DefaultRegistrationPolicy(AgentRegistrationPolicy):
