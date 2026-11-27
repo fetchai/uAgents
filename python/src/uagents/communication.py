@@ -48,7 +48,9 @@ class Dispenser:
             sync (bool): True if the message is synchronous. Defaults to False.
             timeout (int | None): Optional timeout for the HTTP request in seconds.
         """
-        self._envelopes.put_nowait((envelope, endpoints, response_future, sync, timeout))
+        self._envelopes.put_nowait(
+            (envelope, endpoints, response_future, sync, timeout)
+        )
 
     async def _process_envelope(
         self,
@@ -87,8 +89,16 @@ class Dispenser:
         """Run the dispenser routine."""
         try:
             while True:
-                env, endpoints, response_future, sync, timeout = await self._envelopes.get()
-                await self._process_envelope(env, endpoints, response_future, sync, timeout)
+                (
+                    env,
+                    endpoints,
+                    response_future,
+                    sync,
+                    timeout,
+                ) = await self._envelopes.get()
+                await self._process_envelope(
+                    env, endpoints, response_future, sync, timeout
+                )
         except (asyncio.CancelledError, KeyboardInterrupt):
             LOGGER.info("Shutting down dispenser...")
 

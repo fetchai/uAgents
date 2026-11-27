@@ -578,7 +578,9 @@ class InternalContext(Context):
             sync (bool): True if the message is synchronous. Defaults to False.
             timeout (int | None): Optional timeout for the HTTP request in seconds.
         """
-        self._dispenser.add_envelope(envelope, endpoints, response_future, sync, timeout)
+        self._dispenser.add_envelope(
+            envelope, endpoints, response_future, sync, timeout
+        )
 
     def _report_message_sent(self, peer: str) -> None:
         """
