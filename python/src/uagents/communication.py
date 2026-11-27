@@ -27,7 +27,7 @@ class Dispenser:
 
     def __init__(self):
         self._envelopes: asyncio.Queue[
-            tuple[Envelope, list[str], asyncio.Future, bool]
+            tuple[Envelope, list[str], asyncio.Future, bool, int | None]
         ] = asyncio.Queue()
 
     def add_envelope(
@@ -36,6 +36,7 @@ class Dispenser:
         endpoints: list[str],
         response_future: asyncio.Future,
         sync: bool = False,
+        timeout: int | None = None,
     ) -> None:
         """
         Add an envelope to the dispenser.
@@ -45,8 +46,11 @@ class Dispenser:
             endpoints (list[str]): The endpoints to send the envelope to.
             response_future (asyncio.Future): The future to set the response on.
             sync (bool): True if the message is synchronous. Defaults to False.
+            timeout (int | None): Optional timeout for the HTTP request in seconds.
         """
-        self._envelopes.put_nowait((envelope, endpoints, response_future, sync))
+        self._envelopes.put_nowait(
+            (envelope, endpoints, response_future, sync, timeout)
+        )
 
     async def _process_envelope(
         self,
@@ -54,6 +58,7 @@ class Dispenser:
         endpoints: list[str],
         response_future: asyncio.Future,
         sync: bool,
+        timeout: int | None = None,
     ) -> None:
         """
         Process a single envelope by sending it and updating the response future.
@@ -63,12 +68,14 @@ class Dispenser:
             endpoints (list[str]): The endpoints to send the envelope to.
             response_future (asyncio.Future): The future to set the response on.
             sync (bool): True if the message is synchronous.
+            timeout (int | None): Optional timeout for the HTTP request in seconds.
         """
         try:
             result: MsgStatus | Envelope = await send_exchange_envelope(
                 envelope=env,
                 endpoints=endpoints,
                 sync=sync,
+                timeout=timeout,
             )
             if not response_future.done():
                 response_future.set_result(result)
@@ -82,16 +89,28 @@ class Dispenser:
         """Run the dispenser routine."""
         try:
             while True:
-                env, endpoints, response_future, sync = await self._envelopes.get()
-                await self._process_envelope(env, endpoints, response_future, sync)
+                (
+                    env,
+                    endpoints,
+                    response_future,
+                    sync,
+                    timeout,
+                ) = await self._envelopes.get()
+                await self._process_envelope(
+                    env, endpoints, response_future, sync, timeout
+                )
         except (asyncio.CancelledError, KeyboardInterrupt):
             LOGGER.info("Shutting down dispenser...")
 
             # Drain remaining messages from queue using get_nowait()
             while not self._envelopes.empty():
                 try:
-                    env, endpoints, response_future, sync = self._envelopes.get_nowait()
-                    await self._process_envelope(env, endpoints, response_future, sync)
+                    env, endpoints, response_future, sync, timeout = (
+                        self._envelopes.get_nowait()
+                    )
+                    await self._process_envelope(
+                        env, endpoints, response_future, sync, timeout
+                    )
                 except asyncio.QueueEmpty:
                     break
                 except Exception as ex:
@@ -125,7 +144,10 @@ async def dispatch_local_message(
 
 
 async def send_exchange_envelope(
-    envelope: Envelope, endpoints: list[str], sync: bool = False
+    envelope: Envelope,
+    endpoints: list[str],
+    sync: bool = False,
+    timeout: int | None = None,
 ) -> MsgStatus | Envelope:
     """
     Method to send an exchange envelope.
@@ -134,6 +156,8 @@ async def send_exchange_envelope(
         envelope (Envelope): The envelope to send.
         endpoints (list[str]): The endpoints to send the envelope to.
         sync (bool): True if the message is synchronous. Defaults to False.
+        timeout (int | None): Optional timeout for each HTTP request in seconds. If
+            not provided, the underlying HTTP client's default timeout applies.
 
     Returns:
         MsgStatus | Envelope: Either the status of the message or the response envelope.
@@ -144,12 +168,14 @@ async def send_exchange_envelope(
     errors = []
     for endpoint in endpoints:
         try:
+            request_kwargs: dict = {
+                "headers": headers,
+                "data": envelope.model_dump_json(),
+            }
+            if timeout is not None:
+                request_kwargs["timeout"] = aiohttp.ClientTimeout(total=timeout)
             async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    endpoint,
-                    headers=headers,
-                    data=envelope.model_dump_json(),
-                ) as resp:
+                async with session.post(endpoint, **request_kwargs) as resp:
                     success = resp.status == 200
                     if success:
                         if sync:
@@ -184,6 +210,8 @@ async def send_exchange_envelope(
             errors.append(f"Failed to connect: {ex}")
         except ValidationError as ex:
             errors.append(f"Invalid sync response: {ex}")
+        except asyncio.TimeoutError:
+            errors.append(f"Request timed out after {timeout} seconds")
         except Exception as ex:
             errors.append(f"Failed to send message: {ex}")
     LOGGER.error(
@@ -241,7 +269,8 @@ async def send_message_raw(
         response_type (type[Model] | None): The optional type of the response message.
         sender (Identity | str | None): The optional sender identity or user address.
         resolver (Resolver | None): The optional resolver for address-to-endpoint resolution.
-        timeout (int): The timeout for the message response in seconds. Defaults to 30.
+        timeout (int): The timeout for the message response in seconds. Also applied
+            as the HTTP request timeout when contacting each endpoint. Defaults to 30.
         sync (bool): True if the message is synchronous.
 
     Returns:
@@ -289,6 +318,7 @@ async def send_message_raw(
         envelope=env,
         endpoints=endpoints,
         sync=sync,
+        timeout=timeout,
     )
     if isinstance(response, Envelope):
         if env.signature is None:
