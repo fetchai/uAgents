@@ -1,6 +1,7 @@
 import asyncio
 import binascii
 import contextlib
+import ipaddress
 import json
 from datetime import datetime, timezone
 from logging import Logger
@@ -29,6 +30,24 @@ from uagents.utils import get_logger
 HOST = "0.0.0.0"
 
 RESERVED_ENDPOINTS = ["/submit", "/messages", "/agent_info", "/connect", "/disconnect"]
+
+
+def _is_local_client(client: tuple[str, int] | None) -> bool:
+    """Check whether an ASGI client address is a local loopback address.
+
+    Args:
+        client (tuple[str, int] | None): The client address tuple from the ASGI
+            scope, or None if the server did not provide one.
+
+    Returns:
+        bool: True if the client connected via a loopback address.
+    """
+    if client is None:
+        return False
+    try:
+        return ipaddress.ip_address(client[0]).is_loopback
+    except ValueError:
+        return False
 
 
 class RequestBodyTooLargeError(Exception):
@@ -70,6 +89,8 @@ class ASGIServer:
         queries: dict[tuple[str, UUID], asyncio.Future],
         logger: Logger | None = None,
         max_body_size: int | None = None,
+        host: str = HOST,
+        forwarded_allow_ips: str | None = None,
     ):
         """
         Initialize the ASGI server.
@@ -83,6 +104,13 @@ class ASGIServer:
             max_body_size (int | None): The maximum size of an incoming request body
                 in bytes; larger requests are rejected with a 413 response. If None,
                 DEFAULT_MAX_BODY_SIZE_BYTES is used.
+            host (str): The host address to bind the server to. Defaults to all
+                interfaces ("0.0.0.0"); use "127.0.0.1" to only accept local
+                loopback connections.
+            forwarded_allow_ips (str | None): Comma-separated list of proxy IP
+                addresses whose X-Forwarded-For headers are trusted when deriving
+                the client address. Defaults to the loopback addresses only.
+                Set this only when the agent runs behind a trusted reverse proxy.
         """
         self._port = int(port)
         self._loop = loop
@@ -94,6 +122,8 @@ class ASGIServer:
         self._max_body_size = (
             max_body_size if max_body_size is not None else DEFAULT_MAX_BODY_SIZE_BYTES
         )
+        self._host = host
+        self._forwarded_allow_ips = forwarded_allow_ips
         self._server: uvicorn.Server | None = None
 
     @property
@@ -108,13 +138,25 @@ class ASGIServer:
         endpoint: str,
         request: type[Model] | None,
         response: type[Model | BaseModel],
+        public: bool = False,
     ):
-        """Add a REST endpoint to the server."""
+        """Add a REST endpoint to the server.
+
+        Args:
+            address (str): The address of the agent handling the endpoint.
+            method (RestMethod): The HTTP method of the endpoint.
+            endpoint (str): The path of the endpoint.
+            request (type[Model] | None): The request model of the endpoint.
+            response (type[Model | BaseModel]): The response model of the endpoint.
+            public (bool): Whether the endpoint is accessible from non-loopback
+                clients. Defaults to False, meaning only local clients can reach it.
+        """
         self._rest_handler_map[(address, method, endpoint)] = RestHandlerDetails(
             method=method,
             endpoint=endpoint,
             request_model=request,
             response_model=response,
+            public=public,
         )
 
     def has_rest_endpoint(self, method: RestMethod, endpoint: str) -> bool:
@@ -208,10 +250,10 @@ class ASGIServer:
         """Start the server."""
         config = uvicorn.Config(
             self,
-            host=HOST,
+            host=self._host,
             port=self._port,
             log_level="warning",
-            forwarded_allow_ips="*",
+            forwarded_allow_ips=self._forwarded_allow_ips,
             headers=[
                 ("Access-Control-Allow-Origin", "*"),
                 ("Access-Control-Allow-Methods", "GET, POST, OPTIONS"),
@@ -221,7 +263,7 @@ class ASGIServer:
         )
         self._server = uvicorn.Server(config)
         self._logger.info(
-            f"Starting server on http://{HOST}:{self._port} (Press CTRL+C to quit)"
+            f"Starting server on http://{self._host}:{self._port} (Press CTRL+C to quit)"
         )
 
         with contextlib.suppress(asyncio.CancelledError, KeyboardInterrupt):
@@ -340,9 +382,10 @@ class ASGIServer:
             method=request_method, endpoint=request_path
         )
         if handlers:
-            if (
-                request_path in set(RESERVED_ENDPOINTS) - {"/agent_info"}
-                and "127.0.0.1" not in scope["client"]
+            # endpoints are only accessible from non-loopback clients when
+            # explicitly registered as public
+            if not any(handler.public for handler in handlers.values()) and not (
+                _is_local_client(scope.get("client"))
             ):
                 await self._asgi_send(
                     send=send, status_code=403, body={"error": "forbidden"}

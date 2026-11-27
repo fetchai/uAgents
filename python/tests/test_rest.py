@@ -391,6 +391,210 @@ async def test_rest_bureau():
     )
 
 
+@pytest.mark.order(8)
+async def test_rest_get_forbidden_for_non_local_client():
+    @agent.on_rest_get("/get-private", Response)
+    async def _(_ctx: Context):
+        return Response(text="Hi there!")
+
+    mock_send = AsyncMock()
+    with patch("uagents.asgi._read_asgi_body") as mock_receive:
+        mock_receive.return_value = b""
+        await agent._server(
+            scope={
+                "type": "http",
+                "method": "GET",
+                "path": "/get-private",
+                "client": ("203.0.113.10", 1234),
+            },
+            receive=None,
+            send=mock_send,
+        )
+    mock_send.assert_has_calls(
+        [
+            call(
+                {
+                    "type": "http.response.start",
+                    "status": 403,
+                    "headers": [[b"content-type", b"application/json"]],
+                }
+            ),
+            call({"type": "http.response.body", "body": b'{"error": "forbidden"}'}),
+        ]
+    )
+
+
+@pytest.mark.order(9)
+async def test_rest_post_forbidden_for_non_local_client():
+    @agent.on_rest_post("/post-private", Request, Response)
+    async def _(_ctx: Context, req: Request):
+        return Response(text=f"Received: {req.text}")
+
+    mock_send = AsyncMock()
+    with patch("uagents.asgi._read_asgi_body") as mock_receive:
+        mock_receive.return_value = b'{"text": "Hello"}'
+        await agent._server(
+            scope={
+                "type": "http",
+                "method": "POST",
+                "path": "/post-private",
+                "client": ("203.0.113.10", 1234),
+            },
+            receive=None,
+            send=mock_send,
+        )
+    mock_send.assert_has_calls(
+        [
+            call(
+                {
+                    "type": "http.response.start",
+                    "status": 403,
+                    "headers": [[b"content-type", b"application/json"]],
+                }
+            ),
+            call({"type": "http.response.body", "body": b'{"error": "forbidden"}'}),
+        ]
+    )
+
+
+@pytest.mark.order(10)
+async def test_rest_get_public_endpoint_allows_non_local_client():
+    @agent.on_rest_get("/get-public", Response, public=True)
+    async def _(_ctx: Context):
+        return Response(text="Hi there!")
+
+    mock_send = AsyncMock()
+    with patch("uagents.asgi._read_asgi_body") as mock_receive:
+        mock_receive.return_value = b""
+        await agent._server(
+            scope={
+                "type": "http",
+                "method": "GET",
+                "path": "/get-public",
+                "client": ("203.0.113.10", 1234),
+            },
+            receive=None,
+            send=mock_send,
+        )
+    mock_send.assert_has_calls(
+        [
+            call(
+                {
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [[b"content-type", b"application/json"]],
+                }
+            ),
+            call(
+                {
+                    "type": "http.response.body",
+                    "body": b'{"text": "Hi there!"}',
+                }
+            ),
+        ]
+    )
+
+
+@pytest.mark.order(11)
+async def test_rest_post_public_endpoint_allows_non_local_client():
+    @agent.on_rest_post("/post-public", Request, Response, public=True)
+    async def _(_ctx: Context, req: Request):
+        return Response(text=f"Received: {req.text}")
+
+    mock_send = AsyncMock()
+    with patch("uagents.asgi._read_asgi_body") as mock_receive:
+        mock_receive.return_value = b'{"text": "Hello"}'
+        await agent._server(
+            scope={
+                "type": "http",
+                "method": "POST",
+                "path": "/post-public",
+                "client": ("203.0.113.10", 1234),
+            },
+            receive=None,
+            send=mock_send,
+        )
+    mock_send.assert_has_calls(
+        [
+            call(
+                {
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [[b"content-type", b"application/json"]],
+                }
+            ),
+            call(
+                {
+                    "type": "http.response.body",
+                    "body": b'{"text": "Received: Hello"}',
+                }
+            ),
+        ]
+    )
+
+
+@pytest.mark.order(12)
+async def test_rest_get_private_endpoint_allows_ipv6_loopback():
+    @agent.on_rest_get("/get-private-v6", Response)
+    async def _(_ctx: Context):
+        return Response(text="Hi there!")
+
+    mock_send = AsyncMock()
+    with patch("uagents.asgi._read_asgi_body") as mock_receive:
+        mock_receive.return_value = b""
+        await agent._server(
+            scope={
+                "type": "http",
+                "method": "GET",
+                "path": "/get-private-v6",
+                "client": ("::1", 1234),
+            },
+            receive=None,
+            send=mock_send,
+        )
+    mock_send.assert_has_calls(
+        [
+            call(
+                {
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [[b"content-type", b"application/json"]],
+                }
+            ),
+            call(
+                {
+                    "type": "http.response.body",
+                    "body": b'{"text": "Hi there!"}',
+                }
+            ),
+        ]
+    )
+
+
+@pytest.mark.order(13)
+async def test_agent_info_endpoint_is_public():
+    mock_send = AsyncMock()
+    with patch("uagents.asgi._read_asgi_body") as mock_receive:
+        mock_receive.return_value = b""
+        await agent._server(
+            scope={
+                "type": "http",
+                "method": "GET",
+                "path": "/agent_info",
+                "client": ("203.0.113.10", 1234),
+            },
+            receive=None,
+            send=mock_send,
+        )
+    mock_send.assert_any_call(
+        {
+            "type": "http.response.start",
+            "status": 200,
+            "headers": [[b"content-type", b"application/json"]],
+        }
+    )
+
+
 @pytest.mark.order(1000)
 async def test_rest_post_body_too_large():
     @agent.on_rest_post("/post-too-large", Request, Response)
