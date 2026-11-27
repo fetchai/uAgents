@@ -525,7 +525,7 @@ class InternalContext(Context):
                 # Create awaitable future for MsgStatus and sync response
                 fut = asyncio.Future()
 
-                self._queue_envelope(env, endpoints, fut, sync)
+                self._queue_envelope(env, endpoints, fut, sync, timeout)
 
                 try:
                     result = await asyncio.wait_for(fut, timeout)
@@ -566,14 +566,19 @@ class InternalContext(Context):
         endpoints: list[str],
         response_future: asyncio.Future,
         sync: bool = False,
+        timeout: int | None = None,
     ):
         """
         Queue an envelope for processing.
 
         Args:
             envelope (Envelope): The envelope to queue.
+            endpoints (list[str]): The endpoints to send the envelope to.
+            response_future (asyncio.Future): The future to set the response on.
+            sync (bool): True if the message is synchronous. Defaults to False.
+            timeout (int | None): Optional timeout for the HTTP request in seconds.
         """
-        self._dispenser.add_envelope(envelope, endpoints, response_future, sync)
+        self._dispenser.add_envelope(envelope, endpoints, response_future, sync, timeout)
 
     def _report_message_sent(self, peer: str) -> None:
         """

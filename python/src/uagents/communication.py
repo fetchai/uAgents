@@ -27,7 +27,7 @@ class Dispenser:
 
     def __init__(self):
         self._envelopes: asyncio.Queue[
-            tuple[Envelope, list[str], asyncio.Future, bool]
+            tuple[Envelope, list[str], asyncio.Future, bool, int | None]
         ] = asyncio.Queue()
 
     def add_envelope(
@@ -36,6 +36,7 @@ class Dispenser:
         endpoints: list[str],
         response_future: asyncio.Future,
         sync: bool = False,
+        timeout: int | None = None,
     ) -> None:
         """
         Add an envelope to the dispenser.
@@ -45,8 +46,9 @@ class Dispenser:
             endpoints (list[str]): The endpoints to send the envelope to.
             response_future (asyncio.Future): The future to set the response on.
             sync (bool): True if the message is synchronous. Defaults to False.
+            timeout (int | None): Optional timeout for the HTTP request in seconds.
         """
-        self._envelopes.put_nowait((envelope, endpoints, response_future, sync))
+        self._envelopes.put_nowait((envelope, endpoints, response_future, sync, timeout))
 
     async def _process_envelope(
         self,
@@ -54,6 +56,7 @@ class Dispenser:
         endpoints: list[str],
         response_future: asyncio.Future,
         sync: bool,
+        timeout: int | None = None,
     ) -> None:
         """
         Process a single envelope by sending it and updating the response future.
@@ -63,12 +66,14 @@ class Dispenser:
             endpoints (list[str]): The endpoints to send the envelope to.
             response_future (asyncio.Future): The future to set the response on.
             sync (bool): True if the message is synchronous.
+            timeout (int | None): Optional timeout for the HTTP request in seconds.
         """
         try:
             result: MsgStatus | Envelope = await send_exchange_envelope(
                 envelope=env,
                 endpoints=endpoints,
                 sync=sync,
+                timeout=timeout,
             )
             if not response_future.done():
                 response_future.set_result(result)
@@ -82,16 +87,20 @@ class Dispenser:
         """Run the dispenser routine."""
         try:
             while True:
-                env, endpoints, response_future, sync = await self._envelopes.get()
-                await self._process_envelope(env, endpoints, response_future, sync)
+                env, endpoints, response_future, sync, timeout = await self._envelopes.get()
+                await self._process_envelope(env, endpoints, response_future, sync, timeout)
         except (asyncio.CancelledError, KeyboardInterrupt):
             LOGGER.info("Shutting down dispenser...")
 
             # Drain remaining messages from queue using get_nowait()
             while not self._envelopes.empty():
                 try:
-                    env, endpoints, response_future, sync = self._envelopes.get_nowait()
-                    await self._process_envelope(env, endpoints, response_future, sync)
+                    env, endpoints, response_future, sync, timeout = (
+                        self._envelopes.get_nowait()
+                    )
+                    await self._process_envelope(
+                        env, endpoints, response_future, sync, timeout
+                    )
                 except asyncio.QueueEmpty:
                     break
                 except Exception as ex:
