@@ -39,7 +39,7 @@ from uagents_core.types import (
     AgentType,
 )
 
-from uagents.asgi import ASGIServer
+from uagents.asgi import HOST, ASGIServer
 from uagents.communication import Dispenser
 from uagents.config import (
     AVERAGE_BLOCK_INTERVAL,
@@ -328,6 +328,8 @@ class Agent(Sink):
         shutdown_timeout: float = 60.0,
         mark_inactive_on_shutdown: bool = True,
         report_events: bool = True,
+        host: str = HOST,
+        forwarded_allow_ips: str | None = None,
     ):
         """
         Initialize an Agent instance.
@@ -367,10 +369,19 @@ class Agent(Sink):
             report_events (bool): Whether to report lifecycle, message, and error telemetry
             events to Agentverse. Events are only sent if the agent is also registered on
             Agentverse (resolved at startup). Defaults to True.
+            host (str): The host address the agent's server binds to. Defaults to all
+                interfaces ("0.0.0.0"); use "127.0.0.1" to only accept local loopback
+                connections.
+            forwarded_allow_ips (str | None): Comma-separated list of proxy IP
+                addresses whose X-Forwarded-For headers are trusted when deriving
+                the client address. Defaults to the loopback addresses only.
+                Set this only when the agent runs behind a trusted reverse proxy.
         """
         self._init_done = False
         self._name = name
         self._port = port or 8000
+        self._host = host
+        self._forwarded_allow_ips = forwarded_allow_ips
 
         self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
 
@@ -483,6 +494,8 @@ class Agent(Sink):
             loop=self._loop,
             queries=self._queries,
             logger=self._logger,
+            host=self._host,
+            forwarded_allow_ips=self._forwarded_allow_ips,
         )
 
         # define default error message handler
@@ -493,7 +506,7 @@ class Agent(Sink):
         # define default rest message handlers if agent inspector is enabled
         if enable_agent_inspector:
 
-            @self.on_rest_get("/agent_info", AgentInfo)  # type: ignore
+            @self.on_rest_get("/agent_info", AgentInfo, public=True)  # type: ignore
             async def _handle_get_info(_ctx: Context) -> AgentInfo:
                 return AgentInfo(
                     address=self.address,
@@ -1011,6 +1024,7 @@ class Agent(Sink):
         endpoint: str,
         request: type[Model] | None,
         response: type[Model],
+        public: bool = False,
     ):
         if self._init_done and self._server.has_rest_endpoint(method, endpoint):
             self._logger.warning(
@@ -1026,20 +1040,43 @@ class Agent(Sink):
             self._rest_handlers[(method, endpoint)] = handler
 
             self._server.add_rest_endpoint(
-                self.address, method, endpoint, request, response
+                self.address, method, endpoint, request, response, public=public
             )
 
             return handler
 
         return decorator_on_rest
 
-    def on_rest_get(self, endpoint: str, response: type[Model]):
-        """Add a handler for a GET REST endpoint."""
-        return self._on_rest("GET", endpoint, None, response)
+    def on_rest_get(self, endpoint: str, response: type[Model], public: bool = False):
+        """Add a handler for a GET REST endpoint.
 
-    def on_rest_post(self, endpoint: str, request: type[Model], response: type[Model]):
-        """Add a handler for a POST REST endpoint."""
-        return self._on_rest("POST", endpoint, request, response)
+        Args:
+            endpoint (str): The path of the endpoint.
+            response (type[Model]): The model defining the response schema.
+            public (bool): Whether the endpoint is accessible to non-loopback
+                clients. Defaults to False, meaning the endpoint can only be
+                reached from the local machine.
+        """
+        return self._on_rest("GET", endpoint, None, response, public=public)
+
+    def on_rest_post(
+        self,
+        endpoint: str,
+        request: type[Model],
+        response: type[Model],
+        public: bool = False,
+    ):
+        """Add a handler for a POST REST endpoint.
+
+        Args:
+            endpoint (str): The path of the endpoint.
+            request (type[Model]): The model defining the request schema.
+            response (type[Model]): The model defining the response schema.
+            public (bool): Whether the endpoint is accessible to non-loopback
+                clients. Defaults to False, meaning the endpoint can only be
+                reached from the local machine.
+        """
+        return self._on_rest("POST", endpoint, request, response, public=public)
 
     def _add_event_handler(
         self,
@@ -1661,6 +1698,8 @@ class Bureau:
         loop: asyncio.AbstractEventLoop | None = None,
         log_level: int | str = logging.INFO,
         shutdown_timeout: int = 60,
+        host: str = HOST,
+        forwarded_allow_ips: str | None = None,
     ):
         """
         Initialize a Bureau instance.
@@ -1678,10 +1717,19 @@ class Bureau:
             loop (asyncio.AbstractEventLoop | None): The event loop.
             log_level (int | str): The logging level for the bureau.
             shutdown_timeout (int): The timeout for shutting down the bureau.
+            host (str): The host address the bureau's server binds to. Defaults to
+                all interfaces ("0.0.0.0"); use "127.0.0.1" to only accept local
+                loopback connections.
+            forwarded_allow_ips (str | None): Comma-separated list of proxy IP
+                addresses whose X-Forwarded-For headers are trusted when deriving
+                the client address. Defaults to the loopback addresses only.
+                Set this only when the agent runs behind a trusted reverse proxy.
         """
         self._loop = loop or asyncio.get_event_loop_policy().get_event_loop()
         self._agents: list[Agent] = []
         self._port = port or 8000
+        self._host = host
+        self._forwarded_allow_ips = forwarded_allow_ips
         self._queries: dict[tuple[str, uuid.UUID], asyncio.Future] = {}
         self._logger = get_logger("bureau", log_level)
         self._server = ASGIServer(
@@ -1689,6 +1737,8 @@ class Bureau:
             loop=self._loop,
             queries=self._queries,
             logger=self._logger,
+            host=self._host,
+            forwarded_allow_ips=self._forwarded_allow_ips,
         )
         self._agentverse = parse_agentverse_config(agentverse)
         self._endpoints = parse_endpoint_config(

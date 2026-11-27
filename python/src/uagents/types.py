@@ -49,6 +49,7 @@ class RestHandlerDetails(BaseModel):
     endpoint: str
     request_model: type[Model] | None = None
     response_model: type[Model | BaseModel]
+    public: bool = False
 
 
 class MsgInfo(BaseModel):

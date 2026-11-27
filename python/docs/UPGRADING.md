@@ -4,9 +4,89 @@ This guide helps you migrate between major versions of uAgents and uagents-core.
 
 ## Table of Contents
 
+- [REST Endpoint Access Control](#rest-endpoint-access-control)
 - [Error Propagation Fix (0.4.1)](#error-propagation-fix-041)
 - [From uagents-core 0.3.x to 0.4.0](#from-uagents-core-03x-to-040)
 - [Version Compatibility Matrix](#version-compatibility-matrix)
+
+---
+
+## REST Endpoint Access Control
+
+### What Changed
+
+REST endpoints registered with `on_rest_get` and `on_rest_post` are now **only
+accessible from the local machine by default**. Previously, user-defined REST
+endpoints were reachable from any client that could connect to the agent's
+server.
+
+This is a **behavioral change** -- the new default is secure-by-default. To
+make an endpoint publicly accessible, pass `public=True`:
+
+```python
+from uagents import Agent, Context, Model
+
+agent = Agent(name="alice")
+
+
+class Request(Model):
+    text: str
+
+
+class Response(Model):
+    text: str
+
+
+# local-only (new default)
+@agent.on_rest_get("/local-status", Response)
+async def get_status(_ctx: Context) -> Response:
+    return Response(text="OK")
+
+
+# publicly accessible
+@agent.on_rest_post("/submit-order", Request, Response, public=True)
+async def submit_order(_ctx: Context, req: Request) -> Response:
+    return Response(text=f"Received: {req.text}")
+```
+
+### Who Is Affected
+
+If you expose REST endpoints that are consumed by clients on other machines
+(for example, a frontend or webhook service calling your deployed agent), those
+requests will now receive a `403 Forbidden` response unless the endpoint is
+registered with `public=True`.
+
+Requests from `127.0.0.1` and `::1` are always allowed, regardless of the
+`public` flag.
+
+### Related: Configurable Host Binding
+
+The built-in inspector endpoints keep their existing behaviour: `/agent_info`
+remains publicly accessible, while `/messages`, `/connect` and `/disconnect`
+remain local-only.
+
+Additionally, `Agent` and `Bureau` now accept a `host` argument that controls
+the address the server binds to (default `"0.0.0.0"`, i.e. all interfaces).
+Use `Agent(host="127.0.0.1")` to prevent the server from accepting any
+external connections at all:
+
+```python
+agent = Agent(name="alice", host="127.0.0.1")
+```
+
+### Proxy Header Trust Change
+
+The server no longer trusts `X-Forwarded-For` headers from arbitrary peers.
+Previously every client could control the apparent source address via the
+`X-Forwarded-For` header, which allowed bypassing the local-only restriction
+of the inspector endpoints. The server now only accepts forwarded headers
+from loopback proxies (uvicorn's default `forwarded_allow_ips`). If your
+agent runs behind a trusted reverse proxy and relies on forwarded headers,
+pass the proxy addresses explicitly:
+
+```python
+agent = Agent(name="alice", forwarded_allow_ips="10.0.0.5,10.0.0.6")
+```
 
 ---
 

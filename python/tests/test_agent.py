@@ -40,6 +40,22 @@ class TestAgent(unittest.TestCase):
         self.assertTrue(self.agent._dispatcher.contains(self.agent.address))
         self.assertTrue(isinstance(self.agent._resolver, GlobalResolver))
 
+    def test_agent_host_binding(self):
+        self.assertEqual(alice._server._host, "0.0.0.0")
+        self.assertIsNone(alice._server._forwarded_allow_ips)
+        local_agent = Agent(
+            name="local", enable_agent_inspector=False, host="127.0.0.1"
+        )
+        self.assertEqual(local_agent._server._host, "127.0.0.1")
+        proxied_agent = Agent(
+            name="proxied",
+            enable_agent_inspector=False,
+            forwarded_allow_ips="10.0.0.5,10.0.0.6",
+        )
+        self.assertEqual(
+            proxied_agent._server._forwarded_allow_ips, "10.0.0.5,10.0.0.6"
+        )
+
     def test_agent_on_interval(self):
         @self.agent.on_interval(period=10)
         def _(_ctx: Context):
@@ -110,6 +126,18 @@ class TestAgent(unittest.TestCase):
         self.assertEqual(handler.method, "GET")
         self.assertIsNone(handler.request_model)
         self.assertEqual(handler.response_model, Response)
+        self.assertFalse(handler.public)
+
+    def test_agent_on_rest_get_public(self):
+        @self.agent.on_rest_get("/get-public", Response, public=True)
+        def _(_ctx: Context):
+            return {}
+
+        handler = self.agent._server._rest_handler_map[
+            (self.agent.address, "GET", "/get-public")
+        ]
+        self.assertTrue(isinstance(handler, RestHandlerDetails))
+        self.assertTrue(handler.public)
 
     def test_agent_on_rest_post(self):
         @self.agent.on_rest_post("/post", Message, Response)
@@ -127,3 +155,15 @@ class TestAgent(unittest.TestCase):
         self.assertEqual(handler.method, "POST")
         self.assertEqual(handler.request_model, Message)
         self.assertEqual(handler.response_model, Response)
+        self.assertFalse(handler.public)
+
+    def test_agent_on_rest_post_public(self):
+        @self.agent.on_rest_post("/post-public", Message, Response, public=True)
+        def _(_ctx: Context, _req: Message):
+            return Response(response="test")
+
+        handler = self.agent._server._rest_handler_map[
+            (self.agent.address, "POST", "/post-public")
+        ]
+        self.assertTrue(isinstance(handler, RestHandlerDetails))
+        self.assertTrue(handler.public)
