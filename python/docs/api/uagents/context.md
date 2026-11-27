@@ -331,7 +331,7 @@ contexts, like 'replies', 'message_received', or 'protocol'.
 
 
 
-#### send_and_receive[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L589)
+#### send_and_receive[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L594)
 ```python
 async def send_and_receive(
     destination: str,
@@ -359,7 +359,7 @@ Send a message to the specified destination and receive a response.
 
 
 
-## ExternalContext Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L655)
+## ExternalContext Objects[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L660)
 
 ```python
 class ExternalContext(InternalContext)
@@ -379,7 +379,7 @@ Represents the reactive context in which messages are handled and processed.
 
 
 
-#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L669)
+#### __init__[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L674)
 ```python
 def __init__(message_received: MsgInfo,
              queries: dict[tuple[str, uuid.UUID], asyncio.Future]
@@ -402,7 +402,7 @@ Initialize the ExternalContext instance and attributes needed from the InternalC
 
 
 
-#### validate_replies[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L694)
+#### validate_replies[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L699)
 ```python
 def validate_replies(message_type: type[Model]) -> None
 ```
@@ -415,7 +415,7 @@ If the context specifies replies, ensure that a valid reply was sent.
 
 
 
-#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L735)
+#### send[↗](https://github.com/fetchai/uAgents/blob/main/python/src/uagents/context.py#L740)
 ```python
 async def send(destination: str,
                message: Model,
